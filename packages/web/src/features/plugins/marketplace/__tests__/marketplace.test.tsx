@@ -124,8 +124,7 @@ describe('useMarketplaceListings (real daemon)', () => {
     const qc = new QueryClient({
       defaultOptions: { queries: { retry: false, staleTime: Infinity } },
     });
-    return (props: { children: React.ReactNode }) =>
-      wrapWithQuery(props.children, qc);
+    return (props: { children: React.ReactNode }) => wrapWithQuery(props.children, qc);
   }
 
   it('filters by tag intersection — all provided tags must match', async () => {
@@ -134,7 +133,9 @@ describe('useMarketplaceListings (real daemon)', () => {
       () => useMarketplaceListings({ search: '', tags: ['security'] }, 'tenant-1'),
       { wrapper },
     );
-    await waitFor(() => { expect(result.current.length).toBeGreaterThan(0); });
+    await waitFor(() => {
+      expect(result.current.length).toBeGreaterThan(0);
+    });
     for (const l of result.current) {
       expect(l.tags).toContain('security');
     }
@@ -150,8 +151,12 @@ describe('useMarketplaceListings (real daemon)', () => {
       () => useMarketplaceListings({ search: '', tags: ['security', 'waf'] }, 'tenant-1'),
       { wrapper },
     );
-    await waitFor(() => { expect(single.result.current.length).toBeGreaterThan(0); });
-    await waitFor(() => { expect(double.result.current.length).toBeGreaterThanOrEqual(0); });
+    await waitFor(() => {
+      expect(single.result.current.length).toBeGreaterThan(0);
+    });
+    await waitFor(() => {
+      expect(double.result.current.length).toBeGreaterThanOrEqual(0);
+    });
     expect(double.result.current.length).toBeLessThanOrEqual(single.result.current.length);
     for (const l of double.result.current) {
       expect(l.tags).toContain('security');
@@ -165,7 +170,9 @@ describe('useMarketplaceListings (real daemon)', () => {
       () => useMarketplaceListings({ search: 'rioku', tags: [] }, 'tenant-1'),
       { wrapper },
     );
-    await waitFor(() => { expect(result.current.length).toBeGreaterThan(0); });
+    await waitFor(() => {
+      expect(result.current.length).toBeGreaterThan(0);
+    });
     for (const l of result.current) {
       const composite = [l.display_name, l.author, l.slug].join(' ').toLowerCase();
       expect(composite).toContain('rioku');

@@ -65,8 +65,9 @@ describe('sideloadPlugin', () => {
 
   it('falls back to statusText when the body is not JSON', async () => {
     server.use(
-      http.post('/api/v1/t/acme/plugins/sideload', () =>
-        new HttpResponse('Bad Request', { status: 400, statusText: 'Bad Request' }),
+      http.post(
+        '/api/v1/t/acme/plugins/sideload',
+        () => new HttpResponse('Bad Request', { status: 400, statusText: 'Bad Request' }),
       ),
     );
 

@@ -45,9 +45,7 @@ describe('<ToolsTab>', () => {
     wrap(<ToolsTab tenant={TENANT} serverId="mcp-tools" />);
 
     await waitFor(() => {
-      expect(
-        screen.getByText(/has not exposed any tools yet/i),
-      ).toBeInTheDocument();
+      expect(screen.getByText(/has not exposed any tools yet/i)).toBeInTheDocument();
     });
   });
 

@@ -74,7 +74,11 @@ export function ApiKeyFullPage({ tenantId, tenantSlug, keyId }: ApiKeyFullPagePr
   if (!key) {
     return (
       <Alert icon={<IconAlertCircle size={16} />} color="red" variant="light">
-        API key not found in tenant <Text span fw={600}>{tenantSlug}</Text>.
+        API key not found in tenant{' '}
+        <Text span fw={600}>
+          {tenantSlug}
+        </Text>
+        .
       </Alert>
     );
   }
@@ -302,15 +306,14 @@ function ProfileRow({
       <Text size="sm" fw={500} w={140}>
         {label}:
       </Text>
-      {valueElement ?? (
-        mono ? (
+      {valueElement ??
+        (mono ? (
           <Text size="sm" ff="monospace">
             {value}
           </Text>
         ) : (
           <Text size="sm">{value}</Text>
-        )
-      )}
+        ))}
     </Group>
   );
 }

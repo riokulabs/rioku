@@ -35,9 +35,7 @@ export function ImpersonationBanner() {
 
   if (!session) return null;
 
-  const tenant = tenants.find(
-    (t) => t.id === session.tenant_id || t.slug === session.tenant_id,
-  );
+  const tenant = tenants.find((t) => t.id === session.tenant_id || t.slug === session.tenant_id);
   const tenantName = tenant?.name ?? session.tenant_id;
   const shortId = session.id.slice(0, 12);
 

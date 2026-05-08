@@ -23,10 +23,7 @@ import {
   TextInput,
   Title,
 } from '@mantine/core';
-import {
-  useGetSettingsNetwork,
-  usePutSettingsNetwork,
-} from '@/api/generated/settings/settings';
+import { useGetSettingsNetwork, usePutSettingsNetwork } from '@/api/generated/settings/settings';
 import { ValidationError } from '@/api/errors';
 import { notify } from '@/hooks/use-notify';
 import { unwrap } from './_unwrap';
@@ -95,10 +92,7 @@ export function NetworkRealSection({ tenant }: NetworkRealSectionProps) {
           idleTimeoutSeconds: idleTimeout,
         },
       });
-      notify.success(
-        'Network config saved',
-        'Caddy reloaded with new configuration.',
-      );
+      notify.success('Network config saved', 'Caddy reloaded with new configuration.');
       setTouched(false);
       await query.refetch();
     } catch (err) {
@@ -185,8 +179,8 @@ export function NetworkRealSection({ tenant }: NetworkRealSectionProps) {
         </Button>
       </Group>
       <Text size="xs" c="dimmed">
-        Saving triggers a Caddy reload server-side; new listen addresses take
-        effect immediately. Audit emitted server-side.
+        Saving triggers a Caddy reload server-side; new listen addresses take effect immediately.
+        Audit emitted server-side.
       </Text>
     </Stack>
   );

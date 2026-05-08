@@ -1,4 +1,3 @@
- 
 /**
  * Tests for the notification-routing API — daemon-backed (stage-2).
  */
@@ -167,8 +166,9 @@ describe('updateRoutingRule', () => {
 describe('deleteRoutingRule', () => {
   it('returns true on 204 / false on error', async () => {
     server.use(
-      http.delete(`/api/v1/t/${TENANT}/notification-routing/${RULE_A.id}`, () =>
-        new HttpResponse(null, { status: 204 }),
+      http.delete(
+        `/api/v1/t/${TENANT}/notification-routing/${RULE_A.id}`,
+        () => new HttpResponse(null, { status: 204 }),
       ),
       http.delete(`/api/v1/t/${TENANT}/notification-routing/nope`, () =>
         HttpResponse.json({ title: 'gone' }, { status: 404 }),
@@ -219,17 +219,15 @@ describe('reorderRoutingRules', () => {
 
 describe('previewMatch', () => {
   it('matches "*" against any event', () => {
-    expect(
-      previewMatch('*', { category: 'audit.create', severity: 'info' }).match,
-    ).toBe(true);
+    expect(previewMatch('*', { category: 'audit.create', severity: 'info' }).match).toBe(true);
   });
   it('prefix matches', () => {
-    expect(
-      previewMatch('audit.*', { category: 'audit.create', severity: 'info' }).match,
-    ).toBe(true);
-    expect(
-      previewMatch('audit.*', { category: 'system.boot', severity: 'info' }).match,
-    ).toBe(false);
+    expect(previewMatch('audit.*', { category: 'audit.create', severity: 'info' }).match).toBe(
+      true,
+    );
+    expect(previewMatch('audit.*', { category: 'system.boot', severity: 'info' }).match).toBe(
+      false,
+    );
   });
   it('AND-combines tokens', () => {
     expect(

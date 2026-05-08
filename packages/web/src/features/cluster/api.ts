@@ -102,10 +102,9 @@ async function fetchClusterNodes(signal?: AbortSignal): Promise<ClusterNode[]> {
 }
 
 async function postRemoveNode(nodeId: string): Promise<void> {
-  await customFetch<{ data: unknown }>(
-    `/cluster/nodes/${encodeURIComponent(nodeId)}/remove`,
-    { method: 'POST' },
-  );
+  await customFetch<{ data: unknown }>(`/cluster/nodes/${encodeURIComponent(nodeId)}/remove`, {
+    method: 'POST',
+  });
 }
 
 // ─── Selectors ────────────────────────────────────────────────────────────────

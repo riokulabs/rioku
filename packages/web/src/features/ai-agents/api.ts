@@ -17,12 +17,7 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { customFetch } from '@/api/mutator';
 import type { AiAgent, AiTool, AiTrace } from '@/api/resources';
-import type {
-  AgentFilter,
-  CreateAgentInput,
-  InvokeAgentInput,
-  UpdateAgentInput,
-} from './types';
+import type { AgentFilter, CreateAgentInput, InvokeAgentInput, UpdateAgentInput } from './types';
 
 // ─── Types — daemon-side shapes ───────────────────────────────────────────────
 
@@ -101,7 +96,8 @@ function adaptAgent(d: DaemonAgent): AiAgent {
     tool_ids: Array.isArray(g.toolIds) ? [...g.toolIds] : [],
     enabled: d.enabled,
     role_ids: Array.isArray(g.roleIds) ? [...g.roleIds] : [],
-    max_tokens_per_request: typeof g.maxTokensPerRequest === 'number' ? g.maxTokensPerRequest : 4096,
+    max_tokens_per_request:
+      typeof g.maxTokensPerRequest === 'number' ? g.maxTokensPerRequest : 4096,
     temperature: typeof g.temperature === 'number' ? g.temperature : 0.7,
     stop_sequences: Array.isArray(g.stopSequences) ? [...g.stopSequences] : [],
     created_at: d.createdAt,
@@ -432,8 +428,7 @@ export function invokeAgent(
   handlers: InvokeAgentHandlers,
 ): { promise: Promise<void>; abort: () => void } {
   const controller = new AbortController();
-  const base: string =
-    (import.meta.env.VITE_API_BASE as string | undefined) ?? '/api/v1';
+  const base: string = (import.meta.env.VITE_API_BASE as string | undefined) ?? '/api/v1';
   const url = `${base}${agentBase(tenant)}/${id}/invoke`;
 
   const promise = (async () => {
@@ -454,9 +449,7 @@ export function invokeAgent(
       });
     } catch (cause) {
       if (controller.signal.aborted) return;
-      handlers.onError(
-        cause instanceof Error ? cause : new Error('invoke network error'),
-      );
+      handlers.onError(cause instanceof Error ? cause : new Error('invoke network error'));
       return;
     }
     if (!res.ok) {

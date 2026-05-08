@@ -22,10 +22,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { isRealApi } from '@/api/mode';
 import { useImpersonation } from '@/hooks/use-impersonation';
-import {
-  useTouchImpersonation,
-  getListImpersonationSessionsQueryKey,
-} from './realApi';
+import { useTouchImpersonation, getListImpersonationSessionsQueryKey } from './realApi';
 import { useImpersonationSession } from './use-impersonation-session';
 
 export interface UseImpersonationIdleTimerOptions {

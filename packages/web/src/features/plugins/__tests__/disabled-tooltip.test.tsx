@@ -31,9 +31,7 @@ beforeEach(() => {
 describe('<PluginDisabledTooltip>', () => {
   it('renders the unsupported badge when sideload kind is required + flag off', () => {
     server.use(
-      http.get('/api/v1/capabilities', () =>
-        HttpResponse.json({ sideload_enabled: false }),
-      ),
+      http.get('/api/v1/capabilities', () => HttpResponse.json({ sideload_enabled: false })),
     );
     wrap(
       <PluginDisabledTooltip kind="sideload">
@@ -46,9 +44,7 @@ describe('<PluginDisabledTooltip>', () => {
 
   it('passes children through when the capability is available', async () => {
     server.use(
-      http.get('/api/v1/capabilities', () =>
-        HttpResponse.json({ sideload_enabled: true }),
-      ),
+      http.get('/api/v1/capabilities', () => HttpResponse.json({ sideload_enabled: true })),
     );
     wrap(
       <PluginDisabledTooltip kind="sideload">
@@ -57,9 +53,9 @@ describe('<PluginDisabledTooltip>', () => {
     );
     // Wait for the capabilities query to settle, then the tooltip
     // wrapper should disappear and only the children remain.
-    await waitFor(() =>
-      { expect(screen.queryByLabelText('plugin-disabled-tooltip')).toBeNull(); },
-    );
+    await waitFor(() => {
+      expect(screen.queryByLabelText('plugin-disabled-tooltip')).toBeNull();
+    });
     expect(screen.getByTestId('install-button')).toBeTruthy();
   });
 

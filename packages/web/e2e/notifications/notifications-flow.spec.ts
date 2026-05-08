@@ -52,7 +52,10 @@ test.describe('plan-06 notifications flow', () => {
     // simplest config payload.
     const kindSelect = page.getByLabel(/kind/i).first();
     await kindSelect.click();
-    await page.getByRole('option', { name: /webhook/i }).first().click();
+    await page
+      .getByRole('option', { name: /webhook/i })
+      .first()
+      .click();
 
     // Some tests pass a webhook_url field; if not visible the kind
     // panel rendered a different control — fall through to submit.
@@ -75,11 +78,16 @@ test.describe('plan-06 notifications flow', () => {
     // routing rules have not been wired in the test sandbox.
     const emptyState = page.getByText(/no delivery log entries|no entries/i);
     const anyRow = page.getByTestId(/delivery-log-row|notification-log-row/).first();
-    await expect.poll(async () => {
-      const e = await emptyState.isVisible().catch(() => false);
-      const r = await anyRow.isVisible().catch(() => false);
-      return e || r;
-    }, { timeout: 10_000 }).toBe(true);
+    await expect
+      .poll(
+        async () => {
+          const e = await emptyState.isVisible().catch(() => false);
+          const r = await anyRow.isVisible().catch(() => false);
+          return e || r;
+        },
+        { timeout: 10_000 },
+      )
+      .toBe(true);
 
     // 4. Inbox shows notifications. Open the bell dropdown and assert
     //    at least one row OR the empty state is rendered (sandbox seeds
@@ -94,11 +102,16 @@ test.describe('plan-06 notifications flow', () => {
     // Either a categorized group is present OR the empty state shows.
     const anyGroup = dropdown.locator('[data-testid^="inbox-group-"]').first();
     const emptyInbox = dropdown.getByText(/no notifications/i);
-    await expect.poll(async () => {
-      const g = await anyGroup.isVisible().catch(() => false);
-      const e = await emptyInbox.isVisible().catch(() => false);
-      return g || e;
-    }, { timeout: 10_000 }).toBe(true);
+    await expect
+      .poll(
+        async () => {
+          const g = await anyGroup.isVisible().catch(() => false);
+          const e = await emptyInbox.isVisible().catch(() => false);
+          return g || e;
+        },
+        { timeout: 10_000 },
+      )
+      .toBe(true);
 
     // Optional: mailpit assertion. Only runs when NOTIFICATIONS_MAILPIT_URL
     // is set (sandbox docker-compose maps mailpit at localhost:8025).

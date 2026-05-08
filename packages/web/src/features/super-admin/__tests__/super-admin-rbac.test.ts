@@ -66,13 +66,7 @@ describe('Super-admin route guard — admin:cross-tenant-read', () => {
 
   it('redirects a tenant-admin (no cross-tenant grant) away from /admin/tenants', async () => {
     seedCurrentUser(
-      makeUser([
-        'service:write',
-        'route:write',
-        'user:invite',
-        'user:disable',
-        'role:write',
-      ]),
+      makeUser(['service:write', 'route:write', 'user:invite', 'user:disable', 'role:write']),
     );
     const guard = requirePermissions({ required: ['admin:cross-tenant-read'] });
     let thrown: unknown;
@@ -101,9 +95,7 @@ describe('Super-admin route guard — admin:cross-tenant-read', () => {
   });
 
   it('admits a super-admin with admin:cross-tenant-read', async () => {
-    seedCurrentUser(
-      makeUser(['admin:cross-tenant-read', 'admin:cross-tenant-write']),
-    );
+    seedCurrentUser(makeUser(['admin:cross-tenant-read', 'admin:cross-tenant-write']));
     const guard = requirePermissions({ required: ['admin:cross-tenant-read'] });
     await expect(guard()).resolves.toBe(true);
   });

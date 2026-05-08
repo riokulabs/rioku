@@ -39,12 +39,8 @@ describe('ai-rate-limits daemon-hooks (T6)', () => {
     server.use(
       http.get(BASE, () => HttpResponse.json({ items: [sample], total: 1 })),
       http.get(`${BASE}/rl-1`, () => HttpResponse.json(sample)),
-      http.post(BASE, () =>
-        HttpResponse.json({ ...sample, id: 'rl-new' }, { status: 201 }),
-      ),
-      http.put(`${BASE}/rl-1`, () =>
-        HttpResponse.json({ ...sample, threshold: 99 }),
-      ),
+      http.post(BASE, () => HttpResponse.json({ ...sample, id: 'rl-new' }, { status: 201 })),
+      http.put(`${BASE}/rl-1`, () => HttpResponse.json({ ...sample, threshold: 99 })),
       http.delete(`${BASE}/rl-1`, () => new HttpResponse(null, { status: 204 })),
       http.post(`${BASE}/rl-1/simulate`, () =>
         HttpResponse.json({ rateLimitId: 'rl-1', hits: 0, window: '1h' }),

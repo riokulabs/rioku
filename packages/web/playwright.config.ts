@@ -13,7 +13,9 @@ export default defineConfig({
   // server and causes timeout flakes rather than reveals real bugs.
   workers: process.env.CI ? 1 : 2,
   // In CI use line reporter (compact, shard-friendly); locally use list + html.
-  reporter: process.env.CI ? [['line'], ['html', { open: 'never' }]] : [['list'], ['html', { open: 'never' }]],
+  reporter: process.env.CI
+    ? [['line'], ['html', { open: 'never' }]]
+    : [['list'], ['html', { open: 'never' }]],
   use: {
     baseURL: 'http://localhost:5173',
     trace: 'on-first-retry',

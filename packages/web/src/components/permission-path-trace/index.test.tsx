@@ -23,10 +23,7 @@ let userRoleAssignments: Record<string, { id: string; name: string }[]> = {};
 
 vi.mock('@/api/generated/roles/roles', () => ({
   useListRoles: () => ({ data: { data: { roles: allRoles } } }),
-  useListUserRoles: (
-    _tenant: string,
-    userId: string,
-  ) => ({
+  useListUserRoles: (_tenant: string, userId: string) => ({
     data: { data: { roles: userRoleAssignments[userId] ?? [] } },
     isLoading: false,
   }),

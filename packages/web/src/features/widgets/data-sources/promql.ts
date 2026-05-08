@@ -35,10 +35,7 @@ export interface PromQLResult {
  * Run a PromQL query and normalise the response into a uniform
  * `series[]` shape. Throws on Prometheus-level errors (`status: 'error'`).
  */
-export async function fetchPromQL(
-  tenant: string,
-  body: PromQLQueryRequest,
-): Promise<PromQLResult> {
+export async function fetchPromQL(tenant: string, body: PromQLQueryRequest): Promise<PromQLResult> {
   // `customFetch` returns the parsed body; orval's wrapper response
   // type is a fiction (see `features/widgets/daemon-api.ts`). Cast
   // through `unknown` to swap the wrapper for the body schema.
@@ -68,7 +65,11 @@ export function normalisePromQLResponse(raw: PromQLQueryResponse): PromQLResult 
   const series: PromQLSeries[] = [];
   for (const rawEntry of result) {
     if (!rawEntry || typeof rawEntry !== 'object') continue;
-    const entry = rawEntry as { metric?: Record<string, string>; value?: unknown; values?: unknown };
+    const entry = rawEntry as {
+      metric?: Record<string, string>;
+      value?: unknown;
+      values?: unknown;
+    };
     const labels = entry.metric ?? {};
 
     if (resultType === 'matrix' && Array.isArray(entry.values)) {

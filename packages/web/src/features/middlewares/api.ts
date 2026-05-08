@@ -23,25 +23,15 @@ import type { Middleware } from '@/api/resources';
 import { useMiddlewareListReal, useMiddlewareDetailReal } from './api.stage2';
 import type { MiddlewareFilter, MiddlewareInput, MiddlewareUpdateInput } from './types';
 import { MiddlewareInUseError } from './types';
-import {
-  fromProtoMiddleware,
-  toProtoMiddlewareCreate,
-  toProtoMiddlewarePatch,
-} from './adapter';
+import { fromProtoMiddleware, toProtoMiddlewareCreate, toProtoMiddlewarePatch } from './adapter';
 
 // ─── Selectors ────────────────────────────────────────────────────────────────
 
-export function useMiddlewareList(
-  tenantId: string,
-  filter: MiddlewareFilter,
-): Middleware[] {
+export function useMiddlewareList(tenantId: string, filter: MiddlewareFilter): Middleware[] {
   return useMiddlewareListReal(tenantId, filter).middlewares;
 }
 
-export function useMiddlewareDetail(
-  tenantId: string,
-  id: string,
-): Middleware | undefined {
+export function useMiddlewareDetail(tenantId: string, id: string): Middleware | undefined {
   return useMiddlewareDetailReal(tenantId, id);
 }
 
@@ -73,10 +63,7 @@ export async function updateMiddleware(
   return fromProtoMiddleware(res.data, tenantId);
 }
 
-export async function deleteMiddleware(
-  tenantId: string,
-  id: string,
-): Promise<void> {
+export async function deleteMiddleware(tenantId: string, id: string): Promise<void> {
   try {
     await orvalDeleteMiddleware(tenantId, id);
   } catch (err: unknown) {

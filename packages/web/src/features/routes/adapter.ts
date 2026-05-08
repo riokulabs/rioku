@@ -74,7 +74,9 @@ export function fromProtoRoute(proto: V1Route, tenantId: string): Route {
   const rewritePath = labels[LBL_REWRITE_PATH] ?? undefined;
   const headersAdd: Record<string, string> = (() => {
     try {
-      return labels[LBL_HEADERS_ADD] ? (JSON.parse(labels[LBL_HEADERS_ADD]) as Record<string, string>) : {};
+      return labels[LBL_HEADERS_ADD]
+        ? (JSON.parse(labels[LBL_HEADERS_ADD]) as Record<string, string>)
+        : {};
     } catch {
       return {};
     }
@@ -103,7 +105,7 @@ export function fromProtoRoute(proto: V1Route, tenantId: string): Route {
     created_at: proto.createdAt ?? '',
     updated_at: proto.updatedAt ?? '',
     // Note: tenant_id not in V1Route — passed from caller context
-     
+
     ...(tenantId ? { tenant_id: tenantId } : {}),
   };
 }
@@ -174,7 +176,9 @@ export function toProtoRoutePatch(input: Partial<RouteInput>): V1Route {
   if (input.path !== undefined || input.method !== undefined || input.match_kind !== undefined) {
     patch.matchers = [
       {
-        ...(input.method !== undefined ? { methods: input.method === 'ANY' ? [] : [input.method] } : {}),
+        ...(input.method !== undefined
+          ? { methods: input.method === 'ANY' ? [] : [input.method] }
+          : {}),
         ...(input.path !== undefined
           ? {
               paths: [
@@ -192,11 +196,15 @@ export function toProtoRoutePatch(input: Partial<RouteInput>): V1Route {
   // Rebuild labels for admin metadata
   const labelsToSet: Record<string, string> = {};
   if (input.match_kind !== undefined) labelsToSet[LBL_MATCH_KIND] = input.match_kind;
-  if (input.strip_prefix !== undefined) labelsToSet[LBL_STRIP_PREFIX] = input.strip_prefix ? 'true' : 'false';
+  if (input.strip_prefix !== undefined)
+    labelsToSet[LBL_STRIP_PREFIX] = input.strip_prefix ? 'true' : 'false';
   if (input.rewrite_path !== undefined) labelsToSet[LBL_REWRITE_PATH] = input.rewrite_path;
-  if (input.headers_add !== undefined) labelsToSet[LBL_HEADERS_ADD] = JSON.stringify(input.headers_add);
-  if (input.headers_remove !== undefined) labelsToSet[LBL_HEADERS_REMOVE] = input.headers_remove.join(',');
-  if (input.middleware_ids !== undefined) labelsToSet[LBL_MIDDLEWARE_IDS] = input.middleware_ids.join(',');
+  if (input.headers_add !== undefined)
+    labelsToSet[LBL_HEADERS_ADD] = JSON.stringify(input.headers_add);
+  if (input.headers_remove !== undefined)
+    labelsToSet[LBL_HEADERS_REMOVE] = input.headers_remove.join(',');
+  if (input.middleware_ids !== undefined)
+    labelsToSet[LBL_MIDDLEWARE_IDS] = input.middleware_ids.join(',');
 
   if (Object.keys(labelsToSet).length > 0) {
     patch.labels = { labels: labelsToSet };

@@ -57,10 +57,7 @@ export function useAccessPolicyListReal(tenantId: string): {
   return { policies, isLoading, isError, error };
 }
 
-export function useAccessPolicyReal(
-  tenantId: string,
-  id: string,
-): AccessPolicy | undefined {
+export function useAccessPolicyReal(tenantId: string, id: string): AccessPolicy | undefined {
   const { data } = useQuery({
     queryKey: getGetAccessPolicyQueryKey(tenantId, id),
     queryFn: ({ signal }) => orvalGetAccessPolicy(tenantId, id, { signal }),

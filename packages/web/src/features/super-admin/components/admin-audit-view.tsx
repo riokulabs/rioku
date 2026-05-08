@@ -94,8 +94,7 @@ function readNullableString(rec: Record<string, unknown>, ...keys: string[]): st
 }
 
 function normalise(item: unknown, idx: number): AuditView {
-  const rec =
-    item !== null && typeof item === 'object' ? (item as Record<string, unknown>) : {};
+  const rec = item !== null && typeof item === 'object' ? (item as Record<string, unknown>) : {};
   return {
     id: readString(rec, 'id') || `entry-${String(idx)}`,
     at: readString(rec, 'at', 'occurredAt', 'occurred_at', 'createdAt', 'created_at'),
@@ -274,10 +273,13 @@ function AuditEntryDetailDrawer({
               </Box>
             </SimpleGrid>
           ) : (
-            <Alert color="blue" icon={<IconInfoCircle size={14} />} data-testid="chain-unsupported-alert">
-              The daemon does not yet emit hash-chained admin audit entries
-              for this row. Hash-chain verification will activate once the
-              follow-up migration lands.
+            <Alert
+              color="blue"
+              icon={<IconInfoCircle size={14} />}
+              data-testid="chain-unsupported-alert"
+            >
+              The daemon does not yet emit hash-chained admin audit entries for this row. Hash-chain
+              verification will activate once the follow-up migration lands.
             </Alert>
           )}
 
@@ -376,11 +378,7 @@ export function AdminAuditView() {
     return chronologicalEntries.filter((e) => {
       if (actorFilter !== 'all' && e.actor !== actorFilter) return false;
       if (tenantFilter === '__global__' && e.tenantId !== null) return false;
-      if (
-        tenantFilter !== 'all' &&
-        tenantFilter !== '__global__' &&
-        e.tenantId !== tenantFilter
-      )
+      if (tenantFilter !== 'all' && tenantFilter !== '__global__' && e.tenantId !== tenantFilter)
         return false;
       if (kindFilter && !e.action.toLowerCase().includes(kindFilter.toLowerCase())) return false;
       if (dateFrom && e.at && new Date(e.at) < new Date(dateFrom)) return false;

@@ -77,7 +77,11 @@ export function UserFullPage({ userId, tenantId, tenantSlug }: UserFullPageProps
   if (isError || !detail) {
     return (
       <Alert icon={<IconAlertCircle size={16} />} color="red" variant="light">
-        User not found in tenant <Text span fw={600}>{tenantSlug}</Text>.
+        User not found in tenant{' '}
+        <Text span fw={600}>
+          {tenantSlug}
+        </Text>
+        .
       </Alert>
     );
   }
@@ -139,10 +143,7 @@ export function UserFullPage({ userId, tenantId, tenantSlug }: UserFullPageProps
               }
             />
             <ProfileRow label="TOTP" value={user.totp_enabled ? 'enabled' : 'disabled'} />
-            <ProfileRow
-              label="Created"
-              value={new Date(user.created_at).toLocaleString()}
-            />
+            <ProfileRow label="Created" value={new Date(user.created_at).toLocaleString()} />
           </Stack>
         </Tabs.Panel>
 

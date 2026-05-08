@@ -22,12 +22,20 @@ const SEED_PROVIDER = makeProvider({
   id: 'prov-mm-1',
   name: 'ModelHost',
   models: [
-    { upstream_id: 'gpt-4o', alias: 'gpt4o', rate_limit_rpm: 60, daily_quota_tokens: null, enabled: true },
+    {
+      upstream_id: 'gpt-4o',
+      alias: 'gpt4o',
+      rate_limit_rpm: 60,
+      daily_quota_tokens: null,
+      enabled: true,
+    },
   ],
 });
 
 function wrap(ui: React.ReactNode) {
-  const qc = new QueryClient({ defaultOptions: { queries: { retry: false }, mutations: { retry: false } } });
+  const qc = new QueryClient({
+    defaultOptions: { queries: { retry: false }, mutations: { retry: false } },
+  });
   return render(
     <QueryClientProvider client={qc}>
       <MantineProvider>

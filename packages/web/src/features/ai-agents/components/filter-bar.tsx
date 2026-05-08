@@ -29,10 +29,7 @@ export function AgentFilterBar({ tenantId, filter, onChange }: AgentFilterBarPro
   );
 
   const roles = useRoleList(tenantId);
-  const roleOptions = useMemo(
-    () => roles.map((r) => ({ value: r.id, label: r.name })),
-    [roles],
-  );
+  const roleOptions = useMemo(() => roles.map((r) => ({ value: r.id, label: r.name })), [roles]);
 
   useEffect(() => {
     if (filter.search !== debouncedSearch) {

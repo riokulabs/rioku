@@ -41,11 +41,11 @@ function PluginSideloadPage() {
           title="Not available in this build"
           aria-label="sideload-disabled"
         >
-          Plugin sideload is a development-mode-only feature and is disabled on
-          this daemon. Set <code>RIOKU_SIDELOAD_ENABLED=1</code> (or
-          <code> daemon.sideload_enabled: true</code> in <code>rioku.yaml</code>)
-          to enable it. Production deployments should install plugins via the
-          marketplace or the build service instead.
+          Plugin sideload is a development-mode-only feature and is disabled on this daemon. Set{' '}
+          <code>RIOKU_SIDELOAD_ENABLED=1</code> (or
+          <code> daemon.sideload_enabled: true</code> in <code>rioku.yaml</code>) to enable it.
+          Production deployments should install plugins via the marketplace or the build service
+          instead.
         </Alert>
       )}
     </Stack>

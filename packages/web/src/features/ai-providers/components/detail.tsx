@@ -30,12 +30,7 @@ import dayjs from 'dayjs';
 import relativeTime from 'dayjs/plugin/relativeTime';
 import { notify } from '@/hooks/use-notify';
 import { ProviderKindBadge } from '@/features/ai-shared';
-import {
-  useDeleteProvider,
-  useTestProvider,
-  useUpdateProvider,
-  useProviderDetail,
-} from '../api';
+import { useDeleteProvider, useTestProvider, useUpdateProvider, useProviderDetail } from '../api';
 import type { TestProviderResult } from '../types';
 import { ModelManager } from './model-manager';
 
@@ -203,12 +198,7 @@ export function ProviderDetail({ tenant, providerId, onEdit, onClose }: Provider
         >
           Test connection
         </Button>
-        <Button
-          size="sm"
-          variant="subtle"
-          color="red.8"
-          onClick={openDelete}
-        >
+        <Button size="sm" variant="subtle" color="red.8" onClick={openDelete}>
           Delete…
         </Button>
         {testResult && (

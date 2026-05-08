@@ -19,7 +19,9 @@ import { ProviderForm } from '../components/form';
 import { aiProviderHandlers, resetProviderStore } from './msw-handlers';
 
 function wrap(ui: React.ReactNode) {
-  const qc = new QueryClient({ defaultOptions: { queries: { retry: false }, mutations: { retry: false } } });
+  const qc = new QueryClient({
+    defaultOptions: { queries: { retry: false }, mutations: { retry: false } },
+  });
   return render(
     <QueryClientProvider client={qc}>
       <MantineProvider>

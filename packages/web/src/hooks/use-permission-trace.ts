@@ -54,8 +54,7 @@ export function usePermissionTrace(
   });
 
   return useMemo(() => {
-    const userRoles: { id?: string; name?: string }[] =
-      userRolesQuery.data?.data.roles ?? [];
+    const userRoles: { id?: string; name?: string }[] = userRolesQuery.data?.data.roles ?? [];
     const allRoles: { id?: string; name?: string; permissions?: string[] }[] =
       allRolesQuery.data?.data.roles ?? [];
 

@@ -208,8 +208,7 @@ export function EffectivePermissionsPanel({ scope, id, tenantId }: EffectivePerm
 
   const rows = useMemo<ResolvedRow[]>(() => {
     const allRoles: RoleRow[] = (allRolesData?.data.roles ?? []) as RoleRow[];
-    const userRoles: { id?: string; name?: string }[] =
-      userRolesData?.data.roles ?? [];
+    const userRoles: { id?: string; name?: string }[] = userRolesData?.data.roles ?? [];
     if (scope === 'role') {
       const role = allRoles.find((r) => r.id === id);
       if (!role) return [];

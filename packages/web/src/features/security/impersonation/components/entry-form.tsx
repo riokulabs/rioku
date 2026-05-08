@@ -37,10 +37,7 @@ import { isRealApi } from '@/api/mode';
 import { useListUsers } from '@/api/generated/users/users';
 import { useDirtyForm } from '@/hooks/use-dirty-form';
 import { useImpersonation } from '@/hooks/use-impersonation';
-import {
-  useStartImpersonation,
-  getListImpersonationSessionsQueryKey,
-} from '../realApi';
+import { useStartImpersonation, getListImpersonationSessionsQueryKey } from '../realApi';
 import { ProfileToggle } from './profile-toggle';
 import { impersonationFormSchema, type ImpersonationFormValues } from '../schemas';
 

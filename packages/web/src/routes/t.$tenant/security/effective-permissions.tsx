@@ -50,9 +50,8 @@ function EffectivePermissionsPage() {
       </Group>
 
       <Text size="sm" c="dimmed">
-        Computed permission set for a user, including direct grants, inherited
-        parent role grants, and RBAC policy contributions. Each permission is
-        annotated with its source path.
+        Computed permission set for a user, including direct grants, inherited parent role grants,
+        and RBAC policy contributions. Each permission is annotated with its source path.
       </Text>
 
       <Group>
@@ -79,11 +78,7 @@ function EffectivePermissionsPage() {
         </Alert>
       ) : (
         <Card withBorder padding="md">
-          <EffectivePermissionsPanel
-            scope="user"
-            id={selectedUserId}
-            tenantId={tenantId}
-          />
+          <EffectivePermissionsPanel scope="user" id={selectedUserId} tenantId={tenantId} />
         </Card>
       )}
     </Stack>

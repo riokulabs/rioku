@@ -143,9 +143,7 @@ describe('UserDetail — delete flow', () => {
       http.get(`${BASE}/t/${TENANT_ID}/users/user-2`, () =>
         HttpResponse.json(getResponse(users.find((u) => u.id === 'user-2') ?? users[0]!)),
       ),
-      http.get(`${BASE}/t/${TENANT_ID}/users/user-2/roles`, () =>
-        HttpResponse.json({ roles: [] }),
-      ),
+      http.get(`${BASE}/t/${TENANT_ID}/users/user-2/roles`, () => HttpResponse.json({ roles: [] })),
       http.get(`${BASE}/t/${TENANT_ID}/users/user-2/sessions`, () =>
         HttpResponse.json({ sessions: [] }),
       ),
@@ -207,9 +205,7 @@ describe('UserDetail — viewer permissions', () => {
 
     server.use(
       http.get(`${BASE}/t/${TENANT_ID}/users/user-2`, () => HttpResponse.json(getResponse(u))),
-      http.get(`${BASE}/t/${TENANT_ID}/users/user-2/roles`, () =>
-        HttpResponse.json({ roles: [] }),
-      ),
+      http.get(`${BASE}/t/${TENANT_ID}/users/user-2/roles`, () => HttpResponse.json({ roles: [] })),
       http.get(`${BASE}/t/${TENANT_ID}/users/user-2/sessions`, () =>
         HttpResponse.json({ sessions: [] }),
       ),

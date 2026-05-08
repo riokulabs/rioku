@@ -50,8 +50,8 @@ export function TestConnectivityPanel({ tenant, serverId }: TestConnectivityPane
               <Text fw={600}>Connectivity probe</Text>
               <Text size="xs" c="var(--mantine-color-gray-7)">
                 Issues an HTTP probe against the server&apos;s configured URL (5s timeout).
-                Reachable but non-2xx responses are reported as <Code>ok</Code> — many
-                MCP endpoints respond 401/404 to a bare GET.
+                Reachable but non-2xx responses are reported as <Code>ok</Code> — many MCP endpoints
+                respond 401/404 to a bare GET.
               </Text>
             </div>
             <Button
@@ -102,11 +102,7 @@ export function TestConnectivityPanel({ tenant, serverId }: TestConnectivityPane
 
 function ResultCard({ result }: { result: TestMcpServerResult }) {
   return (
-    <Card
-      withBorder
-      padding="md"
-      {...(result.ok ? {} : { bg: 'var(--mantine-color-red-0)' })}
-    >
+    <Card withBorder padding="md" {...(result.ok ? {} : { bg: 'var(--mantine-color-red-0)' })}>
       <Stack gap="xs">
         <Group gap="sm" align="center">
           <Badge

@@ -67,9 +67,7 @@ export function TotpChallengeForm({ userId: _userId, returnUrl }: TotpChallengeF
         setCode('');
         if (nextAttempts >= MAX_ATTEMPTS) {
           setLocked(true);
-          setError(
-            'Too many failed attempts. For security, please start the login process again.',
-          );
+          setError('Too many failed attempts. For security, please start the login process again.');
         } else {
           setError(
             `Invalid code — try again (${String(MAX_ATTEMPTS - nextAttempts)} attempt${MAX_ATTEMPTS - nextAttempts === 1 ? '' : 's'} remaining)`,

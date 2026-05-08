@@ -49,15 +49,11 @@ export function mockListTenants(items: AdminTenant[]): void {
 
 export function mockListTenantsError(status = 500): void {
   server.use(
-    http.get('*/api/v1/admin/tenants', () =>
-      HttpResponse.json({ title: 'failed' }, { status }),
-    ),
+    http.get('*/api/v1/admin/tenants', () => HttpResponse.json({ title: 'failed' }, { status })),
   );
 }
 
-export function mockCreateTenant(
-  onCreate?: (body: Record<string, unknown>) => void,
-): void {
+export function mockCreateTenant(onCreate?: (body: Record<string, unknown>) => void): void {
   server.use(
     http.post('*/api/v1/admin/tenants', async ({ request }) => {
       const body = (await request.json()) as Record<string, unknown>;

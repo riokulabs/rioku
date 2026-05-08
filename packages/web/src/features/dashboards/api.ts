@@ -24,12 +24,7 @@ import { useMemo } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { customFetch } from '@/api/mutator';
 import { emitHostEvent } from '@/host/events';
-import type {
-  Dashboard,
-  DashboardVariable,
-  DashboardVersion,
-  Widget,
-} from '@/api/resources';
+import type { Dashboard, DashboardVariable, DashboardVersion, Widget } from '@/api/resources';
 import {
   createDashboardViaDaemon,
   deleteDashboardViaDaemon,
@@ -62,8 +57,7 @@ import type {
 const dashboardsKey = (tenant: string) => ['dashboards', tenant] as const;
 const dashboardKey = (tenant: string, id: string) => ['dashboard', tenant, id] as const;
 const widgetsKey = (tenant: string, id: string) => ['dashboard', tenant, id, 'widgets'] as const;
-const versionsKey = (tenant: string, id: string) =>
-  ['dashboard', tenant, id, 'versions'] as const;
+const versionsKey = (tenant: string, id: string) => ['dashboard', tenant, id, 'versions'] as const;
 
 // ─── Mode / scope mapping ─────────────────────────────────────────────────────
 
@@ -104,10 +98,9 @@ async function listWidgetsRaw(tenant: string, dashboardId: string): Promise<Daem
   // customFetch via the Orval positional path returns `{data, status, headers}`;
   // tests that mock customFetch (or shape-direct MSW handlers) may return
   // the body directly — handle both.
-  const res: unknown = await customFetch(
-    `/api/v1/t/${tenant}/dashboards/${dashboardId}/widgets`,
-    { method: 'GET' },
-  );
+  const res: unknown = await customFetch(`/api/v1/t/${tenant}/dashboards/${dashboardId}/widgets`, {
+    method: 'GET',
+  });
   let body: unknown = res;
   if (res !== null && typeof res === 'object' && 'data' in res) {
     const r = res as { data: unknown };
@@ -147,7 +140,9 @@ function mapDaemonDashboard(d: DaemonDashboard, widgets: DaemonWidget[]): Dashbo
   for (const w of sorted) {
     layout[w.id] = { x: w.layout.x, y: w.layout.y, w: w.layout.w, h: w.layout.h };
   }
-  const variables = (Array.isArray(d.variables) ? d.variables : []) as unknown as DashboardVariable[];
+  const variables = (Array.isArray(d.variables)
+    ? d.variables
+    : []) as unknown as DashboardVariable[];
   return {
     id: d.id,
     tenant_id: d.tenantId,
@@ -288,7 +283,7 @@ function useTenantSlugForDashboard(dashboardId: string): string {
     if (!value || !Array.isArray((value as { items?: unknown[] }).items)) continue;
     const list = (value as { items: DaemonDashboard[] }).items;
     if (list.some((d) => d.id === dashboardId)) {
-      const slug = (key)[1];
+      const slug = key[1];
       if (typeof slug === 'string') return slug;
     }
   }
@@ -344,9 +339,7 @@ export function useDashboardVersions(dashboardId: string): DashboardVersion[] {
   });
   return useMemo(() => {
     const items = data?.items ?? [];
-    return items
-      .map(mapDaemonVersion)
-      .sort((a, b) => b.version - a.version);
+    return items.map(mapDaemonVersion).sort((a, b) => b.version - a.version);
   }, [data]);
 }
 
@@ -432,10 +425,7 @@ export async function deleteDashboard(id: string): Promise<void> {
   emitHostEvent('dashboard.deleted', { dashboard_id: id });
 }
 
-export async function setDefaultDashboard(
-  tenant: string,
-  dashboardId: string,
-): Promise<Dashboard> {
+export async function setDefaultDashboard(tenant: string, dashboardId: string): Promise<Dashboard> {
   const updated = await setDefaultDashboardViaDaemon(tenant, dashboardId);
   emitHostEvent('dashboard.default-changed', { dashboard_id: dashboardId, tenant_id: tenant });
   const widgets = await listWidgetsRaw(tenant, dashboardId);
@@ -589,7 +579,7 @@ function resolveCachedTenantSlug(dashboardId: string): string | undefined {
     if (!value || !Array.isArray((value as { items?: unknown[] }).items)) continue;
     const list = (value as { items: DaemonDashboard[] }).items;
     if (list.some((d) => d.id === dashboardId)) {
-      const slug = (key)[1];
+      const slug = key[1];
       if (typeof slug === 'string') return slug;
     }
   }
@@ -620,7 +610,7 @@ function findCachedVersion(versionId: string): { tenant: string; dashboardId: st
   });
   for (const [key, value] of cached) {
     if (!value || !Array.isArray((value as { items?: unknown[] }).items)) continue;
-    const arr = (key);
+    const arr = key;
     if (arr[3] !== 'versions') continue;
     const items = (value as { items: DaemonDashboardVersion[] }).items;
     if (items.some((v) => v.id === versionId)) {

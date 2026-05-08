@@ -12,17 +12,7 @@
  *   - Audit     : audit entries scoped to this service id
  */
 import { useMemo, useState } from 'react';
-import {
-  Alert,
-  Badge,
-  Button,
-  Group,
-  Stack,
-  Tabs,
-  Table,
-  Text,
-  Title,
-} from '@mantine/core';
+import { Alert, Badge, Button, Group, Stack, Tabs, Table, Text, Title } from '@mantine/core';
 import {
   IconAlertCircle,
   IconHeartbeat,

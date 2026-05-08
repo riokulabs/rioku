@@ -10,8 +10,5 @@ export {
   installFromMarketplace,
   marketplaceQueryKeys,
 } from './api';
-export type {
-  InstallFromMarketplaceInput,
-  InstallFromMarketplaceResponse,
-} from './api';
+export type { InstallFromMarketplaceInput, InstallFromMarketplaceResponse } from './api';
 export type { MarketplaceFilter, MarketplaceListing } from './types';

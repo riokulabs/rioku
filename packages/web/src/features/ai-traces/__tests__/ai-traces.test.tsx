@@ -224,4 +224,3 @@ describe('<PromptCompletionView> viewer gating', () => {
     expect(screen.queryByTestId('trace-redacted')).toBeNull();
   });
 });
-

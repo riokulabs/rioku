@@ -84,9 +84,7 @@ export function TotpRecoveryForm({ returnUrl }: TotpRecoveryFormProps) {
           </Notification>
         )}
 
-        <Text size="sm">
-          Enter one of your backup codes. Each code can only be used once.
-        </Text>
+        <Text size="sm">Enter one of your backup codes. Each code can only be used once.</Text>
 
         <TextInput
           label="Backup code"

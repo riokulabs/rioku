@@ -153,13 +153,7 @@ export function McpServerDrawer({ serverId, tenant, onEdit, onClose }: McpServer
         <Button size="sm" variant="light" onClick={onEdit} disabled={!canWrite}>
           Edit
         </Button>
-        <Button
-          size="sm"
-          variant="subtle"
-          color="red.8"
-          onClick={openDelete}
-          disabled={!canWrite}
-        >
+        <Button size="sm" variant="subtle" color="red.8" onClick={openDelete} disabled={!canWrite}>
           Delete…
         </Button>
       </Group>

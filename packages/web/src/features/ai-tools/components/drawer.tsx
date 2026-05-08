@@ -5,17 +5,7 @@
  * page" button that navigates to /t/$tenant/ai/tools/$toolId for the full
  * Definition / Test invocation / Audit experience.
  */
-import {
-  Alert,
-  Badge,
-  Button,
-  Code,
-  Divider,
-  Group,
-  Stack,
-  Text,
-  Title,
-} from '@mantine/core';
+import { Alert, Badge, Button, Code, Divider, Group, Stack, Text, Title } from '@mantine/core';
 import { Link } from '@tanstack/react-router';
 import { IconAlertCircle, IconArrowRight, IconTool } from '@tabler/icons-react';
 import { DangerousToolBadge, ToolKindBadge } from '@/features/ai-shared';

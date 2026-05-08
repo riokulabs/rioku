@@ -81,14 +81,22 @@ describe('tenantDashboardUrl', () => {
 
   describe('subdomain-mode tenant', () => {
     it('returns an external subdomain URL when parent_domain is set', () => {
-      const tenant = makeTenant({ url_mode: 'subdomain', slug: 'acme', parent_domain: 'localhost' });
+      const tenant = makeTenant({
+        url_mode: 'subdomain',
+        slug: 'acme',
+        parent_domain: 'localhost',
+      });
       const { href, isExternal } = tenantDashboardUrl(tenant);
       expect(isExternal).toBe(true);
       expect(href).toBe('http://acme.localhost:5173/t/acme/dashboard');
     });
 
     it('strips leading dot from parent_domain', () => {
-      const tenant = makeTenant({ url_mode: 'subdomain', slug: 'acme', parent_domain: '.localhost' });
+      const tenant = makeTenant({
+        url_mode: 'subdomain',
+        slug: 'acme',
+        parent_domain: '.localhost',
+      });
       const { href, isExternal } = tenantDashboardUrl(tenant);
       expect(isExternal).toBe(true);
       expect(href).toBe('http://acme.localhost:5173/t/acme/dashboard');
@@ -112,24 +120,41 @@ describe('tenantDashboardUrl', () => {
 
     it('uses https when location.protocol is https:', () => {
       window.location.protocol = 'https:';
-      const tenant = makeTenant({ url_mode: 'subdomain', slug: 'acme', parent_domain: 'example.com' });
+      const tenant = makeTenant({
+        url_mode: 'subdomain',
+        slug: 'acme',
+        parent_domain: 'example.com',
+      });
       const { href } = tenantDashboardUrl(tenant);
       expect(href).toContain('https://acme.example.com');
     });
 
     it('omits port when location.port is empty', () => {
       Object.defineProperty(window, 'location', {
-        value: { protocol: 'https:', port: '', hostname: 'example.com', href: 'https://example.com' },
+        value: {
+          protocol: 'https:',
+          port: '',
+          hostname: 'example.com',
+          href: 'https://example.com',
+        },
         writable: true,
         configurable: true,
       });
-      const tenant = makeTenant({ url_mode: 'subdomain', slug: 'acme', parent_domain: 'example.com' });
+      const tenant = makeTenant({
+        url_mode: 'subdomain',
+        slug: 'acme',
+        parent_domain: 'example.com',
+      });
       const { href } = tenantDashboardUrl(tenant);
       expect(href).toBe('https://acme.example.com/t/acme/dashboard');
     });
 
     it('uses the tenant slug in both subdomain and path', () => {
-      const tenant = makeTenant({ url_mode: 'subdomain', slug: 'my-org', parent_domain: 'localhost' });
+      const tenant = makeTenant({
+        url_mode: 'subdomain',
+        slug: 'my-org',
+        parent_domain: 'localhost',
+      });
       const { href } = tenantDashboardUrl(tenant);
       expect(href).toContain('my-org.localhost');
       expect(href).toContain('/t/my-org/dashboard');

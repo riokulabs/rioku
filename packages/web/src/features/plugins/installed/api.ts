@@ -384,10 +384,7 @@ export function installPluginWithProgress(
  * `/plugins/{id}/build-log` endpoint and returns the body as text.
  * Returns undefined when the daemon returns 404 or the call fails.
  */
-export async function getBuildLog(
-  pluginId: string,
-  tenantId = '',
-): Promise<string | undefined> {
+export async function getBuildLog(pluginId: string, tenantId = ''): Promise<string | undefined> {
   if (tenantId === '' || pluginId === '') return undefined;
   try {
     return await customFetch<string>({

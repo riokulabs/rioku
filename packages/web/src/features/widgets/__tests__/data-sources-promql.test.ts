@@ -82,7 +82,10 @@ describe('normalisePromQLResponse', () => {
   });
 
   it('handles an empty response gracefully', () => {
-    const out = normalisePromQLResponse({ status: 'success', data: { resultType: 'vector', result: [] } });
+    const out = normalisePromQLResponse({
+      status: 'success',
+      data: { resultType: 'vector', result: [] },
+    });
     expect(out.series).toEqual([]);
   });
 });

@@ -179,11 +179,7 @@ describe('logout()', () => {
   });
 
   it('swallows 401', async () => {
-    server.use(
-      http.post(`${BASE}/auth/logout`, () =>
-        HttpResponse.json({}, { status: 401 }),
-      ),
-    );
+    server.use(http.post(`${BASE}/auth/logout`, () => HttpResponse.json({}, { status: 401 })));
 
     await expect(logout()).resolves.toBeUndefined();
   });
@@ -218,9 +214,7 @@ describe('enrollTotp() + confirmTotpEnrollment()', () => {
 describe('bootstrap status / bootstrap()', () => {
   it('fetches status', async () => {
     server.use(
-      http.get(`${BASE}/auth/bootstrap-status`, () =>
-        HttpResponse.json({ required: true }),
-      ),
+      http.get(`${BASE}/auth/bootstrap-status`, () => HttpResponse.json({ required: true })),
     );
     const s = await fetchBootstrapStatus();
     expect(s.required).toBe(true);
@@ -233,10 +227,7 @@ describe('bootstrap status / bootstrap()', () => {
         expect(body.email).toBe('root@example.com');
         expect(body.tenantSlug).toBe('main');
         expect(body.tenantName).toBe('Main');
-        return HttpResponse.json(
-          { tenantId: 't1', userId: 'u1' },
-          { status: 201 },
-        );
+        return HttpResponse.json({ tenantId: 't1', userId: 'u1' }, { status: 201 });
       }),
     );
 
@@ -274,8 +265,9 @@ describe('bootstrap status / bootstrap()', () => {
 describe('password reset', () => {
   it('request always succeeds (anti-enumeration)', async () => {
     server.use(
-      http.post(`${BASE}/auth/password-reset/request`, () =>
-        new HttpResponse(null, { status: 202 }),
+      http.post(
+        `${BASE}/auth/password-reset/request`,
+        () => new HttpResponse(null, { status: 202 }),
       ),
     );
 

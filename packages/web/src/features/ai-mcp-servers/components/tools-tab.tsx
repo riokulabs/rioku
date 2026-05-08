@@ -6,17 +6,7 @@
  * available via a "Show schema" toggle.
  */
 import { Fragment, useState } from 'react';
-import {
-  Alert,
-  Badge,
-  Card,
-  Code,
-  Collapse,
-  Group,
-  Stack,
-  Table,
-  Text,
-} from '@mantine/core';
+import { Alert, Badge, Card, Code, Collapse, Group, Stack, Table, Text } from '@mantine/core';
 import { IconAlertCircle, IconChevronDown, IconChevronRight } from '@tabler/icons-react';
 import { useMcpServerTools } from '../api';
 
@@ -65,8 +55,8 @@ export function ToolsTab({ tenant, serverId }: ToolsTabProps) {
     return (
       <Card withBorder padding="md">
         <Text size="sm" c="var(--mantine-color-gray-7)">
-          This MCP server has not exposed any tools yet. Tools are populated as the
-          server reports them — try running a connectivity probe.
+          This MCP server has not exposed any tools yet. Tools are populated as the server reports
+          them — try running a connectivity probe.
         </Text>
       </Card>
     );
@@ -118,9 +108,7 @@ export function ToolsTab({ tenant, serverId }: ToolsTabProps) {
                     </Text>
                   </Table.Td>
                   <Table.Td>
-                    <Code data-testid={`mcp-tool-args-preview-${t.id}`}>
-                      {previewSchema(raw)}
-                    </Code>
+                    <Code data-testid={`mcp-tool-args-preview-${t.id}`}>{previewSchema(raw)}</Code>
                   </Table.Td>
                   <Table.Td>
                     <Group gap={4}>

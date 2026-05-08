@@ -35,9 +35,7 @@ import {
   bulkAttachAIToolBindings,
   previewAIToolBindingCondition,
 } from '@/api/generated/ai-tool-bindings/ai-tool-bindings';
-import type {
-  AIToolBinding as WireBinding,
-} from '@/api/generated/schemas';
+import type { AIToolBinding as WireBinding } from '@/api/generated/schemas';
 import type { AiToolBinding } from '@/api/resources';
 import type {
   BindingFilter,
@@ -111,7 +109,10 @@ export function useBindingDetail(tenantId: string, id: string): AiToolBinding | 
  * Same fetch as `useBindingDetail` but exposes loading + error state. The
  * full-page route wants to distinguish "still loading" from "404".
  */
-export function useBindingDetailQuery(tenantId: string, id: string): {
+export function useBindingDetailQuery(
+  tenantId: string,
+  id: string,
+): {
   data: AiToolBinding | undefined;
   isLoading: boolean;
   isError: boolean;

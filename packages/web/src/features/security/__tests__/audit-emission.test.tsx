@@ -74,7 +74,9 @@ describe('audit-emission — generated mutation hooks call the right daemon verb
     act(() => {
       result.current.mutate({ tenant: TENANT, data: { name: 'auditors' } });
     });
-    await waitFor(() => { expect(recorded.length).toBe(1); });
+    await waitFor(() => {
+      expect(recorded.length).toBe(1);
+    });
     expect(recorded[0]?.method).toBe('POST');
     expect(recorded[0]?.url).toContain(`/api/v1/t/${TENANT}/roles`);
     expect(recorded[0]?.body).toMatchObject({ name: 'auditors' });
@@ -86,7 +88,9 @@ describe('audit-emission — generated mutation hooks call the right daemon verb
     act(() => {
       result.current.mutate({ tenant: TENANT, id: 'role-1' });
     });
-    await waitFor(() => { expect(recorded.length).toBe(1); });
+    await waitFor(() => {
+      expect(recorded.length).toBe(1);
+    });
     expect(recorded[0]?.method).toBe('DELETE');
   });
 
@@ -96,7 +100,9 @@ describe('audit-emission — generated mutation hooks call the right daemon verb
     act(() => {
       result.current.mutate({ tenant: TENANT, data: { email: 'new@acme.test' } });
     });
-    await waitFor(() => { expect(recorded.length).toBe(1); });
+    await waitFor(() => {
+      expect(recorded.length).toBe(1);
+    });
     expect(recorded[0]?.body).toMatchObject({ email: 'new@acme.test' });
   });
 
@@ -106,7 +112,9 @@ describe('audit-emission — generated mutation hooks call the right daemon verb
     act(() => {
       result.current.mutate({ tenant: TENANT, id: 'u1' });
     });
-    await waitFor(() => { expect(recorded.length).toBe(1); });
+    await waitFor(() => {
+      expect(recorded.length).toBe(1);
+    });
     expect(recorded[0]?.url).toContain('/suspend');
   });
 
@@ -116,7 +124,9 @@ describe('audit-emission — generated mutation hooks call the right daemon verb
     act(() => {
       result.current.mutate({ tenant: TENANT, id: 'sess-1' });
     });
-    await waitFor(() => { expect(recorded.length).toBe(1); });
+    await waitFor(() => {
+      expect(recorded.length).toBe(1);
+    });
     expect(recorded[0]?.method).toBe('DELETE');
   });
 
@@ -126,7 +136,9 @@ describe('audit-emission — generated mutation hooks call the right daemon verb
     act(() => {
       createH.current.mutate({ tenant: TENANT, data: { name: 'ci-key' } });
     });
-    await waitFor(() => { expect(created.length).toBe(1); });
+    await waitFor(() => {
+      expect(created.length).toBe(1);
+    });
     expect(created[0]?.body).toMatchObject({ name: 'ci-key' });
 
     const revoked = captureRequest('POST', `*/api/v1/t/${TENANT}/api-keys/k1/revoke`, 204);
@@ -134,15 +146,13 @@ describe('audit-emission — generated mutation hooks call the right daemon verb
     act(() => {
       revokeH.current.mutate({ tenant: TENANT, id: 'k1' });
     });
-    await waitFor(() => { expect(revoked.length).toBe(1); });
+    await waitFor(() => {
+      expect(revoked.length).toBe(1);
+    });
   });
 
   it('access-policies: useCreateAccessPolicy POSTs the right path', async () => {
-    const recorded = captureRequest(
-      'POST',
-      `*/api/v1/t/${TENANT}/access-policies`,
-      201,
-    );
+    const recorded = captureRequest('POST', `*/api/v1/t/${TENANT}/access-policies`, 201);
     const { result } = renderHook(() => useCreateAccessPolicy(), { wrapper: wrap() });
     act(() => {
       result.current.mutate({
@@ -150,16 +160,14 @@ describe('audit-emission — generated mutation hooks call the right daemon verb
         data: { name: 'biz-hours', expression: 'now() < 18:00' },
       });
     });
-    await waitFor(() => { expect(recorded.length).toBe(1); });
+    await waitFor(() => {
+      expect(recorded.length).toBe(1);
+    });
     expect(recorded[0]?.body).toMatchObject({ name: 'biz-hours' });
   });
 
   it('rbac-policies: useCreateRbacPolicy POSTs subject-binding body', async () => {
-    const recorded = captureRequest(
-      'POST',
-      `*/api/v1/t/${TENANT}/rbac-policies`,
-      201,
-    );
+    const recorded = captureRequest('POST', `*/api/v1/t/${TENANT}/rbac-policies`, 201);
     const { result } = renderHook(() => useCreateRbacPolicy(), { wrapper: wrap() });
     act(() => {
       result.current.mutate({
@@ -172,7 +180,9 @@ describe('audit-emission — generated mutation hooks call the right daemon verb
         },
       });
     });
-    await waitFor(() => { expect(recorded.length).toBe(1); });
+    await waitFor(() => {
+      expect(recorded.length).toBe(1);
+    });
     expect(recorded[0]?.body).toMatchObject({
       subjectType: 'user',
       subjectId: 'u-1',
@@ -194,18 +204,18 @@ describe('audit-emission — generated mutation hooks call the right daemon verb
         },
       });
     });
-    await waitFor(() => { expect(startRecorded.length).toBe(1); });
+    await waitFor(() => {
+      expect(startRecorded.length).toBe(1);
+    });
     expect(startRecorded[0]?.body).toMatchObject({ tenantId: TENANT });
 
-    const endRecorded = captureRequest(
-      'DELETE',
-      '*/api/v1/admin/impersonation/imp-9',
-      204,
-    );
+    const endRecorded = captureRequest('DELETE', '*/api/v1/admin/impersonation/imp-9', 204);
     const { result: endH } = renderHook(() => useEndImpersonation(), { wrapper: wrap() });
     act(() => {
       endH.current.mutate({ id: 'imp-9' });
     });
-    await waitFor(() => { expect(endRecorded.length).toBe(1); });
+    await waitFor(() => {
+      expect(endRecorded.length).toBe(1);
+    });
   });
 });

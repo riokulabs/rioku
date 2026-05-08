@@ -144,7 +144,9 @@ describe('ProfileRealSection (T1)', () => {
       </Wrap>,
     );
 
-    await waitFor(() => { expect(screen.getByTestId('profile-real-section')).toBeDefined(); });
+    await waitFor(() => {
+      expect(screen.getByTestId('profile-real-section')).toBeDefined();
+    });
     const nameInput = screen.getByTestId('profile-real-name-input');
     expect((nameInput as HTMLInputElement).value).toBe('Old Name');
 
@@ -172,7 +174,9 @@ describe('ProfileRealSection (T1)', () => {
         <ProfileRealSection tenant="acme" />
       </Wrap>,
     );
-    await waitFor(() => { expect(screen.getByTestId('profile-real-section')).toBeDefined(); });
+    await waitFor(() => {
+      expect(screen.getByTestId('profile-real-section')).toBeDefined();
+    });
     fireEvent.change(screen.getByTestId('profile-real-name-input'), {
       target: { value: 'X' },
     });
@@ -202,7 +206,9 @@ describe('TenantRealSection (T2)', () => {
         <TenantRealSection tenant="acme" />
       </Wrap>,
     );
-    await waitFor(() => { expect(screen.getByTestId('tenant-real-section')).toBeDefined(); });
+    await waitFor(() => {
+      expect(screen.getByTestId('tenant-real-section')).toBeDefined();
+    });
     fireEvent.change(screen.getByTestId('tenant-real-description'), {
       target: { value: 'new description' },
     });
@@ -234,7 +240,9 @@ describe('AuthPolicyRealSection (T3)', () => {
         <AuthPolicyRealSection tenant="acme" />
       </Wrap>,
     );
-    await waitFor(() => { expect(screen.getByTestId('auth-policy-real-section')).toBeDefined(); });
+    await waitFor(() => {
+      expect(screen.getByTestId('auth-policy-real-section')).toBeDefined();
+    });
 
     // Trigger a touched-state change via the password-min-length number input.
     const pwd = screen.getByTestId('auth-policy-real-pwd-min');
@@ -268,7 +276,9 @@ describe('NetworkRealSection (T4)', () => {
         <NetworkRealSection tenant="acme" />
       </Wrap>,
     );
-    await waitFor(() => { expect(screen.getByTestId('network-real-section')).toBeDefined(); });
+    await waitFor(() => {
+      expect(screen.getByTestId('network-real-section')).toBeDefined();
+    });
     fireEvent.change(screen.getByTestId('network-real-listen'), {
       target: { value: ':443,:8443' },
     });
@@ -340,7 +350,9 @@ describe('IntegrationsRealSection (T8)', () => {
         <IntegrationsRealSection tenant="acme" />
       </Wrap>,
     );
-    await waitFor(() => { expect(screen.getByTestId('integrations-real-section')).toBeDefined(); });
+    await waitFor(() => {
+      expect(screen.getByTestId('integrations-real-section')).toBeDefined();
+    });
 
     fireEvent.change(screen.getByTestId('integrations-real-draft-name'), {
       target: { value: 'new-hook' },
@@ -364,11 +376,14 @@ describe('IntegrationsRealSection (T8)', () => {
     mockRoute('GET', '/settings/integrations', {
       webhooks: [{ id: 'wh-1', name: 'existing', url: 'https://x', enabled: true }],
     });
-    mockRouteFn('POST', '/settings/webhooks/wh-1/test', () =>
-      new Response(JSON.stringify({ http_status: 200, duration_ms: 42 }), {
-        status: 200,
-        headers: { 'content-type': 'application/json' },
-      }),
+    mockRouteFn(
+      'POST',
+      '/settings/webhooks/wh-1/test',
+      () =>
+        new Response(JSON.stringify({ http_status: 200, duration_ms: 42 }), {
+          status: 200,
+          headers: { 'content-type': 'application/json' },
+        }),
     );
 
     render(
@@ -376,7 +391,9 @@ describe('IntegrationsRealSection (T8)', () => {
         <IntegrationsRealSection tenant="acme" />
       </Wrap>,
     );
-    await waitFor(() => { expect(screen.getByTestId('integrations-real-section')).toBeDefined(); });
+    await waitFor(() => {
+      expect(screen.getByTestId('integrations-real-section')).toBeDefined();
+    });
     await act(async () => {
       fireEvent.click(screen.getByTestId('integrations-real-test-wh-1'));
       await Promise.resolve();
@@ -404,7 +421,9 @@ describe('TlsRealSection (T5)', () => {
         <TlsRealSection tenant="acme" />
       </Wrap>,
     );
-    await waitFor(() => { expect(screen.getByTestId('tls-real-section')).toBeDefined(); });
+    await waitFor(() => {
+      expect(screen.getByTestId('tls-real-section')).toBeDefined();
+    });
 
     // Form-load assertion
     const email = screen.getByTestId('tls-real-email');
@@ -429,7 +448,9 @@ describe('TlsRealSection (T5)', () => {
         <TlsRealSection tenant="acme" />
       </Wrap>,
     );
-    await waitFor(() => { expect(screen.getByTestId('tls-real-section')).toBeDefined(); });
+    await waitFor(() => {
+      expect(screen.getByTestId('tls-real-section')).toBeDefined();
+    });
     fireEvent.change(screen.getByTestId('tls-real-cert-pem'), {
       target: { value: 'not a real pem' },
     });
@@ -462,7 +483,9 @@ describe('PkiRealSection (T6)', () => {
         <PkiRealSection tenant="acme" />
       </Wrap>,
     );
-    await waitFor(() => { expect(screen.getByTestId('pki-real-section')).toBeDefined(); });
+    await waitFor(() => {
+      expect(screen.getByTestId('pki-real-section')).toBeDefined();
+    });
     fireEvent.change(screen.getByTestId('pki-real-enroll-endpoint'), {
       target: { value: 'https://pki.example/enroll' },
     });
@@ -485,7 +508,9 @@ describe('PkiRealSection (T6)', () => {
         <PkiRealSection tenant="acme" />
       </Wrap>,
     );
-    await waitFor(() => { expect(screen.getByTestId('pki-real-section')).toBeDefined(); });
+    await waitFor(() => {
+      expect(screen.getByTestId('pki-real-section')).toBeDefined();
+    });
     fireEvent.change(screen.getByTestId('pki-real-ca-pem'), {
       target: { value: 'not a cert' },
     });
@@ -511,7 +536,9 @@ describe('DangerZoneRealSection (T9 triple-confirm)', () => {
     );
 
     fireEvent.click(screen.getByTestId('danger-real-reset-open'));
-    await waitFor(() => { expect(screen.getByTestId('danger-real-reset-modal')).toBeDefined(); });
+    await waitFor(() => {
+      expect(screen.getByTestId('danger-real-reset-modal')).toBeDefined();
+    });
 
     const submit = screen.getByTestId('danger-real-reset-submit');
     expect((submit as HTMLButtonElement).disabled).toBe(true);

@@ -47,7 +47,10 @@ test.describe('cluster flow @isolated', () => {
     await page.locator('tbody tr[role="row"]').first().waitFor({ timeout: 10_000 });
 
     // Click the first row's "Open" button to navigate to the detail page.
-    await page.getByRole('link', { name: /^open$/i }).first().click();
+    await page
+      .getByRole('link', { name: /^open$/i })
+      .first()
+      .click();
 
     // Three tabs.
     await expect(page.getByRole('tab', { name: /overview/i })).toBeVisible();
@@ -78,7 +81,9 @@ test.describe('cluster flow @isolated', () => {
     // The enroll modal exposes a confirm/generate button — click it.
     const modal = page.getByRole('dialog');
     await expect(modal).toBeVisible();
-    const confirmButton = modal.getByRole('button', { name: /^generate$|^confirm$|^create$/i }).first();
+    const confirmButton = modal
+      .getByRole('button', { name: /^generate$|^confirm$|^create$/i })
+      .first();
     if (await confirmButton.isVisible().catch(() => false)) {
       await confirmButton.click();
     }

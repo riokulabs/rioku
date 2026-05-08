@@ -80,18 +80,17 @@ function makeV1Route(overrides: Partial<V1Route> = {}): V1Route {
 describe('useRouteListReal', () => {
   it('returns empty list when daemon returns no items', async () => {
     server.use(
-      http.get(`*/api/v1/t/${TENANT}/routes`, () =>
-        HttpResponse.json({ items: [], total: 0 }),
-      ),
+      http.get(`*/api/v1/t/${TENANT}/routes`, () => HttpResponse.json({ items: [], total: 0 })),
     );
 
     const qc = makeQueryClient();
-    const { result } = renderHook(
-      () => useRouteListReal(TENANT, undefined),
-      { wrapper: makeWrapper(qc) },
-    );
+    const { result } = renderHook(() => useRouteListReal(TENANT, undefined), {
+      wrapper: makeWrapper(qc),
+    });
 
-    await waitFor(() => { expect(result.current.isLoading).toBe(false); });
+    await waitFor(() => {
+      expect(result.current.isLoading).toBe(false);
+    });
     expect(result.current.routes).toHaveLength(0);
     expect(result.current.isError).toBe(false);
   });
@@ -105,12 +104,13 @@ describe('useRouteListReal', () => {
     );
 
     const qc = makeQueryClient();
-    const { result } = renderHook(
-      () => useRouteListReal(TENANT, undefined),
-      { wrapper: makeWrapper(qc) },
-    );
+    const { result } = renderHook(() => useRouteListReal(TENANT, undefined), {
+      wrapper: makeWrapper(qc),
+    });
 
-    await waitFor(() => { expect(result.current.routes).toHaveLength(1); });
+    await waitFor(() => {
+      expect(result.current.routes).toHaveLength(1);
+    });
     const rt = result.current.routes[0];
     expect(rt).toBeDefined();
     expect(rt!.id).toBe('rt-fixture-1');
@@ -132,19 +132,30 @@ describe('useRouteListReal', () => {
     );
 
     const qc = makeQueryClient();
-    const { result } = renderHook(
-      () => useRouteListReal(TENANT, 'svc-a'),
-      { wrapper: makeWrapper(qc) },
-    );
+    const { result } = renderHook(() => useRouteListReal(TENANT, 'svc-a'), {
+      wrapper: makeWrapper(qc),
+    });
 
-    await waitFor(() => { expect(result.current.isLoading).toBe(false); });
+    await waitFor(() => {
+      expect(result.current.isLoading).toBe(false);
+    });
     expect(result.current.routes).toHaveLength(1);
     expect(result.current.routes[0]!.id).toBe('rt-1');
   });
 
   it('filters by method client-side', async () => {
-    const getRoute = makeV1Route({ id: 'rt-get', matchers: [{ methods: ['GET'], paths: [{ type: V1PathMatcherType.TYPE_PREFIX, value: '/a' }] }] });
-    const postRoute = makeV1Route({ id: 'rt-post', matchers: [{ methods: ['POST'], paths: [{ type: V1PathMatcherType.TYPE_PREFIX, value: '/b' }] }] });
+    const getRoute = makeV1Route({
+      id: 'rt-get',
+      matchers: [
+        { methods: ['GET'], paths: [{ type: V1PathMatcherType.TYPE_PREFIX, value: '/a' }] },
+      ],
+    });
+    const postRoute = makeV1Route({
+      id: 'rt-post',
+      matchers: [
+        { methods: ['POST'], paths: [{ type: V1PathMatcherType.TYPE_PREFIX, value: '/b' }] },
+      ],
+    });
     server.use(
       http.get(`*/api/v1/t/${TENANT}/routes`, () =>
         HttpResponse.json({ items: [getRoute, postRoute], total: 2 }),
@@ -157,7 +168,9 @@ describe('useRouteListReal', () => {
       { wrapper: makeWrapper(qc) },
     );
 
-    await waitFor(() => { expect(result.current.isLoading).toBe(false); });
+    await waitFor(() => {
+      expect(result.current.isLoading).toBe(false);
+    });
     expect(result.current.routes).toHaveLength(1);
     expect(result.current.routes[0]!.id).toBe('rt-get');
   });
@@ -173,27 +186,29 @@ describe('useRouteListReal', () => {
 
     const qc = makeQueryClient();
     const { result } = renderHook(
-      () => useRouteListReal(TENANT, undefined, { search: 'payments', method: 'all', enabled: 'all' }),
+      () =>
+        useRouteListReal(TENANT, undefined, { search: 'payments', method: 'all', enabled: 'all' }),
       { wrapper: makeWrapper(qc) },
     );
 
-    await waitFor(() => { expect(result.current.isLoading).toBe(false); });
+    await waitFor(() => {
+      expect(result.current.isLoading).toBe(false);
+    });
     expect(result.current.routes).toHaveLength(1);
     expect(result.current.routes[0]!.name).toBe('payments-route');
   });
 
   it('reports isError on network failure', async () => {
-    server.use(
-      http.get(`*/api/v1/t/${TENANT}/routes`, () => HttpResponse.error()),
-    );
+    server.use(http.get(`*/api/v1/t/${TENANT}/routes`, () => HttpResponse.error()));
 
     const qc = makeQueryClient();
-    const { result } = renderHook(
-      () => useRouteListReal(TENANT, undefined),
-      { wrapper: makeWrapper(qc) },
-    );
+    const { result } = renderHook(() => useRouteListReal(TENANT, undefined), {
+      wrapper: makeWrapper(qc),
+    });
 
-    await waitFor(() => { expect(result.current.isError).toBe(true); });
+    await waitFor(() => {
+      expect(result.current.isError).toBe(true);
+    });
   });
 });
 
@@ -202,34 +217,28 @@ describe('useRouteListReal', () => {
 describe('useRouteDetailReal', () => {
   it('returns undefined while loading', () => {
     server.use(
-      http.get(`*/api/v1/t/${TENANT}/routes/rt-1`, () =>
-        HttpResponse.json(makeV1Route()),
-      ),
+      http.get(`*/api/v1/t/${TENANT}/routes/rt-1`, () => HttpResponse.json(makeV1Route())),
     );
 
     const qc = makeQueryClient();
-    const { result } = renderHook(
-      () => useRouteDetailReal(TENANT, 'rt-1'),
-      { wrapper: makeWrapper(qc) },
-    );
+    const { result } = renderHook(() => useRouteDetailReal(TENANT, 'rt-1'), {
+      wrapper: makeWrapper(qc),
+    });
     expect(result.current).toBeUndefined();
   });
 
   it('returns adapted route once loaded', async () => {
     const proto = makeV1Route({ id: 'rt-detail-1', name: 'detail-route' });
-    server.use(
-      http.get(`*/api/v1/t/${TENANT}/routes/rt-detail-1`, () =>
-        HttpResponse.json(proto),
-      ),
-    );
+    server.use(http.get(`*/api/v1/t/${TENANT}/routes/rt-detail-1`, () => HttpResponse.json(proto)));
 
     const qc = makeQueryClient();
-    const { result } = renderHook(
-      () => useRouteDetailReal(TENANT, 'rt-detail-1'),
-      { wrapper: makeWrapper(qc) },
-    );
+    const { result } = renderHook(() => useRouteDetailReal(TENANT, 'rt-detail-1'), {
+      wrapper: makeWrapper(qc),
+    });
 
-    await waitFor(() => { expect(result.current).toBeDefined(); });
+    await waitFor(() => {
+      expect(result.current).toBeDefined();
+    });
     expect(result.current!.id).toBe('rt-detail-1');
     expect(result.current!.name).toBe('detail-route');
   });
@@ -239,19 +248,16 @@ describe('useRouteDetailReal', () => {
       id: 'rt-mw',
       labels: { labels: { [LBL_MIDDLEWARE_IDS]: 'mw-1,mw-2' } },
     });
-    server.use(
-      http.get(`*/api/v1/t/${TENANT}/routes/rt-mw`, () =>
-        HttpResponse.json(proto),
-      ),
-    );
+    server.use(http.get(`*/api/v1/t/${TENANT}/routes/rt-mw`, () => HttpResponse.json(proto)));
 
     const qc = makeQueryClient();
-    const { result } = renderHook(
-      () => useRouteDetailReal(TENANT, 'rt-mw'),
-      { wrapper: makeWrapper(qc) },
-    );
+    const { result } = renderHook(() => useRouteDetailReal(TENANT, 'rt-mw'), {
+      wrapper: makeWrapper(qc),
+    });
 
-    await waitFor(() => { expect(result.current).toBeDefined(); });
+    await waitFor(() => {
+      expect(result.current).toBeDefined();
+    });
     expect(result.current!.middleware_ids).toEqual(['mw-1', 'mw-2']);
   });
 });
@@ -262,16 +268,13 @@ describe('useCreateRouteMutation', () => {
   it('posts to daemon and returns adapted route', async () => {
     const created = makeV1Route({ id: 'rt-new-1', name: 'new-route' });
     server.use(
-      http.post(`*/api/v1/t/${TENANT}/routes`, () =>
-        HttpResponse.json(created, { status: 201 }),
-      ),
+      http.post(`*/api/v1/t/${TENANT}/routes`, () => HttpResponse.json(created, { status: 201 })),
     );
 
     const qc = makeQueryClient();
-    const { result } = renderHook(
-      () => useCreateRouteMutation(TENANT),
-      { wrapper: makeWrapper(qc) },
-    );
+    const { result } = renderHook(() => useCreateRouteMutation(TENANT), {
+      wrapper: makeWrapper(qc),
+    });
 
     let route: Route | undefined;
     await act(async () => {
@@ -294,17 +297,12 @@ describe('useCreateRouteMutation', () => {
 describe('useUpdateRouteMutation', () => {
   it('calls PATCH endpoint and returns adapted route', async () => {
     const updated = makeV1Route({ id: 'rt-u1', name: 'renamed-route' });
-    server.use(
-      http.patch(`*/api/v1/t/${TENANT}/routes/rt-u1`, () =>
-        HttpResponse.json(updated),
-      ),
-    );
+    server.use(http.patch(`*/api/v1/t/${TENANT}/routes/rt-u1`, () => HttpResponse.json(updated)));
 
     const qc = makeQueryClient();
-    const { result } = renderHook(
-      () => useUpdateRouteMutation(TENANT),
-      { wrapper: makeWrapper(qc) },
-    );
+    const { result } = renderHook(() => useUpdateRouteMutation(TENANT), {
+      wrapper: makeWrapper(qc),
+    });
 
     let route: Route | undefined;
     await act(async () => {
@@ -323,16 +321,16 @@ describe('useUpdateRouteMutation', () => {
 describe('useDeleteRouteMutation', () => {
   it('calls DELETE endpoint and resolves on success', async () => {
     server.use(
-      http.delete(`*/api/v1/t/${TENANT}/routes/rt-del-1`, () =>
-        new HttpResponse(null, { status: 204 }),
+      http.delete(
+        `*/api/v1/t/${TENANT}/routes/rt-del-1`,
+        () => new HttpResponse(null, { status: 204 }),
       ),
     );
 
     const qc = makeQueryClient();
-    const { result } = renderHook(
-      () => useDeleteRouteMutation(TENANT),
-      { wrapper: makeWrapper(qc) },
-    );
+    const { result } = renderHook(() => useDeleteRouteMutation(TENANT), {
+      wrapper: makeWrapper(qc),
+    });
 
     await act(async () => {
       await result.current.mutateAsync('rt-del-1');
@@ -348,24 +346,20 @@ describe('useReorderMiddlewaresMutation', () => {
   it('PUTs to dedicated reorder endpoint and returns the new order', async () => {
     let receivedBody: { order: string[] } | null = null;
     server.use(
-      http.put(
-        `*/api/v1/t/${TENANT}/routes/rt-reorder/middlewares/order`,
-        async ({ request }) => {
-          receivedBody = (await request.json()) as { order: string[] };
-          return HttpResponse.json({
-            id: 'rt-reorder',
-            order: receivedBody.order,
-            middlewareIds: receivedBody.order,
-          });
-        },
-      ),
+      http.put(`*/api/v1/t/${TENANT}/routes/rt-reorder/middlewares/order`, async ({ request }) => {
+        receivedBody = (await request.json()) as { order: string[] };
+        return HttpResponse.json({
+          id: 'rt-reorder',
+          order: receivedBody.order,
+          middlewareIds: receivedBody.order,
+        });
+      }),
     );
 
     const qc = makeQueryClient();
-    const { result } = renderHook(
-      () => useReorderMiddlewaresMutation(TENANT),
-      { wrapper: makeWrapper(qc) },
-    );
+    const { result } = renderHook(() => useReorderMiddlewaresMutation(TENANT), {
+      wrapper: makeWrapper(qc),
+    });
 
     let payload: { routeId: string; order: string[] } | undefined;
     await act(async () => {
@@ -385,16 +379,16 @@ describe('useReorderMiddlewaresMutation', () => {
 describe('useAttachPolicyMutation', () => {
   it('posts to attach endpoint and resolves', async () => {
     server.use(
-      http.post(`*/api/v1/t/${TENANT}/routes/rt-1/policies/pol-1`, () =>
-        new HttpResponse(null, { status: 200 }),
+      http.post(
+        `*/api/v1/t/${TENANT}/routes/rt-1/policies/pol-1`,
+        () => new HttpResponse(null, { status: 200 }),
       ),
     );
 
     const qc = makeQueryClient();
-    const { result } = renderHook(
-      () => useAttachPolicyMutation(TENANT),
-      { wrapper: makeWrapper(qc) },
-    );
+    const { result } = renderHook(() => useAttachPolicyMutation(TENANT), {
+      wrapper: makeWrapper(qc),
+    });
 
     await act(async () => {
       await result.current.mutateAsync({ routeId: 'rt-1', policyId: 'pol-1' });
@@ -407,16 +401,16 @@ describe('useAttachPolicyMutation', () => {
 describe('useDetachPolicyMutation', () => {
   it('calls DELETE on attach endpoint and resolves', async () => {
     server.use(
-      http.delete(`*/api/v1/t/${TENANT}/routes/rt-1/policies/pol-1`, () =>
-        new HttpResponse(null, { status: 204 }),
+      http.delete(
+        `*/api/v1/t/${TENANT}/routes/rt-1/policies/pol-1`,
+        () => new HttpResponse(null, { status: 204 }),
       ),
     );
 
     const qc = makeQueryClient();
-    const { result } = renderHook(
-      () => useDetachPolicyMutation(TENANT),
-      { wrapper: makeWrapper(qc) },
-    );
+    const { result } = renderHook(() => useDetachPolicyMutation(TENANT), {
+      wrapper: makeWrapper(qc),
+    });
 
     await act(async () => {
       await result.current.mutateAsync({ routeId: 'rt-1', policyId: 'pol-1' });
@@ -437,12 +431,13 @@ describe('useListRoutePoliciesReal', () => {
     );
 
     const qc = makeQueryClient();
-    const { result } = renderHook(
-      () => useListRoutePoliciesReal(TENANT, 'rt-1'),
-      { wrapper: makeWrapper(qc) },
-    );
+    const { result } = renderHook(() => useListRoutePoliciesReal(TENANT, 'rt-1'), {
+      wrapper: makeWrapper(qc),
+    });
 
-    await waitFor(() => { expect(result.current.isLoading).toBe(false); });
+    await waitFor(() => {
+      expect(result.current.isLoading).toBe(false);
+    });
     expect(result.current.isError).toBe(false);
   });
 });

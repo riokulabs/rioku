@@ -17,7 +17,7 @@ import { PkiRealSection } from '@/features/settings/sections-real/pki-real';
 
 function PkiSettingsPage() {
   const { tenant } = useParams({ strict: false });
-  const tenantSlug = tenant ?? "";
+  const tenantSlug = tenant ?? '';
   const activeTenant: string = tenantSlug;
 
   return (

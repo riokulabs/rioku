@@ -180,9 +180,7 @@ describe('<SignerDetail>', () => {
   it('renders header + fingerprint for a verified signer', async () => {
     const signer = GLOBAL_SIGNERS[0];
     server.use(
-      http.get(`/api/v1/admin/plugin-signers/${signer.id}`, () =>
-        HttpResponse.json(signer),
-      ),
+      http.get(`/api/v1/admin/plugin-signers/${signer.id}`, () => HttpResponse.json(signer)),
       http.get(`/api/v1/admin/plugin-signers/${signer.id}/plugins`, () =>
         HttpResponse.json({ items: [], total: 0 }),
       ),
@@ -199,9 +197,7 @@ describe('<SignerDetail>', () => {
   it('disables Verify when already verified', async () => {
     const signer = GLOBAL_SIGNERS[0]; // verified
     server.use(
-      http.get(`/api/v1/admin/plugin-signers/${signer.id}`, () =>
-        HttpResponse.json(signer),
-      ),
+      http.get(`/api/v1/admin/plugin-signers/${signer.id}`, () => HttpResponse.json(signer)),
       http.get(`/api/v1/admin/plugin-signers/${signer.id}/plugins`, () =>
         HttpResponse.json({ items: [], total: 0 }),
       ),
@@ -220,9 +216,7 @@ describe('<SignerDetail>', () => {
   it('disables Revoke when already revoked', async () => {
     const signer = GLOBAL_SIGNERS[1]; // revoked
     server.use(
-      http.get(`/api/v1/admin/plugin-signers/${signer.id}`, () =>
-        HttpResponse.json(signer),
-      ),
+      http.get(`/api/v1/admin/plugin-signers/${signer.id}`, () => HttpResponse.json(signer)),
       http.get(`/api/v1/admin/plugin-signers/${signer.id}/plugins`, () =>
         HttpResponse.json({ items: [], total: 0 }),
       ),

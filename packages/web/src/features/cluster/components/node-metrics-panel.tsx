@@ -33,11 +33,7 @@ export function NodeMetricsPanel({ node }: NodeMetricsPanelProps) {
   const cpuColor =
     node.metrics.cpu_percent > 80 ? 'red' : node.metrics.cpu_percent > 60 ? 'yellow' : 'teal';
   const memColor =
-    node.metrics.memory_percent > 80
-      ? 'red'
-      : node.metrics.memory_percent > 60
-        ? 'yellow'
-        : 'teal';
+    node.metrics.memory_percent > 80 ? 'red' : node.metrics.memory_percent > 60 ? 'yellow' : 'teal';
   const latencyColor =
     node.metrics.latency_p95_ms > 100
       ? 'red'
@@ -91,9 +87,8 @@ export function NodeMetricsPanel({ node }: NodeMetricsPanelProps) {
   return (
     <Stack gap="md">
       <Text size="sm" c="var(--mantine-color-gray-7)">
-        Live metrics for this node, scoped by{' '}
-        <Code>instance=&quot;{node.id}&quot;</Code>. Queries run against the
-        daemon&apos;s PromQL endpoint.
+        Live metrics for this node, scoped by <Code>instance=&quot;{node.id}&quot;</Code>. Queries
+        run against the daemon&apos;s PromQL endpoint.
       </Text>
       <SimpleGrid cols={{ base: 1, sm: 2 }} spacing="md">
         {cards.map((card) => (
@@ -114,7 +109,12 @@ export function NodeMetricsPanel({ node }: NodeMetricsPanelProps) {
                 </Badge>
               </Group>
               {card.progress !== undefined && (
-                <Progress value={card.progress} color={card.color ?? 'teal'} size="sm" radius="xl" />
+                <Progress
+                  value={card.progress}
+                  color={card.color ?? 'teal'}
+                  size="sm"
+                  radius="xl"
+                />
               )}
               <Code block fz="xs" data-testid={`node-metric-promql-${card.key}`}>
                 {card.promql}

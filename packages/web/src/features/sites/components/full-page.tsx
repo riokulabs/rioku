@@ -14,17 +14,7 @@
  */
 import { useMemo } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import {
-  Alert,
-  Badge,
-  Button,
-  Group,
-  Stack,
-  Tabs,
-  Table,
-  Text,
-  Title,
-} from '@mantine/core';
+import { Alert, Badge, Button, Group, Stack, Tabs, Table, Text, Title } from '@mantine/core';
 import { Link } from '@tanstack/react-router';
 import {
   IconAlertCircle,
@@ -38,10 +28,7 @@ import dayjs from 'dayjs';
 import relativeTime from 'dayjs/plugin/relativeTime';
 import { useAuditList } from '@/features/audit/api';
 import type { AuditFilter } from '@/features/audit/types';
-import {
-  listRoutes,
-  getListRoutesQueryKey,
-} from '@/api/generated/routes/routes';
+import { listRoutes, getListRoutesQueryKey } from '@/api/generated/routes/routes';
 import type { V1Route } from '@/api/generated/schemas';
 import { useSiteDetailReal } from '../api.stage2';
 
@@ -242,8 +229,7 @@ export function SiteFullPage({ tenantId, tenantSlug, siteId }: SiteFullPageProps
             </Group>
             {site.tls_mode === 'auto' && (
               <Alert variant="light" color="green" icon={<IconLock size={16} />}>
-                Caddy will provision and renew certificates automatically via
-                ACME (default issuer).
+                Caddy will provision and renew certificates automatically via ACME (default issuer).
               </Alert>
             )}
             {site.tls_mode === 'manual' && site.tls_manual_cert ? (
@@ -260,14 +246,13 @@ export function SiteFullPage({ tenantId, tenantSlug, siteId }: SiteFullPageProps
               </Stack>
             ) : site.tls_mode === 'manual' ? (
               <Alert variant="light" color="yellow" icon={<IconAlertCircle size={16} />}>
-                Manual TLS mode is set but no certificate preview is available
-                via the wire shape. Inspect via the daemon CLI.
+                Manual TLS mode is set but no certificate preview is available via the wire shape.
+                Inspect via the daemon CLI.
               </Alert>
             ) : null}
             {site.tls_mode === 'off' && (
               <Alert variant="light" color="gray" icon={<IconAlertCircle size={16} />}>
-                TLS is disabled for this site. Traffic will be served over
-                plaintext HTTP.
+                TLS is disabled for this site. Traffic will be served over plaintext HTTP.
               </Alert>
             )}
           </Stack>

@@ -247,18 +247,24 @@ export function AccessPolicyFullPage({ tenantSlug, policyId }: AccessPolicyFullP
               >
                 Test
               </Button>
-              {sampleError && <Text size="sm" c="red">{sampleError}</Text>}
+              {sampleError && (
+                <Text size="sm" c="red">
+                  {sampleError}
+                </Text>
+              )}
             </Group>
 
             {testResult && (
               <Alert
                 color={testResult.error ? 'red' : testResult.matched ? 'green' : 'gray'}
                 icon={
-                  testResult.error
-                    ? <IconAlertCircle size={16} />
-                    : testResult.matched
-                      ? <IconCheck size={16} />
-                      : <IconX size={16} />
+                  testResult.error ? (
+                    <IconAlertCircle size={16} />
+                  ) : testResult.matched ? (
+                    <IconCheck size={16} />
+                  ) : (
+                    <IconX size={16} />
+                  )
                 }
                 title={
                   testResult.error
@@ -273,7 +279,8 @@ export function AccessPolicyFullPage({ tenantSlug, policyId }: AccessPolicyFullP
                     <Code block>{testResult.error}</Code>
                   ) : (
                     <Text size="sm">
-                      Expression evaluated to {testResult.matched ? <strong>true</strong> : <strong>false</strong>}.
+                      Expression evaluated to{' '}
+                      {testResult.matched ? <strong>true</strong> : <strong>false</strong>}.
                     </Text>
                   )}
                   <Text size="xs" c="dimmed">
@@ -288,11 +295,9 @@ export function AccessPolicyFullPage({ tenantSlug, policyId }: AccessPolicyFullP
         <Tabs.Panel value="audit" pt="md">
           <Alert color="blue" variant="light" icon={<IconInfoCircle size={16} />}>
             <Text size="sm">
-              The audit feed for this policy is sourced from the global audit
-              log filtered by{' '}
-              <Code>resource_id = {policy.id}</Code>. Visit the{' '}
-              <strong>Security → Audit</strong> page and apply the filter to
-              see mutations recorded against this policy.
+              The audit feed for this policy is sourced from the global audit log filtered by{' '}
+              <Code>resource_id = {policy.id}</Code>. Visit the <strong>Security → Audit</strong>{' '}
+              page and apply the filter to see mutations recorded against this policy.
             </Text>
           </Alert>
         </Tabs.Panel>

@@ -60,104 +60,116 @@ export function ServiceList({
     return counts;
   }, [routes]);
 
-  const handleBulkDelete = useCallback(async (ids: string[]) => {
-    let failed = 0;
-    for (const id of ids) {
-      try {
-        await deleteService(tenantId, id);
-      } catch {
-        failed++;
+  const handleBulkDelete = useCallback(
+    async (ids: string[]) => {
+      let failed = 0;
+      for (const id of ids) {
+        try {
+          await deleteService(tenantId, id);
+        } catch {
+          failed++;
+        }
       }
-    }
-    const succeeded = ids.length - failed;
-    if (succeeded > 0) {
-      notify.success(
-        'Services deleted',
-        `${String(succeeded)} service${succeeded !== 1 ? 's' : ''} deleted.`,
-      );
-    }
-    if (failed > 0) {
-      notify.error(
-        'Some deletions failed',
-        `${String(failed)} service${failed !== 1 ? 's' : ''} could not be deleted (may have attached routes).`,
-      );
-    }
-  }, [tenantId]);
-
-  const handleBulkEnable = useCallback(async (ids: string[]) => {
-    let failed = 0;
-    for (const id of ids) {
-      try {
-        await enableService(tenantId, id);
-      } catch {
-        failed++;
+      const succeeded = ids.length - failed;
+      if (succeeded > 0) {
+        notify.success(
+          'Services deleted',
+          `${String(succeeded)} service${succeeded !== 1 ? 's' : ''} deleted.`,
+        );
       }
-    }
-    const succeeded = ids.length - failed;
-    if (succeeded > 0) {
-      notify.success(
-        'Services enabled',
-        `${String(succeeded)} service${succeeded !== 1 ? 's' : ''} enabled.`,
-      );
-    }
-    if (failed > 0) {
-      notify.error(
-        'Some enables failed',
-        `${String(failed)} service${failed !== 1 ? 's' : ''} could not be enabled.`,
-      );
-    }
-  }, [tenantId]);
-
-  const handleBulkDisable = useCallback(async (ids: string[]) => {
-    let failed = 0;
-    for (const id of ids) {
-      try {
-        await disableService(tenantId, id);
-      } catch {
-        failed++;
+      if (failed > 0) {
+        notify.error(
+          'Some deletions failed',
+          `${String(failed)} service${failed !== 1 ? 's' : ''} could not be deleted (may have attached routes).`,
+        );
       }
-    }
-    const succeeded = ids.length - failed;
-    if (succeeded > 0) {
-      notify.success(
-        'Services disabled',
-        `${String(succeeded)} service${succeeded !== 1 ? 's' : ''} disabled.`,
-      );
-    }
-    if (failed > 0) {
-      notify.error(
-        'Some disables failed',
-        `${String(failed)} service${failed !== 1 ? 's' : ''} could not be disabled.`,
-      );
-    }
-  }, [tenantId]);
+    },
+    [tenantId],
+  );
 
-  const handleBulkExportJson = useCallback((ids: string[]) => {
-    const idSet = new Set(ids);
-    const selected = services
-      .filter((s) => idSet.has(s.id))
-      .map(({ id, name, upstream, upstream_protocol, env, health, tags, description }) => ({
-        id,
-        name,
-        upstream,
-        upstream_protocol,
-        env,
-        health,
-        tags,
-        ...(description !== undefined ? { description } : {}),
-      }));
-    const blob = new Blob([JSON.stringify(selected, null, 2)], { type: 'application/json' });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement('a');
-    link.href = url;
-    link.download = `services-export-${new Date().toISOString().slice(0, 10)}.json`;
-    link.click();
-    URL.revokeObjectURL(url);
-    notify.success(
-      'Export ready',
-      `${String(selected.length)} service${selected.length !== 1 ? 's' : ''} exported.`,
-    );
-  }, [services]);
+  const handleBulkEnable = useCallback(
+    async (ids: string[]) => {
+      let failed = 0;
+      for (const id of ids) {
+        try {
+          await enableService(tenantId, id);
+        } catch {
+          failed++;
+        }
+      }
+      const succeeded = ids.length - failed;
+      if (succeeded > 0) {
+        notify.success(
+          'Services enabled',
+          `${String(succeeded)} service${succeeded !== 1 ? 's' : ''} enabled.`,
+        );
+      }
+      if (failed > 0) {
+        notify.error(
+          'Some enables failed',
+          `${String(failed)} service${failed !== 1 ? 's' : ''} could not be enabled.`,
+        );
+      }
+    },
+    [tenantId],
+  );
+
+  const handleBulkDisable = useCallback(
+    async (ids: string[]) => {
+      let failed = 0;
+      for (const id of ids) {
+        try {
+          await disableService(tenantId, id);
+        } catch {
+          failed++;
+        }
+      }
+      const succeeded = ids.length - failed;
+      if (succeeded > 0) {
+        notify.success(
+          'Services disabled',
+          `${String(succeeded)} service${succeeded !== 1 ? 's' : ''} disabled.`,
+        );
+      }
+      if (failed > 0) {
+        notify.error(
+          'Some disables failed',
+          `${String(failed)} service${failed !== 1 ? 's' : ''} could not be disabled.`,
+        );
+      }
+    },
+    [tenantId],
+  );
+
+  const handleBulkExportJson = useCallback(
+    (ids: string[]) => {
+      const idSet = new Set(ids);
+      const selected = services
+        .filter((s) => idSet.has(s.id))
+        .map(({ id, name, upstream, upstream_protocol, env, health, tags, description }) => ({
+          id,
+          name,
+          upstream,
+          upstream_protocol,
+          env,
+          health,
+          tags,
+          ...(description !== undefined ? { description } : {}),
+        }));
+      const blob = new Blob([JSON.stringify(selected, null, 2)], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `services-export-${new Date().toISOString().slice(0, 10)}.json`;
+      link.click();
+      URL.revokeObjectURL(url);
+      notify.success(
+        'Export ready',
+        `${String(selected.length)} service${selected.length !== 1 ? 's' : ''} exported.`,
+      );
+    },
+    [services],
+  );
 
   const bulkActions = useMemo<BulkAction[]>(
     () => [

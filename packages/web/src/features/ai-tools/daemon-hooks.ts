@@ -23,8 +23,4 @@ export {
   listAIToolAgents,
 } from '@/api/generated/ai-tools/ai-tools';
 
-export type {
-  AITool,
-  AIToolCreateRequest,
-  AIToolUpdateRequest,
-} from '@/api/generated/schemas';
+export type { AITool, AIToolCreateRequest, AIToolUpdateRequest } from '@/api/generated/schemas';

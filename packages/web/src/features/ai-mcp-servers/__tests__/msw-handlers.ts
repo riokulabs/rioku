@@ -15,8 +15,24 @@ import type { MCPServer } from '@/api/generated/schemas';
 const BASE = '*/api/v1';
 
 let serverStore: Record<string, MCPServer> = {};
-let toolStore: Record<string, { id: string; name: string; description?: string; argSchema?: string; dangerous?: boolean; enabled?: boolean; mcpServerId: string }> = {};
-let testResultOverride: { ok: boolean; latencyMs: number; error?: string; serverVersion?: string } | null = null;
+let toolStore: Record<
+  string,
+  {
+    id: string;
+    name: string;
+    description?: string;
+    argSchema?: string;
+    dangerous?: boolean;
+    enabled?: boolean;
+    mcpServerId: string;
+  }
+> = {};
+let testResultOverride: {
+  ok: boolean;
+  latencyMs: number;
+  error?: string;
+  serverVersion?: string;
+} | null = null;
 let idCounter = 1;
 
 function nextId(): string {
@@ -36,15 +52,17 @@ export function resetMcpServerStore(seed?: MCPServer[]): void {
   }
 }
 
-export function seedTools(items: {
-  id: string;
-  name: string;
-  description?: string;
-  argSchema?: string;
-  dangerous?: boolean;
-  enabled?: boolean;
-  mcpServerId: string;
-}[]): void {
+export function seedTools(
+  items: {
+    id: string;
+    name: string;
+    description?: string;
+    argSchema?: string;
+    dangerous?: boolean;
+    enabled?: boolean;
+    mcpServerId: string;
+  }[],
+): void {
   for (const t of items) {
     toolStore[t.id] = t;
   }
@@ -127,8 +145,7 @@ export const aiMcpServerHandlers = [
     if (body.url !== undefined) next.url = body.url;
     if (body.authKind !== undefined) next.authKind = body.authKind;
     if (body.enabled !== undefined) next.enabled = body.enabled;
-    if (body.authorizedAgentIds !== undefined)
-      next.authorizedAgentIds = body.authorizedAgentIds;
+    if (body.authorizedAgentIds !== undefined) next.authorizedAgentIds = body.authorizedAgentIds;
     serverStore[id] = next;
     return HttpResponse.json(next);
   }),

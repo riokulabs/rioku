@@ -161,17 +161,7 @@ export function ApiKeyList({ tenantId, onSelect, onRotated }: ApiKeyListProps) {
       const selected = keys
         .filter((k) => idSet.has(k.id))
         .map(
-          ({
-            id,
-            name,
-            prefix,
-            scope,
-            tenant_id,
-            created_at,
-            expires_at,
-            revoked,
-            last_used,
-          }) => ({
+          ({ id, name, prefix, scope, tenant_id, created_at, expires_at, revoked, last_used }) => ({
             id,
             name,
             prefix,

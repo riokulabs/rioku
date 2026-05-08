@@ -110,7 +110,7 @@ function MetricsCard({ tenant }: { tenant: string }) {
           label="Auth"
           value={auth}
           onChange={(v) => {
-            setAuth((v) ?? 'none');
+            setAuth(v ?? 'none');
             setDirty(true);
           }}
           data={['none', 'basic', 'bearer']}
@@ -188,7 +188,7 @@ function LogsCard({ tenant }: { tenant: string }) {
           label="Level"
           value={level}
           onChange={(v) => {
-            setLevel((v) ?? 'info');
+            setLevel(v ?? 'info');
             setDirty(true);
           }}
           data={['debug', 'info', 'warn', 'error']}
@@ -198,7 +198,7 @@ function LogsCard({ tenant }: { tenant: string }) {
           label="Format"
           value={format}
           onChange={(v) => {
-            setFormat((v) ?? 'json');
+            setFormat(v ?? 'json');
             setDirty(true);
           }}
           data={['json', 'text']}
@@ -361,9 +361,12 @@ function LogsTailPreview({ tenant }: { tenant: string }) {
     setStreaming(false);
   }
 
-  useEffect(() => () => {
-    sourceRef.current?.close();
-  }, []);
+  useEffect(
+    () => () => {
+      sourceRef.current?.close();
+    },
+    [],
+  );
 
   return (
     <Card withBorder data-testid="logs-tail-card">

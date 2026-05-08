@@ -87,9 +87,7 @@ describe('<BulkAttachModal> integration', () => {
     const onComplete = vi.fn();
     const onClose = vi.fn();
 
-    wrap(
-      <BulkAttachModal tenantId={TENANT} opened onClose={onClose} onComplete={onComplete} />,
-    );
+    wrap(<BulkAttachModal tenantId={TENANT} opened onClose={onClose} onComplete={onComplete} />);
 
     // Wait for the agent + tool refs to populate (fetched from MSW).
     await waitFor(() => {
@@ -144,14 +142,7 @@ describe('<BulkAttachModal> integration', () => {
     const user = userEvent.setup();
     const onComplete = vi.fn();
 
-    wrap(
-      <BulkAttachModal
-        tenantId={TENANT}
-        opened
-        onClose={vi.fn()}
-        onComplete={onComplete}
-      />,
-    );
+    wrap(<BulkAttachModal tenantId={TENANT} opened onClose={vi.fn()} onComplete={onComplete} />);
 
     await waitFor(() => {
       expect(screen.getByText(/up to 0 binding/i)).toBeInTheDocument();

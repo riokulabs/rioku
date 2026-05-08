@@ -63,7 +63,8 @@ function deriveHealth(
 export function fromProtoService(proto: V1Service, tenantId: string): Service {
   const labels = proto.labels?.labels ?? {};
   const upstream = proto.upstreams?.[0]?.address ?? '';
-  const upstreamProtocol = (labels[LBL_PROTOCOL] as Service['upstream_protocol'] | undefined) ?? 'http';
+  const upstreamProtocol =
+    (labels[LBL_PROTOCOL] as Service['upstream_protocol'] | undefined) ?? 'http';
   const env = labels[LBL_ENV] ?? '';
   const tags = labels[LBL_TAGS] ? labels[LBL_TAGS].split(',').filter(Boolean) : [];
   const description = labels[LBL_DESCRIPTION] ?? undefined;
@@ -71,14 +72,13 @@ export function fromProtoService(proto: V1Service, tenantId: string): Service {
 
   // health_check: map from proto HealthCheck if present
   const hc = proto.healthCheck;
-  const health_check =
-    hc?.path
-      ? {
-          path: hc.path,
-          interval_seconds: hc.intervalSeconds ?? 30,
-          timeout_seconds: hc.timeoutSeconds ?? 5,
-        }
-      : undefined;
+  const health_check = hc?.path
+    ? {
+        path: hc.path,
+        interval_seconds: hc.intervalSeconds ?? 30,
+        timeout_seconds: hc.timeoutSeconds ?? 5,
+      }
+    : undefined;
 
   return {
     id: proto.id ?? '',

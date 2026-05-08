@@ -122,12 +122,7 @@ export function MembershipActions({ membership, tenantSlug, onChanged }: Members
       </Group>
 
       {/* Deactivate confirm modal */}
-      <Modal
-        opened={deactivateOpened}
-        onClose={closeDeactivate}
-        title="Deactivate user"
-        size="sm"
-      >
+      <Modal opened={deactivateOpened} onClose={closeDeactivate} title="Deactivate user" size="sm">
         <Stack gap="md">
           <Text size="sm">
             This will suspend the user&apos;s access. They can be re-activated at any time.

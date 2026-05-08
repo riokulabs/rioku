@@ -229,10 +229,7 @@ function AuditPage() {
       void (async () => {
         try {
           await streamAuditExport(tenantSlug, format, filename, daemonFilters);
-          notify.success(
-            'Export complete',
-            `Streamed audit export as ${format.toUpperCase()}.`,
-          );
+          notify.success('Export complete', `Streamed audit export as ${format.toUpperCase()}.`);
         } catch {
           notify.error('Export failed', 'Please try again.');
         }

@@ -36,7 +36,10 @@ export function makeProvider(overrides: Partial<AiProvider> = {}): AiProvider {
     kind: overrides.kind ?? 'openai',
     base_url: overrides.base_url ?? 'https://api.openai.com/v1',
     enabled: overrides.enabled ?? true,
-    credential_ref: overrides.credential_ref ?? { prefix: 'sk-testXXX', created_at: new Date().toISOString() },
+    credential_ref: overrides.credential_ref ?? {
+      prefix: 'sk-testXXX',
+      created_at: new Date().toISOString(),
+    },
     models: overrides.models ?? [],
     created_at: overrides.created_at ?? new Date().toISOString(),
     updated_at: overrides.updated_at ?? new Date().toISOString(),
@@ -66,7 +69,7 @@ export const aiProviderHandlers = [
 
   // Create provider
   http.post(`${BASE}/t/:tenant/ai/providers`, async ({ params, request }) => {
-    const body = await request.json() as Partial<AiProvider> & { credential?: string };
+    const body = (await request.json()) as Partial<AiProvider> & { credential?: string };
     const tenantSlug = params.tenant as string;
     const id = makeId();
     const now = new Date().toISOString();
@@ -97,7 +100,7 @@ export const aiProviderHandlers = [
     const id = params.id as string;
     const existing = providerStore[id];
     if (!existing) return new HttpResponse(null, { status: 404 });
-    const body = await request.json() as Partial<AiProvider> & { credential?: string };
+    const body = (await request.json()) as Partial<AiProvider> & { credential?: string };
     const updated: AiProvider = {
       ...existing,
       ...body,
@@ -136,7 +139,13 @@ export const aiProviderHandlers = [
     const id = params.id as string;
     const existing = providerStore[id];
     if (!existing) return new HttpResponse(null, { status: 404 });
-    const body = await request.json() as { upstream_id: string; alias: string; rate_limit_rpm?: number | null; daily_quota_tokens?: number | null; enabled?: boolean };
+    const body = (await request.json()) as {
+      upstream_id: string;
+      alias: string;
+      rate_limit_rpm?: number | null;
+      daily_quota_tokens?: number | null;
+      enabled?: boolean;
+    };
     const newModel = {
       upstream_id: body.upstream_id,
       alias: body.alias,
@@ -144,7 +153,11 @@ export const aiProviderHandlers = [
       daily_quota_tokens: body.daily_quota_tokens ?? null,
       enabled: body.enabled ?? true,
     };
-    const updated = { ...existing, models: [...existing.models, newModel], updated_at: new Date().toISOString() };
+    const updated = {
+      ...existing,
+      models: [...existing.models, newModel],
+      updated_at: new Date().toISOString(),
+    };
     providerStore[id] = updated;
     return HttpResponse.json(updated);
   }),
@@ -155,10 +168,13 @@ export const aiProviderHandlers = [
     const modelId = params.modelId as string;
     const existing = providerStore[id];
     if (!existing) return new HttpResponse(null, { status: 404 });
-    const body = await request.json() as { alias?: string; rate_limit_rpm?: number | null; daily_quota_tokens?: number | null; enabled?: boolean };
-    const models = existing.models.map((m) =>
-      m.upstream_id === modelId ? { ...m, ...body } : m,
-    );
+    const body = (await request.json()) as {
+      alias?: string;
+      rate_limit_rpm?: number | null;
+      daily_quota_tokens?: number | null;
+      enabled?: boolean;
+    };
+    const models = existing.models.map((m) => (m.upstream_id === modelId ? { ...m, ...body } : m));
     const updated = { ...existing, models, updated_at: new Date().toISOString() };
     providerStore[id] = updated;
     return HttpResponse.json(updated);

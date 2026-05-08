@@ -1,4 +1,3 @@
- 
 /**
  * Stage-2 tests for the AI semantic rate-limits API layer. Covers CRUD,
  * deterministic metrics shape, and the deprecated `simulateMatch` shim.
@@ -56,10 +55,7 @@ beforeEach(() => {
     http.get(`${BASE}/rl-1`, () => HttpResponse.json(sampleProto)),
     http.post(BASE, async ({ request }) => {
       const body = (await request.json()) as Record<string, unknown>;
-      return HttpResponse.json(
-        { ...sampleProto, ...body, id: 'rl-new' },
-        { status: 201 },
-      );
+      return HttpResponse.json({ ...sampleProto, ...body, id: 'rl-new' }, { status: 201 });
     }),
     http.put(`${BASE}/rl-1`, async ({ request }) => {
       const body = (await request.json()) as Record<string, unknown>;

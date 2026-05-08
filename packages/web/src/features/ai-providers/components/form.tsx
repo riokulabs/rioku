@@ -178,7 +178,10 @@ export function ProviderForm({
           <Button variant="default" onClick={onCancel} type="button">
             Cancel
           </Button>
-          <Button type="submit" loading={createProviderMut.isPending || updateProviderMut.isPending}>
+          <Button
+            type="submit"
+            loading={createProviderMut.isPending || updateProviderMut.isPending}
+          >
             {mode === 'create' ? 'Create provider' : 'Save changes'}
           </Button>
         </Group>

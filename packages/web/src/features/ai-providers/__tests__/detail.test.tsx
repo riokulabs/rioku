@@ -21,7 +21,9 @@ import { aiProviderHandlers, resetProviderStore, makeProvider } from './msw-hand
 const SEED_PROVIDER = makeProvider({ id: 'prov-det-1', name: 'Detail Provider' });
 
 function wrap(ui: React.ReactNode) {
-  const qc = new QueryClient({ defaultOptions: { queries: { retry: false }, mutations: { retry: false } } });
+  const qc = new QueryClient({
+    defaultOptions: { queries: { retry: false }, mutations: { retry: false } },
+  });
   return render(
     <QueryClientProvider client={qc}>
       <MantineProvider>
@@ -39,7 +41,9 @@ beforeEach(() => {
 
 describe('ProviderDetail', () => {
   it('renders provider header + credential + models section', async () => {
-    wrap(<ProviderDetail tenant="acme" providerId="prov-det-1" onEdit={vi.fn()} onClose={vi.fn()} />);
+    wrap(
+      <ProviderDetail tenant="acme" providerId="prov-det-1" onEdit={vi.fn()} onClose={vi.fn()} />,
+    );
     await waitFor(() => {
       expect(screen.getAllByText(/Base URL/i).length).toBeGreaterThan(0);
       expect(screen.getAllByText(/Credential/i).length).toBeGreaterThan(0);
@@ -48,7 +52,14 @@ describe('ProviderDetail', () => {
   });
 
   it('shows error alert when provider not found', async () => {
-    wrap(<ProviderDetail tenant="acme" providerId="does-not-exist" onEdit={vi.fn()} onClose={vi.fn()} />);
+    wrap(
+      <ProviderDetail
+        tenant="acme"
+        providerId="does-not-exist"
+        onEdit={vi.fn()}
+        onClose={vi.fn()}
+      />,
+    );
     await waitFor(() => {
       expect(screen.getByText(/Provider not found/i)).toBeInTheDocument();
     });

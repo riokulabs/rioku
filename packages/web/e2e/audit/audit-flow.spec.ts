@@ -21,7 +21,8 @@ import { test, expect, type APIRequestContext } from '@playwright/test';
 
 // Playwright sets `process` at runtime but the SPA tsconfig deliberately
 // omits @types/node — refer to it through a typed shim.
-const env = (globalThis as { process?: { env?: Record<string, string | undefined> } }).process?.env ?? {};
+const env =
+  (globalThis as { process?: { env?: Record<string, string | undefined> } }).process?.env ?? {};
 
 const DAEMON_BASE = env.RIOKU_DAEMON_BASE ?? 'http://localhost:7778';
 const ROOT_USERNAME = env.RIOKU_ROOT_USERNAME ?? 'root';
@@ -100,7 +101,11 @@ test.describe('@isolated audit flow against the real sandbox', () => {
           `${DAEMON_BASE}/api/v1/t/default/audit?entity_type=service&limit=20`,
         );
         if (listRes.ok()) {
-          const rows = (await listRes.json()) as { id?: string; entityId?: string; operation?: string }[];
+          const rows = (await listRes.json()) as {
+            id?: string;
+            entityId?: string;
+            operation?: string;
+          }[];
           const match = rows.find((r) => r.entityId === serviceName || r.operation === 'create');
           if (match?.id) auditId = match.id;
         }
@@ -109,10 +114,9 @@ test.describe('@isolated audit flow against the real sandbox', () => {
       expect(auditId, 'audit row for service.create not found').not.toBeNull();
 
       // 3. Reveal sensitive fields with a reason ≥ 10 chars.
-      const reveal = await api.post(
-        `${DAEMON_BASE}/api/v1/t/default/audit/${auditId!}/reveal`,
-        { data: { reason: 'Investigating audit-flow E2E for plan 05' } },
-      );
+      const reveal = await api.post(`${DAEMON_BASE}/api/v1/t/default/audit/${auditId!}/reveal`, {
+        data: { reason: 'Investigating audit-flow E2E for plan 05' },
+      });
       expect(reveal.status()).toBe(200);
       const revealBody = (await reveal.json()) as {
         entry?: { id?: string };
@@ -129,7 +133,10 @@ test.describe('@isolated audit flow against the real sandbox', () => {
       });
       // The endpoint may live under /api/v1/audit/verify or admin —
       // try both before concluding it's missing.
-      interface VerifyJson { ok?: boolean; count?: number }
+      interface VerifyJson {
+        ok?: boolean;
+        count?: number;
+      }
       let verifyJson: VerifyJson | null = null;
       if (verifyRes.ok()) {
         verifyJson = (await verifyRes.json()) as VerifyJson;
@@ -158,7 +165,10 @@ test.describe('@isolated audit flow against the real sandbox', () => {
       const loginInput = page.getByLabel(/username|email/i).first();
       if (await loginInput.isVisible({ timeout: 2000 }).catch(() => false)) {
         await loginInput.fill(ROOT_USERNAME);
-        await page.getByLabel(/password/i).first().fill(ROOT_PASSWORD);
+        await page
+          .getByLabel(/password/i)
+          .first()
+          .fill(ROOT_PASSWORD);
         await page.getByRole('button', { name: /sign in|log in|submit/i }).click();
       }
       await page.goto('/t/default/security/audit');

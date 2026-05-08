@@ -63,8 +63,8 @@ function adaptTrace(d: AITrace): AiTrace {
   return {
     id: d.id,
     tenant_id: d.tenantId,
-    agent_id: (d.agentId ?? ''),
-    provider_id: (d.providerId ?? ''),
+    agent_id: d.agentId ?? '',
+    provider_id: d.providerId ?? '',
     model: d.model,
     status: d.status as AiTrace['status'],
     input_tokens: d.inputTokens,
@@ -154,10 +154,7 @@ export function useTraceDetail(tenantSlug: string, traceId: string): TraceDetail
  * event payload is JSON-encoded; we parse and adapt to the legacy shape
  * before invoking `onTrace`.
  */
-export function subscribeTraceStream(
-  tenantSlug: string,
-  onTrace: TraceStreamListener,
-): () => void {
+export function subscribeTraceStream(tenantSlug: string, onTrace: TraceStreamListener): () => void {
   const url = `/api/v1/events?topic=ai-traces&tenant=${encodeURIComponent(tenantSlug)}`;
   const es = new EventSource(url, { withCredentials: true });
 

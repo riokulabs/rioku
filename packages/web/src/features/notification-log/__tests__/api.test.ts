@@ -1,4 +1,3 @@
- 
 /**
  * Tests for the notification-log (delivery log) API — daemon-backed (stage-2).
  */
@@ -150,9 +149,8 @@ describe('useDeliveryLogList', () => {
 describe('useDeliveryLogDetail', () => {
   it('fetches a single entry by id', async () => {
     server.use(
-      http.get(
-        `/api/v1/t/${TENANT}/notification-log/${ENTRY_OK.id}`,
-        () => HttpResponse.json(ENTRY_OK),
+      http.get(`/api/v1/t/${TENANT}/notification-log/${ENTRY_OK.id}`, () =>
+        HttpResponse.json(ENTRY_OK),
       ),
     );
     const qc = makeQueryClient();

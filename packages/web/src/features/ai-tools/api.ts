@@ -61,9 +61,7 @@ export function fromDaemon(t: DaemonAIToolFull): AiTool {
     name: t.name,
     description: t.description ?? '',
     schema: (t.schema as Record<string, unknown> | undefined) ?? {},
-    kind: ((['native', 'mcp', 'http'] as const).includes(
-      t.kind as 'native' | 'mcp' | 'http',
-    )
+    kind: ((['native', 'mcp', 'http'] as const).includes(t.kind as 'native' | 'mcp' | 'http')
       ? t.kind
       : 'native') as AiTool['kind'],
     dangerous: t.dangerous ?? false,
@@ -75,9 +73,7 @@ export function fromDaemon(t: DaemonAIToolFull): AiTool {
     out.http_endpoint = {
       url: httpUrl,
       method: t.httpEndpointMethod ?? 'POST',
-      ...(t.httpEndpointAuthHeader !== undefined
-        ? { auth_header: t.httpEndpointAuthHeader }
-        : {}),
+      ...(t.httpEndpointAuthHeader !== undefined ? { auth_header: t.httpEndpointAuthHeader } : {}),
     };
   }
   return out;
@@ -185,10 +181,7 @@ export function useToolDetail(tenant: string, id: string): AiTool | undefined {
  * Fetch agent ids that reference this tool. Returns a sparse `AiAgent`-like
  * shape (only `id` populated) since the daemon endpoint exposes ids only.
  */
-export function useToolAgents(
-  tenant: string,
-  id: string,
-): Pick<AiAgent, 'id'>[] {
+export function useToolAgents(tenant: string, id: string): Pick<AiAgent, 'id'>[] {
   const { data } = useQuery({
     queryKey: toolKeys.agents(tenant, id),
     queryFn: () =>
@@ -301,8 +294,7 @@ export async function deleteTool(tenant: string, id: string): Promise<void> {
   // We bypass `customFetch` for 409 handling — the shared mutator drops the
   // problem+json body for non-validation statuses, and we need `agentIds` /
   // `bindingIds` from it to render a targeted "in use" notification.
-  const base: string =
-    (import.meta.env.VITE_API_BASE as string | undefined) ?? '/api/v1';
+  const base: string = (import.meta.env.VITE_API_BASE as string | undefined) ?? '/api/v1';
   const url = `${base}${toolBase(tenant)}/${id}`;
   const res = await fetch(url, { method: 'DELETE', credentials: 'include' });
   if (res.ok || res.status === 204) return;
@@ -313,8 +305,7 @@ export async function deleteTool(tenant: string, id: string): Promise<void> {
     } catch {
       // ignore parse failure — fall through to a bare ToolInUseError
     }
-    const rec =
-      body !== null && typeof body === 'object' ? (body as Record<string, unknown>) : {};
+    const rec = body !== null && typeof body === 'object' ? (body as Record<string, unknown>) : {};
     const fields = (rec.fields ?? {}) as Record<string, unknown>;
     const agentIdsRaw = fields.agentIds;
     const bindingIdsRaw = fields.bindingIds;

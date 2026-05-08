@@ -57,9 +57,7 @@ describe('<RateLimitMetricsChart>', () => {
     await waitFor(() => {
       expect(screen.getByTestId('rate-limit-metrics-chart')).toBeInTheDocument();
     });
-    expect(
-      screen.getByLabelText(/Throttle events over the last 24h/i),
-    ).toBeInTheDocument();
+    expect(screen.getByLabelText(/Throttle events over the last 24h/i)).toBeInTheDocument();
   });
 
   it('renders the empty-state placeholder when the daemon returns no points', async () => {

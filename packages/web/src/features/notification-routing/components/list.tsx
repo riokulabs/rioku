@@ -59,23 +59,20 @@ export function RoutingRuleList({
   const [togglingId, setTogglingId] = useState<string | null>(null);
   const [reordering, setReordering] = useState(false);
 
-  const handleToggle = useCallback(
-    async (r: NotificationRoutingRule, next: boolean) => {
-      setTogglingId(r.id);
-      try {
-        await updateRoutingRule(r.id, { enabled: next });
-        notify.success(
-          next ? 'Rule enabled' : 'Rule disabled',
-          `${r.name} is now ${next ? 'active' : 'inactive'}.`,
-        );
-      } catch {
-        notify.error('Failed to toggle rule', 'Please try again.');
-      } finally {
-        setTogglingId(null);
-      }
-    },
-    [],
-  );
+  const handleToggle = useCallback(async (r: NotificationRoutingRule, next: boolean) => {
+    setTogglingId(r.id);
+    try {
+      await updateRoutingRule(r.id, { enabled: next });
+      notify.success(
+        next ? 'Rule enabled' : 'Rule disabled',
+        `${r.name} is now ${next ? 'active' : 'inactive'}.`,
+      );
+    } catch {
+      notify.error('Failed to toggle rule', 'Please try again.');
+    } finally {
+      setTogglingId(null);
+    }
+  }, []);
 
   const handleMove = useCallback(
     async (index: number, direction: 'up' | 'down') => {

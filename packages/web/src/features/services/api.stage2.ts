@@ -41,7 +41,10 @@ import { fromProtoService, toProtoServiceBody, toProtoServicePatch } from './ada
  * List services for a tenant with client-side filter applied.
  * Adapts V1Service[] → Service[].
  */
-export function useServiceListReal(tenantId: string, filter: ServiceFilter): {
+export function useServiceListReal(
+  tenantId: string,
+  filter: ServiceFilter,
+): {
   services: Service[];
   isLoading: boolean;
   isError: boolean;
@@ -80,10 +83,7 @@ export function useServiceListReal(tenantId: string, filter: ServiceFilter): {
  * Get a single service by ID.
  * Adapts V1Service → Service.
  */
-export function useServiceDetailReal(
-  tenantId: string,
-  serviceId: string,
-): Service | undefined {
+export function useServiceDetailReal(tenantId: string, serviceId: string): Service | undefined {
   const { data } = useQuery({
     queryKey: getGetServiceQueryKey(tenantId, serviceId),
     queryFn: ({ signal }) => getService(tenantId, serviceId, { signal }),
@@ -122,7 +122,13 @@ export function useCreateServiceMutation(tenantId: string) {
 export function useUpdateServiceMutation(tenantId: string) {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: async ({ id, input }: { id: string; input: ServiceUpdateInput }): Promise<Service> => {
+    mutationFn: async ({
+      id,
+      input,
+    }: {
+      id: string;
+      input: ServiceUpdateInput;
+    }): Promise<Service> => {
       const body = toProtoServicePatch(input);
       const res = await patchService(tenantId, id, body);
       const proto = (res as unknown as { data: V1Service }).data;

@@ -69,7 +69,7 @@ describe('updateProvider', () => {
       credential: 'sk-old-cred',
     });
     const updated = await updateProvider(TENANT, created.id, { credential: 'sk-new-credential' });
-    expect(updated.credential_ref.prefix).toBe("sk-new-crede");
+    expect(updated.credential_ref.prefix).toBe('sk-new-crede');
   });
 });
 

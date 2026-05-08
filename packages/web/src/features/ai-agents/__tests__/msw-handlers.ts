@@ -189,14 +189,10 @@ export const aiAgentHandlers = [
     const stream = new ReadableStream<Uint8Array>({
       start(controller) {
         controller.enqueue(
-          encoder.encode(
-            `event: chunk\ndata: ${JSON.stringify({ index: 0, text: 'Hello ' })}\n\n`,
-          ),
+          encoder.encode(`event: chunk\ndata: ${JSON.stringify({ index: 0, text: 'Hello ' })}\n\n`),
         );
         controller.enqueue(
-          encoder.encode(
-            `event: chunk\ndata: ${JSON.stringify({ index: 1, text: 'world.' })}\n\n`,
-          ),
+          encoder.encode(`event: chunk\ndata: ${JSON.stringify({ index: 1, text: 'world.' })}\n\n`),
         );
         controller.enqueue(
           encoder.encode(
@@ -220,32 +216,26 @@ export const aiAgentHandlers = [
 ];
 
 /** Variant: invoke handler that returns a 500 to test error handling. */
-export const invokeErrorHandler = http.post(
-  `${BASE}/t/:tenant/ai/agents/:id/invoke`,
-  () => HttpResponse.json({ message: 'upstream blew up' }, { status: 500 }),
+export const invokeErrorHandler = http.post(`${BASE}/t/:tenant/ai/agents/:id/invoke`, () =>
+  HttpResponse.json({ message: 'upstream blew up' }, { status: 500 }),
 );
 
 /** Variant: invoke handler that streams chunks slowly so abort can fire. */
-export const invokeSlowHandler = http.post(
-  `${BASE}/t/:tenant/ai/agents/:id/invoke`,
-  () => {
-    const encoder = new TextEncoder();
-    const stream = new ReadableStream<Uint8Array>({
-      start(controller) {
-        controller.enqueue(
-          encoder.encode(
-            `event: chunk\ndata: ${JSON.stringify({ index: 0, text: 'first ' })}\n\n`,
-          ),
-        );
-        // Never close — caller must abort.
-      },
-      cancel() {
-        // ReadableStream cancel hook fires when the consumer aborts.
-      },
-    });
-    return new HttpResponse(stream, {
-      status: 200,
-      headers: { 'content-type': 'text/event-stream' },
-    });
-  },
-);
+export const invokeSlowHandler = http.post(`${BASE}/t/:tenant/ai/agents/:id/invoke`, () => {
+  const encoder = new TextEncoder();
+  const stream = new ReadableStream<Uint8Array>({
+    start(controller) {
+      controller.enqueue(
+        encoder.encode(`event: chunk\ndata: ${JSON.stringify({ index: 0, text: 'first ' })}\n\n`),
+      );
+      // Never close — caller must abort.
+    },
+    cancel() {
+      // ReadableStream cancel hook fires when the consumer aborts.
+    },
+  });
+  return new HttpResponse(stream, {
+    status: 200,
+    headers: { 'content-type': 'text/event-stream' },
+  });
+});

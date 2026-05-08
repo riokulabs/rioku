@@ -72,7 +72,8 @@ afterEach(() => {
 
 function installFetchMock(handler: (req: RecordedRequest) => Response): void {
   vi.spyOn(globalThis, 'fetch').mockImplementation((input, init) => {
-    const url = typeof input === 'string' ? input : input instanceof URL ? input.toString() : input.url;
+    const url =
+      typeof input === 'string' ? input : input instanceof URL ? input.toString() : input.url;
     const method = init?.method ?? 'GET';
     const body = typeof init?.body === 'string' ? init.body : null;
     const headers = (init?.headers ?? {}) as Record<string, string>;
@@ -224,7 +225,9 @@ describe('real-api React Query hooks', () => {
 
     result.current.mutate({ http3_enabled: true });
 
-    await waitFor(() => { expect(result.current.isSuccess).toBe(true); });
+    await waitFor(() => {
+      expect(result.current.isSuccess).toBe(true);
+    });
     expect(result.current.data).toEqual({ http3_enabled: true });
     expect(recorded).toHaveLength(1);
     expect(firstRecorded().method).toBe('PUT');
@@ -238,25 +241,30 @@ describe('real-api React Query hooks', () => {
 
     result.current.mutate('wh-99');
 
-    await waitFor(() => { expect(result.current.isSuccess).toBe(true); });
+    await waitFor(() => {
+      expect(result.current.isSuccess).toBe(true);
+    });
     expect(firstRecorded().url).toBe('/api/v1/t/acme/settings/webhooks/wh-99/test');
     expect(firstRecorded().method).toBe('POST');
     expect(result.current.data).toEqual({ http_status: 202 });
   });
 
   it('mutation surfaces server errors as ApiError', async () => {
-    installFetchMock(() =>
-      new Response(JSON.stringify({ title: 'webhook not found' }), {
-        status: 404,
-        headers: { 'content-type': 'application/problem+json' },
-      }),
+    installFetchMock(
+      () =>
+        new Response(JSON.stringify({ title: 'webhook not found' }), {
+          status: 404,
+          headers: { 'content-type': 'application/problem+json' },
+        }),
     );
     const wrapper = makeWrapper();
     const { result } = renderHook(() => usePostWebhookTest('acme'), { wrapper });
 
     result.current.mutate('missing');
 
-    await waitFor(() => { expect(result.current.isError).toBe(true); });
+    await waitFor(() => {
+      expect(result.current.isError).toBe(true);
+    });
     expect(result.current.error?.message).toContain('webhook not found');
   });
 });

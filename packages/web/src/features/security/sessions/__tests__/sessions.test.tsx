@@ -227,9 +227,7 @@ describe('SessionList — real-API', () => {
   });
 
   it('renders an empty state when the daemon returns no sessions', async () => {
-    server.use(
-      http.get(LIST_URL, () => HttpResponse.json({ sessions: [] })),
-    );
+    server.use(http.get(LIST_URL, () => HttpResponse.json({ sessions: [] })));
 
     const Wrapper = wrap();
     render(
@@ -246,9 +244,7 @@ describe('SessionList — real-API', () => {
   });
 
   it('renders an inline error alert when the list endpoint fails', async () => {
-    server.use(
-      http.get(LIST_URL, () => HttpResponse.json({ title: 'boom' }, { status: 500 })),
-    );
+    server.use(http.get(LIST_URL, () => HttpResponse.json({ title: 'boom' }, { status: 500 })));
 
     const Wrapper = wrap();
     const { container } = render(
@@ -260,7 +256,9 @@ describe('SessionList — real-API', () => {
     await waitFor(() => {
       const alert = container.querySelector('[role="alert"]');
       expect(alert).not.toBeNull();
-      expect(within(alert as HTMLElement).getByText(/failed to load sessions/i)).toBeInTheDocument();
+      expect(
+        within(alert as HTMLElement).getByText(/failed to load sessions/i),
+      ).toBeInTheDocument();
     });
   });
 });

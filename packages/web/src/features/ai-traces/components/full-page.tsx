@@ -109,8 +109,8 @@ export function TraceFullPage({ tenantSlug, traceId }: TraceFullPageProps) {
 
         <Tabs.Panel value="audit" pt="md">
           <Text size="sm" c="var(--mantine-color-gray-7)" data-testid="trace-audit-tab">
-            Audit rows for this trace are surfaced via the global audit log filtered by
-            entity-id <code>{traceId}</code>. Reveals appear with schema{' '}
+            Audit rows for this trace are surfaced via the global audit log filtered by entity-id{' '}
+            <code>{traceId}</code>. Reveals appear with schema{' '}
             <code>ai.trace_sensitive_revealed.v1</code>.
           </Text>
         </Tabs.Panel>

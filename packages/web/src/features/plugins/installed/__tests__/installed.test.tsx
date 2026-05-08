@@ -96,9 +96,7 @@ function wrap(ui: React.ReactNode) {
 
 describe('InstalledPluginList (real daemon)', () => {
   it('renders plugins fetched from the daemon', async () => {
-    wrap(
-      <InstalledPluginList tenantId="tenant-1" onSelect={vi.fn()} onUninstall={vi.fn()} />,
-    );
+    wrap(<InstalledPluginList tenantId="tenant-1" onSelect={vi.fn()} onUninstall={vi.fn()} />);
     await waitFor(() => {
       expect(screen.getByText('Acme Billing')).toBeTruthy();
     });
@@ -115,23 +113,21 @@ describe('InstalledPluginList (real daemon)', () => {
       }),
     );
 
-    wrap(
-      <InstalledPluginList tenantId="tenant-1" onSelect={vi.fn()} onUninstall={vi.fn()} />,
-    );
+    wrap(<InstalledPluginList tenantId="tenant-1" onSelect={vi.fn()} onUninstall={vi.fn()} />);
     await waitFor(() => screen.getByText('Acme Billing'));
 
     const toggle = screen.getByLabelText(/Disable Acme Billing/i);
     fireEvent.click(toggle);
 
-    await waitFor(() => { expect(enableCallCount).toBe(1); });
+    await waitFor(() => {
+      expect(enableCallCount).toBe(1);
+    });
   });
 
   it('calls onUninstall when menu → Uninstall is clicked', async () => {
     const user = userEvent.setup();
     const onUninstall = vi.fn();
-    wrap(
-      <InstalledPluginList tenantId="tenant-1" onSelect={vi.fn()} onUninstall={onUninstall} />,
-    );
+    wrap(<InstalledPluginList tenantId="tenant-1" onSelect={vi.fn()} onUninstall={onUninstall} />);
     await waitFor(() => screen.getByText('Acme Billing'));
 
     const actionButtons = screen.getAllByLabelText(/Actions for /i);

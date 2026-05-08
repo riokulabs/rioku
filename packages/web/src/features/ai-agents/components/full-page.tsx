@@ -227,9 +227,7 @@ export function AgentFullPage({ tenant, agentId, onDeleted, onEdit }: AgentFullP
                 </Text>
                 <Text size="xs" c="var(--mantine-color-gray-7)">
                   stop:{' '}
-                  {agent.stop_sequences.length === 0
-                    ? 'none'
-                    : agent.stop_sequences.join(', ')}
+                  {agent.stop_sequences.length === 0 ? 'none' : agent.stop_sequences.join(', ')}
                 </Text>
               </Group>
             </Stack>
@@ -416,8 +414,8 @@ export function AgentFullPage({ tenant, agentId, onDeleted, onEdit }: AgentFullP
           {rotated === null && (
             <>
               <Alert color="yellow" variant="light" icon={<IconAlertCircle size={16} />}>
-                Rotating issues a new credential. The previous one is invalidated
-                immediately. The new value is shown only once.
+                Rotating issues a new credential. The previous one is invalidated immediately. The
+                new value is shown only once.
               </Alert>
               <Group justify="flex-end" gap="sm">
                 <Button variant="default" size="sm" onClick={closeRotate}>

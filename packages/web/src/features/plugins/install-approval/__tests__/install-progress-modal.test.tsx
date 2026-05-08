@@ -139,7 +139,12 @@ describe('<InstallProgressModal> (real daemon SSE)', () => {
     });
 
     await waitFor(() => screen.getByText(/Installed successfully/i));
-    await waitFor(() => { expect(onComplete).toHaveBeenCalled(); }, { timeout: 3000 });
+    await waitFor(
+      () => {
+        expect(onComplete).toHaveBeenCalled();
+      },
+      { timeout: 3000 },
+    );
     const pluginId = onComplete.mock.calls[0]?.[0] as string | undefined;
     expect(pluginId).toBe('plugin-installed-x');
   });
@@ -169,7 +174,9 @@ describe('<InstallProgressModal> (real daemon SSE)', () => {
 
     await waitFor(() => screen.getByRole('button', { name: /View build log/i }));
     const alerts = screen.getAllByRole('alert');
-    const failedAlert = alerts.find((a) => /Install failed/i.test(a.textContent as unknown as string));
+    const failedAlert = alerts.find((a) =>
+      /Install failed/i.test(a.textContent as unknown as string),
+    );
     expect(failedAlert).toBeTruthy();
   });
 });

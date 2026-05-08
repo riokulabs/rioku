@@ -197,14 +197,11 @@ describe('deleteAccessPolicyMutation', () => {
 
 describe('testAccessPolicyCelMutation', () => {
   it('returns matched=true on a matching expression', async () => {
-    const recorded = captureRequest(
-      'post',
-      `*/api/v1/t/${TENANT}/access-policies/test-cel`,
-      () =>
-        HttpResponse.json({
-          matched: true,
-          durationMs: 0.42,
-        }),
+    const recorded = captureRequest('post', `*/api/v1/t/${TENANT}/access-policies/test-cel`, () =>
+      HttpResponse.json({
+        matched: true,
+        durationMs: 0.42,
+      }),
     );
 
     const result = await testAccessPolicyCelMutation(TENANT, {

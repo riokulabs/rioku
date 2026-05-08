@@ -49,9 +49,7 @@ export function requirePermissions(opts: RequirePermissionsOptions) {
     // Try cache first; fall through to a fetch when the auth root has not
     // primed the query yet (e.g. cold deep-link into a guarded route).
     const me =
-      queryClient.getQueryData<Awaited<ReturnType<typeof fetchCurrentUser>>>(
-        currentUserQueryKey,
-      ) ??
+      queryClient.getQueryData<Awaited<ReturnType<typeof fetchCurrentUser>>>(currentUserQueryKey) ??
       (await queryClient.fetchQuery({
         queryKey: currentUserQueryKey,
         queryFn: ({ signal }) => fetchCurrentUser(signal),

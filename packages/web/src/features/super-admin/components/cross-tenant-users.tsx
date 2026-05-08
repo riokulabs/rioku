@@ -73,18 +73,14 @@ function UserDetailDrawer({ user }: { user: AdminUser | null }) {
           <Text size="xs" c="dimmed">
             Status
           </Text>
-          <Badge
-            color={STATUS_COLORS[user.status ?? ''] ?? 'gray'}
-            variant="light"
-            size="sm"
-          >
+          <Badge color={STATUS_COLORS[user.status ?? ''] ?? 'gray'} variant="light" size="sm">
             {user.status ?? 'unknown'}
           </Badge>
         </Box>
       </SimpleGrid>
       <Text size="xs" c="dimmed">
-        Detailed cross-tenant memberships and per-user audit are exposed via
-        the per-user admin endpoint that lands with the next sprint.
+        Detailed cross-tenant memberships and per-user audit are exposed via the per-user admin
+        endpoint that lands with the next sprint.
       </Text>
     </Stack>
   );

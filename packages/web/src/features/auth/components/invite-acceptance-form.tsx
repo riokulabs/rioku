@@ -9,16 +9,7 @@
  * Plan 01 — stage 2 wiring.
  */
 import { useState } from 'react';
-import {
-  Stack,
-  TextInput,
-  PasswordInput,
-  Button,
-  Alert,
-  Text,
-  Title,
-  Anchor,
-} from '@mantine/core';
+import { Stack, TextInput, PasswordInput, Button, Alert, Text, Title, Anchor } from '@mantine/core';
 import { useForm, schemaResolver } from '@mantine/form';
 import { useNavigate } from '@tanstack/react-router';
 import { useQueryClient } from '@tanstack/react-query';

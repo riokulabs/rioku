@@ -41,10 +41,7 @@ vi.mock('@/hooks/use-permissions-catalog', () => {
 
 import { render, screen, fireEvent, within } from '@testing-library/react';
 import { MantineProvider } from '@mantine/core';
-import {
-  PermissionsCatalogPage,
-  PermissionSourceBadge,
-} from '../permissions-catalog';
+import { PermissionsCatalogPage, PermissionSourceBadge } from '../permissions-catalog';
 
 function wrap(ui: React.ReactNode) {
   return render(<MantineProvider>{ui}</MantineProvider>);
@@ -63,14 +60,10 @@ describe('PermissionsCatalogPage', () => {
   it('renders the catalog with at least one built-in and one plugin permission', () => {
     wrap(<PermissionsCatalogPage />);
 
-    expect(
-      screen.getByTestId('permissions-catalog-page'),
-    ).toBeInTheDocument();
+    expect(screen.getByTestId('permissions-catalog-page')).toBeInTheDocument();
 
     // The seed registers a 'com.acme.billing:invoice:read' plugin perm.
-    const pluginRow = screen.getByTestId(
-      'perm-row-com.acme.billing:invoice:read',
-    );
+    const pluginRow = screen.getByTestId('perm-row-com.acme.billing:invoice:read');
     expect(pluginRow).toBeInTheDocument();
     expect(within(pluginRow).getByText(/Plugin \(manifest\)/i)).toBeInTheDocument();
 
@@ -91,9 +84,7 @@ describe('PermissionsCatalogPage', () => {
     fireEvent.click(option);
 
     // Plugin row visible.
-    expect(
-      screen.getByTestId('perm-row-com.acme.billing:invoice:read'),
-    ).toBeInTheDocument();
+    expect(screen.getByTestId('perm-row-com.acme.billing:invoice:read')).toBeInTheDocument();
     // Built-in rows hidden — query rows that aren't the plugin row.
     const allRows = document.querySelectorAll('[data-testid^="perm-row-"]');
     expect(allRows.length).toBe(1);
@@ -105,9 +96,7 @@ describe('PermissionsCatalogPage', () => {
     const search = screen.getByTestId('permissions-catalog-search');
     fireEvent.change(search, { target: { value: 'com.acme.billing' } });
 
-    expect(
-      screen.getByTestId('perm-row-com.acme.billing:invoice:read'),
-    ).toBeInTheDocument();
+    expect(screen.getByTestId('perm-row-com.acme.billing:invoice:read')).toBeInTheDocument();
     const allRows = document.querySelectorAll('[data-testid^="perm-row-"]');
     expect(allRows.length).toBe(1);
   });

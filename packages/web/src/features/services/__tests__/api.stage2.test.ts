@@ -71,20 +71,17 @@ function makeV1Service(overrides: Partial<V1Service> = {}): V1Service {
 describe('useServiceListReal', () => {
   it('returns an empty list when the daemon returns no items', async () => {
     const response: ListServices200 = { items: [], total: 0 };
-    server.use(
-      http.get(`*/api/v1/t/${TENANT}/services`, () =>
-        HttpResponse.json(response),
-      ),
-    );
+    server.use(http.get(`*/api/v1/t/${TENANT}/services`, () => HttpResponse.json(response)));
 
     const qc = makeQueryClient();
     const { result } = renderHook(
-      () =>
-        useServiceListReal(TENANT, { search: '', health: [], env: [], tags: [] }),
+      () => useServiceListReal(TENANT, { search: '', health: [], env: [], tags: [] }),
       { wrapper: makeWrapper(qc) },
     );
 
-    await waitFor(() => { expect(result.current.isLoading).toBe(false); });
+    await waitFor(() => {
+      expect(result.current.isLoading).toBe(false);
+    });
     expect(result.current.services).toHaveLength(0);
     expect(result.current.isError).toBe(false);
   });
@@ -92,20 +89,17 @@ describe('useServiceListReal', () => {
   it('adapts V1Service items to admin Service type', async () => {
     const proto = makeV1Service();
     const response: ListServices200 = { items: [proto], total: 1 };
-    server.use(
-      http.get(`*/api/v1/t/${TENANT}/services`, () =>
-        HttpResponse.json(response),
-      ),
-    );
+    server.use(http.get(`*/api/v1/t/${TENANT}/services`, () => HttpResponse.json(response)));
 
     const qc = makeQueryClient();
     const { result } = renderHook(
-      () =>
-        useServiceListReal(TENANT, { search: '', health: [], env: [], tags: [] }),
+      () => useServiceListReal(TENANT, { search: '', health: [], env: [], tags: [] }),
       { wrapper: makeWrapper(qc) },
     );
 
-    await waitFor(() => { expect(result.current.services).toHaveLength(1); });
+    await waitFor(() => {
+      expect(result.current.services).toHaveLength(1);
+    });
     const svc = result.current.services[0];
     expect(svc).toBeDefined();
     expect(svc!.id).toBe('svc-fixture-1');
@@ -121,20 +115,17 @@ describe('useServiceListReal', () => {
     const healthy = makeV1Service({ id: 's1', upstreams: [{ address: 'h:80', healthy: true }] });
     const unhealthy = makeV1Service({ id: 's2', upstreams: [{ address: 'h:81', healthy: false }] });
     const response: ListServices200 = { items: [healthy, unhealthy], total: 2 };
-    server.use(
-      http.get(`*/api/v1/t/${TENANT}/services`, () =>
-        HttpResponse.json(response),
-      ),
-    );
+    server.use(http.get(`*/api/v1/t/${TENANT}/services`, () => HttpResponse.json(response)));
 
     const qc = makeQueryClient();
     const { result } = renderHook(
-      () =>
-        useServiceListReal(TENANT, { search: '', health: ['healthy'], env: [], tags: [] }),
+      () => useServiceListReal(TENANT, { search: '', health: ['healthy'], env: [], tags: [] }),
       { wrapper: makeWrapper(qc) },
     );
 
-    await waitFor(() => { expect(result.current.isLoading).toBe(false); });
+    await waitFor(() => {
+      expect(result.current.isLoading).toBe(false);
+    });
     expect(result.current.services).toHaveLength(1);
     expect(result.current.services[0]!.id).toBe('s1');
   });
@@ -143,39 +134,33 @@ describe('useServiceListReal', () => {
     const matchSvc = makeV1Service({ id: 's1', name: 'payments-api' });
     const noMatchSvc = makeV1Service({ id: 's2', name: 'auth-service' });
     const response: ListServices200 = { items: [matchSvc, noMatchSvc], total: 2 };
-    server.use(
-      http.get(`*/api/v1/t/${TENANT}/services`, () =>
-        HttpResponse.json(response),
-      ),
-    );
+    server.use(http.get(`*/api/v1/t/${TENANT}/services`, () => HttpResponse.json(response)));
 
     const qc = makeQueryClient();
     const { result } = renderHook(
-      () =>
-        useServiceListReal(TENANT, { search: 'payments', health: [], env: [], tags: [] }),
+      () => useServiceListReal(TENANT, { search: 'payments', health: [], env: [], tags: [] }),
       { wrapper: makeWrapper(qc) },
     );
 
-    await waitFor(() => { expect(result.current.isLoading).toBe(false); });
+    await waitFor(() => {
+      expect(result.current.isLoading).toBe(false);
+    });
     expect(result.current.services).toHaveLength(1);
     expect(result.current.services[0]!.name).toBe('payments-api');
   });
 
   it('reports isError on network failure', async () => {
-    server.use(
-      http.get(`*/api/v1/t/${TENANT}/services`, () =>
-        HttpResponse.error(),
-      ),
-    );
+    server.use(http.get(`*/api/v1/t/${TENANT}/services`, () => HttpResponse.error()));
 
     const qc = makeQueryClient();
     const { result } = renderHook(
-      () =>
-        useServiceListReal(TENANT, { search: '', health: [], env: [], tags: [] }),
+      () => useServiceListReal(TENANT, { search: '', health: [], env: [], tags: [] }),
       { wrapper: makeWrapper(qc) },
     );
 
-    await waitFor(() => { expect(result.current.isError).toBe(true); });
+    await waitFor(() => {
+      expect(result.current.isError).toBe(true);
+    });
   });
 });
 
@@ -184,16 +169,13 @@ describe('useServiceListReal', () => {
 describe('useServiceDetailReal', () => {
   it('returns undefined while loading', () => {
     server.use(
-      http.get(`*/api/v1/t/${TENANT}/services/svc-1`, () =>
-        HttpResponse.json(makeV1Service()),
-      ),
+      http.get(`*/api/v1/t/${TENANT}/services/svc-1`, () => HttpResponse.json(makeV1Service())),
     );
 
     const qc = makeQueryClient();
-    const { result } = renderHook(
-      () => useServiceDetailReal(TENANT, 'svc-1'),
-      { wrapper: makeWrapper(qc) },
-    );
+    const { result } = renderHook(() => useServiceDetailReal(TENANT, 'svc-1'), {
+      wrapper: makeWrapper(qc),
+    });
     // Initially undefined
     expect(result.current).toBeUndefined();
   });
@@ -201,18 +183,17 @@ describe('useServiceDetailReal', () => {
   it('returns adapted service once loaded', async () => {
     const proto = makeV1Service({ id: 'svc-detail-1', name: 'detail-api' });
     server.use(
-      http.get(`*/api/v1/t/${TENANT}/services/svc-detail-1`, () =>
-        HttpResponse.json(proto),
-      ),
+      http.get(`*/api/v1/t/${TENANT}/services/svc-detail-1`, () => HttpResponse.json(proto)),
     );
 
     const qc = makeQueryClient();
-    const { result } = renderHook(
-      () => useServiceDetailReal(TENANT, 'svc-detail-1'),
-      { wrapper: makeWrapper(qc) },
-    );
+    const { result } = renderHook(() => useServiceDetailReal(TENANT, 'svc-detail-1'), {
+      wrapper: makeWrapper(qc),
+    });
 
-    await waitFor(() => { expect(result.current).toBeDefined(); });
+    await waitFor(() => {
+      expect(result.current).toBeDefined();
+    });
     expect(result.current!.id).toBe('svc-detail-1');
     expect(result.current!.name).toBe('detail-api');
   });
@@ -225,16 +206,13 @@ describe('useCreateServiceMutation', () => {
     // customFetch returns JSON body directly (the proto service, not wrapped)
     const created = makeV1Service({ id: 'svc-new-1', name: 'new-api' });
     server.use(
-      http.post(`*/api/v1/t/${TENANT}/services`, () =>
-        HttpResponse.json(created, { status: 201 }),
-      ),
+      http.post(`*/api/v1/t/${TENANT}/services`, () => HttpResponse.json(created, { status: 201 })),
     );
 
     const qc = makeQueryClient();
-    const { result } = renderHook(
-      () => useCreateServiceMutation(TENANT),
-      { wrapper: makeWrapper(qc) },
-    );
+    const { result } = renderHook(() => useCreateServiceMutation(TENANT), {
+      wrapper: makeWrapper(qc),
+    });
 
     let service: Service | undefined;
     await act(async () => {
@@ -258,16 +236,16 @@ describe('useCreateServiceMutation', () => {
 describe('useDeleteServiceMutation', () => {
   it('calls DELETE endpoint and resolves on success', async () => {
     server.use(
-      http.delete(`*/api/v1/t/${TENANT}/services/svc-del-1`, () =>
-        new HttpResponse(null, { status: 204 }),
+      http.delete(
+        `*/api/v1/t/${TENANT}/services/svc-del-1`,
+        () => new HttpResponse(null, { status: 204 }),
       ),
     );
 
     const qc = makeQueryClient();
-    const { result } = renderHook(
-      () => useDeleteServiceMutation(TENANT),
-      { wrapper: makeWrapper(qc) },
-    );
+    const { result } = renderHook(() => useDeleteServiceMutation(TENANT), {
+      wrapper: makeWrapper(qc),
+    });
 
     await act(async () => {
       await result.current.mutateAsync('svc-del-1');
@@ -283,16 +261,13 @@ describe('useUpdateServiceMutation', () => {
   it('calls PATCH endpoint and returns adapted service', async () => {
     const updated = makeV1Service({ id: 'svc-u1', name: 'renamed-api' });
     server.use(
-      http.patch(`*/api/v1/t/${TENANT}/services/svc-u1`, () =>
-        HttpResponse.json(updated),
-      ),
+      http.patch(`*/api/v1/t/${TENANT}/services/svc-u1`, () => HttpResponse.json(updated)),
     );
 
     const qc = makeQueryClient();
-    const { result } = renderHook(
-      () => useUpdateServiceMutation(TENANT),
-      { wrapper: makeWrapper(qc) },
-    );
+    const { result } = renderHook(() => useUpdateServiceMutation(TENANT), {
+      wrapper: makeWrapper(qc),
+    });
 
     let service: Service | undefined;
     await act(async () => {
@@ -311,16 +286,16 @@ describe('useUpdateServiceMutation', () => {
 describe('useForceReloadServiceMutation', () => {
   it('calls force-reload endpoint and resolves', async () => {
     server.use(
-      http.post(`*/api/v1/t/${TENANT}/services/svc-fr-1/force-reload`, () =>
-        new HttpResponse(null, { status: 200 }),
+      http.post(
+        `*/api/v1/t/${TENANT}/services/svc-fr-1/force-reload`,
+        () => new HttpResponse(null, { status: 200 }),
       ),
     );
 
     const qc = makeQueryClient();
-    const { result } = renderHook(
-      () => useForceReloadServiceMutation(TENANT),
-      { wrapper: makeWrapper(qc) },
-    );
+    const { result } = renderHook(() => useForceReloadServiceMutation(TENANT), {
+      wrapper: makeWrapper(qc),
+    });
 
     await act(async () => {
       await result.current.mutateAsync('svc-fr-1');

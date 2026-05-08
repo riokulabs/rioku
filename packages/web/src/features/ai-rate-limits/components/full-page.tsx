@@ -178,9 +178,7 @@ export function RateLimitFullPage({ ruleId, tenantId }: RateLimitFullPageProps) 
                 <Table.Tr>
                   <Table.Th>Exemplars</Table.Th>
                   <Table.Td>
-                    {rule.exemplars.length === 0
-                      ? '—'
-                      : rule.exemplars.join(', ')}
+                    {rule.exemplars.length === 0 ? '—' : rule.exemplars.join(', ')}
                   </Table.Td>
                 </Table.Tr>
                 <Table.Tr>
@@ -200,8 +198,8 @@ export function RateLimitFullPage({ ruleId, tenantId }: RateLimitFullPageProps) 
         <Tabs.Panel value="simulate" pt="md">
           <Stack gap="sm" data-testid="rate-limit-simulate-panel">
             <Text size="sm" c="var(--mantine-color-gray-7)">
-              Probe a request volume against this rule. The daemon answers
-              would_throttle, retry_after_ms, current_consumption and limit.
+              Probe a request volume against this rule. The daemon answers would_throttle,
+              retry_after_ms, current_consumption and limit.
             </Text>
             <Simulator tenantId={tenantId} ruleId={rule.id} />
           </Stack>

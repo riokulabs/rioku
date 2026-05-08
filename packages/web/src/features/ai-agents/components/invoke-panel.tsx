@@ -8,17 +8,7 @@
  * Endpoint: POST /api/v1/t/{tenant}/ai/agents/{id}/invoke (text/event-stream).
  */
 import { useRef, useState } from 'react';
-import {
-  Alert,
-  Badge,
-  Button,
-  Code,
-  Group,
-  Stack,
-  Text,
-  Textarea,
-  Tooltip,
-} from '@mantine/core';
+import { Alert, Badge, Button, Code, Group, Stack, Text, Textarea, Tooltip } from '@mantine/core';
 import { IconAlertCircle, IconPlayerPlay, IconPlayerStop } from '@tabler/icons-react';
 import { usePermission } from '@/hooks/use-permission';
 import { formatCost, formatTokens } from '@/features/ai-shared';

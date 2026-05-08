@@ -13,11 +13,7 @@ import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { http, HttpResponse } from 'msw';
 import { server } from '@/test/msw-server';
 import { installPluginWithProgress, getBuildLog } from '../api';
-import type {
-  InstallProgressEvent,
-  InstallCompleteEvent,
-  InstallFailedEvent,
-} from '../api';
+import type { InstallProgressEvent, InstallCompleteEvent, InstallFailedEvent } from '../api';
 
 let activeFakeES: StubEventSource | null = null;
 
@@ -193,8 +189,9 @@ describe('getBuildLog (real daemon)', () => {
 
   it('returns undefined on 404', async () => {
     server.use(
-      http.get('/api/v1/t/tenant-1/plugins/missing/build-log', () =>
-          new HttpResponse(null, { status: 404 }),
+      http.get(
+        '/api/v1/t/tenant-1/plugins/missing/build-log',
+        () => new HttpResponse(null, { status: 404 }),
       ),
     );
     const log = await getBuildLog('missing', 'tenant-1');

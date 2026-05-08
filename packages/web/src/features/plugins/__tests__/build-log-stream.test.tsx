@@ -53,7 +53,9 @@ describe('<PluginBuildLogStream>', () => {
 
     expect(screen.getByLabelText('plugin-build-log-stream')).toBeTruthy();
 
-    await waitFor(() => { expect(activeFakeES).not.toBeNull(); });
+    await waitFor(() => {
+      expect(activeFakeES).not.toBeNull();
+    });
     const es = activeFakeES;
     if (!es) throw new Error('no EventSource');
     expect(es.url).toContain('/t/tenant-1/plugins/p-1/build-log/stream');
@@ -70,7 +72,9 @@ describe('<PluginBuildLogStream>', () => {
 
   it('shows "Build complete" after a `complete` event', async () => {
     wrap(<PluginBuildLogStream pluginId="p-2" tenantId="tenant-1" buildState="building" />);
-    await waitFor(() => { expect(activeFakeES).not.toBeNull(); });
+    await waitFor(() => {
+      expect(activeFakeES).not.toBeNull();
+    });
     const es = activeFakeES;
     if (!es) throw new Error('no EventSource');
 

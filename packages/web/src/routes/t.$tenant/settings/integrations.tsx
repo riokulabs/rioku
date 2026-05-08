@@ -19,7 +19,7 @@ import { IntegrationsRealSection } from '@/features/settings/sections-real/integ
 
 function IntegrationsSettingsPage() {
   const { tenant } = useParams({ strict: false });
-  const tenantSlug = tenant ?? "";
+  const tenantSlug = tenant ?? '';
   const activeTenant: string = tenantSlug;
 
   return (

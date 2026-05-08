@@ -199,11 +199,7 @@ export function TraceDetail({ traceId, tenantSlug, onClose: _onClose }: TraceDet
       )}
 
       {/* Prompt + completion (gated). */}
-      <PromptCompletionView
-        prompt={promptText}
-        completion={completionText}
-        unmasked={isUnmasked}
-      />
+      <PromptCompletionView prompt={promptText} completion={completionText} unmasked={isUnmasked} />
 
       {/* Tool calls */}
       <Stack gap="xs">

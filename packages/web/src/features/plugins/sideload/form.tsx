@@ -7,16 +7,7 @@
  * with the explanation copied verbatim from the daemon.
  */
 import { useState } from 'react';
-import {
-  Alert,
-  Button,
-  FileButton,
-  Group,
-  Paper,
-  Stack,
-  Text,
-  Title,
-} from '@mantine/core';
+import { Alert, Button, FileButton, Group, Paper, Stack, Text, Title } from '@mantine/core';
 import { IconAlertTriangle, IconCheck, IconUpload } from '@tabler/icons-react';
 import { useSideloadPlugin, type SideloadResult } from './api';
 
@@ -55,9 +46,9 @@ export function PluginSideloadForm({ tenantSlug, onAccepted }: PluginSideloadFor
         <div>
           <Title order={4}>Sideload a plugin</Title>
           <Text size="sm" c="dimmed">
-            Upload a built plugin archive (.so / .wasm) and its rioku-plugin.json
-            manifest. The daemon validates the manifest, verifies the cosign
-            signature, and stages the binary for activation.
+            Upload a built plugin archive (.so / .wasm) and its rioku-plugin.json manifest. The
+            daemon validates the manifest, verifies the cosign signature, and stages the binary for
+            activation.
           </Text>
         </div>
 

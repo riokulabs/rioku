@@ -62,8 +62,8 @@ export function ImpersonationIdleModal({ warningThresholdSec }: ImpersonationIdl
               </Badge>
             </Group>
             <Text size="sm">
-              Extend the session to continue acting as super-admin in this tenant, or let it
-              expire to return to your normal context.
+              Extend the session to continue acting as super-admin in this tenant, or let it expire
+              to return to your normal context.
             </Text>
             <Text size="xs" c="dimmed">
               Extending records a touch event on the super-admin audit log.

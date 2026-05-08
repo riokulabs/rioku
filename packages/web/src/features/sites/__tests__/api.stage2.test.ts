@@ -182,7 +182,10 @@ describe('mutation hooks', () => {
 
   it('delete enforces domain-typed confirmation guard', async () => {
     server.use(
-      http.delete(`*/api/v1/t/${TENANT}/sites/site-d`, () => new HttpResponse(null, { status: 204 })),
+      http.delete(
+        `*/api/v1/t/${TENANT}/sites/site-d`,
+        () => new HttpResponse(null, { status: 204 }),
+      ),
     );
     const qc = makeQueryClient();
     const { result } = renderHook(() => useDeleteSiteMutation(TENANT), {

@@ -83,7 +83,9 @@ beforeEach(() => {
 describe('TraceDetail — redacted-by-default', () => {
   it('shows the redacted alert and hides prompt/completion text by default', async () => {
     const Wrapper = makeWrapper();
-    render(<TraceDetail traceId={TRACE_ID} tenantSlug={TENANT} onClose={() => {}} />, { wrapper: Wrapper });
+    render(<TraceDetail traceId={TRACE_ID} tenantSlug={TENANT} onClose={() => {}} />, {
+      wrapper: Wrapper,
+    });
     await waitFor(() => {
       expect(screen.getByTestId('trace-detail')).toBeInTheDocument();
     });
@@ -96,7 +98,9 @@ describe('TraceDetail — redacted-by-default', () => {
 describe('TraceDetail — reveal flow', () => {
   it('reveal button is visible when user has ai-trace:read-sensitive', async () => {
     const Wrapper = makeWrapper();
-    render(<TraceDetail traceId={TRACE_ID} tenantSlug={TENANT} onClose={() => {}} />, { wrapper: Wrapper });
+    render(<TraceDetail traceId={TRACE_ID} tenantSlug={TENANT} onClose={() => {}} />, {
+      wrapper: Wrapper,
+    });
     await waitFor(() => {
       expect(screen.getByTestId('trace-reveal-button')).toBeInTheDocument();
     });
@@ -111,7 +115,9 @@ describe('TraceDetail — reveal flow', () => {
       }),
     );
     const Wrapper = makeWrapper();
-    render(<TraceDetail traceId={TRACE_ID} tenantSlug={TENANT} onClose={() => {}} />, { wrapper: Wrapper });
+    render(<TraceDetail traceId={TRACE_ID} tenantSlug={TENANT} onClose={() => {}} />, {
+      wrapper: Wrapper,
+    });
 
     await waitFor(() => {
       expect(screen.getByTestId('trace-reveal-button')).toBeInTheDocument();
@@ -143,7 +149,9 @@ describe('TraceDetail — reveal flow', () => {
   it('viewer without ai-trace:read-sensitive cannot see the Reveal button', async () => {
     permissionStub = false;
     const Wrapper = makeWrapper();
-    render(<TraceDetail traceId={TRACE_ID} tenantSlug={TENANT} onClose={() => {}} />, { wrapper: Wrapper });
+    render(<TraceDetail traceId={TRACE_ID} tenantSlug={TENANT} onClose={() => {}} />, {
+      wrapper: Wrapper,
+    });
     await waitFor(() => {
       expect(screen.getByTestId('trace-detail')).toBeInTheDocument();
     });
@@ -153,7 +161,9 @@ describe('TraceDetail — reveal flow', () => {
 
   it('confirm button is disabled when reason is shorter than 10 chars', async () => {
     const Wrapper = makeWrapper();
-    render(<TraceDetail traceId={TRACE_ID} tenantSlug={TENANT} onClose={() => {}} />, { wrapper: Wrapper });
+    render(<TraceDetail traceId={TRACE_ID} tenantSlug={TENANT} onClose={() => {}} />, {
+      wrapper: Wrapper,
+    });
     await waitFor(() => {
       expect(screen.getByTestId('trace-reveal-button')).toBeInTheDocument();
     });

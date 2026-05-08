@@ -68,11 +68,7 @@ export function RateLimitDrawer({ ruleId, tenantId, tenantSlug }: RateLimitDrawe
             </Group>
           </Stack>
         </Group>
-        <Switch
-          checked={rule.enabled}
-          readOnly
-          aria-label={`Enabled state for ${rule.name}`}
-        />
+        <Switch checked={rule.enabled} readOnly aria-label={`Enabled state for ${rule.name}`} />
       </Group>
 
       {rule.description && (

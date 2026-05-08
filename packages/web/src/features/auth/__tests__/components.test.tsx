@@ -120,9 +120,7 @@ describe('<LoginForm>', () => {
     fireEvent.click(screen.getByTestId('login-submit'));
 
     await waitFor(() => {
-      expect(mockNavigate).toHaveBeenCalledWith(
-        expect.objectContaining({ to: '/totp' }),
-      );
+      expect(mockNavigate).toHaveBeenCalledWith(expect.objectContaining({ to: '/totp' }));
     });
   });
 
@@ -252,9 +250,7 @@ describe('<ForgotPasswordForm>', () => {
 describe('<ResetPasswordForm>', () => {
   it('validates token then applies a new password', async () => {
     server.use(
-      http.get(`${BASE}/auth/password-reset/validate`, () =>
-        HttpResponse.json({ valid: true }),
-      ),
+      http.get(`${BASE}/auth/password-reset/validate`, () => HttpResponse.json({ valid: true })),
       http.post(`${BASE}/auth/password-reset/apply`, async ({ request }) => {
         const body = (await request.json()) as { token: string; password: string };
         expect(body.token).toBe('tok123');

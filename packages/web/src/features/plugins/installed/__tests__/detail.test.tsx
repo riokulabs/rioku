@@ -111,9 +111,7 @@ describe('<InstalledPluginDetail> — signer chip (real daemon)', () => {
 
   it('renders the Unsigned chip when the plugin has no signer', async () => {
     const dp = makeDaemonPlugin({ id: 'p-2', signerId: null });
-    server.use(
-      http.get(/\/api\/v1\/t\/[^/]+\/plugins\/p-2$/, () => HttpResponse.json(dp)),
-    );
+    server.use(http.get(/\/api\/v1\/t\/[^/]+\/plugins\/p-2$/, () => HttpResponse.json(dp)));
 
     wrap(
       <InstalledPluginDetail

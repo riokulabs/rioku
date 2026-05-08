@@ -461,8 +461,8 @@ export function AgentDetail({ agentId, tenantSlug, onEdit, onClose }: AgentDetai
           {rotatedCredential === null && (
             <>
               <Alert color="yellow" variant="light" icon={<IconAlertCircle size={16} />}>
-                Rotating will issue a new credential. The previous one is invalidated
-                immediately. The new credential is shown only once.
+                Rotating will issue a new credential. The previous one is invalidated immediately.
+                The new credential is shown only once.
               </Alert>
               <Group justify="flex-end" gap="sm">
                 <Button
@@ -488,8 +488,7 @@ export function AgentDetail({ agentId, tenantSlug, onEdit, onClose }: AgentDetai
           {rotatedCredential !== null && (
             <>
               <Alert color="green" variant="light">
-                Credential rotated successfully. Copy the value below — it cannot be
-                shown again.
+                Credential rotated successfully. Copy the value below — it cannot be shown again.
               </Alert>
               <Code block data-testid="rotated-credential">
                 {rotatedCredential.newCredential}

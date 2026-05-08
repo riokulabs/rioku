@@ -88,10 +88,7 @@ export function ServiceDetail({
   const service = useServiceDetail(tenantId, serviceId);
   const routes = useServiceRoutes(tenantId, serviceId);
   const auditEntries = useAuditList(tenantId, SERVICE_AUDIT_FILTER);
-  const { middlewares: middlewareList } = useMiddlewareListReal(
-    tenantId,
-    EMPTY_MIDDLEWARE_FILTER,
-  );
+  const { middlewares: middlewareList } = useMiddlewareListReal(tenantId, EMPTY_MIDDLEWARE_FILTER);
   const middlewares = useMemo(() => {
     const m: Record<string, (typeof middlewareList)[number]> = {};
     for (const mw of middlewareList) m[mw.id] = mw;

@@ -131,7 +131,9 @@ export function McpServerFullPage({ tenant, serverId }: McpServerFullPageProps) 
                 {server.enabled ? 'enabled' : 'disabled'}
               </Badge>
             </Group>
-            {server.description && <Text c="var(--mantine-color-gray-7)">{server.description}</Text>}
+            {server.description && (
+              <Text c="var(--mantine-color-gray-7)">{server.description}</Text>
+            )}
             <Text size="xs" ff="monospace" c="var(--mantine-color-gray-7)">
               {server.url}
             </Text>
@@ -225,7 +227,10 @@ function ConfigurationPanel({ server, onEdit }: { server: McpServer; onEdit: () 
               label="Last checked"
               value={server.last_seen_at ? dayjs(server.last_seen_at).fromNow() : 'never'}
             />
-            <ConfigRow label="Created" value={dayjs(server.created_at).format('YYYY-MM-DD HH:mm')} />
+            <ConfigRow
+              label="Created"
+              value={dayjs(server.created_at).format('YYYY-MM-DD HH:mm')}
+            />
           </Table.Tbody>
         </Table>
       </Stack>
@@ -233,7 +238,15 @@ function ConfigurationPanel({ server, onEdit }: { server: McpServer; onEdit: () 
   );
 }
 
-function ConfigRow({ label, value, mono = false }: { label: string; value: string; mono?: boolean }) {
+function ConfigRow({
+  label,
+  value,
+  mono = false,
+}: {
+  label: string;
+  value: string;
+  mono?: boolean;
+}) {
   return (
     <Table.Tr>
       <Table.Td style={{ width: 180 }}>

@@ -25,9 +25,7 @@ export interface ChainedEntry {
   hash: string;
 }
 
-export async function hashEntryForTest(
-  partial: Omit<ChainedEntry, 'hash'>,
-): Promise<string> {
+export async function hashEntryForTest(partial: Omit<ChainedEntry, 'hash'>): Promise<string> {
   // Property insertion order MUST match the runtime audit logger's literal so
   // JSON.stringify yields byte-identical output. See logAdminAuditEntry in
   // src/api/resources/audit.ts.

@@ -29,11 +29,7 @@ import { BUILT_IN_WIDGETS } from '@/features/widgets/registry';
 import { runWidgetQuery, WidgetQueryError } from '@/features/widgets/data-sources';
 import { useDashboardRange } from '@/hooks/use-dashboard-range';
 import { LayoutValidationError, WidgetFlipError } from './types';
-import type {
-  AddWidgetInput,
-  UpdateWidgetInput,
-  WidgetDataState,
-} from './types';
+import type { AddWidgetInput, UpdateWidgetInput, WidgetDataState } from './types';
 
 // ─── Tenant resolution ────────────────────────────────────────────────────────
 

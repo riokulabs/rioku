@@ -9,15 +9,7 @@
  * idempotent.
  */
 import { useState } from 'react';
-import {
-  Alert,
-  Button,
-  Group,
-  Modal,
-  MultiSelect,
-  Stack,
-  Text,
-} from '@mantine/core';
+import { Alert, Button, Group, Modal, MultiSelect, Stack, Text } from '@mantine/core';
 import { IconAlertCircle, IconLink } from '@tabler/icons-react';
 import { bulkAttachToolsToAgent, useInvalidateBindings } from '../api';
 import { useAgentRefs, useToolRefs } from '../refs';

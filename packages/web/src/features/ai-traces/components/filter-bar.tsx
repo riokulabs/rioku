@@ -74,10 +74,7 @@ export function TraceFilterBar({ tenantId, filter, rangePreset, onChange }: Trac
   const [debouncedSearch] = useDebouncedValue(searchInput, 300);
 
   const agents = useAgentList(tenantId, EMPTY_AGENT_FILTER);
-  const agentOptions = useMemo(
-    () => agents.map((a) => ({ value: a.id, label: a.name })),
-    [agents],
-  );
+  const agentOptions = useMemo(() => agents.map((a) => ({ value: a.id, label: a.name })), [agents]);
 
   useEffect(() => {
     if (filter.search !== debouncedSearch) {

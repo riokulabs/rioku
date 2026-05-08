@@ -259,9 +259,7 @@ describe('useUnreadCount', () => {
 describe('useNotificationDetail', () => {
   it('@read-only returns the notification mapped from daemon DTO', async () => {
     server.use(
-      http.get(`/api/v1/t/${TENANT}/notifications/notif-0001`, () =>
-        HttpResponse.json(ITEM_A),
-      ),
+      http.get(`/api/v1/t/${TENANT}/notifications/notif-0001`, () => HttpResponse.json(ITEM_A)),
     );
     const qc = makeQueryClient();
     const { result } = renderHook(() => useNotificationDetail('notif-0001'), {

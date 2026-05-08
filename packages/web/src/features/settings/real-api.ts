@@ -22,7 +22,12 @@
  *   DELETE /api/v1/t/{tenant}/settings/danger/tenant            tenant delete (super-admin)
  */
 
-import { useMutation, useQuery, type UseMutationResult, type UseQueryResult } from '@tanstack/react-query';
+import {
+  useMutation,
+  useQuery,
+  type UseMutationResult,
+  type UseQueryResult,
+} from '@tanstack/react-query';
 import { customFetch } from '@/api/mutator';
 
 // ─── Shared types ─────────────────────────────────────────────────────────────
@@ -95,7 +100,9 @@ export function useSettingsNetwork(tenant: string): UseQueryResult<NetworkConfig
   });
 }
 
-export function usePutSettingsNetwork(tenant: string): UseMutationResult<NetworkConfig, Error, NetworkConfig> {
+export function usePutSettingsNetwork(
+  tenant: string,
+): UseMutationResult<NetworkConfig, Error, NetworkConfig> {
   return useMutation({
     mutationFn: (body: NetworkConfig) => putSettingsNetwork(tenant, body),
   });
@@ -159,10 +166,7 @@ export function putObservabilityLogs(tenant: string, body: LogsConfig): Promise<
   });
 }
 
-export function putObservabilityTraces(
-  tenant: string,
-  body: TracesConfig,
-): Promise<TracesConfig> {
+export function putObservabilityTraces(tenant: string, body: TracesConfig): Promise<TracesConfig> {
   return customFetch<TracesConfig>({
     url: settingsObservabilityTracesUrl(tenant),
     method: 'PUT',

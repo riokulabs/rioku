@@ -17,7 +17,7 @@ import { AuthPolicyRealSection } from '@/features/settings/sections-real/auth-po
 
 function AuthPolicySettingsPage() {
   const { tenant } = useParams({ strict: false });
-  const tenantSlug = tenant ?? "";
+  const tenantSlug = tenant ?? '';
   const activeTenant: string = tenantSlug;
 
   return (

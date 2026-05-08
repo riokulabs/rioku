@@ -18,13 +18,7 @@ vi.mock('@tanstack/react-router', () => ({
 // we can simulate user input without booting the heavy widget.
 vi.mock('@monaco-editor/react', () => ({
   __esModule: true,
-  default: ({
-    value,
-    onChange,
-  }: {
-    value: string;
-    onChange?: (v: string | undefined) => void;
-  }) => (
+  default: ({ value, onChange }: { value: string; onChange?: (v: string | undefined) => void }) => (
     <textarea
       aria-label="cel-editor-monaco-stub"
       value={value}

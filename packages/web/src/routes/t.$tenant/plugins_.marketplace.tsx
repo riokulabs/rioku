@@ -12,10 +12,7 @@ import { createFileRoute, Link } from '@tanstack/react-router';
 import { Anchor, Breadcrumbs, Stack, Title, Text } from '@mantine/core';
 import { requirePermissions } from '@/hooks/use-before-load';
 import { notify } from '@/hooks/use-notify';
-import {
-  MarketplaceGrid,
-  useInstallFromMarketplaceMutation,
-} from '@/features/plugins/marketplace';
+import { MarketplaceGrid, useInstallFromMarketplaceMutation } from '@/features/plugins/marketplace';
 import type { MarketplaceListing } from '@/features/plugins/marketplace';
 
 function MarketplaceBrowsePage() {
@@ -56,9 +53,8 @@ function MarketplaceBrowsePage() {
       </Breadcrumbs>
       <Title order={2}>Plugin marketplace</Title>
       <Text c="dimmed" size="sm">
-        Browse the curated catalog of first-party and verified third-party plugins.
-        Click <strong>Install</strong> to fetch and stage a plugin via the daemon&apos;s
-        install pipeline.
+        Browse the curated catalog of first-party and verified third-party plugins. Click{' '}
+        <strong>Install</strong> to fetch and stage a plugin via the daemon&apos;s install pipeline.
       </Text>
       <MarketplaceGrid onInstall={handleInstall} tenantSlug={tenantId} />
     </Stack>

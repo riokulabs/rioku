@@ -31,22 +31,8 @@ import {
   verticalListSortingStrategy,
 } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
-import {
-  ActionIcon,
-  Alert,
-  Badge,
-  Button,
-  Group,
-  Select,
-  Stack,
-  Text,
-} from '@mantine/core';
-import {
-  IconAlertCircle,
-  IconGripVertical,
-  IconPlus,
-  IconTrash,
-} from '@tabler/icons-react';
+import { ActionIcon, Alert, Badge, Button, Group, Select, Stack, Text } from '@mantine/core';
+import { IconAlertCircle, IconGripVertical, IconPlus, IconTrash } from '@tabler/icons-react';
 import { useMiddlewareList } from '@/features/middlewares';
 import { notify } from '@/hooks/use-notify';
 import { useRouteDetail, useReorderMiddlewaresMutation } from '../api';
@@ -76,8 +62,9 @@ interface StackRowProps {
 }
 
 function SortableStackRow({ id, index, name, kind, onRemove, busy }: StackRowProps) {
-  const { attributes, listeners, setNodeRef, transform, transition, isDragging } =
-    useSortable({ id });
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
+    id,
+  });
   const style: React.CSSProperties = {
     transform: CSS.Transform.toString(transform),
     transition,
@@ -199,11 +186,7 @@ export function MiddlewareStackEditor({ routeId, tenantId }: MiddlewareStackEdit
           <Text size="xs">No middlewares attached. Stack executes in list order.</Text>
         </Alert>
       ) : (
-        <DndContext
-          sensors={sensors}
-          collisionDetection={closestCenter}
-          onDragEnd={handleDragEnd}
-        >
+        <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
           <SortableContext items={stackIds} strategy={verticalListSortingStrategy}>
             <Stack gap={4}>
               {stackIds.map((id, i) => {

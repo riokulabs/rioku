@@ -69,7 +69,10 @@ export function AgentDrawer({ tenant, agentId, onEdit, onClose }: AgentDrawerPro
 
       <Stack gap={4}>
         <Text size="xs" c="var(--mantine-color-gray-7)">
-          Provider: <Text component="span" ff="monospace">{agent.provider_id || 'unset'}</Text>
+          Provider:{' '}
+          <Text component="span" ff="monospace">
+            {agent.provider_id || 'unset'}
+          </Text>
         </Text>
         <Text size="xs" c="var(--mantine-color-gray-7)">
           Tools bound: {String(agent.tool_ids.length)} · Roles allowed:{' '}

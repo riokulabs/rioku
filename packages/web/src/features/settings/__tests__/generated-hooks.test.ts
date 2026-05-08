@@ -59,9 +59,7 @@ describe('generated settings URL builders (Orval, plan-07 fragment)', () => {
     expect(getGetSettingsPKIUrl(t)).toBe(`/api/v1/t/${t}/settings/pki`);
     expect(getGetSettingsIntegrationsUrl(t)).toBe(`/api/v1/t/${t}/settings/integrations`);
 
-    expect(getPostWebhookTestUrl(t, 'wh-42')).toBe(
-      `/api/v1/t/${t}/settings/webhooks/wh-42/test`,
-    );
+    expect(getPostWebhookTestUrl(t, 'wh-42')).toBe(`/api/v1/t/${t}/settings/webhooks/wh-42/test`);
 
     expect(getPostDangerHardResetUrl(t)).toBe(`/api/v1/t/${t}/settings/danger/hard-reset`);
     expect(getGetDangerExportUrl(t)).toBe(`/api/v1/t/${t}/settings/danger/export`);

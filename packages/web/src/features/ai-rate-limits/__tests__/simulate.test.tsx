@@ -69,9 +69,7 @@ describe('<Simulator>', () => {
     await waitFor(() => {
       expect(screen.getByTestId('simulator-result')).toBeInTheDocument();
     });
-    expect(screen.getByTestId('simulator-would-throttle').textContent).toMatch(
-      /Would throttle/i,
-    );
+    expect(screen.getByTestId('simulator-would-throttle').textContent).toMatch(/Would throttle/i);
     expect(screen.getByTestId('simulator-result-throttle').textContent).toBe('true');
     expect(screen.getByText(/retry after 60000ms/i)).toBeInTheDocument();
   });
@@ -96,9 +94,7 @@ describe('<Simulator>', () => {
     await waitFor(() => {
       expect(screen.getByTestId('simulator-result')).toBeInTheDocument();
     });
-    expect(screen.getByTestId('simulator-would-throttle').textContent).toMatch(
-      /Within limit/i,
-    );
+    expect(screen.getByTestId('simulator-would-throttle').textContent).toMatch(/Within limit/i);
     expect(screen.getByTestId('simulator-result-throttle').textContent).toBe('false');
     // Should NOT show retry-after hint when the probe is admitted.
     expect(screen.queryByText(/retry after/i)).toBeNull();

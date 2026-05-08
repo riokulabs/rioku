@@ -18,10 +18,7 @@ import {
   TextInput,
   Title,
 } from '@mantine/core';
-import {
-  useGetSettingsTenant,
-  usePatchSettingsTenant,
-} from '@/api/generated/settings/settings';
+import { useGetSettingsTenant, usePatchSettingsTenant } from '@/api/generated/settings/settings';
 import { ValidationError } from '@/api/errors';
 import { notify } from '@/hooks/use-notify';
 import { unwrap } from './_unwrap';
@@ -153,7 +150,7 @@ export function TenantRealSection({ tenant }: TenantRealSectionProps) {
         label="Default theme"
         value={defaultTheme}
         onChange={(v) => {
-          setDefaultTheme((v) ?? 'auto');
+          setDefaultTheme(v ?? 'auto');
           setTouched(true);
         }}
         data={[

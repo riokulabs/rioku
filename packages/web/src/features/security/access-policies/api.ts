@@ -103,9 +103,7 @@ export function useAccessPolicy(
 
 export function useCreateAccessPolicyMutation(tenant: string) {
   const qc = useQueryClient();
-  return async function createAccessPolicyMutation(
-    payload: AccessPolicyPayload,
-  ): Promise<void> {
+  return async function createAccessPolicyMutation(payload: AccessPolicyPayload): Promise<void> {
     await createAccessPolicyFn(tenant, adaptToWire(payload));
     await qc.invalidateQueries({ queryKey: getListAccessPoliciesQueryKey(tenant) });
     emitHostEvent('policy:saved', { tenant_id: tenant, action: 'created' });

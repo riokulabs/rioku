@@ -107,8 +107,7 @@ export function NodesListPage() {
 
     // Cluster-wide p95 latency: max of per-node p95 (worst-case proxy
     // until the PromQL `histogram_quantile` over all nodes lands).
-    const p95 =
-      nodes.length === 0 ? 0 : Math.max(...nodes.map((n) => n.metrics.latency_p95_ms));
+    const p95 = nodes.length === 0 ? 0 : Math.max(...nodes.map((n) => n.metrics.latency_p95_ms));
 
     return { total, healthy, unhealthy, versionDistribution, p95 };
   }, [nodes]);

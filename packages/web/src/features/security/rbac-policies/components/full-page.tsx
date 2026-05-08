@@ -37,7 +37,8 @@ export function RbacPolicyFullPage({ tenant, policyId }: RbacPolicyFullPageProps
   const auditQuery = useListAuditActors(tenant, undefined, {
     query: { enabled: tenant.length > 0 },
   });
-  const auditCount = (auditQuery.data?.data as { actors?: unknown[] } | undefined)?.actors?.length ?? 0;
+  const auditCount =
+    (auditQuery.data?.data as { actors?: unknown[] } | undefined)?.actors?.length ?? 0;
 
   if (!policy) {
     return (
@@ -85,11 +86,7 @@ export function RbacPolicyFullPage({ tenant, policyId }: RbacPolicyFullPageProps
           >
             Bound subjects ({boundSubjects.length})
           </Tabs.Tab>
-          <Tabs.Tab
-            value="audit"
-            leftSection={<IconHistory size={14} />}
-            data-testid="tab-audit"
-          >
+          <Tabs.Tab value="audit" leftSection={<IconHistory size={14} />} data-testid="tab-audit">
             Audit
           </Tabs.Tab>
         </Tabs.List>
@@ -182,8 +179,8 @@ export function RbacPolicyFullPage({ tenant, policyId }: RbacPolicyFullPageProps
           <Paper withBorder p="md" radius="sm" data-testid="audit-panel">
             <Stack gap="xs">
               <Text size="sm" c="var(--mantine-color-gray-7)">
-                Recent audit activity for this tenant. Resource-scoped filtering
-                lands with the plan-05 audit extension.
+                Recent audit activity for this tenant. Resource-scoped filtering lands with the
+                plan-05 audit extension.
               </Text>
               {auditQuery.isLoading ? (
                 <Group gap="xs">

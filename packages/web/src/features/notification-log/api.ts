@@ -64,8 +64,7 @@ function mapEntry(d: DaemonDeliveryLog): NotificationDeliveryLogEntry {
 
 export const deliveryLogKeys = {
   all: (tenant: string) => ['notification-log', tenant] as const,
-  list: (tenant: string, status: string) =>
-    ['notification-log', tenant, 'list', status] as const,
+  list: (tenant: string, status: string) => ['notification-log', tenant, 'list', status] as const,
   detail: (tenant: string, id: string) => ['notification-log', tenant, id] as const,
 };
 
@@ -99,10 +98,7 @@ function sortDesc(a: NotificationDeliveryLogEntry, b: NotificationDeliveryLogEnt
 
 // ─── Selectors ────────────────────────────────────────────────────────────────
 
-async function fetchLog(
-  tenant: string,
-  status: string,
-): Promise<NotificationDeliveryLogEntry[]> {
+async function fetchLog(tenant: string, status: string): Promise<NotificationDeliveryLogEntry[]> {
   const qs = status ? `?status=${encodeURIComponent(status)}` : '';
   const data = await customFetch<ListLogResponse>({
     url: `/t/${tenant}/notification-log${qs}`,
@@ -131,9 +127,7 @@ export function useDeliveryLogList(
   }, [data, tenantId, filter]);
 }
 
-export function useDeliveryLogDetail(
-  id: ID,
-): NotificationDeliveryLogEntry | undefined {
+export function useDeliveryLogDetail(id: ID): NotificationDeliveryLogEntry | undefined {
   const tenant = resolveTenant();
   const { data } = useQuery({
     queryKey: deliveryLogKeys.detail(tenant, id),

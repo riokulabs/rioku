@@ -18,7 +18,7 @@ import { TlsRealSection } from '@/features/settings/sections-real/tls-real';
 
 function TlsSettingsPage() {
   const { tenant } = useParams({ strict: false });
-  const tenantSlug = tenant ?? "";
+  const tenantSlug = tenant ?? '';
   const activeTenant: string = tenantSlug;
 
   return (

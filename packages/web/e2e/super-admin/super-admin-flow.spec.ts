@@ -14,10 +14,7 @@
  * Plan 11 / Task 7 (close-out gauntlet)
  */
 import { test, expect } from '../fixtures/auth';
-import {
-  hashEntryForTest,
-  type ChainedEntry,
-} from './hash-chain-helpers';
+import { hashEntryForTest, type ChainedEntry } from './hash-chain-helpers';
 
 // ─── Per-test fixtures (intercepted on the Vite dev server) ───────────────────
 

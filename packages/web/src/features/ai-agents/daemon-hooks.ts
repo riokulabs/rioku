@@ -30,8 +30,4 @@ export {
   listAIAgentTraces,
 } from '@/api/generated/ai-agents/ai-agents';
 
-export type {
-  AIAgent,
-  AIAgentCreateRequest,
-  AIAgentUpdateRequest,
-} from '@/api/generated/schemas';
+export type { AIAgent, AIAgentCreateRequest, AIAgentUpdateRequest } from '@/api/generated/schemas';

@@ -18,7 +18,7 @@ import { NetworkRealSection } from '@/features/settings/sections-real/network-re
 
 function NetworkSettingsPage() {
   const { tenant } = useParams({ strict: false });
-  const tenantSlug = tenant ?? "";
+  const tenantSlug = tenant ?? '';
   const activeTenant: string = tenantSlug;
 
   return (

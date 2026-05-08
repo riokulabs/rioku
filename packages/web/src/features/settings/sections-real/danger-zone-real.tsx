@@ -1,4 +1,3 @@
- 
 /**
  * Real-API DangerZoneSection — stage-2 wiring with triple-confirm UX.
  *
@@ -31,10 +30,7 @@ import {
   Tooltip,
 } from '@mantine/core';
 import { IconAlertTriangle } from '@tabler/icons-react';
-import {
-  useDeleteDangerTenant,
-  usePostDangerHardReset,
-} from '@/api/generated/settings/settings';
+import { useDeleteDangerTenant, usePostDangerHardReset } from '@/api/generated/settings/settings';
 import { customFetch } from '@/api/mutator';
 import { notify } from '@/hooks/use-notify';
 import { usePermission } from '@/hooks/use-permission';
@@ -116,7 +112,11 @@ function TripleConfirmModal({
       transitionProps={{ duration: 0 }}
     >
       <Stack gap="md">
-        <Alert color="red" icon={<IconAlertTriangle size={16} />} data-testid={`${testidPrefix}-step-1`}>
+        <Alert
+          color="red"
+          icon={<IconAlertTriangle size={16} />}
+          data-testid={`${testidPrefix}-step-1`}
+        >
           <Stack gap="xs">
             <Text size="sm" fw={600}>
               Step 1 — Review the action
@@ -220,7 +220,9 @@ export function DangerZoneRealSection({
         method: 'GET',
       });
       const downloadable =
-        blob instanceof Blob ? blob : new Blob([JSON.stringify(blob, null, 2)], { type: 'application/json' });
+        blob instanceof Blob
+          ? blob
+          : new Blob([JSON.stringify(blob, null, 2)], { type: 'application/json' });
       const href = URL.createObjectURL(downloadable);
       const link = document.createElement('a');
       link.href = href;
@@ -253,8 +255,8 @@ export function DangerZoneRealSection({
         <Stack gap="sm">
           <Title order={6}>Hard reset</Title>
           <Text size="sm">
-            Clears traces, runtime metrics, audit log, and ephemeral sessions
-            for <strong>{tenantSlug}</strong>. Configuration is preserved.
+            Clears traces, runtime metrics, audit log, and ephemeral sessions for{' '}
+            <strong>{tenantSlug}</strong>. Configuration is preserved.
           </Text>
           <Tooltip label="Requires tenant:hard-reset" disabled={canHardReset}>
             <span>
@@ -301,8 +303,8 @@ export function DangerZoneRealSection({
           <Stack gap="sm">
             <Title order={6}>Delete tenant (super-admin)</Title>
             <Text size="sm">
-              Permanently destroy <strong>{tenantSlug}</strong> and all
-              associated data. Cannot be undone.
+              Permanently destroy <strong>{tenantSlug}</strong> and all associated data. Cannot be
+              undone.
             </Text>
             <Button
               color="red.8"
@@ -343,10 +345,7 @@ export function DangerZoneRealSection({
         }}
         title="Export tenant data"
         description="Download a JSON snapshot of every config and data row scoped to this tenant. The export includes secrets in plaintext — store the file securely."
-        risks={[
-          'Export contains secrets in plaintext.',
-          'Exports are not automatically rotated.',
-        ]}
+        risks={['Export contains secrets in plaintext.', 'Exports are not automatically rotated.']}
         magicWord="EXPORT"
         testidPrefix="danger-real-export"
         submitLabel={exporting ? 'Downloading…' : 'Download export'}

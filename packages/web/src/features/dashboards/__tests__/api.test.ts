@@ -92,8 +92,7 @@ function makeQc(): QueryClient {
 
 function makeWrapper(qc: QueryClient): React.FC<{ children: React.ReactNode }> {
   // eslint-disable-next-line react/display-name
-  return ({ children }) =>
-    React.createElement(QueryClientProvider, { client: qc }, children);
+  return ({ children }) => React.createElement(QueryClientProvider, { client: qc }, children);
 }
 
 beforeEach(() => {
@@ -257,10 +256,9 @@ describe('export / import adapters', () => {
     server.use(
       http.post(`*/api/v1/t/${TENANT}/dashboards/import`, async ({ request }) => {
         captured = (await request.json()) as Record<string, unknown>;
-        return HttpResponse.json(
-          makeDashboard({ id: 'd-imported', name: 'Imported' }),
-          { status: 201 },
-        );
+        return HttpResponse.json(makeDashboard({ id: 'd-imported', name: 'Imported' }), {
+          status: 201,
+        });
       }),
     );
     const payload: DashboardExport = {

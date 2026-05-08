@@ -15,21 +15,10 @@ import {
   getListMiddlewaresQueryKey,
   getGetMiddlewareQueryKey,
 } from '@/api/generated/middlewares/middlewares';
-import type {
-  ListMiddlewares200,
-  Middleware as ProtoMiddleware,
-} from '@/api/generated/schemas';
+import type { ListMiddlewares200, Middleware as ProtoMiddleware } from '@/api/generated/schemas';
 import type { Middleware } from '@/api/resources';
-import type {
-  MiddlewareFilter,
-  MiddlewareInput,
-  MiddlewareUpdateInput,
-} from './types';
-import {
-  fromProtoMiddleware,
-  toProtoMiddlewareCreate,
-  toProtoMiddlewarePatch,
-} from './adapter';
+import type { MiddlewareFilter, MiddlewareInput, MiddlewareUpdateInput } from './types';
+import { fromProtoMiddleware, toProtoMiddlewareCreate, toProtoMiddlewarePatch } from './adapter';
 
 // ─── Query hooks ──────────────────────────────────────────────────────────────
 
@@ -49,8 +38,7 @@ export function useMiddlewareListReal(
   });
 
   const body = (data as unknown as { data: ListMiddlewares200 } | undefined)?.data;
-  const all: Middleware[] =
-    body?.items?.map((p) => fromProtoMiddleware(p, tenantId)) ?? [];
+  const all: Middleware[] = body?.items?.map((p) => fromProtoMiddleware(p, tenantId)) ?? [];
 
   const search = filter.search.toLowerCase().trim();
   const middlewares = all.filter((m) => {
@@ -73,10 +61,7 @@ export function useMiddlewareListReal(
   return { middlewares, isLoading, isError, error };
 }
 
-export function useMiddlewareDetailReal(
-  tenantId: string,
-  id: string,
-): Middleware | undefined {
+export function useMiddlewareDetailReal(tenantId: string, id: string): Middleware | undefined {
   const { data } = useQuery({
     queryKey: getGetMiddlewareQueryKey(tenantId, id),
     queryFn: ({ signal }) => getMiddleware(tenantId, id, { signal }),
@@ -109,10 +94,7 @@ export function useCreateMiddlewareMutation(tenantId: string) {
 export function useUpdateMiddlewareMutation(tenantId: string) {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: async (args: {
-      id: string;
-      input: MiddlewareUpdateInput;
-    }): Promise<Middleware> => {
+    mutationFn: async (args: { id: string; input: MiddlewareUpdateInput }): Promise<Middleware> => {
       const body = toProtoMiddlewarePatch(args.input);
       const res = (await patchMiddleware(
         tenantId,
@@ -141,4 +123,3 @@ export function useDeleteMiddlewareMutation(tenantId: string) {
     },
   });
 }
-

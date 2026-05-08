@@ -96,7 +96,8 @@ function toUpdateBody(input: UpdateRateLimitInput): AIRateLimitUpdateRequest {
   if (input.agent_id !== undefined) out.agentId = input.agent_id;
   if (input.tool_id !== undefined) out.toolId = input.tool_id;
   if (input.exemplars !== undefined) out.exemplars = [...input.exemplars];
-  if (input.similarity_threshold !== undefined) out.similarityThreshold = input.similarity_threshold;
+  if (input.similarity_threshold !== undefined)
+    out.similarityThreshold = input.similarity_threshold;
   if (input.window_seconds !== undefined) out.windowSeconds = input.window_seconds;
   if (input.max_matches !== undefined) out.threshold = input.max_matches;
   if (input.action !== undefined) out.action = input.action;
@@ -111,10 +112,7 @@ function toUpdateBody(input: UpdateRateLimitInput): AIRateLimitUpdateRequest {
  * Wraps `listAIRateLimits` and projects only the array so legacy call sites
  * (`useRateLimitList(...)` returning `AiSemanticRateLimit[]`) keep working.
  */
-export function useRateLimitList(
-  tenantId: string,
-  filter: RateLimitFilter,
-): AiSemanticRateLimit[] {
+export function useRateLimitList(tenantId: string, filter: RateLimitFilter): AiSemanticRateLimit[] {
   const { data } = useQuery({
     queryKey: getListAIRateLimitsQueryKey(tenantId),
     queryFn: ({ signal }) => listAIRateLimits(tenantId, { signal }),
@@ -141,10 +139,7 @@ export function useRateLimitList(
  * an explicit tenantId because the REST surface is tenant-scoped; legacy
  * stage-1 callers that passed only `id` are migrated alongside this rewrite.
  */
-export function useRateLimitDetail(
-  tenantId: string,
-  id: string,
-): AiSemanticRateLimit | undefined {
+export function useRateLimitDetail(tenantId: string, id: string): AiSemanticRateLimit | undefined {
   const { data } = useQuery({
     queryKey: getGetAIRateLimitQueryKey(tenantId, id),
     queryFn: ({ signal }) => getAIRateLimit(tenantId, id, { signal }),

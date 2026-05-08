@@ -162,12 +162,7 @@ export function RateLimitList({
         size: 120,
         enableSorting: false,
         cell: ({ row }) => (
-          <MetricsSparkline
-            tenantId={tenantId}
-            ruleId={row.original.id}
-            size="sm"
-            window="24h"
-          />
+          <MetricsSparkline tenantId={tenantId} ruleId={row.original.id} size="sm" window="24h" />
         ),
       },
       {

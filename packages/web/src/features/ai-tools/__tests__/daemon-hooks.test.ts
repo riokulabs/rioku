@@ -39,13 +39,9 @@ describe('ai-tools daemon-hooks (T4)', () => {
       http.post(BASE, () =>
         HttpResponse.json({ ...sampleTool, id: 'aitool-new' }, { status: 201 }),
       ),
-      http.put(`${BASE}/aitool-1`, () =>
-        HttpResponse.json({ ...sampleTool, name: 'renamed' }),
-      ),
+      http.put(`${BASE}/aitool-1`, () => HttpResponse.json({ ...sampleTool, name: 'renamed' })),
       http.delete(`${BASE}/aitool-1`, () => new HttpResponse(null, { status: 204 })),
-      http.post(`${BASE}/aitool-1/test`, () =>
-        HttpResponse.json({ toolId: 'aitool-1', ok: true }),
-      ),
+      http.post(`${BASE}/aitool-1/test`, () => HttpResponse.json({ toolId: 'aitool-1', ok: true })),
     );
   });
 

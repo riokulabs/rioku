@@ -35,10 +35,7 @@ function providerBase(tenant: string): string {
 // ─── Selectors (query hooks) ──────────────────────────────────────────────────
 
 /** Fetch + filter providers for a tenant. Filter applied client-side after fetch. */
-export function useProviderList(
-  tenant: string,
-  filter: ProviderFilter,
-): AiProvider[] {
+export function useProviderList(tenant: string, filter: ProviderFilter): AiProvider[] {
   const { data } = useQuery({
     queryKey: providerKeys.list(tenant),
     queryFn: () =>
@@ -220,10 +217,7 @@ export async function deleteProvider(tenant: string, id: string): Promise<void> 
   });
 }
 
-export async function testProvider(
-  tenant: string,
-  id: string,
-): Promise<TestProviderResult> {
+export async function testProvider(tenant: string, id: string): Promise<TestProviderResult> {
   return customFetch<TestProviderResult>({
     url: `${providerBase(tenant)}/${id}/test`,
     method: 'POST',

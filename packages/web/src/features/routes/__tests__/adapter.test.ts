@@ -58,13 +58,19 @@ describe('fromProtoRoute', () => {
     expect(prefix.match_kind).toBe('prefix');
 
     const exact = fromProtoRoute(
-      { ...baseProto, matchers: [{ paths: [{ type: V1PathMatcherType.TYPE_EXACT, value: '/api' }] }] },
+      {
+        ...baseProto,
+        matchers: [{ paths: [{ type: V1PathMatcherType.TYPE_EXACT, value: '/api' }] }],
+      },
       't',
     );
     expect(exact.match_kind).toBe('exact');
 
     const regex = fromProtoRoute(
-      { ...baseProto, matchers: [{ paths: [{ type: V1PathMatcherType.TYPE_REGEXP, value: '^/api' }] }] },
+      {
+        ...baseProto,
+        matchers: [{ paths: [{ type: V1PathMatcherType.TYPE_REGEXP, value: '^/api' }] }],
+      },
       't',
     );
     expect(regex.match_kind).toBe('regex');

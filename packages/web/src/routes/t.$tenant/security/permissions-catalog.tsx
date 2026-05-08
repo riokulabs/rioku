@@ -11,17 +11,7 @@
  */
 import { useMemo, useState } from 'react';
 import { createFileRoute } from '@tanstack/react-router';
-import {
-  Stack,
-  Title,
-  Group,
-  TextInput,
-  Select,
-  Badge,
-  Text,
-  Table,
-  Card,
-} from '@mantine/core';
+import { Stack, Title, Group, TextInput, Select, Badge, Text, Table, Card } from '@mantine/core';
 import { IconSearch, IconKey } from '@tabler/icons-react';
 import { usePermissionsCatalog } from '@/hooks/use-permissions-catalog';
 import { requirePermissions } from '@/hooks/use-before-load';
@@ -59,9 +49,7 @@ export function PermissionsCatalogPage() {
     return all.filter((p) => {
       if (sourceFilter !== 'all' && p.source !== sourceFilter) return false;
       if (q) {
-        return (
-          p.key.toLowerCase().includes(q) || p.description.toLowerCase().includes(q)
-        );
+        return p.key.toLowerCase().includes(q) || p.description.toLowerCase().includes(q);
       }
       return true;
     });
@@ -75,9 +63,9 @@ export function PermissionsCatalogPage() {
       </Group>
 
       <Text size="sm" c="dimmed">
-        Every permission known to the daemon. Built-in permissions ship with Rioku;
-        plugin permissions come from installed plugins (manifest-declared) or are
-        registered dynamically at runtime.
+        Every permission known to the daemon. Built-in permissions ship with Rioku; plugin
+        permissions come from installed plugins (manifest-declared) or are registered dynamically at
+        runtime.
       </Text>
 
       <Group gap="md" align="flex-end">
@@ -108,12 +96,7 @@ export function PermissionsCatalogPage() {
       </Group>
 
       <Card withBorder padding={0}>
-        <Table
-          striped
-          highlightOnHover
-          stickyHeader
-          aria-label="Permissions catalog"
-        >
+        <Table striped highlightOnHover stickyHeader aria-label="Permissions catalog">
           <Table.Thead>
             <Table.Tr>
               <Table.Th>Key</Table.Th>

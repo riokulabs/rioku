@@ -46,7 +46,10 @@ export function fromProtoSite(proto: ProtoSite, fallbackTenantId: string): Site 
 
 /** Wizard input → wire create body. The wizard's `new_upstream` mode is
  *  resolved upstream — this adapter only writes the site itself. */
-export function toProtoSiteCreate(input: SiteWizardInput, upstreamServiceId?: string): {
+export function toProtoSiteCreate(
+  input: SiteWizardInput,
+  upstreamServiceId?: string,
+): {
   name: string;
   domain: string;
   tlsMode: string;

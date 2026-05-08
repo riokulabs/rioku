@@ -5,13 +5,7 @@
  *
  * Plan 01 — stage 2 wiring.
  */
-import {
-  login,
-  logout,
-  verifyTotp,
-  verifyBackupCode,
-  getPendingAuthUserId,
-} from '../api';
+import { login, logout, verifyTotp, verifyBackupCode, getPendingAuthUserId } from '../api';
 import { useCurrentUser } from '../use-current-user';
 import type { AuthState, LoginResult, TotpResult, BackupCodeResult } from '../types';
 

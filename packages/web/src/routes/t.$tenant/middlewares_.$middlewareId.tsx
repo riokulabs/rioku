@@ -35,11 +35,7 @@ function MiddlewareDetailPage() {
           Back to middlewares
         </Button>
       </Group>
-      <MiddlewareFullPage
-        middlewareId={middlewareId}
-        tenantId={tenantId}
-        tenantSlug={tenantSlug}
-      />
+      <MiddlewareFullPage middlewareId={middlewareId} tenantId={tenantId} tenantSlug={tenantSlug} />
     </Stack>
   );
 }

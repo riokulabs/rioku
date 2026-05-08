@@ -139,10 +139,10 @@ function adaptDaemonEntry(raw: DaemonAuditEntry, fallbackTenant: string): AuditE
   const base: AuditEntry = {
     id: id,
     tenant_id: fallbackTenant,
-    actor_id: (raw.actor ?? ''),
+    actor_id: raw.actor ?? '',
     action,
     resource_type: raw.entityType ?? '',
-    resource_id: (raw.entityId ?? ''),
+    resource_id: raw.entityId ?? '',
     outcome: 'success',
     at,
     tier: 'read',
@@ -283,10 +283,7 @@ async function fetchAuditPage(
  * is in scope (legacy bare-renderHook tests).
  */
 export function useAuditList(tenantId: string, filter: AuditFilter): AuditEntry[] {
-  const params = useMemo(
-    () => buildAuditListParams(filter, 1000, 0),
-    [filter],
-  );
+  const params = useMemo(() => buildAuditListParams(filter, 1000, 0), [filter]);
   // QueryClient may not be present in legacy unit tests that render
   // hooks bare; pass a process-local fallback client so useQuery
   // doesn't explode and disable the network leg so the selector reads
@@ -294,10 +291,7 @@ export function useAuditList(tenantId: string, filter: AuditFilter): AuditEntry[
   // tests still see their own provider-supplied client via context.
   const ctxClient = useContext(QueryClientContext);
   const networkEnabled = ctxClient !== undefined;
-  const effectiveClient = useMemo(
-    () => ctxClient ?? getFallbackClient(),
-    [ctxClient],
-  );
+  const effectiveClient = useMemo(() => ctxClient ?? getFallbackClient(), [ctxClient]);
   const query = useQuery(
     {
       queryKey: ['audit-list', tenantId, params] as const,
@@ -334,10 +328,7 @@ export function useAuditListInfinite(
 
   const ctxClient = useContext(QueryClientContext);
   const networkEnabled = ctxClient !== undefined;
-  const effectiveClient = useMemo(
-    () => ctxClient ?? getFallbackClient(),
-    [ctxClient],
-  );
+  const effectiveClient = useMemo(() => ctxClient ?? getFallbackClient(), [ctxClient]);
   const query: UseInfiniteQueryResult<{ pages: AuditListPage[]; pageParams: number[] }> =
     useInfiniteQuery(
       {
@@ -512,10 +503,7 @@ export function searchResourceIds(
 export function useRetentionConfig(tenantId: string): AuditRetentionConfig | undefined {
   const ctxClient = useContext(QueryClientContext);
   const networkEnabled = ctxClient !== undefined;
-  const effectiveClient = useMemo(
-    () => ctxClient ?? getFallbackClient(),
-    [ctxClient],
-  );
+  const effectiveClient = useMemo(() => ctxClient ?? getFallbackClient(), [ctxClient]);
   const { data } = useQuery(
     {
       queryKey: ['audit-retention', tenantId] as const,

@@ -31,9 +31,7 @@ let _activeImpersonationIdAccessor: (() => string | null) | null = null;
  *
  * Pass `null` to clear (test cleanup / sign-out).
  */
-export function setActiveImpersonationIdAccessor(
-  accessor: (() => string | null) | null,
-): void {
+export function setActiveImpersonationIdAccessor(accessor: (() => string | null) | null): void {
   _activeImpersonationIdAccessor = accessor;
 }
 
@@ -52,7 +50,6 @@ function applyImpersonationHeader(headers: Record<string, string>, url: string):
   if (id === null) return;
   headers['x-impersonation-id'] = id;
 }
-
 
 const BASE: string = (import.meta.env.VITE_API_BASE as string | undefined) ?? '/api/v1';
 

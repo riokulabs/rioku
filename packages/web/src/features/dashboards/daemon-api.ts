@@ -89,10 +89,7 @@ export async function listDashboardsViaDaemon(tenant: string): Promise<Dashboard
   return unwrap<DashboardList>(await listDashboardsCall(tenant));
 }
 
-export async function getDashboardViaDaemon(
-  tenant: string,
-  id: string,
-): Promise<DaemonDashboard> {
+export async function getDashboardViaDaemon(tenant: string, id: string): Promise<DaemonDashboard> {
   return unwrap<DaemonDashboard>(await getDashboardCall(tenant, id));
 }
 

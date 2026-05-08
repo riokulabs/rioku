@@ -35,10 +35,7 @@ import {
   Title,
 } from '@mantine/core';
 import { IconAlertCircle, IconTrash, IconUpload } from '@tabler/icons-react';
-import {
-  useGetSettingsTLS,
-  usePutSettingsTLS,
-} from '@/api/generated/settings/settings';
+import { useGetSettingsTLS, usePutSettingsTLS } from '@/api/generated/settings/settings';
 import type { SettingsTLSManualCertRefsItem } from '@/api/generated/schemas/settingsTLSManualCertRefsItem';
 import type { SettingsTLSAcmeIssuer } from '@/api/generated/schemas/settingsTLSAcmeIssuer';
 import { customFetch } from '@/api/mutator';
@@ -119,7 +116,10 @@ export function TlsRealSection({ tenant }: TlsRealSectionProps) {
       if (issuer === 'custom') payload.acmeDirectoryUrl = directoryUrl;
       const cur = unwrap<{ allowedCiphers?: string[] }>(q.data);
       if (cur?.allowedCiphers) payload.allowedCiphers = cur.allowedCiphers;
-      await put.mutateAsync({ tenant, data: payload as Parameters<typeof put.mutateAsync>[0]['data'] });
+      await put.mutateAsync({
+        tenant,
+        data: payload as Parameters<typeof put.mutateAsync>[0]['data'],
+      });
       notify.success('TLS configuration saved');
       setDirty(false);
       await q.refetch();
@@ -178,13 +178,9 @@ export function TlsRealSection({ tenant }: TlsRealSectionProps) {
       <Title order={4}>TLS</Title>
 
       {!canWrite && (
-        <Alert
-          color="yellow"
-          icon={<IconAlertCircle size={14} />}
-          data-testid="tls-real-readonly"
-        >
-          You have read-only access. The <code>tls:write</code> permission is
-          required to save changes or upload certs.
+        <Alert color="yellow" icon={<IconAlertCircle size={14} />} data-testid="tls-real-readonly">
+          You have read-only access. The <code>tls:write</code> permission is required to save
+          changes or upload certs.
         </Alert>
       )}
 
@@ -195,7 +191,7 @@ export function TlsRealSection({ tenant }: TlsRealSectionProps) {
             label="Issuer"
             value={issuer}
             onChange={(v) => {
-              setIssuer((v) ?? 'lets-encrypt-staging');
+              setIssuer(v ?? 'lets-encrypt-staging');
               setDirty(true);
             }}
             data={ACME_OPTIONS}
@@ -249,9 +245,8 @@ export function TlsRealSection({ tenant }: TlsRealSectionProps) {
         <Stack gap="sm">
           <Title order={6}>Manual certificate upload</Title>
           <Text size="xs" c="dimmed">
-            Paste PEM-encoded certificate and private key. The daemon validates
-            both and stores them in the cert store; Caddy reload runs after a
-            successful upload.
+            Paste PEM-encoded certificate and private key. The daemon validates both and stores them
+            in the cert store; Caddy reload runs after a successful upload.
           </Text>
           <Textarea
             label="Certificate (PEM)"
@@ -324,8 +319,7 @@ export function TlsRealSection({ tenant }: TlsRealSectionProps) {
                         )}
                       </Group>
                       <Text size="xs" c="dimmed">
-                        Issuer: {ref.issuer ?? 'unknown'} — expires{' '}
-                        {ref.notAfter ?? 'unknown'}
+                        Issuer: {ref.issuer ?? 'unknown'} — expires {ref.notAfter ?? 'unknown'}
                       </Text>
                     </Stack>
                     <Button

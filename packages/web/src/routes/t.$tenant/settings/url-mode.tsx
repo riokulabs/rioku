@@ -39,10 +39,7 @@ import { IconAlertTriangle, IconArrowLeft, IconInfoCircle } from '@tabler/icons-
 import { requirePermissions } from '@/hooks/use-before-load';
 import { usePermission } from '@/hooks/use-permission';
 import { notify } from '@/hooks/use-notify';
-import {
-  useGetSettingsTenant,
-  usePatchSettingsTenant,
-} from '@/api/generated/settings/settings';
+import { useGetSettingsTenant, usePatchSettingsTenant } from '@/api/generated/settings/settings';
 
 // ─── URL mode options ─────────────────────────────────────────────────────────
 
@@ -118,7 +115,8 @@ function UrlModeSettingsPage() {
   // dirtied the form — that combination is enough; we don't need the
   // hydration ref at render time.
   const persistedMode = (tenantRecord?.urlMode as UrlMode | undefined) ?? 'path';
-  const modeChanging = !!tenantRecord && form.isDirty('url_mode') && form.values.url_mode !== persistedMode;
+  const modeChanging =
+    !!tenantRecord && form.isDirty('url_mode') && form.values.url_mode !== persistedMode;
 
   const handleSubmit = useCallback(
     async (values: UrlModeFormValues) => {
@@ -130,9 +128,7 @@ function UrlModeSettingsPage() {
             urlMode: values.url_mode,
             // Only push parentDomain on subdomain mode; merge-patch
             // semantics: omitted keys preserve existing server value.
-            ...(values.url_mode === 'subdomain'
-              ? { parentDomain: values.parent_domain }
-              : {}),
+            ...(values.url_mode === 'subdomain' ? { parentDomain: values.parent_domain } : {}),
           },
         });
         notify.success(
@@ -231,7 +227,10 @@ function UrlModeSettingsPage() {
         <Text size="sm">
           Current mode: <strong>{persistedMode === 'path' ? 'Path' : 'Subdomain'}</strong>
           {persistedMode === 'subdomain' && tenantRecord.parentDomain && (
-            <> — parent domain: <strong>{tenantRecord.parentDomain}</strong></>
+            <>
+              {' '}
+              — parent domain: <strong>{tenantRecord.parentDomain}</strong>
+            </>
           )}
         </Text>
       </Alert>

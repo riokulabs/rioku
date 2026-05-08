@@ -98,8 +98,7 @@ function mapItem(d: DaemonNotificationItem): NotificationItem {
 
 export const notificationKeys = {
   all: (tenant: string) => ['notifications', tenant] as const,
-  list: (tenant: string, filter: InboxFilter) =>
-    ['notifications', tenant, 'list', filter] as const,
+  list: (tenant: string, filter: InboxFilter) => ['notifications', tenant, 'list', filter] as const,
   unread: (tenant: string) => ['notifications', tenant, 'unread'] as const,
   detail: (tenant: string, id: string) => ['notifications', tenant, id] as const,
 };
@@ -121,8 +120,7 @@ async function fetchNotificationList(
   filter: InboxFilter,
 ): Promise<NotificationItem[]> {
   const params = buildParams(filter);
-  const qs =
-    Object.keys(params).length > 0 ? '?' + new URLSearchParams(params).toString() : '';
+  const qs = Object.keys(params).length > 0 ? '?' + new URLSearchParams(params).toString() : '';
   const data = await customFetch<ListResponse>({
     url: `/t/${tenant}/notifications${qs}`,
     method: 'GET',
@@ -160,10 +158,7 @@ export function useNotificationList(userId: ID, filter: InboxFilter): Notificati
     staleTime: 30_000,
     enabled: !!tenant,
   });
-  return useMemo(
-    () => (data ?? []).filter((n) => !userId || n.user_id === userId),
-    [data, userId],
-  );
+  return useMemo(() => (data ?? []).filter((n) => !userId || n.user_id === userId), [data, userId]);
 }
 
 /**
@@ -356,9 +351,7 @@ export function subscribeInboxStream(
   // Heuristic: if the value looks like a userId (matches the mock-store prefix
   // 'user-' or is not a tenant slug) we resolve the tenant from the URL
   // instead. This keeps stage-1 call sites working without modification.
-  const tenant = tenantOrUserId.startsWith('user-')
-    ? resolveTenant()
-    : tenantOrUserId;
+  const tenant = tenantOrUserId.startsWith('user-') ? resolveTenant() : tenantOrUserId;
   if (!tenant) {
     return () => {
       /* no-op: no tenant in URL, nothing to unsubscribe */

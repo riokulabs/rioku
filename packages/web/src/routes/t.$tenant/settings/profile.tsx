@@ -19,7 +19,7 @@ import { ProfileRealSection } from '@/features/settings/sections-real/profile-re
 
 function ProfileSettingsPage() {
   const { tenant } = useParams({ strict: false });
-  const tenantSlug = tenant ?? "";
+  const tenantSlug = tenant ?? '';
   const activeTenant: string = tenantSlug;
 
   return (

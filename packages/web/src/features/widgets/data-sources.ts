@@ -283,7 +283,10 @@ function coerceRows(arr: readonly unknown[]): Record<string, unknown>[] {
  * widget's dashboard is not found (e.g. the widget was detached in a bad
  * restore), variable substitution is a no-op.
  */
-function widgetVariables(widget: Widget, state: WidgetDataSourceState): readonly DashboardVariable[] {
+function widgetVariables(
+  widget: Widget,
+  state: WidgetDataSourceState,
+): readonly DashboardVariable[] {
   const dashboard = state.dashboards[widget.dashboard_id];
   return dashboard?.variables ?? [];
 }

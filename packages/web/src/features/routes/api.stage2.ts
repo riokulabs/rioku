@@ -89,10 +89,7 @@ export function useRouteListReal(
 }
 
 /** Get a single route by ID. */
-export function useRouteDetailReal(
-  tenantId: string,
-  routeId: string,
-): Route | undefined {
+export function useRouteDetailReal(tenantId: string, routeId: string): Route | undefined {
   const { data } = useQuery({
     queryKey: getGetRouteQueryKey(tenantId, routeId),
     queryFn: ({ signal }) => getRoute(tenantId, routeId, { signal }),
@@ -207,7 +204,13 @@ export async function reorderRouteMiddlewaresFetch(
 export function useAttachPolicyMutation(tenantId: string) {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: async ({ routeId, policyId }: { routeId: string; policyId: string }): Promise<void> => {
+    mutationFn: async ({
+      routeId,
+      policyId,
+    }: {
+      routeId: string;
+      policyId: string;
+    }): Promise<void> => {
       await orvalAttachPolicy(tenantId, routeId, policyId);
     },
     onSuccess: (_data, { routeId }) => {
@@ -221,7 +224,13 @@ export function useAttachPolicyMutation(tenantId: string) {
 export function useDetachPolicyMutation(tenantId: string) {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: async ({ routeId, policyId }: { routeId: string; policyId: string }): Promise<void> => {
+    mutationFn: async ({
+      routeId,
+      policyId,
+    }: {
+      routeId: string;
+      policyId: string;
+    }): Promise<void> => {
       await orvalDetachPolicy(tenantId, routeId, policyId);
     },
     onSuccess: (_data, { routeId }) => {

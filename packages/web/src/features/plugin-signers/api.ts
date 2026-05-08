@@ -96,9 +96,7 @@ function daemonToPlugin(d: DaemonPlugin): Plugin {
 // ─── URL builders ─────────────────────────────────────────────────────────────
 
 function signersBaseUrl(tenantId: string | null): string {
-  return tenantId !== null
-    ? `/t/${tenantId}/plugin-signers`
-    : `/admin/plugin-signers`;
+  return tenantId !== null ? `/t/${tenantId}/plugin-signers` : `/admin/plugin-signers`;
 }
 
 // ─── Query keys ───────────────────────────────────────────────────────────────
@@ -119,10 +117,7 @@ export const signerQueryKeys = {
  *
  * Applies client-side filtering for search and status.
  */
-export function useSignerList(
-  tenantId: string | null,
-  filter?: SignerFilter,
-): PluginSigner[] {
+export function useSignerList(tenantId: string | null, filter?: SignerFilter): PluginSigner[] {
   const { data } = useQuery({
     queryKey: signerQueryKeys.list(tenantId),
     queryFn: async ({ signal }) => {
@@ -222,10 +217,7 @@ export async function updateSigner(
   return daemonToSigner(resp);
 }
 
-export async function deleteSigner(
-  id: string,
-  tenantId: string | null = null,
-): Promise<void> {
+export async function deleteSigner(id: string, tenantId: string | null = null): Promise<void> {
   await customFetch<unknown>({
     url: `${signersBaseUrl(tenantId)}/${id}`,
     method: 'DELETE',

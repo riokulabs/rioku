@@ -9,21 +9,8 @@
  * Plan 07 — Task 1.
  */
 import { useEffect, useState } from 'react';
-import {
-  Alert,
-  Button,
-  Group,
-  Loader,
-  Stack,
-  Switch,
-  Text,
-  TextInput,
-  Title,
-} from '@mantine/core';
-import {
-  useGetSettingsProfile,
-  usePatchSettingsProfile,
-} from '@/api/generated/settings/settings';
+import { Alert, Button, Group, Loader, Stack, Switch, Text, TextInput, Title } from '@mantine/core';
+import { useGetSettingsProfile, usePatchSettingsProfile } from '@/api/generated/settings/settings';
 import { ValidationError } from '@/api/errors';
 import { notify } from '@/hooks/use-notify';
 import { unwrap } from './_unwrap';

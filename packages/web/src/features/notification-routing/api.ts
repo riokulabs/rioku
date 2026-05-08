@@ -114,9 +114,7 @@ export function useRoutingRuleList(
     enabled: !!tenant,
   });
   const items = data ?? [];
-  return items.filter(
-    (r) => (!tenantId || r.tenant_id === tenantId) && matchesFilter(r, filter),
-  );
+  return items.filter((r) => (!tenantId || r.tenant_id === tenantId) && matchesFilter(r, filter));
 }
 
 export function useRoutingRuleDetail(id: ID): NotificationRoutingRule | undefined {

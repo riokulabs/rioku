@@ -9,16 +9,7 @@
  * viewers see a disabled button + tooltip.
  */
 import { useRef, useState } from 'react';
-import {
-  Alert,
-  Badge,
-  Button,
-  Code,
-  Group,
-  Stack,
-  Text,
-  Tooltip,
-} from '@mantine/core';
+import { Alert, Badge, Button, Code, Group, Stack, Text, Tooltip } from '@mantine/core';
 import Editor from '@monaco-editor/react';
 import { IconAlertCircle, IconPlayerPlay } from '@tabler/icons-react';
 import { usePermission } from '@/hooks/use-permission';

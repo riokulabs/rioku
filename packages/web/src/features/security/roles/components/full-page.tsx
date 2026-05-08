@@ -11,18 +11,7 @@
  */
 import { useMemo } from 'react';
 import { useQueries } from '@tanstack/react-query';
-import {
-  Stack,
-  Group,
-  Title,
-  Text,
-  Badge,
-  Tabs,
-  Paper,
-  Table,
-  Loader,
-  Alert,
-} from '@mantine/core';
+import { Stack, Group, Title, Text, Badge, Tabs, Paper, Table, Loader, Alert } from '@mantine/core';
 import { IconAlertCircle, IconShieldHalf, IconUsers } from '@tabler/icons-react';
 import { EffectivePermissionsPanel } from '@/components/effective-permissions-panel';
 import { listUserRoles, getListUserRolesQueryKey } from '@/api/generated/roles/roles';

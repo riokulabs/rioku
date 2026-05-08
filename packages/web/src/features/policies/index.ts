@@ -35,10 +35,7 @@ export type { AccessPolicyPayload as PolicyPayload } from '@/features/security/a
  * route → policy IDs → AccessPolicy records via the tenant-scoped real
  * endpoints. Filters out unresolved IDs.
  */
-export function usePoliciesAttachedToRoute(
-  tenantId: string,
-  routeId: string,
-): AccessPolicy[] {
+export function usePoliciesAttachedToRoute(tenantId: string, routeId: string): AccessPolicy[] {
   const route = useRouteDetailReal(tenantId, routeId);
   const { data: allPolicies } = useAccessPolicyList(tenantId);
 

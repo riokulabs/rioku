@@ -31,10 +31,7 @@ import {
   Title,
 } from '@mantine/core';
 import { IconAlertCircle } from '@tabler/icons-react';
-import {
-  useGetSettingsPKI,
-  usePutSettingsPKI,
-} from '@/api/generated/settings/settings';
+import { useGetSettingsPKI, usePutSettingsPKI } from '@/api/generated/settings/settings';
 import type { SettingsPKIKeyAlgorithm } from '@/api/generated/schemas/settingsPKIKeyAlgorithm';
 import { customFetch } from '@/api/mutator';
 import { notify } from '@/hooks/use-notify';
@@ -220,7 +217,7 @@ export function PkiRealSection({ tenant }: PkiRealSectionProps) {
             label="Key algorithm"
             value={keyAlgo}
             onChange={(v) => {
-              setKeyAlgo((v) ?? 'ed25519');
+              setKeyAlgo(v ?? 'ed25519');
               setDirty(true);
             }}
             data={KEY_ALGOS}

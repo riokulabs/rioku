@@ -34,12 +34,7 @@ import { usePermissionsCatalog } from '@/hooks/use-permissions-catalog';
 import { usePermission } from '@/hooks/use-permission';
 import { notify } from '@/hooks/use-notify';
 import { useCurrentUser } from '@/features/auth/use-current-user';
-import {
-  useUserDetail,
-  useUserSessions,
-  useUserMutations,
-  useTenantRoles,
-} from '../api';
+import { useUserDetail, useUserSessions, useUserMutations, useTenantRoles } from '../api';
 import { StatusBadge } from '@/components/status-badge';
 import { Zone } from '@/components/zone';
 import { MembershipActions } from './membership-actions';

@@ -101,7 +101,7 @@ export function AuthPolicyRealSection({ tenant }: AuthPolicyRealSectionProps) {
         label="TOTP policy"
         value={totp}
         onChange={(v) => {
-          setTotp((v) ?? 'admins');
+          setTotp(v ?? 'admins');
           setTouched(true);
         }}
         data={[

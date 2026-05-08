@@ -58,14 +58,11 @@ describe('useMiddlewareListReal', () => {
       makeProtoMiddleware({ id: 'mw-b', name: 'b', orderHint: 100 }),
     ];
     const body: ListMiddlewares200 = { items, total: 2 };
-    server.use(
-      http.get(`*/api/v1/t/${TENANT}/middlewares`, () => HttpResponse.json(body)),
-    );
+    server.use(http.get(`*/api/v1/t/${TENANT}/middlewares`, () => HttpResponse.json(body)));
 
     const qc = makeQueryClient();
     const { result } = renderHook(
-      () =>
-        useMiddlewareListReal(TENANT, { search: '', kind: 'all', enabled: 'all' }),
+      () => useMiddlewareListReal(TENANT, { search: '', kind: 'all', enabled: 'all' }),
       { wrapper: makeWrapper(qc) },
     );
     await waitFor(() => {
@@ -90,8 +87,7 @@ describe('useMiddlewareListReal', () => {
     );
     const qc = makeQueryClient();
     const { result } = renderHook(
-      () =>
-        useMiddlewareListReal(TENANT, { search: '', kind: 'rate-limit', enabled: 'all' }),
+      () => useMiddlewareListReal(TENANT, { search: '', kind: 'rate-limit', enabled: 'all' }),
       { wrapper: makeWrapper(qc) },
     );
     await waitFor(() => {
@@ -104,9 +100,7 @@ describe('useMiddlewareListReal', () => {
 describe('useMiddlewareDetailReal', () => {
   it('fetches a single middleware', async () => {
     const proto = makeProtoMiddleware({ id: 'mw-x', name: 'detail-test' });
-    server.use(
-      http.get(`*/api/v1/t/${TENANT}/middlewares/mw-x`, () => HttpResponse.json(proto)),
-    );
+    server.use(http.get(`*/api/v1/t/${TENANT}/middlewares/mw-x`, () => HttpResponse.json(proto)));
     const qc = makeQueryClient();
     const { result } = renderHook(() => useMiddlewareDetailReal(TENANT, 'mw-x'), {
       wrapper: makeWrapper(qc),

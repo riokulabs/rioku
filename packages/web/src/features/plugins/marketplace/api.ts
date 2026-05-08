@@ -63,10 +63,7 @@ export function useMarketplaceListings(
   const { data } = useQuery({
     queryKey: marketplaceQueryKeys.list(tenantId),
     queryFn: async ({ signal }) => {
-      const url =
-        tenantId !== ''
-          ? `/t/${tenantId}/plugin-marketplace`
-          : `/plugin-marketplace`;
+      const url = tenantId !== '' ? `/t/${tenantId}/plugin-marketplace` : `/plugin-marketplace`;
       const resp = await customFetch<DaemonMarketplaceResponse>({
         url,
         method: 'GET',
@@ -109,17 +106,12 @@ export function useMarketplaceTags(tenantId = ''): string[] {
 }
 
 /** Returns a single marketplace listing by id. */
-export function useMarketplaceListing(
-  id: string,
-  tenantId = '',
-): MarketplaceListing | undefined {
+export function useMarketplaceListing(id: string, tenantId = ''): MarketplaceListing | undefined {
   const { data } = useQuery({
     queryKey: marketplaceQueryKeys.entry(tenantId, id),
     queryFn: async ({ signal }) => {
       const url =
-        tenantId !== ''
-          ? `/t/${tenantId}/plugin-marketplace/${id}`
-          : `/plugin-marketplace/${id}`;
+        tenantId !== '' ? `/t/${tenantId}/plugin-marketplace/${id}` : `/plugin-marketplace/${id}`;
       const resp = await customFetch<DaemonMarketplaceEntry>({
         url,
         method: 'GET',
@@ -169,7 +161,6 @@ export async function installFromMarketplace(
 
 export function useInstallFromMarketplaceMutation(tenantId: string) {
   return useMutation({
-    mutationFn: (input: InstallFromMarketplaceInput) =>
-      installFromMarketplace(tenantId, input),
+    mutationFn: (input: InstallFromMarketplaceInput) => installFromMarketplace(tenantId, input),
   });
 }

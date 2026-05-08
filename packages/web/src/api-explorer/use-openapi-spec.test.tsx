@@ -31,5 +31,4 @@ describe('useOpenAPISpec', () => {
     });
     expect(result.current.data?.info.title).toBe('rioku');
   });
-
 });

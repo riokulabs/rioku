@@ -79,12 +79,7 @@ interface RoutingRuleDetailProps {
   onClose: () => void;
 }
 
-export function RoutingRuleDetail({
-  tenantId,
-  ruleId,
-  onEdit,
-  onClose,
-}: RoutingRuleDetailProps) {
+export function RoutingRuleDetail({ tenantId, ruleId, onEdit, onClose }: RoutingRuleDetailProps) {
   const rule = useRoutingRuleDetail(ruleId);
   const channelList = useChannelList(tenantId, EMPTY_CHANNEL_FILTER);
   const channels = useMemo(() => {

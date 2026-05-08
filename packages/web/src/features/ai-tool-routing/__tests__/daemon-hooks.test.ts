@@ -31,14 +31,10 @@ describe('ai-tool-bindings daemon-hooks (T5)', () => {
   beforeEach(() => {
     server.use(
       http.get(BASE, () => HttpResponse.json({ items: [sample], total: 1 })),
-      http.post(BASE, () =>
-        HttpResponse.json({ ...sample, id: 'bnd-new' }, { status: 201 }),
-      ),
+      http.post(BASE, () => HttpResponse.json({ ...sample, id: 'bnd-new' }, { status: 201 })),
       http.put(`${BASE}/bnd-1`, () => HttpResponse.json({ ...sample, enabled: false })),
       http.delete(`${BASE}/bnd-1`, () => new HttpResponse(null, { status: 204 })),
-      http.post(`${BASE}/bulk-attach`, () =>
-        HttpResponse.json({ items: [sample], total: 1 }),
-      ),
+      http.post(`${BASE}/bulk-attach`, () => HttpResponse.json({ items: [sample], total: 1 })),
       http.post(`${BASE}/preview-condition`, () =>
         HttpResponse.json({ condition: '', matched: true }),
       ),

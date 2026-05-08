@@ -291,9 +291,8 @@ export function BindingFullPage({ tenantId, bindingId }: BindingFullPageProps) {
               <Text component="span" fw={600}>
                 Preview
               </Text>{' '}
-              to evaluate it server-side using the same engine that runs at
-              request-time. Saving here only previews — to persist, edit the
-              binding from the list page or drawer.
+              to evaluate it server-side using the same engine that runs at request-time. Saving
+              here only previews — to persist, edit the binding from the list page or drawer.
             </Text>
 
             <ConditionEditor
@@ -341,7 +340,11 @@ export function BindingFullPage({ tenantId, bindingId }: BindingFullPageProps) {
                   {preview.parses ? (
                     <Group gap="xs">
                       <IconShieldCheck size={16} color="var(--mantine-color-green-7)" />
-                      <Text size="sm" c="var(--mantine-color-green-7)" data-testid="cel-preview-result">
+                      <Text
+                        size="sm"
+                        c="var(--mantine-color-green-7)"
+                        data-testid="cel-preview-result"
+                      >
                         Matched: {preview.sample_result === true ? 'true' : 'false'}
                       </Text>
                     </Group>
@@ -389,7 +392,12 @@ export function BindingFullPage({ tenantId, bindingId }: BindingFullPageProps) {
                           </Text>
                         </Table.Td>
                         <Table.Td>
-                          <Text size="xs" ff="monospace" c="var(--mantine-color-gray-7)" lineClamp={1}>
+                          <Text
+                            size="xs"
+                            ff="monospace"
+                            c="var(--mantine-color-gray-7)"
+                            lineClamp={1}
+                          >
                             {b.condition.trim() === '' ? '(unconditional)' : b.condition}
                           </Text>
                         </Table.Td>
@@ -435,9 +443,7 @@ export function BindingFullPage({ tenantId, bindingId }: BindingFullPageProps) {
                       <Text size="xs">{e.actor}</Text>
                     </Table.Td>
                     <Table.Td>
-                      <Text size="xs">
-                        {e.at ? dayjs(e.at).format('MMM D, HH:mm:ss') : '—'}
-                      </Text>
+                      <Text size="xs">{e.at ? dayjs(e.at).format('MMM D, HH:mm:ss') : '—'}</Text>
                     </Table.Td>
                   </Table.Tr>
                 ))}

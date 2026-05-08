@@ -19,7 +19,15 @@
  */
 import { describe, it, expect, beforeEach } from 'vitest';
 import { http, HttpResponse } from 'msw';
-import { fireEvent, render, screen, waitFor, within, renderHook, act } from '@testing-library/react';
+import {
+  fireEvent,
+  render,
+  screen,
+  waitFor,
+  within,
+  renderHook,
+  act,
+} from '@testing-library/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { MantineProvider } from '@mantine/core';
 import type { ReactNode } from 'react';
@@ -127,19 +135,16 @@ function makeWrapper() {
 }
 
 beforeEach(() => {
-  serverKeys = [
-    freshKey({ id: 'key-existing', name: 'ci-deploy', prefix: 'rku_tok_ZzYy' }),
-  ];
+  serverKeys = [freshKey({ id: 'key-existing', name: 'ci-deploy', prefix: 'rku_tok_ZzYy' })];
   wireDaemonHandlers();
 });
 
 describe('useApiKeyList — fetches from real daemon', () => {
   it('returns enriched rows for the tenant', async () => {
     const wrap = makeWrapper();
-    const { result } = renderHook(
-      () => useApiKeyList(TENANT_ID, { status: 'all' }),
-      { wrapper: wrap },
-    );
+    const { result } = renderHook(() => useApiKeyList(TENANT_ID, { status: 'all' }), {
+      wrapper: wrap,
+    });
     await waitFor(() => {
       expect(result.current.length).toBeGreaterThan(0);
     });

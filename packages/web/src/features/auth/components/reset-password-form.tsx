@@ -9,16 +9,7 @@
  * Plan 01 — stage 2 wiring.
  */
 import { useState, useEffect } from 'react';
-import {
-  Stack,
-  PasswordInput,
-  Button,
-  Alert,
-  Text,
-  Anchor,
-  Progress,
-  Group,
-} from '@mantine/core';
+import { Stack, PasswordInput, Button, Alert, Text, Anchor, Progress, Group } from '@mantine/core';
 import { useForm, schemaResolver } from '@mantine/form';
 import { useNavigate } from '@tanstack/react-router';
 import { IconAlertCircle, IconCheck } from '@tabler/icons-react';

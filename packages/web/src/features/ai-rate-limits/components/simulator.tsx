@@ -96,7 +96,7 @@ export function Simulator({ tenantId, ruleId }: SimulatorProps) {
 
       {mutation.isError && (
         <Alert color="red" variant="light" icon={<IconAlertCircle size={14} />}>
-          Simulator failed: {(mutation.error).message || 'unknown error'}
+          Simulator failed: {mutation.error.message || 'unknown error'}
         </Alert>
       )}
 

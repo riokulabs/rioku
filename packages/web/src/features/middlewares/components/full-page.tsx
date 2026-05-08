@@ -52,7 +52,14 @@ const LazyMonaco = lazy(async () => {
   const mod = await import('@monaco-editor/react');
   const Editor = mod.default;
   return {
-    default: ({ value, language, onChange, onBlur, height = 360, readOnly = false }: MonacoEditorProps) => (
+    default: ({
+      value,
+      language,
+      onChange,
+      onBlur,
+      height = 360,
+      readOnly = false,
+    }: MonacoEditorProps) => (
       <Editor
         value={value}
         language={language}

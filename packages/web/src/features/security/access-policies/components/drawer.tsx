@@ -63,7 +63,11 @@ export function AccessPolicyDrawer({
             wordBreak: 'break-all',
           }}
         >
-          {policy.condition || <Text component="span" c="dimmed">(empty)</Text>}
+          {policy.condition || (
+            <Text component="span" c="dimmed">
+              (empty)
+            </Text>
+          )}
         </Text>
       </Stack>
 
@@ -81,7 +85,7 @@ export function AccessPolicyDrawer({
       <Divider />
 
       <Group justify="space-between">
-        { }
+        {}
         <Button
           // eslint-disable-next-line @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-assignment
           component={Link as any}
@@ -93,12 +97,7 @@ export function AccessPolicyDrawer({
           Open full page
         </Button>
         <Group gap="xs">
-          <Button
-            size="xs"
-            variant="light"
-            leftSection={<IconEdit size={14} />}
-            onClick={onEdit}
-          >
+          <Button size="xs" variant="light" leftSection={<IconEdit size={14} />} onClick={onEdit}>
             Edit
           </Button>
           <Button

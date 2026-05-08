@@ -67,12 +67,7 @@ export function ToolFullPage({
         </Tabs.List>
 
         <Tabs.Panel value="definition" pt="md">
-          <ToolDetail
-            tenant={tenant}
-            toolId={toolId}
-            onEdit={openEdit}
-            onClose={onDeleted}
-          />
+          <ToolDetail tenant={tenant} toolId={toolId} onEdit={openEdit} onClose={onDeleted} />
         </Tabs.Panel>
 
         <Tabs.Panel value="invoke" pt="md">

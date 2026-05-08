@@ -262,8 +262,8 @@ export function NodeDetailPage() {
                 variant="light"
               >
                 <Text size="sm">
-                  No cluster-related audit entries reference this node yet. Actions like
-                  enrollment, role changes, or removal will appear here.
+                  No cluster-related audit entries reference this node yet. Actions like enrollment,
+                  role changes, or removal will appear here.
                 </Text>
               </Alert>
             ) : (
@@ -302,7 +302,11 @@ export function NodeDetailPage() {
                         actor {entry.actor_id}
                       </Text>
                     </Stack>
-                    <Text size="xs" c="var(--mantine-color-gray-7)" style={{ whiteSpace: 'nowrap' }}>
+                    <Text
+                      size="xs"
+                      c="var(--mantine-color-gray-7)"
+                      style={{ whiteSpace: 'nowrap' }}
+                    >
                       {dayjs(entry.at).fromNow()}
                     </Text>
                   </Group>
@@ -340,4 +344,3 @@ export function NodeDetailPage() {
     </Stack>
   );
 }
-

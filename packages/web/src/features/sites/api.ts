@@ -106,10 +106,6 @@ export async function deleteSite(
   await orvalDeleteSite(tenantId, id);
 }
 
-export async function toggleSite(
-  tenantId: string,
-  id: string,
-  enabled: boolean,
-): Promise<void> {
+export async function toggleSite(tenantId: string, id: string, enabled: boolean): Promise<void> {
   await orvalToggleSite(tenantId, id, { enabled });
 }

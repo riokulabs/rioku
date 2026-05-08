@@ -36,16 +36,12 @@ const sampleAgent = {
 describe('ai-agents daemon-hooks (T3)', () => {
   beforeEach(() => {
     server.use(
-      http.get(BASE, () =>
-        HttpResponse.json({ items: [sampleAgent], total: 1 }),
-      ),
+      http.get(BASE, () => HttpResponse.json({ items: [sampleAgent], total: 1 })),
       http.get(`${BASE}/aiagent-1`, () => HttpResponse.json(sampleAgent)),
       http.post(BASE, () =>
         HttpResponse.json({ ...sampleAgent, id: 'aiagent-new' }, { status: 201 }),
       ),
-      http.put(`${BASE}/aiagent-1`, () =>
-        HttpResponse.json({ ...sampleAgent, name: 'Updated' }),
-      ),
+      http.put(`${BASE}/aiagent-1`, () => HttpResponse.json({ ...sampleAgent, name: 'Updated' })),
       http.delete(`${BASE}/aiagent-1`, () => new HttpResponse(null, { status: 204 })),
       http.post(`${BASE}/aiagent-1/rotate-credential`, () =>
         HttpResponse.json({ agentId: 'aiagent-1', ok: true }),
@@ -55,7 +51,7 @@ describe('ai-agents daemon-hooks (T3)', () => {
 
   it('lists agents from the daemon', async () => {
     const res = (await listAIAgents(TENANT)) as {
-      data: { items: typeof sampleAgent[] };
+      data: { items: (typeof sampleAgent)[] };
     };
     expect(res.data.items).toHaveLength(1);
     expect(res.data.items[0]?.name).toBe('Triage');

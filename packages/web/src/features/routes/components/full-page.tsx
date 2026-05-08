@@ -162,11 +162,7 @@ export function RouteFullPage({ tenantId, routeId, onBack }: RouteFullPageProps)
                   <Text size="xs" c="var(--mantine-color-gray-7)">
                     Strip prefix:
                   </Text>
-                  <Badge
-                    size="xs"
-                    variant="outline"
-                    color={route.strip_prefix ? 'green' : 'gray'}
-                  >
+                  <Badge size="xs" variant="outline" color={route.strip_prefix ? 'green' : 'gray'}>
                     {route.strip_prefix ? 'yes' : 'no'}
                   </Badge>
                 </Group>

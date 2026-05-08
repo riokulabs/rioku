@@ -106,9 +106,7 @@ export function useChannelList(tenantId: ID, filter: ChannelFilter): Notificatio
     enabled: !!tenant,
   });
   const items = data ?? [];
-  return items.filter(
-    (c) => (!tenantId || c.tenant_id === tenantId) && matchesFilter(c, filter),
-  );
+  return items.filter((c) => (!tenantId || c.tenant_id === tenantId) && matchesFilter(c, filter));
 }
 
 export function useChannelDetail(id: ID): NotificationChannel | undefined {

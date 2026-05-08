@@ -1,4 +1,3 @@
- 
 /**
  * Real-API Integrations section — webhook CRUD + test send.
  *
@@ -98,13 +97,20 @@ export function IntegrationsRealSection({ tenant }: IntegrationsRealSectionProps
 
   async function save() {
     try {
-      const payload: { webhooks: SettingsIntegrationsWebhooksItem[]; slack?: unknown; pagerduty?: unknown } = {
+      const payload: {
+        webhooks: SettingsIntegrationsWebhooksItem[];
+        slack?: unknown;
+        pagerduty?: unknown;
+      } = {
         webhooks,
       };
       const cur = unwrap<{ slack?: unknown; pagerduty?: unknown }>(q.data);
       if (cur?.slack) payload.slack = cur.slack;
       if (cur?.pagerduty) payload.pagerduty = cur.pagerduty;
-      await put.mutateAsync({ tenant, data: payload as Parameters<typeof put.mutateAsync>[0]['data'] });
+      await put.mutateAsync({
+        tenant,
+        data: payload as Parameters<typeof put.mutateAsync>[0]['data'],
+      });
       notify.success('Integrations saved');
       setDirty(false);
       await q.refetch();
@@ -116,7 +122,12 @@ export function IntegrationsRealSection({ tenant }: IntegrationsRealSectionProps
   async function sendTest(id: string) {
     try {
       const res = await test.mutateAsync({ tenant, id });
-      const data = (res as unknown as { data?: { http_status?: number; duration_ms?: number; error?: string } }).data ?? {};
+      const data =
+        (
+          res as unknown as {
+            data?: { http_status?: number; duration_ms?: number; error?: string };
+          }
+        ).data ?? {};
       const ok = (data.http_status ?? 0) >= 200 && (data.http_status ?? 0) < 300;
       setTestResults((prev) => ({
         ...prev,

@@ -1,4 +1,3 @@
- 
 /**
  * Tests for the notification-channels API — daemon-backed (stage-2).
  *
@@ -130,9 +129,8 @@ describe('useChannelList', () => {
 describe('useChannelDetail', () => {
   it('fetches a channel by id', async () => {
     server.use(
-      http.get(
-        `/api/v1/t/${TENANT}/notification-channels/${CHANNEL_EMAIL.id}`,
-        () => HttpResponse.json(CHANNEL_EMAIL),
+      http.get(`/api/v1/t/${TENANT}/notification-channels/${CHANNEL_EMAIL.id}`, () =>
+        HttpResponse.json(CHANNEL_EMAIL),
       ),
     );
     const qc = makeQueryClient();
@@ -223,8 +221,9 @@ describe('updateChannel', () => {
 describe('deleteChannel', () => {
   it('returns true on success', async () => {
     server.use(
-      http.delete(`/api/v1/t/${TENANT}/notification-channels/${CHANNEL_EMAIL.id}`, () =>
-        new HttpResponse(null, { status: 204 }),
+      http.delete(
+        `/api/v1/t/${TENANT}/notification-channels/${CHANNEL_EMAIL.id}`,
+        () => new HttpResponse(null, { status: 204 }),
       ),
     );
     const ok = await deleteChannel(CHANNEL_EMAIL.id);

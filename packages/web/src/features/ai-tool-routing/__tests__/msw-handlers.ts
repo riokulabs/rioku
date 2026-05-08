@@ -104,10 +104,7 @@ export function resetBindingStore(seed?: WireBinding[]): void {
   }
 }
 
-export function resetAgentToolStores(opts: {
-  agents?: WireAgent[];
-  tools?: WireTool[];
-}): void {
+export function resetAgentToolStores(opts: { agents?: WireAgent[]; tools?: WireTool[] }): void {
   for (const k of Object.keys(agentsStore)) {
     // eslint-disable-next-line @typescript-eslint/no-dynamic-delete
     delete agentsStore[k];
@@ -204,32 +201,29 @@ export const aiToolBindingHandlers = [
     return HttpResponse.json({ items: created, total: created.length });
   }),
 
-  http.post(
-    `${BASE}/t/:tenant/ai/tool-bindings/preview-condition`,
-    async ({ request }) => {
-      const body = (await request.json()) as { condition?: string };
-      const cond = body.condition ?? '';
-      // Heuristic mock for the daemon's cel-go evaluator. Anything containing
-      // an unbalanced paren is reported as a syntax error; otherwise we
-      // deterministically return matched=true if the condition mentions
-      // `admin` and false otherwise. Empty conditions short-circuit before
-      // hitting this endpoint via api.ts.
-      const opens = (cond.match(/\(/g) ?? []).length;
-      const closes = (cond.match(/\)/g) ?? []).length;
-      if (opens !== closes) {
-        return HttpResponse.json(
-          {
-            type: 'about:blank',
-            title: 'unbalanced parentheses in CEL expression',
-            status: 400,
-          },
-          { status: 400, headers: { 'Content-Type': 'application/problem+json' } },
-        );
-      }
-      const matched = cond.includes('admin');
-      return HttpResponse.json({ condition: cond, matched });
-    },
-  ),
+  http.post(`${BASE}/t/:tenant/ai/tool-bindings/preview-condition`, async ({ request }) => {
+    const body = (await request.json()) as { condition?: string };
+    const cond = body.condition ?? '';
+    // Heuristic mock for the daemon's cel-go evaluator. Anything containing
+    // an unbalanced paren is reported as a syntax error; otherwise we
+    // deterministically return matched=true if the condition mentions
+    // `admin` and false otherwise. Empty conditions short-circuit before
+    // hitting this endpoint via api.ts.
+    const opens = (cond.match(/\(/g) ?? []).length;
+    const closes = (cond.match(/\)/g) ?? []).length;
+    if (opens !== closes) {
+      return HttpResponse.json(
+        {
+          type: 'about:blank',
+          title: 'unbalanced parentheses in CEL expression',
+          status: 400,
+        },
+        { status: 400, headers: { 'Content-Type': 'application/problem+json' } },
+      );
+    }
+    const matched = cond.includes('admin');
+    return HttpResponse.json({ condition: cond, matched });
+  }),
 
   // Agents + tools list endpoints — used by useAgentRefs / useToolRefs.
   http.get(`${BASE}/t/:tenant/ai/agents`, () => {
@@ -242,7 +236,5 @@ export const aiToolBindingHandlers = [
   }),
 
   // Audit log — feature tests use a no-op default response.
-  http.get(`${BASE}/audit`, () =>
-    HttpResponse.json({ entries: [], items: [], nextPageToken: '' }),
-  ),
+  http.get(`${BASE}/audit`, () => HttpResponse.json({ entries: [], items: [], nextPageToken: '' })),
 ];

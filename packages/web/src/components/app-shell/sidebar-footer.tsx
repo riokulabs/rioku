@@ -77,9 +77,7 @@ export function SidebarFooter({ collapsed = false }: SidebarFooterProps = {}) {
   const impersonationSession = useImpersonationSession();
 
   // Sorted tenant list for the switcher.
-  const userTenants = [...allTenants].sort((a, b) =>
-    (a.name ?? '').localeCompare(b.name ?? ''),
-  );
+  const userTenants = [...allTenants].sort((a, b) => (a.name ?? '').localeCompare(b.name ?? ''));
 
   // Current tenant for display — match by slug from the route since
   // `currentTenantId` at the session layer is the slug.

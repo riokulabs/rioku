@@ -109,7 +109,14 @@ const totalHard = BUDGETS_KB['total-gzipped'].hard;
 const totalTarget = BUDGETS_KB['total-gzipped'].target;
 
 const totalStatus = totalGz > totalHard ? 'fail' : totalGz > totalTarget ? 'warn' : 'pass';
-auditRows.push({ chunk: 'total-gzipped', file: '(all JS)', gzKb: totalGz, target: totalTarget, hard: totalHard, status: totalStatus });
+auditRows.push({
+  chunk: 'total-gzipped',
+  file: '(all JS)',
+  gzKb: totalGz,
+  target: totalTarget,
+  hard: totalHard,
+  status: totalStatus,
+});
 
 if (totalGz > totalHard) {
   failures.push(`total: ${totalGz.toFixed(1)} KB gzipped (hard cap ${totalHard} KB)`);
@@ -128,14 +135,16 @@ console.log('\n## Bundle audit summary\n');
 console.log(row(header));
 console.log(sep);
 for (const r of auditRows) {
-  console.log(row([
-    r.chunk,
-    r.file.length > colW[1] ? '…' + r.file.slice(-(colW[1] - 1)) : r.file,
-    r.gzKb.toFixed(1),
-    r.target,
-    r.hard,
-    statusIcon[r.status],
-  ]));
+  console.log(
+    row([
+      r.chunk,
+      r.file.length > colW[1] ? '…' + r.file.slice(-(colW[1] - 1)) : r.file,
+      r.gzKb.toFixed(1),
+      r.target,
+      r.hard,
+      statusIcon[r.status],
+    ]),
+  );
 }
 
 if (warnings.length) {

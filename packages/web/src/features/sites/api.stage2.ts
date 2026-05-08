@@ -103,10 +103,9 @@ export function useCreateSiteMutation(tenantId: string) {
       upstreamServiceId?: string;
     }): Promise<Site> => {
       const body = toProtoSiteCreate(args.input, args.upstreamServiceId);
-      const res = (await orvalCreateSite(
-        tenantId,
-        body as CreateSiteBody,
-      )) as unknown as { data: ProtoSite };
+      const res = (await orvalCreateSite(tenantId, body as CreateSiteBody)) as unknown as {
+        data: ProtoSite;
+      };
       return fromProtoSite(res.data, tenantId);
     },
     onSuccess: () => {
@@ -120,11 +119,9 @@ export function useUpdateSiteMutation(tenantId: string) {
   return useMutation({
     mutationFn: async (args: { id: string; input: SiteUpdateInput }): Promise<Site> => {
       const body = toProtoSitePatch(args.input);
-      const res = (await patchSite(
-        tenantId,
-        args.id,
-        body as UpdateSiteBody,
-      )) as unknown as { data: ProtoSite };
+      const res = (await patchSite(tenantId, args.id, body as UpdateSiteBody)) as unknown as {
+        data: ProtoSite;
+      };
       return fromProtoSite(res.data, tenantId);
     },
     onSuccess: (_, vars) => {
@@ -137,7 +134,11 @@ export function useUpdateSiteMutation(tenantId: string) {
 export function useDeleteSiteMutation(tenantId: string) {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: async (args: { id: string; typedDomainConfirm: string; expectedDomain: string }): Promise<void> => {
+    mutationFn: async (args: {
+      id: string;
+      typedDomainConfirm: string;
+      expectedDomain: string;
+    }): Promise<void> => {
       // UX guardrail: domain confirmation. Daemon does not enforce this.
       if (args.typedDomainConfirm !== args.expectedDomain) {
         throw new Error(
@@ -164,4 +165,3 @@ export function useToggleSiteMutation(tenantId: string) {
     },
   });
 }
-

@@ -9,12 +9,7 @@ import { Alert, Button, Group, Select, Stack, Switch, Text, Textarea } from '@ma
 import { useForm, schemaResolver } from '@mantine/form';
 import { IconAlertCircle, IconEye } from '@tabler/icons-react';
 import { notify } from '@/hooks/use-notify';
-import {
-  createBinding,
-  previewCondition,
-  updateBinding,
-  useInvalidateBindings,
-} from '../api';
+import { createBinding, previewCondition, updateBinding, useInvalidateBindings } from '../api';
 import { useAgentRefs, useToolRefs } from '../refs';
 import { createBindingSchema, updateBindingSchema } from '../schemas';
 import type { AiToolBinding, PreviewConditionResult } from '../types';

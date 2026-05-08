@@ -152,7 +152,9 @@ describe('TenantInventory — delete flow', () => {
     const deleteBtns = await screen.findAllByRole('button', { name: /^delete acme$/i });
     fireEvent.click(deleteBtns[0]!);
 
-    await waitFor(() => { expect(screen.getByTestId('delete-confirm-input')).toBeDefined(); });
+    await waitFor(() => {
+      expect(screen.getByTestId('delete-confirm-input')).toBeDefined();
+    });
     fireEvent.change(screen.getByTestId('delete-confirm-input'), {
       target: { value: 'acme' },
     });
@@ -176,7 +178,9 @@ describe('TenantInventory — delete flow', () => {
     const deleteBtns = await screen.findAllByRole('button', { name: /^delete acme$/i });
     fireEvent.click(deleteBtns[0]!);
 
-    await waitFor(() => { expect(screen.getByTestId('delete-confirm-input')).toBeDefined(); });
+    await waitFor(() => {
+      expect(screen.getByTestId('delete-confirm-input')).toBeDefined();
+    });
     fireEvent.change(screen.getByTestId('delete-confirm-input'), {
       target: { value: 'wrong' },
     });

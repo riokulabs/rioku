@@ -76,7 +76,14 @@ function initialFromAgent(a?: AiAgent): AgentFormValues {
   };
 }
 
-export function AgentForm({ mode, tenant, tenantId, initialValues, onSuccess, onCancel }: AgentFormProps) {
+export function AgentForm({
+  mode,
+  tenant,
+  tenantId,
+  initialValues,
+  onSuccess,
+  onCancel,
+}: AgentFormProps) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 

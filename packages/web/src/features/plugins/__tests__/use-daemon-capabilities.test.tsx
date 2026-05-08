@@ -29,22 +29,20 @@ function makeWrapper() {
 describe('useDaemonCapabilities', () => {
   it('returns sideloadEnabled=true when the daemon reports it', async () => {
     server.use(
-      http.get('/api/v1/capabilities', () =>
-        HttpResponse.json({ sideload_enabled: true }),
-      ),
+      http.get('/api/v1/capabilities', () => HttpResponse.json({ sideload_enabled: true })),
     );
 
     const { result } = renderHook(() => useDaemonCapabilities(), {
       wrapper: makeWrapper(),
     });
-    await waitFor(() => { expect(result.current.sideloadEnabled).toBe(true); });
+    await waitFor(() => {
+      expect(result.current.sideloadEnabled).toBe(true);
+    });
   });
 
   it('returns sideloadEnabled=false when the daemon reports it disabled', async () => {
     server.use(
-      http.get('/api/v1/capabilities', () =>
-        HttpResponse.json({ sideload_enabled: false }),
-      ),
+      http.get('/api/v1/capabilities', () => HttpResponse.json({ sideload_enabled: false })),
     );
 
     const { result } = renderHook(() => useDaemonCapabilities(), {
@@ -53,15 +51,15 @@ describe('useDaemonCapabilities', () => {
     await waitFor(() =>
       // The default is also `false` so we check the data-loaded state by
       // letting react-query settle and confirming no flip occurs.
-      { expect(result.current.sideloadEnabled).toBe(false); },
+      {
+        expect(result.current.sideloadEnabled).toBe(false);
+      },
     );
   });
 
   it('falls back to safe defaults (all flags off) on fetch error', () => {
     server.use(
-      http.get('/api/v1/capabilities', () =>
-        HttpResponse.json({ title: 'boom' }, { status: 500 }),
-      ),
+      http.get('/api/v1/capabilities', () => HttpResponse.json({ title: 'boom' }, { status: 500 })),
     );
 
     const { result } = renderHook(() => useDaemonCapabilities(), {

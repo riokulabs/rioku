@@ -25,17 +25,9 @@ import { ModalsProvider } from '@mantine/modals';
 import { Notifications } from '@mantine/notifications';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { server } from '@/test/msw-server';
-import {
-  createMcpServer,
-  deleteMcpServer,
-  updateMcpServer,
-} from '../api';
+import { createMcpServer, deleteMcpServer, updateMcpServer } from '../api';
 import { McpServerDrawer } from '../components/drawer';
-import {
-  aiMcpServerHandlers,
-  makeServer,
-  resetMcpServerStore,
-} from './msw-handlers';
+import { aiMcpServerHandlers, makeServer, resetMcpServerStore } from './msw-handlers';
 
 const TENANT = 'acme';
 
@@ -123,12 +115,7 @@ describe('McpServerDrawer — viewer permission gating', () => {
     permissionMock.value = false;
 
     wrap(
-      <McpServerDrawer
-        serverId="mcp-view-1"
-        tenant={TENANT}
-        onEdit={vi.fn()}
-        onClose={vi.fn()}
-      />,
+      <McpServerDrawer serverId="mcp-view-1" tenant={TENANT} onEdit={vi.fn()} onClose={vi.fn()} />,
     );
 
     // Wait for the detail to load.
@@ -149,12 +136,7 @@ describe('McpServerDrawer — viewer permission gating', () => {
     permissionMock.value = true;
 
     wrap(
-      <McpServerDrawer
-        serverId="mcp-write-1"
-        tenant={TENANT}
-        onEdit={vi.fn()}
-        onClose={vi.fn()}
-      />,
+      <McpServerDrawer serverId="mcp-write-1" tenant={TENANT} onEdit={vi.fn()} onClose={vi.fn()} />,
     );
 
     await waitFor(() => {
@@ -172,12 +154,7 @@ describe('McpServerDrawer — viewer permission gating', () => {
     permissionMock.value = true;
 
     wrap(
-      <McpServerDrawer
-        serverId="mcp-del-2"
-        tenant={TENANT}
-        onEdit={vi.fn()}
-        onClose={vi.fn()}
-      />,
+      <McpServerDrawer serverId="mcp-del-2" tenant={TENANT} onEdit={vi.fn()} onClose={vi.fn()} />,
     );
 
     await waitFor(() => {

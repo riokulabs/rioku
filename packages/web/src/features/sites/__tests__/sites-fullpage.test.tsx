@@ -89,12 +89,8 @@ function wrap(ui: React.ReactNode, qc: QueryClient = makeQueryClient()) {
 describe('SiteFullPage', () => {
   it('renders four tabs (Overview / TLS / Routes / Audit)', async () => {
     server.use(
-      http.get(`*/api/v1/t/${TENANT}/sites/${SITE_ID}`, () =>
-        HttpResponse.json(makeProtoSite()),
-      ),
-      http.get(`*/api/v1/t/${TENANT}/routes`, () =>
-        HttpResponse.json({ items: [] }),
-      ),
+      http.get(`*/api/v1/t/${TENANT}/sites/${SITE_ID}`, () => HttpResponse.json(makeProtoSite())),
+      http.get(`*/api/v1/t/${TENANT}/routes`, () => HttpResponse.json({ items: [] })),
     );
 
     wrap(<SiteFullPage tenantId={TENANT} tenantSlug={SLUG} siteId={SITE_ID} />);
@@ -118,9 +114,7 @@ describe('SiteFullPage', () => {
       http.get(`*/api/v1/t/${TENANT}/sites/${SITE_ID}`, () =>
         HttpResponse.json(makeProtoSite({ tlsMode: 'manual' })),
       ),
-      http.get(`*/api/v1/t/${TENANT}/routes`, () =>
-        HttpResponse.json({ items: [] }),
-      ),
+      http.get(`*/api/v1/t/${TENANT}/routes`, () => HttpResponse.json({ items: [] })),
     );
 
     wrap(<SiteFullPage tenantId={TENANT} tenantSlug={SLUG} siteId={SITE_ID} />);
@@ -151,9 +145,7 @@ describe('SiteFullPage', () => {
       http.get(`*/api/v1/t/${TENANT}/sites/${SITE_ID}`, () =>
         HttpResponse.json(makeProtoSite({ tlsMode: 'auto' })),
       ),
-      http.get(`*/api/v1/t/${TENANT}/routes`, () =>
-        HttpResponse.json({ items: [] }),
-      ),
+      http.get(`*/api/v1/t/${TENANT}/routes`, () => HttpResponse.json({ items: [] })),
     );
 
     wrap(<SiteFullPage tenantId={TENANT} tenantSlug={SLUG} siteId={SITE_ID} />);
@@ -175,9 +167,7 @@ describe('SiteDrawer — typed-domain delete confirm', () => {
   it('keeps the Delete permanently button disabled until the domain is typed and fires DELETE on match', async () => {
     let deleteCalled = false;
     server.use(
-      http.get(`*/api/v1/t/${TENANT}/sites/${SITE_ID}`, () =>
-        HttpResponse.json(makeProtoSite()),
-      ),
+      http.get(`*/api/v1/t/${TENANT}/sites/${SITE_ID}`, () => HttpResponse.json(makeProtoSite())),
       http.get(`*/api/v1/t/${TENANT}/sites`, () =>
         HttpResponse.json({ items: [makeProtoSite()] } satisfies ListSites200),
       ),

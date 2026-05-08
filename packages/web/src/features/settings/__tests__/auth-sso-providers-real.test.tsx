@@ -33,12 +33,7 @@ interface RouteHandler {
 const routes: RouteHandler[] = [];
 const recorded: RecordedRequest[] = [];
 
-function mockRoute(
-  method: string,
-  urlSubstring: string,
-  body: unknown,
-  status = 200,
-): void {
+function mockRoute(method: string, urlSubstring: string, body: unknown, status = 200): void {
   routes.push({
     match: (r) => r.method === method && r.url.includes(urlSubstring),
     respond: () =>
@@ -193,9 +188,7 @@ describe('AuthSsoProvidersRealSection', () => {
     });
 
     await waitFor(() => {
-      const post = recorded.find(
-        (r) => r.method === 'POST' && r.url.includes('/sso/providers'),
-      );
+      const post = recorded.find((r) => r.method === 'POST' && r.url.includes('/sso/providers'));
       expect(post).toBeTruthy();
       const parsed = post ? (JSON.parse(post.body ?? '{}') as Record<string, unknown>) : {};
       expect(parsed.name).toBe('new-idp');

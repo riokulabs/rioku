@@ -27,7 +27,7 @@ import { DangerZoneRealSection } from '@/features/settings/sections-real/danger-
 
 function DangerSettingsPage() {
   const { tenant } = useParams({ strict: false });
-  const tenantSlug = tenant ?? "";
+  const tenantSlug = tenant ?? '';
   const activeTenant: string = tenantSlug;
 
   return (

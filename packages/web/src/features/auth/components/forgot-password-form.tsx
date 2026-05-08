@@ -52,8 +52,8 @@ export function ForgotPasswordForm() {
           variant="light"
           data-testid="reset-success-message"
         >
-          If an account exists for <strong>{submittedEmail}</strong>, a password reset link has
-          been sent. Check your inbox.
+          If an account exists for <strong>{submittedEmail}</strong>, a password reset link has been
+          sent. Check your inbox.
         </Alert>
 
         <Text size="sm" ta="center">

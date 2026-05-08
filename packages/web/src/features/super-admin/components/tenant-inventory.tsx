@@ -72,9 +72,7 @@ function TenantDetailDrawer({
 
   const slug = tenant.slug ?? '';
   const adminUrl =
-    tenant.urlMode === 'subdomain'
-      ? `https://${slug}.example.com/admin`
-      : `/t/${slug}/admin`;
+    tenant.urlMode === 'subdomain' ? `https://${slug}.example.com/admin` : `/t/${slug}/admin`;
 
   return (
     <>

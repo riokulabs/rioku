@@ -62,9 +62,7 @@ export function EnrollmentTokensPage() {
   const [showConsumed, setShowConsumed] = useState(false);
 
   const sorted = useMemo(() => {
-    const filtered = showConsumed
-      ? [...tokens]
-      : tokens.filter((t) => tokenState(t) === 'active');
+    const filtered = showConsumed ? [...tokens] : tokens.filter((t) => tokenState(t) === 'active');
     return filtered.sort(
       (a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime(),
     );

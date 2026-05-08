@@ -61,13 +61,10 @@ function adaptInstalled(
     enabled: resp.enabled ?? true,
     parts: candidate.parts,
     declared_permissions: candidate.declared_permissions,
-    manifest:
-      candidate.manifest ?? { slug: candidate.slug, version: candidate.version },
+    manifest: candidate.manifest ?? { slug: candidate.slug, version: candidate.version },
     has_errors: false,
     build_state:
-      resp.buildState !== undefined
-        ? (resp.buildState as Plugin['build_state'])
-        : 'stable',
+      resp.buildState !== undefined ? (resp.buildState as Plugin['build_state']) : 'stable',
     cosign_verified: resp.cosignVerified ?? true,
   };
 }

@@ -15,14 +15,16 @@ const SHA256_FIXTURE = 'a'.repeat(64);
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
 /** Build a minimal DaemonSigner JSON response. */
-function makeDaemonSigner(overrides: Partial<{
-  id: string;
-  tenantScope: string | null;
-  name: string;
-  fingerprint: string;
-  status: 'verified' | 'revoked' | 'pending';
-  notes: string;
-}> = {}) {
+function makeDaemonSigner(
+  overrides: Partial<{
+    id: string;
+    tenantScope: string | null;
+    name: string;
+    fingerprint: string;
+    status: 'verified' | 'revoked' | 'pending';
+    notes: string;
+  }> = {},
+) {
   return {
     id: overrides.id ?? 'signer-abc',
     tenantScope: overrides.tenantScope ?? null,
@@ -92,9 +94,7 @@ describe('plugin-signers API (real daemon)', () => {
       const newFingerprint = 'b'.repeat(64);
       server.use(
         http.put('/api/v1/t/tenant-1/plugin-signers/signer-abc', () =>
-          HttpResponse.json(
-            makeDaemonSigner({ id: 'signer-abc', fingerprint: newFingerprint }),
-          ),
+          HttpResponse.json(makeDaemonSigner({ id: 'signer-abc', fingerprint: newFingerprint })),
         ),
       );
 
@@ -107,9 +107,7 @@ describe('plugin-signers API (real daemon)', () => {
     it('POSTs to /verify and returns status=verified', async () => {
       server.use(
         http.post('/api/v1/t/tenant-1/plugin-signers/signer-abc/verify', () =>
-          HttpResponse.json(
-            makeDaemonSigner({ id: 'signer-abc', status: 'verified' }),
-          ),
+          HttpResponse.json(makeDaemonSigner({ id: 'signer-abc', status: 'verified' })),
         ),
       );
 
@@ -136,9 +134,7 @@ describe('plugin-signers API (real daemon)', () => {
     it('POSTs to /revoke and returns status=revoked', async () => {
       server.use(
         http.post('/api/v1/t/tenant-1/plugin-signers/signer-abc/revoke', () =>
-          HttpResponse.json(
-            makeDaemonSigner({ id: 'signer-abc', status: 'revoked' }),
-          ),
+          HttpResponse.json(makeDaemonSigner({ id: 'signer-abc', status: 'revoked' })),
         ),
       );
 
@@ -150,8 +146,9 @@ describe('plugin-signers API (real daemon)', () => {
   describe('deleteSigner', () => {
     it('DELETEs the signer and resolves void on 204', async () => {
       server.use(
-        http.delete('/api/v1/t/tenant-1/plugin-signers/signer-abc', () =>
-          new HttpResponse(null, { status: 204 }),
+        http.delete(
+          '/api/v1/t/tenant-1/plugin-signers/signer-abc',
+          () => new HttpResponse(null, { status: 204 }),
         ),
       );
 
@@ -161,10 +158,7 @@ describe('plugin-signers API (real daemon)', () => {
     it('throws when the daemon returns 404', async () => {
       server.use(
         http.delete('/api/v1/t/tenant-1/plugin-signers/nonexistent', () =>
-          HttpResponse.json(
-            { title: 'Signer not found', status: 404 },
-            { status: 404 },
-          ),
+          HttpResponse.json({ title: 'Signer not found', status: 404 }, { status: 404 }),
         ),
       );
 

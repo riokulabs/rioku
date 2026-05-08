@@ -20,16 +20,11 @@ const KIND_VALUES = [
 ] as const;
 
 function normalizeKind(kind: string | undefined): Middleware['kind'] {
-  return KIND_VALUES.includes(kind as Middleware['kind'])
-    ? (kind as Middleware['kind'])
-    : 'custom';
+  return KIND_VALUES.includes(kind as Middleware['kind']) ? (kind as Middleware['kind']) : 'custom';
 }
 
 /** Wire → admin resource. */
-export function fromProtoMiddleware(
-  proto: ProtoMiddleware,
-  fallbackTenantId: string,
-): Middleware {
+export function fromProtoMiddleware(proto: ProtoMiddleware, fallbackTenantId: string): Middleware {
   return {
     id: proto.id ?? '',
     tenant_id: proto.tenantId ?? fallbackTenantId,
