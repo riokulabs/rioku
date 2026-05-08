@@ -29,7 +29,11 @@ permissions:
 jobs:
   refresh-pnpm:
     name: Refresh pnpm-lock.yaml
-    if: github.actor == 'dependabot[bot]' && startsWith(github.ref_name, 'dependabot/npm_and_yarn/')
+    # Only packages/web uses pnpm. /docs and /contrib-docs use plain npm
+    # and Dependabot reconciles their package-lock.json natively, so we
+    # match the packages/web prefix specifically rather than the broader
+    # 'dependabot/npm_and_yarn/' which would also match docs PRs.
+    if: github.actor == 'dependabot[bot]' && startsWith(github.ref_name, 'dependabot/npm_and_yarn/packages/web/')
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v6
@@ -68,42 +72,66 @@ jobs:
           git push origin HEAD:${{ github.ref_name }}
 
   refresh-gomod:
-    name: Refresh go.sum (${{ matrix.module }})
+    name: Refresh go.sum
     if: github.actor == 'dependabot[bot]' && startsWith(github.ref_name, 'dependabot/go_modules/')
     runs-on: ubuntu-latest
-    strategy:
-      fail-fast: false
-      matrix:
-        # Each Dependabot gomod PR only touches one module, but we run
-        # `go mod tidy` against all of them so any transitive drift
-        # (e.g. a workspace-level replace directive) gets reconciled.
-        module:
-          - packages/daemon
-          - packages/build-service
-          - packages/plugins
-          - packages/proto/gen/go
     steps:
       - uses: actions/checkout@v6
         with:
           ref: ${{ github.ref_name }}
           persist-credentials: true
 
+      # Dependabot encodes the module path in the branch name as
+      # 'dependabot/go_modules/<module-path>/<dep>-<version>'. Extract
+      # the module path so we only run `go mod tidy` in the affected
+      # module rather than spinning up a 4-way matrix that no-ops 3
+      # times every run.
+      - name: Resolve target module from branch name
+        id: target
+        run: |
+          set -euo pipefail
+          BRANCH="${{ github.ref_name }}"
+          # Strip the prefix.
+          REST="${BRANCH#dependabot/go_modules/}"
+          # Walk known module roots and pick the longest prefix match.
+          MOD=""
+          for candidate in \
+            packages/daemon \
+            packages/build-service \
+            packages/plugins \
+            packages/proto/gen/go; do
+            case "$REST" in
+              "$candidate"/*) MOD="$candidate" ;;
+            esac
+          done
+          if [ -z "$MOD" ]; then
+            echo "::warning::Could not resolve module from branch '$BRANCH' — skipping refresh."
+            echo "module=" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          echo "module=$MOD" >> "$GITHUB_OUTPUT"
+          echo "Resolved module: $MOD"
+
       - uses: actions/setup-go@v6
+        if: steps.target.outputs.module != ''
         with:
           go-version-file: go.work
-          cache-dependency-path: ${{ matrix.module }}/go.sum
+          cache-dependency-path: ${{ steps.target.outputs.module }}/go.sum
 
       - name: go mod tidy
-        run: cd ${{ matrix.module }} && go mod tidy
+        if: steps.target.outputs.module != ''
+        run: cd ${{ steps.target.outputs.module }} && go mod tidy
 
       - name: Commit + push if go.sum changed
+        if: steps.target.outputs.module != ''
         run: |
-          if [ -z "$(git status --porcelain ${{ matrix.module }})" ]; then
-            echo "${{ matrix.module }} go.sum already in sync — nothing to do."
+          MOD="${{ steps.target.outputs.module }}"
+          if [ -z "$(git status --porcelain "$MOD")" ]; then
+            echo "$MOD go.sum already in sync — nothing to do."
             exit 0
           fi
           git config user.name "dependabot[bot]"
           git config user.email "49699333+dependabot[bot]@users.noreply.github.com"
-          git add ${{ matrix.module }}/go.mod ${{ matrix.module }}/go.sum
-          git commit -m "chore(${{ matrix.module }}): go mod tidy after Dependabot bump"
+          git add "$MOD/go.mod" "$MOD/go.sum"
+          git commit -m "chore($MOD): go mod tidy after Dependabot bump"
           git push origin HEAD:${{ github.ref_name }}
