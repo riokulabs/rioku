@@ -399,7 +399,7 @@ if [[ -z "${ROOT_PASSWORD}" ]]; then
 else
   info "Seeding sandbox data via 'rioku seed' ..."
   if ! "${DAEMON_BIN}" seed \
-    --file "${SANDBOX_DIR}/config/seed.yaml" \
+    --file "${SEED_FILE}" \
     --target "http://localhost:${SANDBOX_PORT_REST}" \
     --password "${ROOT_PASSWORD}"; then
     warn "Seed encountered errors — run 'make sandbox-seed' manually after daemon is healthy"
