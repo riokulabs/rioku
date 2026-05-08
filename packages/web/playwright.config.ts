@@ -8,7 +8,8 @@ import { defineConfig, devices } from '@playwright/test';
 // not the Vite dev server — `make sandbox` boots the daemon before
 // Playwright runs. Locally, override RIOKU_SPA_BASE to point at a
 // different host while iterating (e.g. running Vite dev separately).
-const SPA_BASE = process.env.RIOKU_DAEMON_BASE ?? process.env.RIOKU_SPA_BASE ?? 'http://localhost:7778';
+const SPA_BASE =
+  process.env.RIOKU_DAEMON_BASE ?? process.env.RIOKU_SPA_BASE ?? 'http://localhost:7778';
 
 // Pre-computed root-auth session, written by e2e/global-setup.ts after a
 // successful login probe against the daemon. Falls back to `undefined`
