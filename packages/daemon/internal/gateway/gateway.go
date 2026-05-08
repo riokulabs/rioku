@@ -269,6 +269,9 @@ func NewGateway(
 	// Notifications subsystem (stage-2): inbox, channels, routing, delivery log, tenant config.
 	RegisterNotificationsRoutes(topMux, st)
 
+	// SSO providers (stage-2 plan 17b, #240): per-tenant CRUD for OIDC/SAML configs.
+	RegisterSsoRoutes(topMux, st)
+
 	// Plugins + PluginSigners (stage-2): per-tenant + global scopes.
 	RegisterPluginRoutes(topMux, st)
 

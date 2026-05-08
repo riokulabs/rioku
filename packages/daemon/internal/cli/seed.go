@@ -50,6 +50,7 @@ type SeedFile struct {
 	AIRateLimits         []SeedAIRateLimit         `yaml:"ai_rate_limits"`
 	MCPServers           []SeedMCPServer           `yaml:"mcp_servers"`
 	NotificationChannels []SeedNotifChannel        `yaml:"notification_channels"`
+	SsoProviders         []SeedSsoProvider         `yaml:"sso_providers"`
 	NotificationRouting  []SeedNotifRoutingRule    `yaml:"notification_routing"`
 	Notifications        []SeedNotification        `yaml:"notifications"`
 	Plugins              []SeedPlugin              `yaml:"plugins"`
@@ -275,6 +276,20 @@ type SeedMCPServer struct {
 	URL            string `yaml:"url"`
 	AuthKind       string `yaml:"auth_kind,omitempty"`
 	AuthCredential string `yaml:"auth_credential,omitempty"`
+}
+
+// SeedSsoProvider registers an SSO provider config for a tenant
+// (stage-2 plan 17b, #240).
+type SeedSsoProvider struct {
+	Tenant              string            `yaml:"tenant,omitempty"`
+	Name                string            `yaml:"name"`
+	Kind                string            `yaml:"kind"` // oidc | saml
+	OIDCIssuer          string            `yaml:"oidc_issuer,omitempty"`
+	OIDCClientID        string            `yaml:"oidc_client_id,omitempty"`
+	OIDCClientSecretRef string            `yaml:"oidc_client_secret_ref,omitempty"`
+	OIDCScopes          []string          `yaml:"oidc_scopes,omitempty"`
+	ClaimsMapping       map[string]string `yaml:"claims_mapping,omitempty"`
+	Enabled             *bool             `yaml:"enabled,omitempty"`
 }
 
 // SeedNotifChannel registers an outbound notification destination.
@@ -767,9 +782,9 @@ func runSeed(seedFile, seedDir, targetAddr, username, password string, direct bo
 		stage2Counts.tenants, stage2Counts.memberships, stage2Counts.sites, stage2Counts.middlewares, stage2Counts.dashboards)
 	fmt.Printf("AI:      %d providers, %d agents, %d tools, %d bindings, %d rate limits, %d MCP servers\n",
 		stage2Counts.aiProviders, stage2Counts.aiAgents, stage2Counts.aiTools, stage2Counts.aiBindings, stage2Counts.aiRateLimits, stage2Counts.mcpServers)
-	fmt.Printf("Other:   %d notif channels, %d notif rules, %d plugins, %d signers, %d CAs, %d enrollments, %d TLS certs, %d webhooks\n",
+	fmt.Printf("Other:   %d notif channels, %d notif rules, %d plugins, %d signers, %d CAs, %d enrollments, %d TLS certs, %d webhooks, %d sso\n",
 		stage2Counts.notifChannels, stage2Counts.notifRules, stage2Counts.plugins, stage2Counts.pluginSigners,
-		stage2Counts.cas, stage2Counts.enrollments, stage2Counts.tlsCerts, stage2Counts.webhooks)
+		stage2Counts.cas, stage2Counts.enrollments, stage2Counts.tlsCerts, stage2Counts.webhooks, stage2Counts.ssoProviders)
 	fmt.Printf("Singletons: %s\n", stage2Counts.singletonsApplied)
 
 	return nil
@@ -784,6 +799,7 @@ type stage2Counts struct {
 	aiProviders, aiAgents, aiTools, aiBindings           int
 	aiRateLimits, mcpServers                             int
 	notifChannels, notifRules                            int
+	ssoProviders                                         int
 	plugins, pluginSigners                               int
 	cas, enrollments, tlsCerts, webhooks                 int
 	clusterNodes                                         int
@@ -1045,6 +1061,35 @@ func applyStage2(client *http.Client, sessionCookie, base string, seed *SeedFile
 				channelIDs[ch.Name] = id
 			}
 		}
+	}
+
+	// 12a. SSO providers (stage-2 plan 17b, #240).
+	for _, sp := range seed.SsoProviders {
+		payload := map[string]any{
+			"name": sp.Name, "kind": sp.Kind,
+		}
+		if sp.OIDCIssuer != "" {
+			payload["oidcIssuer"] = sp.OIDCIssuer
+		}
+		if sp.OIDCClientID != "" {
+			payload["oidcClientId"] = sp.OIDCClientID
+		}
+		if sp.OIDCClientSecretRef != "" {
+			payload["oidcClientSecretRef"] = sp.OIDCClientSecretRef
+		}
+		if len(sp.OIDCScopes) > 0 {
+			payload["oidcScopes"] = sp.OIDCScopes
+		}
+		if len(sp.ClaimsMapping) > 0 {
+			payload["claimsMapping"] = sp.ClaimsMapping
+		}
+		if sp.Enabled != nil {
+			payload["enabled"] = *sp.Enabled
+		}
+		body, _ := json.Marshal(payload)
+		status, _ := apiCall(client, sessionCookie, "POST", tenantBase(sp.Tenant)+"/sso/providers", body)
+		logSeed(logger, "sso-provider", sp.Name, status)
+		c.ssoProviders++
 	}
 
 	// 12b. Sandbox inbox notifications (admin-only seed endpoint).
@@ -1339,6 +1384,7 @@ func mergeSeed(dst, src *SeedFile) {
 	dst.AIRateLimits = append(dst.AIRateLimits, src.AIRateLimits...)
 	dst.MCPServers = append(dst.MCPServers, src.MCPServers...)
 	dst.NotificationChannels = append(dst.NotificationChannels, src.NotificationChannels...)
+	dst.SsoProviders = append(dst.SsoProviders, src.SsoProviders...)
 	dst.NotificationRouting = append(dst.NotificationRouting, src.NotificationRouting...)
 	dst.Notifications = append(dst.Notifications, src.Notifications...)
 	dst.Plugins = append(dst.Plugins, src.Plugins...)

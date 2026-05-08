@@ -26,6 +26,7 @@
 package authoidc
 
 import (
+	"crypto/subtle"
 	"encoding/json"
 	"fmt"
 	"net/http"
@@ -206,6 +207,12 @@ func (o *OIDC) ServeHTTP(w http.ResponseWriter, r *http.Request, next caddyhttp.
 	return o.redirectToProvider(w, r)
 }
 
+// stateCookieName is the HttpOnly cookie used to bind the OAuth2
+// state token to the user-agent that initiated the authorize
+// redirect. It defends against state-replay across user-agents
+// within the state TTL window.
+const stateCookieName = "rioku_oidc_state"
+
 // handleCallback exchanges the code for tokens, verifies the ID
 // token, mints a session, and redirects back to the original URL.
 func (o *OIDC) handleCallback(w http.ResponseWriter, r *http.Request) error {
@@ -214,6 +221,16 @@ func (o *OIDC) handleCallback(w http.ResponseWriter, r *http.Request) error {
 	if rawState == "" {
 		return o.deny(w, http.StatusBadRequest, "missing state parameter", nil)
 	}
+
+	// State must be bound to a cookie set on the outbound redirect.
+	stateCookie, err := r.Cookie(stateCookieName)
+	if err != nil || stateCookie.Value == "" {
+		return o.deny(w, http.StatusBadRequest, "missing state cookie", err)
+	}
+	if subtle.ConstantTimeCompare([]byte(rawState), []byte(stateCookie.Value)) != 1 {
+		return o.deny(w, http.StatusBadRequest, "state cookie mismatch", nil)
+	}
+
 	st, err := o.state.decode(rawState)
 	if err != nil {
 		return o.deny(w, http.StatusBadRequest, "invalid state token", err)
@@ -235,6 +252,12 @@ func (o *OIDC) handleCallback(w http.ResponseWriter, r *http.Request) error {
 		return o.deny(w, http.StatusUnauthorized, "id_token verification failed", err)
 	}
 
+	// OIDC nonce binding: the id_token MUST echo the nonce we sent
+	// on authorize. Reject if missing or mismatched.
+	if idToken.Nonce == "" || idToken.Nonce != st.OIDCNonce {
+		return o.deny(w, http.StatusBadRequest, "id_token nonce mismatch", nil)
+	}
+
 	var claims map[string]any
 	if err := idToken.Claims(&claims); err != nil {
 		return o.deny(w, http.StatusBadGateway, "id_token claim decode failed", err)
@@ -254,14 +277,53 @@ func (o *OIDC) handleCallback(w http.ResponseWriter, r *http.Request) error {
 		SameSite: http.SameSiteLaxMode,
 		MaxAge:   o.SessionTTLSeconds,
 	})
+	// Clear the one-shot state cookie now that it has served its
+	// purpose. MaxAge=-1 instructs the user-agent to delete it.
+	http.SetCookie(w, &http.Cookie{
+		Name:     stateCookieName,
+		Value:    "",
+		Path:     o.CallbackPath,
+		HttpOnly: true,
+		Secure:   r.TLS != nil,
+		SameSite: http.SameSiteLaxMode,
+		MaxAge:   -1,
+	})
 
-	dest := st.OriginalURL
+	dest := safeRedirectPath(st.OriginalURL)
 	if dest == "" {
 		dest = "/"
 	}
 	http.Redirect(w, r, dest, http.StatusFound)
 	return nil
 }
+
+// safeRedirectPath returns dest if it is a same-origin absolute path,
+// or "" otherwise. Rejects scheme-relative ("//evil"), backslash
+// tricks ("/\\evil"), absolute URLs, and non-path schemes
+// (javascript:, data:, etc.).
+func safeRedirectPath(dest string) string {
+	if dest == "" {
+		return ""
+	}
+	// Must start with a single forward slash.
+	if dest[0] != '/' {
+		return ""
+	}
+	// Reject "//host" and "/\host" (some browsers normalize "\" to "/").
+	if len(dest) > 1 && (dest[1] == '/' || dest[1] == '\\') {
+		return ""
+	}
+	// Reject any backslash anywhere — these are non-standard path
+	// separators that some user-agents normalize, opening the door
+	// to crafted redirects like "/\\\\evil.com".
+	for i := 0; i < len(dest); i++ {
+		if dest[i] == '\\' {
+			return ""
+		}
+	}
+	return dest
+}
+
 
 // activeSession returns the verified claims for the inbound request
 // when the session cookie maps to a live entry, else nil.
@@ -300,14 +362,30 @@ func (o *OIDC) applyClaimsToRequest(r *http.Request, claims map[string]any) {
 }
 
 // redirectToProvider issues a 302 to the IdP authorize endpoint with
-// our signed state token encoding the original URL.
+// our signed state token encoding the original URL and a fresh
+// OIDC nonce. The state token is mirrored into an HttpOnly cookie
+// scoped to the callback path, binding the callback to the same
+// user-agent that initiated the flow.
 func (o *OIDC) redirectToProvider(w http.ResponseWriter, r *http.Request) error {
 	original := r.URL.RequestURI()
-	stateToken, err := o.state.encode(original)
+	nonce, err := newOIDCNonce()
+	if err != nil {
+		return o.deny(w, http.StatusInternalServerError, "encode nonce", err)
+	}
+	stateToken, err := o.state.encode(original, nonce)
 	if err != nil {
 		return o.deny(w, http.StatusInternalServerError, "encode state", err)
 	}
-	authURL := o.oauth2Config.AuthCodeURL(stateToken)
+	http.SetCookie(w, &http.Cookie{
+		Name:     stateCookieName,
+		Value:    stateToken,
+		Path:     o.CallbackPath,
+		HttpOnly: true,
+		Secure:   r.TLS != nil,
+		SameSite: http.SameSiteLaxMode,
+		MaxAge:   600,
+	})
+	authURL := o.oauth2Config.AuthCodeURL(stateToken, oidc.Nonce(nonce))
 	http.Redirect(w, r, authURL, http.StatusFound)
 	return nil
 }

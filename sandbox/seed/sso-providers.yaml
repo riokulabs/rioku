@@ -1,0 +1,23 @@
+# Sandbox SSO providers (stage-2 plan 17b, #240).
+#
+# A single demo OIDC provider per tenant so smoke tests render the
+# Authentication → SSO providers panel with at least one row. The
+# issuer URL points at a public IdP-style hostname; the runtime
+# data-plane plugin (#170) is not yet wired so this config is
+# admin-side only — it never participates in actual login flows
+# inside the sandbox.
+
+sso_providers:
+  - tenant: default
+    name: sandbox-okta
+    kind: oidc
+    oidc_issuer: https://riokulabs.okta.com
+    oidc_client_id: sandbox-rioku-default
+    oidc_scopes:
+      - openid
+      - profile
+      - email
+    claims_mapping:
+      sub: preferred_username
+      email: email
+    enabled: true

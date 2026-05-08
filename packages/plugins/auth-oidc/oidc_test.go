@@ -41,6 +41,8 @@ type stubProvider struct {
 	codeAccepted  string
 	tokenAudience string
 	tokenIssuer   string // when set, overrides default issuer in id_token
+	tokenNonce    string // when set, embedded as `nonce` in id_token
+	omitNonce     bool   // when true, do not include any nonce claim
 	expiry        time.Duration
 }
 
@@ -132,6 +134,16 @@ func (s *stubProvider) handleToken(w http.ResponseWriter, r *http.Request) {
 		"aud": aud,
 		"exp": now.Add(s.expiry).Unix(),
 		"iat": now.Unix(),
+	}
+	if !s.omitNonce {
+		if s.tokenNonce != "" {
+			claims["nonce"] = s.tokenNonce
+		} else if n := r.Form.Get("nonce"); n != "" {
+			// Echo the authorize-time nonce from the form when the
+			// test harness threads it through (test code that calls
+			// /token directly with a `nonce` form value).
+			claims["nonce"] = n
+		}
 	}
 	for k, v := range s.extraClaims {
 		claims[k] = v
@@ -262,13 +274,16 @@ func TestOIDC_Callback_ExchangesCodeAndSetsSession(t *testing.T) {
 	o.ClaimTenantPath = "tenant_id"
 	o.ForwardClaims = []string{"email"}
 
-	state, err := o.state.encode("/landing")
+	const oidcNonce = "test-nonce-abc"
+	sp.tokenNonce = oidcNonce
+	state, err := o.state.encode("/landing", oidcNonce)
 	if err != nil {
 		t.Fatalf("encode: %v", err)
 	}
 	// httptest.NewRequest's URL is relative-only when path-only, so
 	// build a full URL to match the configured CallbackPath.
 	req := httptest.NewRequest("GET", "http://gateway.example/oauth/callback?code=valid-code&state="+url.QueryEscape(state), nil)
+	req.AddCookie(&http.Cookie{Name: stateCookieName, Value: state})
 	rec := httptest.NewRecorder()
 	if err := o.ServeHTTP(rec, req, nextOK); err != nil {
 		t.Fatalf("ServeHTTP: %v", err)
@@ -280,10 +295,23 @@ func TestOIDC_Callback_ExchangesCodeAndSetsSession(t *testing.T) {
 		t.Fatalf("post-callback redirect = %q, want /landing", loc)
 	}
 	cookies := rec.Result().Cookies()
-	if len(cookies) != 1 || cookies[0].Name != o.SessionCookieName {
-		t.Fatalf("expected one %q cookie, got %+v", o.SessionCookieName, cookies)
+	// Expect: session cookie + cleared state cookie (MaxAge=-1).
+	var sessionCookie, clearedState *http.Cookie
+	for _, c := range cookies {
+		switch c.Name {
+		case o.SessionCookieName:
+			sessionCookie = c
+		case stateCookieName:
+			clearedState = c
+		}
 	}
-	sid := cookies[0].Value
+	if sessionCookie == nil {
+		t.Fatalf("session cookie missing; cookies=%+v", cookies)
+	}
+	if clearedState == nil || clearedState.MaxAge != -1 {
+		t.Fatalf("state cookie not cleared; got %+v", clearedState)
+	}
+	sid := sessionCookie.Value
 	claims, ok := o.sessions.get(sid)
 	if !ok {
 		t.Fatal("session not stored")
@@ -456,7 +484,7 @@ func TestOIDC_StateSigner_RoundTrip(t *testing.T) {
 	if err != nil {
 		t.Fatalf("signer: %v", err)
 	}
-	tok, err := signer.encode("/some/path?q=1")
+	tok, err := signer.encode("/some/path?q=1", "n-1")
 	if err != nil {
 		t.Fatalf("encode: %v", err)
 	}
@@ -467,11 +495,14 @@ func TestOIDC_StateSigner_RoundTrip(t *testing.T) {
 	if got.OriginalURL != "/some/path?q=1" {
 		t.Fatalf("round-trip URL = %q", got.OriginalURL)
 	}
+	if got.OIDCNonce != "n-1" {
+		t.Fatalf("round-trip OIDCNonce = %q, want n-1", got.OIDCNonce)
+	}
 }
 
 func TestOIDC_StateSigner_TamperedRejected(t *testing.T) {
 	signer, _ := newStateSigner(time.Minute)
-	tok, _ := signer.encode("/x")
+	tok, _ := signer.encode("/x", "n")
 	// Flip the last char of the HMAC segment.
 	tampered := tok[:len(tok)-1] + "0"
 	if tampered == tok {
@@ -484,7 +515,7 @@ func TestOIDC_StateSigner_TamperedRejected(t *testing.T) {
 
 func TestOIDC_StateSigner_ExpiredRejected(t *testing.T) {
 	signer, _ := newStateSigner(time.Millisecond)
-	tok, _ := signer.encode("/x")
+	tok, _ := signer.encode("/x", "n")
 	time.Sleep(5 * time.Millisecond)
 	if _, err := signer.decode(tok); err == nil {
 		t.Fatal("decode accepted expired state")
@@ -512,6 +543,185 @@ func TestOIDC_SessionStore_Delete(t *testing.T) {
 	store.delete("sid-1")
 	if _, ok := store.get("sid-1"); ok {
 		t.Fatal("session still retrievable after delete")
+	}
+}
+
+// callbackRequest builds a /oauth/callback request preconfigured
+// with the state cookie and query params used by the security
+// regression tests below.
+func callbackRequest(t *testing.T, state string, withCookie bool, cookieValue string) *http.Request {
+	t.Helper()
+	req := httptest.NewRequest("GET", "http://gateway.example/oauth/callback?code=valid-code&state="+url.QueryEscape(state), nil)
+	if withCookie {
+		v := cookieValue
+		if v == "" {
+			v = state
+		}
+		req.AddCookie(&http.Cookie{Name: stateCookieName, Value: v})
+	}
+	return req
+}
+
+func TestOIDC_Callback_NonceMissingInIDToken(t *testing.T) {
+	sp := newStubProvider(t, "rioku-app")
+	sp.omitNonce = true
+	o := stubOIDC(t, sp)
+
+	state, err := o.state.encode("/landing", "expected-nonce")
+	if err != nil {
+		t.Fatalf("encode: %v", err)
+	}
+	req := callbackRequest(t, state, true, "")
+	rec := httptest.NewRecorder()
+	_ = o.ServeHTTP(rec, req, nextOK)
+	if rec.Code != http.StatusBadRequest {
+		t.Fatalf("status = %d, want 400 when id_token nonce is absent", rec.Code)
+	}
+}
+
+func TestOIDC_Callback_NonceMismatch(t *testing.T) {
+	sp := newStubProvider(t, "rioku-app")
+	sp.tokenNonce = "wrong-nonce"
+	o := stubOIDC(t, sp)
+
+	state, err := o.state.encode("/landing", "expected-nonce")
+	if err != nil {
+		t.Fatalf("encode: %v", err)
+	}
+	req := callbackRequest(t, state, true, "")
+	rec := httptest.NewRecorder()
+	_ = o.ServeHTTP(rec, req, nextOK)
+	if rec.Code != http.StatusBadRequest {
+		t.Fatalf("status = %d, want 400 on nonce mismatch", rec.Code)
+	}
+}
+
+func TestOIDC_Callback_StateCookieMissing(t *testing.T) {
+	sp := newStubProvider(t, "rioku-app")
+	sp.tokenNonce = "n"
+	o := stubOIDC(t, sp)
+
+	state, _ := o.state.encode("/landing", "n")
+	req := callbackRequest(t, state, false, "")
+	rec := httptest.NewRecorder()
+	_ = o.ServeHTTP(rec, req, nextOK)
+	if rec.Code != http.StatusBadRequest {
+		t.Fatalf("status = %d, want 400 when state cookie missing", rec.Code)
+	}
+}
+
+func TestOIDC_Callback_StateCookieMismatch(t *testing.T) {
+	sp := newStubProvider(t, "rioku-app")
+	sp.tokenNonce = "n"
+	o := stubOIDC(t, sp)
+
+	state, _ := o.state.encode("/landing", "n")
+	other, _ := o.state.encode("/landing", "n")
+	req := callbackRequest(t, state, true, other)
+	rec := httptest.NewRecorder()
+	_ = o.ServeHTTP(rec, req, nextOK)
+	if rec.Code != http.StatusBadRequest {
+		t.Fatalf("status = %d, want 400 when state cookie mismatches query", rec.Code)
+	}
+}
+
+func TestOIDC_RedirectToProvider_SetsStateCookieAndNonce(t *testing.T) {
+	sp := newStubProvider(t, "rioku-app")
+	o := stubOIDC(t, sp)
+
+	req := httptest.NewRequest("GET", "http://gateway.example/protected/page", nil)
+	rec := httptest.NewRecorder()
+	if err := o.ServeHTTP(rec, req, nextOK); err != nil {
+		t.Fatalf("ServeHTTP: %v", err)
+	}
+	if rec.Code != http.StatusFound {
+		t.Fatalf("status = %d, want 302", rec.Code)
+	}
+	// The redirect must carry an OIDC nonce param.
+	loc, err := url.Parse(rec.Header().Get("Location"))
+	if err != nil {
+		t.Fatalf("parse redirect: %v", err)
+	}
+	if loc.Query().Get("nonce") == "" {
+		t.Fatal("authorize URL missing nonce query param")
+	}
+	// The state cookie must be set, scoped to the callback path,
+	// HttpOnly, with a finite MaxAge.
+	var sc *http.Cookie
+	for _, c := range rec.Result().Cookies() {
+		if c.Name == stateCookieName {
+			sc = c
+			break
+		}
+	}
+	if sc == nil {
+		t.Fatal("state cookie not set on outbound redirect")
+	}
+	if sc.Path != o.CallbackPath {
+		t.Fatalf("state cookie path = %q, want %q", sc.Path, o.CallbackPath)
+	}
+	if !sc.HttpOnly {
+		t.Fatal("state cookie must be HttpOnly")
+	}
+	if sc.MaxAge <= 0 {
+		t.Fatalf("state cookie MaxAge = %d, want > 0", sc.MaxAge)
+	}
+	if sc.SameSite != http.SameSiteLaxMode {
+		t.Fatalf("state cookie SameSite = %v, want Lax", sc.SameSite)
+	}
+	if sc.Value != loc.Query().Get("state") {
+		t.Fatal("state cookie value must equal query state value")
+	}
+}
+
+func TestSafeRedirectPath(t *testing.T) {
+	cases := []struct {
+		in   string
+		want string
+	}{
+		{"/foo", "/foo"},
+		{"/foo?bar=baz", "/foo?bar=baz"},
+		{"/", "/"},
+		{"//evil.com", ""},
+		{"/\\evil.com", ""},
+		{"\\\\evil.com", ""},
+		{"javascript:alert(1)", ""},
+		{"http://evil.com", ""},
+		{"https://evil.com/x", ""},
+		{"", ""},
+		{"/foo\\bar", ""},
+	}
+	for _, tc := range cases {
+		t.Run(tc.in, func(t *testing.T) {
+			if got := safeRedirectPath(tc.in); got != tc.want {
+				t.Fatalf("safeRedirectPath(%q) = %q, want %q", tc.in, got, tc.want)
+			}
+		})
+	}
+}
+
+func TestOIDC_Callback_OpenRedirectNeutralized(t *testing.T) {
+	sp := newStubProvider(t, "rioku-app")
+	sp.tokenNonce = "n"
+	o := stubOIDC(t, sp)
+
+	// Encode a state whose OriginalURL is an attacker-controlled
+	// scheme-relative redirect target. The callback must NOT honor
+	// it — it must fall back to "/".
+	state, err := o.state.encode("//evil.com/pwn", "n")
+	if err != nil {
+		t.Fatalf("encode: %v", err)
+	}
+	req := callbackRequest(t, state, true, "")
+	rec := httptest.NewRecorder()
+	if err := o.ServeHTTP(rec, req, nextOK); err != nil {
+		t.Fatalf("ServeHTTP: %v", err)
+	}
+	if rec.Code != http.StatusFound {
+		t.Fatalf("status = %d, want 302", rec.Code)
+	}
+	if loc := rec.Header().Get("Location"); loc != "/" {
+		t.Fatalf("post-callback redirect = %q, want / (neutralized)", loc)
 	}
 }
 

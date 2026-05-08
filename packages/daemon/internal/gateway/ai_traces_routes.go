@@ -177,8 +177,8 @@ func handleRevealAITrace(st store.Driver) http.HandlerFunc {
 			id,
 			"reveal",
 			&storeaudit.AITraceSensitiveRevealed{
-				TraceID: id,
-				Reason:  reason,
+				RevealedTraceID: id,
+				Reason:          reason,
 			},
 		)
 		if err != nil {

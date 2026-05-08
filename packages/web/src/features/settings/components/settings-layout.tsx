@@ -34,6 +34,7 @@ import { useActiveTenantSlug } from '@/hooks/use-tenant';
 import { ProfileRealSection } from '../sections-real/profile-real';
 import { TenantRealSection } from '../sections-real/tenant-real';
 import { AuthPolicyRealSection } from '../sections-real/auth-policy-real';
+import { AuthSsoProvidersRealSection } from '../sections-real/auth-sso-providers-real';
 import { NetworkRealSection } from '../sections-real/network-real';
 import { PkiRealSection } from '../sections-real/pki-real';
 import { TlsRealSection } from '../sections-real/tls-real';
@@ -184,7 +185,10 @@ export function SettingsLayout() {
               ) : activeSection.slug === 'tenant' ? (
                 <TenantRealSection tenant={tenantSlug} />
               ) : activeSection.slug === 'authentication' ? (
-                <AuthPolicyRealSection tenant={tenantSlug} />
+                <Stack gap="xl">
+                  <AuthPolicyRealSection tenant={tenantSlug} />
+                  <AuthSsoProvidersRealSection tenant={tenantSlug} />
+                </Stack>
               ) : activeSection.slug === 'network' ? (
                 <NetworkRealSection tenant={tenantSlug} />
               ) : activeSection.slug === 'pki' ? (

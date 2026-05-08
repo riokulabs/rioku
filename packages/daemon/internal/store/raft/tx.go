@@ -1035,6 +1035,14 @@ func (t *raftTx) ListPermissions(_ context.Context) ([]*store.Permission, error)
 	return nil, fmt.Errorf("raft: ListPermissions not implemented")
 }
 
+func (t *raftTx) RegisterPluginPermissions(_ context.Context, _ string, _ []*store.Permission) error {
+	return fmt.Errorf("raft: RegisterPluginPermissions not implemented")
+}
+
+func (t *raftTx) UnregisterPluginPermissions(_ context.Context, _ string) (int, error) {
+	return 0, fmt.Errorf("raft: UnregisterPluginPermissions not implemented")
+}
+
 func (t *raftTx) GetUserScopes(_ context.Context, _ string) ([]string, error) {
 	return nil, fmt.Errorf("raft: GetUserScopes not implemented")
 }
@@ -1553,6 +1561,23 @@ func (t *raftTx) UpdateNotificationChannel(_ context.Context, _, _ string, _ sto
 }
 func (t *raftTx) DeleteNotificationChannel(_ context.Context, _, _ string) error {
 	return fmt.Errorf("raft: DeleteNotificationChannel not implemented")
+}
+
+// SSO providers (stage-2 plan 17b, #240) — not yet implemented for raft.
+func (t *raftTx) CreateSsoProvider(_ context.Context, _ *store.SsoProvider) (*store.SsoProvider, error) {
+	return nil, fmt.Errorf("raft: CreateSsoProvider not implemented")
+}
+func (t *raftTx) GetSsoProvider(_ context.Context, _, _ string) (*store.SsoProvider, error) {
+	return nil, store.ErrSsoProviderNotFound
+}
+func (t *raftTx) ListSsoProvidersByTenant(_ context.Context, _ string) ([]*store.SsoProvider, error) {
+	return nil, nil
+}
+func (t *raftTx) UpdateSsoProvider(_ context.Context, _, _ string, _ store.UpdateSsoProviderParams) (*store.SsoProvider, error) {
+	return nil, fmt.Errorf("raft: UpdateSsoProvider not implemented")
+}
+func (t *raftTx) DeleteSsoProvider(_ context.Context, _, _ string) error {
+	return fmt.Errorf("raft: DeleteSsoProvider not implemented")
 }
 
 func (t *raftTx) CreateRoutingRule(_ context.Context, _ *store.NotificationRoutingRule) (*store.NotificationRoutingRule, error) {

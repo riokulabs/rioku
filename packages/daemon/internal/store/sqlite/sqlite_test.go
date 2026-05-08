@@ -1595,9 +1595,10 @@ func TestRBACRolesAndPermissions(t *testing.T) {
 	}
 	// 26 legacy permissions from migrations 000003/000008 + 101 net-new v2 permissions
 	// from migration 000049 (103 inserted minus 2 that overlap with legacy: audit:read, cluster:read)
-	// + 2 opaque permissions from migration 000050 (opaque:read, opaque:write).
-	if len(perms) != 129 {
-		t.Fatalf("expected 129 atomic permissions, got %d", len(perms))
+	// + 2 opaque permissions from migration 000050 (opaque:read, opaque:write)
+	// + 2 sso permissions from migration 000055 (sso:read, sso:write).
+	if len(perms) != 131 {
+		t.Fatalf("expected 131 atomic permissions, got %d", len(perms))
 	}
 	_ = tx2.Rollback()
 
