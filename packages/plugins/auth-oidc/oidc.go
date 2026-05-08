@@ -324,7 +324,6 @@ func safeRedirectPath(dest string) string {
 	return dest
 }
 
-
 // activeSession returns the verified claims for the inbound request
 // when the session cookie maps to a live entry, else nil.
 func (o *OIDC) activeSession(r *http.Request) map[string]any {

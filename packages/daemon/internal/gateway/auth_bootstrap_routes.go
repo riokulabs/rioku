@@ -217,4 +217,3 @@ func handleBootstrap(st store.Driver, sm *auth.SessionManager, cfg *config.Confi
 		})
 	}
 }
-

@@ -46,7 +46,7 @@ test.describe('plan-06 notifications flow', () => {
 
     // The form mounts in a drawer/dialog. Fill the minimum required
     // fields — name + kind=webhook + a URL.
-    const uniqueName = `e2e-flow-${Date.now()}`;
+    const uniqueName = `e2e-flow-${String(Date.now())}`;
     await page.getByLabel(/name/i).first().fill(uniqueName);
     // Kind defaults to "email" or first option; pick webhook for the
     // simplest config payload.

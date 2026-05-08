@@ -343,4 +343,3 @@ func forwardToPrometheus(ctx context.Context, prometheusBase, query string, req 
 
 	return bytes.NewReader(body), resp.StatusCode, resp.Header, nil
 }
-

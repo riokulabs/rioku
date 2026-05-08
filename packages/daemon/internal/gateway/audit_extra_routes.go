@@ -190,8 +190,8 @@ func handleAuditReveal(st store.Driver) http.HandlerFunc {
 		}
 
 		writeJSON(w, http.StatusOK, map[string]any{
-			"entry":        auditEntryToMap(entry),
-			"revealEntry":  auditEntryToMap(revealEntry),
+			"entry":       auditEntryToMap(entry),
+			"revealEntry": auditEntryToMap(revealEntry),
 		})
 	}
 }

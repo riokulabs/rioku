@@ -920,10 +920,10 @@ func TestSetCookieAndClear(t *testing.T) {
 
 func TestCookieOptionsForTenant(t *testing.T) {
 	tests := []struct {
-		name         string
-		urlMode      string
-		parentDomain string
-		wantDomain   string
+		name          string
+		urlMode       string
+		parentDomain  string
+		wantDomain    string
 		wantSubdomain bool
 	}{
 		{

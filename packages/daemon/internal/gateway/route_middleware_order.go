@@ -5,9 +5,10 @@
 //
 // Body:    { "order": ["mw-id-1", "mw-id-2", ...] }
 // Effect:  the route's `rioku.admin/middleware-ids` label is replaced with
-//          the supplied comma-separated list. Order is preserved exactly as
-//          provided. Duplicates are rejected. After commit, the Caddy reload
-//          hook fires with reason "route.middlewares.reorder".
+//
+//	the supplied comma-separated list. Order is preserved exactly as
+//	provided. Duplicates are rejected. After commit, the Caddy reload
+//	hook fires with reason "route.middlewares.reorder".
 //
 // We intentionally do NOT validate that each middleware id refers to an
 // existing tenant middleware here — middlewares are a separate resource

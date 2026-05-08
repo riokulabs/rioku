@@ -21,8 +21,8 @@ func TestPluginMarketplace_ListReturnsAtLeastSixEntries(t *testing.T) {
 
 	var body struct {
 		Items []struct {
-			ID               string `json:"id"`
-			Name             string `json:"name"`
+			ID                string `json:"id"`
+			Name              string `json:"name"`
 			SignerFingerprint string `json:"signer_fingerprint"`
 		} `json:"items"`
 		Total int `json:"total"`
@@ -166,10 +166,10 @@ func TestPluginManifestValidate_UnknownPermissionKey(t *testing.T) {
 
 	// Unknown top-level key should be flagged
 	manifest := map[string]any{
-		"id":               "com.example.myplugin",
-		"name":             "My Plugin",
-		"version":          "1.0.0",
-		"permissions":      []string{"com.example.myplugin:read"},
+		"id":                "com.example.myplugin",
+		"name":              "My Plugin",
+		"version":           "1.0.0",
+		"permissions":       []string{"com.example.myplugin:read"},
 		"unknown_field_xyz": "some-value",
 	}
 	r := httptest.NewRecorder()

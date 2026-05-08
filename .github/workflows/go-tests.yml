@@ -39,7 +39,7 @@ jobs:
           # Exclude internal/store/* — covered by the store-matrix workflow
           # against real sqlite/postgres/mysql containers. Re-running them
           # here would duplicate ~3-5 minutes of work per PR.
-          PKGS=$(go list ./... | grep -v '/internal/store/')
+          PKGS=$(go list -tags noadmin ./... | grep -v '/internal/store/')
           go test -tags noadmin -race -count=1 -timeout=1500s $PKGS
 
   build-service:

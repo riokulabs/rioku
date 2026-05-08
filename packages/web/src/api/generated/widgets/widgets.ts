@@ -41,10 +41,15 @@ import type {
 } from '@tanstack/react-query';
 import type {
   CreateWidgetRequest,
+  QueryWidget400,
+  QueryWidget429,
+  QueryWidget502,
   UpdateLayoutRequest,
   UpdateWidgetRequest,
   Widget,
   WidgetList,
+  WidgetQueryRequest,
+  WidgetQueryResponse,
 } from '.././schemas';
 import { customFetch } from '../../mutator';
 
@@ -540,6 +545,101 @@ export const useDeleteWidget = <TError = unknown, TContext = unknown>(options?: 
   TContext
 > => {
   const mutationOptions = getDeleteWidgetMutationOptions(options);
+
+  return useMutation(mutationOptions);
+};
+/**
+ * Dashboard-builder query engine (#236, plan-16c). Reuses the
+PromQL AST-injection pipeline so widget queries cannot leak
+across tenants. Subject to a per-tenant token-bucket rate limit
+(default 60 queries/minute/tenant; configurable via #237).
+
+ * @summary Execute a dashboard widget query (instant / range / series)
+ */
+export type queryWidgetResponse = {
+  data: WidgetQueryResponse | QueryWidget400 | QueryWidget429 | QueryWidget502;
+  status: number;
+  headers: Headers;
+};
+
+export const getQueryWidgetUrl = (tenant: string) => {
+  return `/api/v1/t/${tenant}/widgets/query`;
+};
+
+export const queryWidget = async (
+  tenant: string,
+  widgetQueryRequest: WidgetQueryRequest,
+  options?: RequestInit,
+): Promise<queryWidgetResponse> => {
+  return customFetch<queryWidgetResponse>(getQueryWidgetUrl(tenant), {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(widgetQueryRequest),
+  });
+};
+
+export const getQueryWidgetMutationOptions = <
+  TError = QueryWidget400 | QueryWidget429 | QueryWidget502,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof queryWidget>>,
+    TError,
+    { tenant: string; data: WidgetQueryRequest },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof queryWidget>>,
+  TError,
+  { tenant: string; data: WidgetQueryRequest },
+  TContext
+> => {
+  const mutationKey = ['queryWidget'];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof queryWidget>>,
+    { tenant: string; data: WidgetQueryRequest }
+  > = (props) => {
+    const { tenant, data } = props ?? {};
+
+    return queryWidget(tenant, data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type QueryWidgetMutationResult = NonNullable<Awaited<ReturnType<typeof queryWidget>>>;
+export type QueryWidgetMutationBody = WidgetQueryRequest;
+export type QueryWidgetMutationError = QueryWidget400 | QueryWidget429 | QueryWidget502;
+
+/**
+ * @summary Execute a dashboard widget query (instant / range / series)
+ */
+export const useQueryWidget = <
+  TError = QueryWidget400 | QueryWidget429 | QueryWidget502,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof queryWidget>>,
+    TError,
+    { tenant: string; data: WidgetQueryRequest },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof queryWidget>>,
+  TError,
+  { tenant: string; data: WidgetQueryRequest },
+  TContext
+> => {
+  const mutationOptions = getQueryWidgetMutationOptions(options);
 
   return useMutation(mutationOptions);
 };

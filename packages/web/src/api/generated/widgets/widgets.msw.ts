@@ -23,7 +23,7 @@ Conventions:
  */
 import { faker } from '@faker-js/faker';
 import { HttpResponse, delay, http } from 'msw';
-import type { Widget, WidgetList } from '.././schemas';
+import type { Widget, WidgetList, WidgetQueryResponse } from '.././schemas';
 
 export const getListWidgetsResponseMock = (
   overrideResponse: Partial<WidgetList> = {},
@@ -75,6 +75,8 @@ export const getCreateWidgetResponseMock = (overrideResponse: Partial<Widget> = 
   updatedAt: `${faker.date.past().toISOString().split('.')[0]}Z`,
   ...overrideResponse,
 });
+
+export const getQueryWidgetResponseMock = (): WidgetQueryResponse => ({});
 
 export const getPatchWidgetResponseMock = (overrideResponse: Partial<Widget> = {}): Widget => ({
   config: {},
@@ -242,6 +244,29 @@ export const getDeleteWidgetMockHandler = (
   });
 };
 
+export const getQueryWidgetMockHandler = (
+  overrideResponse?:
+    | WidgetQueryResponse
+    | ((
+        info: Parameters<Parameters<typeof http.post>[1]>[0],
+      ) => Promise<WidgetQueryResponse> | WidgetQueryResponse),
+) => {
+  return http.post('*/api/v1/t/:tenant/widgets/query', async (info) => {
+    await delay(1000);
+
+    return new HttpResponse(
+      JSON.stringify(
+        overrideResponse !== undefined
+          ? typeof overrideResponse === 'function'
+            ? await overrideResponse(info)
+            : overrideResponse
+          : getQueryWidgetResponseMock(),
+      ),
+      { status: 200, headers: { 'Content-Type': 'application/json' } },
+    );
+  });
+};
+
 export const getPatchWidgetMockHandler = (
   overrideResponse?:
     | Widget
@@ -330,6 +355,7 @@ export const getWidgetsMock = () => [
   getListWidgetsMockHandler(),
   getCreateWidgetMockHandler(),
   getDeleteWidgetMockHandler(),
+  getQueryWidgetMockHandler(),
   getPatchWidgetMockHandler(),
   getUpdateWidgetMockHandler(),
   getFlipWidgetAdvancedMockHandler(),

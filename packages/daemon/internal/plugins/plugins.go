@@ -13,15 +13,15 @@ var marketplaceJSON []byte
 
 // MarketplaceEntry is a single curated plugin in the marketplace catalog.
 type MarketplaceEntry struct {
-	ID               string   `json:"id"`
-	Name             string   `json:"name"`
-	Description      string   `json:"description"`
-	Version          string   `json:"version"`
+	ID                string   `json:"id"`
+	Name              string   `json:"name"`
+	Description       string   `json:"description"`
+	Version           string   `json:"version"`
 	SignerFingerprint string   `json:"signer_fingerprint"`
-	ManifestURL      string   `json:"manifest_url"`
-	Author           string   `json:"author"`
-	Tags             []string `json:"tags"`
-	Verified         bool     `json:"verified"`
+	ManifestURL       string   `json:"manifest_url"`
+	Author            string   `json:"author"`
+	Tags              []string `json:"tags"`
+	Verified          bool     `json:"verified"`
 }
 
 // marketplaceCatalog is the parsed static catalog. Parsed once at init.

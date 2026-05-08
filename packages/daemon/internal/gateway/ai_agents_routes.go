@@ -271,11 +271,11 @@ func handleRotateAgentCredential(st store.Driver) http.HandlerFunc {
 		now := time.Now().UTC().Format("20060102T150405")
 		newCred := "sk-rot-" + now + "-" + r.PathValue("id")
 		writeJSON(w, http.StatusOK, map[string]any{
-			"agentId":      r.PathValue("id"),
-			"ok":           true,
+			"agentId":       r.PathValue("id"),
+			"ok":            true,
 			"newCredential": newCred,
-			"prefix":       newCred[:min(12, len(newCred))],
-			"note":         "scoped credential rotation is stubbed in stage-2",
+			"prefix":        newCred[:min(12, len(newCred))],
+			"note":          "scoped credential rotation is stubbed in stage-2",
 		})
 	}
 }
@@ -285,8 +285,9 @@ func handleRotateAgentCredential(st store.Driver) http.HandlerFunc {
 // Request: POST /api/v1/t/{tenant}/ai/agents/{id}/invoke
 // Body:    {"prompt": "...", "variables": {...}}
 // Response: text/event-stream with `event: chunk` frames carrying small
-//           text fragments, terminated by `event: done` carrying token + cost
-//           summary, or `event: error` on failure.
+//
+//	text fragments, terminated by `event: done` carrying token + cost
+//	summary, or `event: error` on failure.
 //
 // This is a stage-2 stub; real implementations will route through the
 // configured provider's streaming completion API.
@@ -366,4 +367,3 @@ func handleInvokeAIAgent(st store.Driver) http.HandlerFunc {
 		flusher.Flush()
 	}
 }
-

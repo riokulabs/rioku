@@ -18,6 +18,9 @@ importers:
       '@dnd-kit/sortable':
         specifier: 10.0.0
         version: 10.0.0(@dnd-kit/core@6.3.1(react-dom@19.2.5(react@19.2.5))(react@19.2.5))(react@19.2.5)
+      '@dnd-kit/utilities':
+        specifier: 3.2.2
+        version: 3.2.2(react@19.2.5)
       '@mantine/carousel':
         specifier: 9.0.2
         version: 9.0.2(@mantine/core@9.0.2(@mantine/hooks@9.0.2(react@19.2.5))(@types/react@19.2.5)(react-dom@19.2.5(react@19.2.5))(react@19.2.5))(@mantine/hooks@9.0.2(react@19.2.5))(embla-carousel-react@8.6.0(react@19.2.5))(embla-carousel@8.6.0)(react-dom@19.2.5(react@19.2.5))(react@19.2.5)

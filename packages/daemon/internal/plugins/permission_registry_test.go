@@ -155,9 +155,9 @@ func TestBuildPermissionRows_ResourceActionParsing(t *testing.T) {
 		t.Fatalf("expected 3 deduped rows, got %d", len(rows))
 	}
 	want := map[string][2]string{
-		"foo:bar":         {"foo", "bar"},
-		"baz":             {"baz", "*"},
-		"spaces:trimmed":  {"spaces", "trimmed"},
+		"foo:bar":        {"foo", "bar"},
+		"baz":            {"baz", "*"},
+		"spaces:trimmed": {"spaces", "trimmed"},
 	}
 	for _, r := range rows {
 		w, ok := want[r.ID]

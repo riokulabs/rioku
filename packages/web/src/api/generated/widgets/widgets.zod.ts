@@ -77,6 +77,26 @@ export const createWidgetBody = zod.object({
 });
 
 /**
+ * Dashboard-builder query engine (#236, plan-16c). Reuses the
+PromQL AST-injection pipeline so widget queries cannot leak
+across tenants. Subject to a per-tenant token-bucket rate limit
+(default 60 queries/minute/tenant; configurable via #237).
+
+ * @summary Execute a dashboard widget query (instant / range / series)
+ */
+export const queryWidgetBody = zod.object({
+  end: zod.string().optional(),
+  expr: zod.string().optional(),
+  match: zod.array(zod.string()).optional(),
+  start: zod.string().optional(),
+  step: zod.string().optional(),
+  time: zod.string().optional(),
+  type: zod.enum(['instant', 'range', 'series']),
+});
+
+export const queryWidgetResponse = zod.record(zod.string(), zod.any());
+
+/**
  * @summary Patch a widget
  */
 export const patchWidgetResponse = zod.object({

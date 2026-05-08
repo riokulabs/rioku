@@ -158,7 +158,7 @@ func scanTenant(s scanner) (*store.Tenant, error) {
 	var (
 		id, slug, name, plan, urlMode, parentDomain string
 		accent, logoURL, defDashID                  *string
-		createdAt, updatedAt                         time.Time
+		createdAt, updatedAt                        time.Time
 	)
 	if err := s.Scan(&id, &slug, &name, &plan, &urlMode, &parentDomain, &accent, &logoURL, &defDashID, &createdAt, &updatedAt); err != nil {
 		return nil, err

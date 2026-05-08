@@ -58,7 +58,11 @@ jobs:
       - name: Resolve Playwright version
         id: pw
         run: |
-          VERSION=$(node -p "require('./packages/web/node_modules/playwright/package.json').version")
+          # @playwright/test is the direct dep; the runtime browser
+          # bundle ships with the same version. Reading from package.json
+          # avoids relying on pnpm hoisting the (transitive) `playwright`
+          # package at packages/web/node_modules.
+          VERSION=$(node -p "require('./packages/web/node_modules/@playwright/test/package.json').version")
           echo "version=$VERSION" >> "$GITHUB_OUTPUT"
 
       - name: Cache Playwright browsers
