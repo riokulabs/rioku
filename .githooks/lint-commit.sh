@@ -47,11 +47,11 @@ case "$LOWER_FIRST" in
 esac
 
 # Check conventional commit format
-if ! echo "$MSG" | grep -qE '^(feat|fix|docs|chore|refactor|test|ci|perf|build|revert)(\(.+\))?: .+'; then
+if ! echo "$MSG" | grep -qE '^(feat|fix|docs|chore|refactor|test|ci|perf|build|revert|style)(\(.+\))?: .+'; then
   echo "ERROR: Commit message does not follow Conventional Commits format."
   echo ""
   echo "  Expected: type(scope): description"
-  echo "  Types: feat, fix, docs, chore, refactor, test, ci, perf, build, revert"
+  echo "  Types: feat, fix, docs, chore, refactor, test, ci, perf, build, revert, style"
   echo ""
   echo "  Got: $MSG"
   exit 1
