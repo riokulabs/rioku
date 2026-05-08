@@ -35,6 +35,7 @@ import {
   emitNotification,
   markAllRead,
   markRead,
+  markUnread,
   subscribeInboxStream,
   unarchive,
   useNotificationDetail,
@@ -294,6 +295,40 @@ describe('markRead', () => {
     window.history.replaceState(null, '', '/');
     const result = await markRead('notif-0001');
     expect(result).toBeUndefined();
+    setTenantUrl();
+  });
+});
+
+// ─── markUnread (issue #238) ──────────────────────────────────────────────────
+
+describe('markUnread', () => {
+  it('POSTs to /notifications/:id/unread and returns true on 204', async () => {
+    let called = false;
+    server.use(
+      http.post(`/api/v1/t/${TENANT}/notifications/notif-0001/unread`, () => {
+        called = true;
+        return new HttpResponse(null, { status: 204 });
+      }),
+    );
+    const ok = await markUnread('notif-0001');
+    expect(called).toBe(true);
+    expect(ok).toBe(true);
+  });
+
+  it('returns false when the daemon responds with an error', async () => {
+    server.use(
+      http.post(`/api/v1/t/${TENANT}/notifications/notif-0001/unread`, () =>
+        HttpResponse.json({ title: 'Forbidden' }, { status: 403 }),
+      ),
+    );
+    const ok = await markUnread('notif-0001');
+    expect(ok).toBe(false);
+  });
+
+  it('returns false when tenant cannot be resolved', async () => {
+    window.history.replaceState(null, '', '/');
+    const ok = await markUnread('notif-0001');
+    expect(ok).toBe(false);
     setTenantUrl();
   });
 });

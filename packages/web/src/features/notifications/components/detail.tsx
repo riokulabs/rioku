@@ -39,7 +39,8 @@ import relativeTime from 'dayjs/plugin/relativeTime';
 import { IdBadge } from '@/components/id-badge';
 import { notify } from '@/hooks/use-notify';
 import { usePermission } from '@/hooks/use-permission';
-import { archive, markRead, unarchive } from '../api';
+import { useTenantIdentity } from '@/lib/tenant-identity';
+import { archive, markRead, markUnread, resolveTenant, unarchive } from '../api';
 import type { NotificationItem } from '../types';
 
 dayjs.extend(relativeTime);
@@ -78,21 +79,32 @@ export function NotificationDetail({ item, onClose: _onClose }: NotificationDeta
   const absolute = dayjs(item.at).format('YYYY-MM-DD HH:mm:ss');
   const relative = dayjs(item.at).fromNow();
 
-  // The daemon doesn't yet expose a tenant-id → slug lookup hook. Show the
-  // raw id for now; super-admin views that need slug resolution can pass it
-  // in via a future prop.
-  const tenantSlug = item.tenant_id ?? null;
+  // Resolve the current tenant's identity (issue #239). The notification
+  // owns a tenant *id* (UUID); the URL holds the *slug*. We fetch identity
+  // once for the slug we're inside and compare ids: when they match (the
+  // common case), we display the resolved slug instead of the raw UUID.
+  const urlSlug = resolveTenant();
+  const identity = useTenantIdentity(urlSlug || null);
+  const tenantSlug =
+    identity && item.tenant_id && identity.id === item.tenant_id ? identity.slug : null;
 
   async function handleToggleRead() {
     if (!canManageOwn) return;
     try {
       if (item.read_at === null) {
-        await markRead(item.id);
+        const result = await markRead(item.id);
+        if (result === undefined) {
+          notify.error('Failed', 'Please try again.');
+          return;
+        }
         notify.success('Marked as read');
       } else {
-        // The daemon does not yet expose a "mark unread" endpoint; surface
-        // a soft warning so the UX path is honest about it.
-        notify.info('Mark unread', 'This action is not yet available.');
+        const ok = await markUnread(item.id);
+        if (!ok) {
+          notify.error('Failed', 'Please try again.');
+          return;
+        }
+        notify.success('Marked as unread');
       }
     } catch {
       notify.error('Failed', 'Please try again.');

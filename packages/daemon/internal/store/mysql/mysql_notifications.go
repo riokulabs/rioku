@@ -156,6 +156,28 @@ func (t *tx) MarkNotificationRead(ctx context.Context, id string) error {
 	return nil
 }
 
+// MarkNotificationUnread is the inverse of MarkNotificationRead: clears the
+// read_at timestamp. Idempotent on already-unread rows; returns
+// ErrNotificationItemNotFound for unknown ids.
+func (t *tx) MarkNotificationUnread(ctx context.Context, id string) error {
+	res, err := t.sqlTx.ExecContext(ctx,
+		`UPDATE notification_items SET read_at = NULL WHERE id = ? AND read_at IS NOT NULL`,
+		id)
+	if err != nil {
+		return fmt.Errorf("mysql: mark unread: %w", err)
+	}
+	n, _ := res.RowsAffected()
+	if n == 0 {
+		row := t.sqlTx.QueryRowContext(ctx, `SELECT 1 FROM notification_items WHERE id = ?`, id)
+		var dummy int
+		if err := row.Scan(&dummy); err == sql.ErrNoRows {
+			return store.ErrNotificationItemNotFound
+		}
+	}
+	t.emit("notification_items", id, "UPDATE")
+	return nil
+}
+
 func (t *tx) MarkAllNotificationsRead(ctx context.Context, tenantID, userID string) error {
 	_, err := t.sqlTx.ExecContext(ctx,
 		`UPDATE notification_items SET read_at = ?

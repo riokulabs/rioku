@@ -682,6 +682,7 @@ type Tx interface {
 	ListNotificationItemsByUser(ctx context.Context, tenantID, userID string, q NotificationItemQuery) ([]*NotificationItem, error)
 	CountUnreadNotifications(ctx context.Context, tenantID, userID string) (int, error)
 	MarkNotificationRead(ctx context.Context, id string) error
+	MarkNotificationUnread(ctx context.Context, id string) error
 	MarkAllNotificationsRead(ctx context.Context, tenantID, userID string) error
 	ArchiveNotification(ctx context.Context, id string, archived bool) error
 

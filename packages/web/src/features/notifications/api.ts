@@ -252,6 +252,27 @@ export async function markRead(id: ID): Promise<NotificationItem | undefined> {
 }
 
 /**
+ * Mark a single notification unread (inverse of {@link markRead}).
+ *
+ * Daemon returns 204 No Content on success; the frontend resolves to
+ * `true` on success and `false` on any failure (network, 404, 403).
+ */
+export async function markUnread(id: ID): Promise<boolean> {
+  const tenant = resolveTenant();
+  if (!tenant) return false;
+  try {
+    await customFetch<unknown>({
+      url: `/t/${tenant}/notifications/${id}/unread`,
+      method: 'POST',
+    });
+    emitHostEvent('notification:unread', { notification_id: id });
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+/**
  * Mark every unread + not-archived notification read.
  * Returns the count of items marked.
  * `userId` retained for API compat; daemon uses session claims.
