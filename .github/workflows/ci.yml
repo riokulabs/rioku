@@ -11,28 +11,6 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  changes:
-    name: Path filter
-    runs-on: ubuntu-latest
-    outputs:
-      web: ${{ steps.f.outputs.web }}
-      daemon: ${{ steps.f.outputs.daemon }}
-    steps:
-      - uses: actions/checkout@v6
-      - uses: dorny/paths-filter@v3
-        id: f
-        with:
-          filters: |
-            web:
-              - 'packages/web/**'
-              - 'packages/proto/**'
-              - '.github/workflows/**'
-            daemon:
-              - 'packages/daemon/**'
-              - 'packages/build-service/**'
-              - 'packages/proto/**'
-              - 'sandbox/**'
-
   commit-lint:
     name: Commit Lint
     runs-on: ubuntu-latest
@@ -62,8 +40,6 @@ jobs:
   lint:
     name: Lint
     runs-on: ubuntu-latest
-    needs: changes
-    if: needs.changes.outputs.daemon == 'true' || github.event_name == 'push'
     steps:
       - uses: actions/checkout@v6
 
@@ -139,8 +115,6 @@ jobs:
   test:
     name: Test
     runs-on: ubuntu-latest
-    needs: changes
-    if: needs.changes.outputs.daemon == 'true' || github.event_name == 'push'
     steps:
       - uses: actions/checkout@v6
 
@@ -154,13 +128,6 @@ jobs:
 
       - name: Test daemon (race)
         run: |
-          SHORT_FLAG=""
-          if [ "${{ github.event_name }}" = "push" ]; then
-            SHORT_FLAG="-short"
-            echo "Push event — running short tests only"
-          else
-            echo "PR event — running full test suite"
-          fi
           # -timeout is per-package. The gateway package alone has 197
           # integration tests, each spinning up a fresh sqlite store +
           # running all 47 migrations (~3s/test under -race contention)
@@ -169,7 +136,7 @@ jobs:
           # gateway package room to finish while still bounding hung
           # tests; total job time is bounded by GitHub's default
           # 360-minute job timeout (no explicit timeout-minutes set).
-          cd packages/daemon && go test -tags noadmin -race -count=1 -timeout=1500s ${SHORT_FLAG} ./...
+          cd packages/daemon && go test -tags noadmin -race -count=1 -timeout=1500s ./...
 
       - name: Test build-service (race)
         run: cd packages/build-service && go test -race -count=1 -timeout=300s ./...
@@ -177,9 +144,7 @@ jobs:
   test-e2e:
     name: E2E Tests (${{ matrix.shard }}/4)
     runs-on: ubuntu-latest
-    timeout-minutes: 20
-    needs: changes
-    if: needs.changes.outputs.web == 'true' || github.event_name == 'push'
+    timeout-minutes: 30
     strategy:
       fail-fast: false
       matrix:
@@ -214,6 +179,10 @@ jobs:
       - name: Run smoke tests
         run: make sandbox-test-smoke
 
+      - name: Run Go integration tests (shard 1 only)
+        if: matrix.shard == 1
+        run: make test-integration
+
       - name: Install Playwright browsers
         run: cd packages/web && pnpm exec playwright install --with-deps
 
@@ -236,8 +205,6 @@ jobs:
     name: Web (lint + typecheck + test + e2e + bundle)
     runs-on: ubuntu-latest
     timeout-minutes: 20
-    needs: changes
-    if: needs.changes.outputs.web == 'true' || github.event_name == 'push'
     steps:
       - uses: actions/checkout@v6
       - uses: pnpm/action-setup@v4
