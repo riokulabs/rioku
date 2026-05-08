@@ -203,4 +203,3 @@ func TestBootstrapStatus_returns_not_required_after_user_exists(t *testing.T) {
 		t.Error("required = true after root user exists, want false")
 	}
 }
-
