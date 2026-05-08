@@ -53,6 +53,14 @@ jobs:
       - name: Install web dependencies
         run: cd packages/web && pnpm install --frozen-lockfile
 
+      - name: Install sample-plugin dependencies
+        # The Playwright global-setup builds packages/web/sample-plugin
+        # (a separate sub-package, not part of packages/web's lockfile),
+        # which needs its own node_modules with vite installed. Without
+        # this step the build step inside global-setup fails with
+        # 'sh: 1: vite: not found'.
+        run: cd packages/web/sample-plugin && pnpm install --no-frozen-lockfile
+
       # Cache Playwright browser binaries (~80MB). Key includes the
       # Playwright version from pnpm-lock so a Playwright bump invalidates.
       - name: Resolve Playwright version
