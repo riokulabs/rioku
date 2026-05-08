@@ -26,18 +26,9 @@ sandbox:
 sandbox-stop:
 	@bash sandbox/scripts/stop.sh
 
-## sandbox-seed: Re-seed sandbox data from seed.yaml (requires running sandbox)
+## sandbox-seed: Re-seed sandbox data from sandbox/seed/*.yaml (requires running sandbox)
 sandbox-seed:
-	@if [ -f sandbox/.data/root-password ]; then \
-	  bin/rioku seed \
-	    --file sandbox/config/seed.yaml \
-	    --target "http://localhost:$${SANDBOX_PORT_REST:-7778}" \
-	    --password "$$(cat sandbox/.data/root-password)"; \
-	else \
-	  echo "[FAIL]  sandbox/.data/root-password not found"; \
-	  echo "        Is the sandbox running? Start it with: make sandbox"; \
-	  exit 1; \
-	fi
+	@bash sandbox/scripts/seed-config.sh "http://localhost:$${SANDBOX_PORT_REST:-7778}"
 
 ## sandbox-reset: Stop sandbox, wipe all data, restart fresh
 sandbox-reset: sandbox-stop

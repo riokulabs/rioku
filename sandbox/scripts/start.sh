@@ -397,11 +397,13 @@ if [[ -z "${ROOT_PASSWORD}" ]]; then
   warn "No root password available — skipping seed"
   warn "If the daemon was previously initialized, run 'make sandbox-seed' manually"
 else
-  info "Seeding sandbox data via 'rioku seed' ..."
-  if ! "${DAEMON_BIN}" seed \
-    --file "${SEED_FILE}" \
-    --target "http://localhost:${SANDBOX_PORT_REST}" \
-    --password "${ROOT_PASSWORD}"; then
+  info "Seeding sandbox data via seed-config.sh (loads sandbox/seed/*.yaml) ..."
+  # seed-config.sh runs `rioku seed --dir sandbox/seed/` which loads the
+  # full per-stage YAML set (services, policies, routes, tenants,
+  # memberships, etc.). The earlier flat seed.json/yaml only had services
+  # + policies and missed tenants/memberships entirely, which broke
+  # multi-tenant smoke checks.
+  if ! bash "${SANDBOX_DIR}/scripts/seed-config.sh" "http://localhost:${SANDBOX_PORT_REST}"; then
     warn "Seed encountered errors — run 'make sandbox-seed' manually after daemon is healthy"
   else
     success "Sandbox data seeded"
