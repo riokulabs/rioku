@@ -1,0 +1,62 @@
+# Path-based PR auto-labels. Used by .github/workflows/labeler.yml via
+# actions/labeler@v6. Each top-level key is a label; values are an
+# `any-glob-to-any-file` expression matched against the PR diff.
+
+area/daemon:
+  - changed-files:
+      - any-glob-to-any-file:
+          - 'packages/daemon/**'
+
+area/build-service:
+  - changed-files:
+      - any-glob-to-any-file:
+          - 'packages/build-service/**'
+
+area/plugins:
+  - changed-files:
+      - any-glob-to-any-file:
+          - 'packages/plugins/**'
+
+area/proto:
+  - changed-files:
+      - any-glob-to-any-file:
+          - 'packages/proto/**'
+
+area/web:
+  - changed-files:
+      - any-glob-to-any-file:
+          - 'packages/web/**'
+
+area/docs:
+  - changed-files:
+      - any-glob-to-any-file:
+          - 'docs/**'
+          - 'contrib-docs/**'
+          - 'README.md'
+          - '*.md'
+
+area/sandbox:
+  - changed-files:
+      - any-glob-to-any-file:
+          - 'sandbox/**'
+
+area/ci:
+  - changed-files:
+      - any-glob-to-any-file:
+          - '.github/**'
+          - '.githooks/**'
+          - 'Makefile'
+
+area/store-migrations:
+  - changed-files:
+      - any-glob-to-any-file:
+          - 'packages/daemon/internal/store/migrations/**'
+
+dependencies:
+  - changed-files:
+      - any-glob-to-any-file:
+          - '**/go.mod'
+          - '**/go.sum'
+          - '**/package.json'
+          - '**/pnpm-lock.yaml'
+          - '**/package-lock.json'

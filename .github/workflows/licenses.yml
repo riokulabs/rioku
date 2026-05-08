@@ -1,0 +1,106 @@
+name: License Compliance
+
+on:
+  pull_request:
+    branches: [develop, main]
+    paths:
+      - 'packages/**/go.mod'
+      - 'packages/**/go.sum'
+      - 'packages/**/package.json'
+      - 'packages/**/pnpm-lock.yaml'
+      - 'docs/package*.json'
+      - 'contrib-docs/package*.json'
+      - '.github/workflows/licenses.yml'
+      - '.github/license-allowlist.txt'
+  push:
+    branches: [develop]
+
+concurrency:
+  group: licenses-${{ github.ref }}
+  cancel-in-progress: true
+
+# Rioku ships under a permissive OSS license. We block GPL/AGPL/SSPL
+# from creeping into the dependency tree (direct or transitive) so
+# downstream consumers can ship Rioku without contamination concerns.
+
+jobs:
+  go:
+    name: Go licenses (${{ matrix.module }})
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        module:
+          - packages/daemon
+          - packages/build-service
+          - packages/plugins
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-go@v6
+        with:
+          go-version-file: go.work
+          cache-dependency-path: ${{ matrix.module }}/go.sum
+      - name: Install go-licenses
+        run: go install github.com/google/go-licenses@latest
+      - name: Check ${{ matrix.module }}
+        run: |
+          cd ${{ matrix.module }}
+          # Disallow GPL/LGPL/AGPL/SSPL family. Other forbidden licenses
+          # can be added via the allowlist file at .github/license-allowlist.txt.
+          go-licenses check ./... \
+            --disallowed_types=forbidden,restricted
+
+  pnpm:
+    name: pnpm licenses (packages/web)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 22
+          cache: pnpm
+          cache-dependency-path: packages/web/pnpm-lock.yaml
+      - name: Install web deps
+        run: cd packages/web && pnpm install --frozen-lockfile --ignore-scripts
+      - name: Scan licenses
+        run: |
+          cd packages/web
+          # `pnpm licenses list` exits 0 even with bad licenses, so we
+          # parse and gate ourselves. Block GPL/AGPL/SSPL families.
+          OUT=$(pnpm licenses list --json --prod)
+          if echo "$OUT" | grep -E -i '"(license|licenses)"\s*:\s*"[^"]*((^|[^A-Z])(A|L)?GPL|SSPL)' > /tmp/bad.txt; then
+            echo "::error::Forbidden license detected in dependency tree:"
+            cat /tmp/bad.txt
+            exit 1
+          fi
+          echo "No GPL/AGPL/SSPL licenses found in production deps."
+
+  npm-docs:
+    name: npm licenses (${{ matrix.dir }})
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        dir: [docs, contrib-docs]
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: ${{ matrix.dir }}/package-lock.json
+      - name: Install
+        run: cd ${{ matrix.dir }} && npm ci --ignore-scripts
+      - name: Scan licenses
+        run: |
+          cd ${{ matrix.dir }}
+          # license-checker-rseidelsohn is a maintained fork. We allow
+          # the standard permissive set; flag anything in the GPL/AGPL/
+          # SSPL family.
+          npx --yes license-checker-rseidelsohn \
+            --production \
+            --excludePackages "rioku-docs;rioku-contrib-docs" \
+            --failOn 'GPL;AGPL;LGPL;SSPL'

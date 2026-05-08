@@ -1,0 +1,66 @@
+name: CodeQL
+
+# DISABLED while repo is private. CodeQL needs GitHub Advanced Security
+# on private repos (paid); on public repos it's free. Once the repo is
+# made public, switch the `on:` block to:
+#
+#   pull_request:
+#     branches: [develop, main]
+#   push:
+#     branches: [develop]
+#   schedule:
+#     - cron: '0 3 * * 0'
+#
+# For now the workflow is reachable only via manual dispatch so the
+# config can be smoke-tested without burning Actions minutes on every
+# PR push.
+on:
+  workflow_dispatch:
+
+concurrency:
+  group: codeql-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  analyze:
+    name: CodeQL (${{ matrix.language }})
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    permissions:
+      actions: read
+      contents: read
+      security-events: write
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - language: go
+            build-mode: autobuild
+          - language: javascript-typescript
+            build-mode: none
+    steps:
+      - uses: actions/checkout@v6
+
+      - uses: actions/setup-go@v6
+        if: matrix.language == 'go'
+        with:
+          go-version-file: go.work
+          cache-dependency-path: |
+            packages/daemon/go.sum
+            packages/build-service/go.sum
+
+      - name: Initialize CodeQL
+        uses: github/codeql-action/init@v3
+        with:
+          languages: ${{ matrix.language }}
+          build-mode: ${{ matrix.build-mode }}
+          queries: security-extended,security-and-quality
+
+      - name: Autobuild (Go only)
+        if: matrix.language == 'go'
+        uses: github/codeql-action/autobuild@v3
+
+      - name: Perform CodeQL analysis
+        uses: github/codeql-action/analyze@v3
+        with:
+          category: "/language:${{ matrix.language }}"

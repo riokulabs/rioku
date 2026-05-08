@@ -1,0 +1,43 @@
+name: govulncheck
+
+on:
+  pull_request:
+    branches: [develop, main]
+    paths:
+      - 'packages/daemon/**'
+      - 'packages/build-service/**'
+      - 'packages/plugins/**'
+      - 'packages/proto/gen/go/**'
+      - '.github/workflows/govulncheck.yml'
+  push:
+    branches: [develop]
+  schedule:
+    # Daily at 06:00 UTC catches CVE disclosures even when nothing has
+    # changed in the repo.
+    - cron: '0 6 * * *'
+
+concurrency:
+  group: govulncheck-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  scan:
+    name: govulncheck (${{ matrix.module }})
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        module:
+          - packages/daemon
+          - packages/build-service
+          - packages/plugins
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-go@v6
+        with:
+          go-version-file: go.work
+          cache-dependency-path: ${{ matrix.module }}/go.sum
+      - name: Install govulncheck
+        run: go install golang.org/x/vuln/cmd/govulncheck@latest
+      - name: Scan ${{ matrix.module }}
+        run: cd ${{ matrix.module }} && govulncheck ./...
