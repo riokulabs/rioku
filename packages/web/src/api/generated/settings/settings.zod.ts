@@ -393,6 +393,136 @@ export const putSettingsPKIResponse = zod.object({
 });
 
 /**
+ * @summary List certificate authorities for the tenant
+ */
+export const listCertAuthoritiesResponse = zod.object({
+  items: zod.array(
+    zod.object({
+      createdAt: zod.string().datetime(),
+      fingerprintSha256: zod.string().optional(),
+      id: zod.string(),
+      kind: zod.string(),
+      name: zod.string(),
+      notAfter: zod.string().datetime().optional(),
+      notBefore: zod.string().datetime().optional(),
+      subject: zod.string(),
+      tenantId: zod.string(),
+      updatedAt: zod.string().datetime(),
+    }),
+  ),
+  total: zod.number(),
+});
+
+/**
+ * @summary Create a certificate authority
+ */
+export const createCertAuthorityBody = zod.object({
+  certificatePem: zod.string().optional(),
+  kind: zod.string(),
+  name: zod.string(),
+  privateKeyRef: zod.string().optional(),
+  subject: zod.string(),
+});
+
+export const getCertAuthorityResponse = zod.object({
+  createdAt: zod.string().datetime(),
+  fingerprintSha256: zod.string().optional(),
+  id: zod.string(),
+  kind: zod.string(),
+  name: zod.string(),
+  notAfter: zod.string().datetime().optional(),
+  notBefore: zod.string().datetime().optional(),
+  subject: zod.string(),
+  tenantId: zod.string(),
+  updatedAt: zod.string().datetime(),
+});
+
+export const updateCertAuthorityBody = zod.object({
+  kind: zod.string().optional(),
+  name: zod.string().optional(),
+  subject: zod.string().optional(),
+});
+
+export const updateCertAuthorityResponse = zod.object({
+  createdAt: zod.string().datetime(),
+  fingerprintSha256: zod.string().optional(),
+  id: zod.string(),
+  kind: zod.string(),
+  name: zod.string(),
+  notAfter: zod.string().datetime().optional(),
+  notBefore: zod.string().datetime().optional(),
+  subject: zod.string(),
+  tenantId: zod.string(),
+  updatedAt: zod.string().datetime(),
+});
+
+/**
+ * @summary List certificate enrollments for the tenant
+ */
+export const listCertEnrollmentsResponse = zod.object({
+  items: zod.array(
+    zod.object({
+      caId: zod.string().optional(),
+      dnsSans: zod.array(zod.string()),
+      fingerprintSha256: zod.string().optional(),
+      id: zod.string(),
+      issuedAt: zod.string().datetime().optional(),
+      requestedAt: zod.string().datetime(),
+      revocationReason: zod.string().optional(),
+      revokedAt: zod.string().datetime().optional(),
+      state: zod.string(),
+      subject: zod.string(),
+      tenantId: zod.string(),
+    }),
+  ),
+  total: zod.number(),
+});
+
+/**
+ * @summary Create a certificate enrollment
+ */
+export const createCertEnrollmentBody = zod.object({
+  caId: zod.string().optional(),
+  dnsSans: zod.array(zod.string()).optional(),
+  subject: zod.string(),
+});
+
+export const getCertEnrollmentResponse = zod.object({
+  caId: zod.string().optional(),
+  dnsSans: zod.array(zod.string()),
+  fingerprintSha256: zod.string().optional(),
+  id: zod.string(),
+  issuedAt: zod.string().datetime().optional(),
+  requestedAt: zod.string().datetime(),
+  revocationReason: zod.string().optional(),
+  revokedAt: zod.string().datetime().optional(),
+  state: zod.string(),
+  subject: zod.string(),
+  tenantId: zod.string(),
+});
+
+/**
+ * @summary Revoke a certificate enrollment
+ */
+export const revokeCertEnrollmentBody = zod.object({
+  reason: zod.string().optional(),
+});
+
+export const revokeCertEnrollmentResponse = zod.object({
+  caId: zod.string().optional(),
+  dnsSans: zod.array(zod.string()),
+  fingerprintSha256: zod.string().optional(),
+  id: zod.string(),
+  issuedAt: zod.string().datetime().optional(),
+  requestedAt: zod.string().datetime(),
+  revocationReason: zod.string().optional(),
+  revokedAt: zod.string().datetime().optional(),
+  state: zod.string(),
+  subject: zod.string(),
+  tenantId: zod.string(),
+});
+
+/**
  * @summary List revoked certificates for the tenant
  */
 export const listPKIRevocationsResponse = zod.object({
@@ -515,6 +645,117 @@ export const putSettingsTLSResponse = zod.object({
       }),
     )
     .optional(),
+});
+
+/**
+ * @summary List TLS certificates for the tenant
+ */
+export const listTLSCertificatesResponse = zod.object({
+  items: zod.array(
+    zod.object({
+      autoRenew: zod.boolean(),
+      createdAt: zod.string().datetime(),
+      domain: zod.string(),
+      expiresAt: zod.string().datetime().optional(),
+      fingerprintSha256: zod.string().optional(),
+      id: zod.string(),
+      issuer: zod.string(),
+      source: zod.string(),
+      tenantId: zod.string(),
+    }),
+  ),
+  total: zod.number(),
+});
+
+/**
+ * @summary Upload a TLS certificate
+ */
+export const createTLSCertificateBody = zod.object({
+  certificatePem: zod.string().optional(),
+  domain: zod.string(),
+  issuer: zod.string().optional(),
+  source: zod.string().optional(),
+});
+
+export const getTLSCertificateResponse = zod.object({
+  autoRenew: zod.boolean(),
+  createdAt: zod.string().datetime(),
+  domain: zod.string(),
+  expiresAt: zod.string().datetime().optional(),
+  fingerprintSha256: zod.string().optional(),
+  id: zod.string(),
+  issuer: zod.string(),
+  source: zod.string(),
+  tenantId: zod.string(),
+});
+
+/**
+ * @summary Toggle auto-renew flag for a TLS certificate
+ */
+export const toggleTLSCertificateAutoRenewBody = zod.object({
+  autoRenew: zod.boolean(),
+});
+
+export const toggleTLSCertificateAutoRenewResponse = zod.object({
+  autoRenew: zod.boolean(),
+  createdAt: zod.string().datetime(),
+  domain: zod.string(),
+  expiresAt: zod.string().datetime().optional(),
+  fingerprintSha256: zod.string().optional(),
+  id: zod.string(),
+  issuer: zod.string(),
+  source: zod.string(),
+  tenantId: zod.string(),
+});
+
+/**
+ * @summary Get tenant TLS config (ACME issuer + cipher policy)
+ */
+export const getTLSConfigResponse = zod.object({
+  acmeDirectory: zod.string().optional(),
+  acmeEmail: zod.string(),
+  acmeProvider: zod.string(),
+  allowedCiphers: zod.array(zod.string()),
+  minProtocol: zod.string(),
+  tenantId: zod.string(),
+  updatedAt: zod.string().datetime(),
+});
+
+/**
+ * @summary Update tenant ACME issuer settings
+ */
+export const putTLSConfigACMEBody = zod.object({
+  directory: zod.string().optional(),
+  email: zod.string().optional(),
+  provider: zod.string(),
+});
+
+export const putTLSConfigACMEResponse = zod.object({
+  acmeDirectory: zod.string().optional(),
+  acmeEmail: zod.string(),
+  acmeProvider: zod.string(),
+  allowedCiphers: zod.array(zod.string()),
+  minProtocol: zod.string(),
+  tenantId: zod.string(),
+  updatedAt: zod.string().datetime(),
+});
+
+/**
+ * @summary Update tenant TLS cipher policy
+ */
+export const putTLSConfigCiphersBody = zod.object({
+  allowedCiphers: zod.array(zod.string()).optional(),
+  minProtocol: zod.string().optional(),
+});
+
+export const putTLSConfigCiphersResponse = zod.object({
+  acmeDirectory: zod.string().optional(),
+  acmeEmail: zod.string(),
+  acmeProvider: zod.string(),
+  allowedCiphers: zod.array(zod.string()),
+  minProtocol: zod.string(),
+  tenantId: zod.string(),
+  updatedAt: zod.string().datetime(),
 });
 
 /**

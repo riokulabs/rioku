@@ -24,7 +24,12 @@ Conventions:
 import { faker } from '@faker-js/faker';
 import { HttpResponse, delay, http } from 'msw';
 import type {
+  CertAuthority,
+  CertEnrollment,
   GetDangerExport200,
+  ListCertAuthorities200,
+  ListCertEnrollments200,
+  ListTLSCertificates200,
   ManualCertResponse,
   PostDangerHardReset200,
   PostSettingsBackupCodesReset200,
@@ -41,6 +46,8 @@ import type {
   SettingsTLS,
   SettingsTenant,
   SettingsTraces,
+  TLSCertificate,
+  TLSConfig,
   WebhookTestResult,
 } from '.././schemas';
 
@@ -412,6 +419,200 @@ export const getPutSettingsPKIResponseMock = (
   ...overrideResponse,
 });
 
+export const getListCertAuthoritiesResponseMock = (
+  overrideResponse: Partial<ListCertAuthorities200> = {},
+): ListCertAuthorities200 => ({
+  items: Array.from({ length: faker.number.int({ min: 1, max: 10 }) }, (_, i) => i + 1).map(() => ({
+    createdAt: `${faker.date.past().toISOString().split('.')[0]}Z`,
+    fingerprintSha256: faker.helpers.arrayElement([faker.string.alpha(20), undefined]),
+    id: faker.string.alpha(20),
+    kind: faker.string.alpha(20),
+    name: faker.string.alpha(20),
+    notAfter: faker.helpers.arrayElement([
+      `${faker.date.past().toISOString().split('.')[0]}Z`,
+      undefined,
+    ]),
+    notBefore: faker.helpers.arrayElement([
+      `${faker.date.past().toISOString().split('.')[0]}Z`,
+      undefined,
+    ]),
+    subject: faker.string.alpha(20),
+    tenantId: faker.string.alpha(20),
+    updatedAt: `${faker.date.past().toISOString().split('.')[0]}Z`,
+  })),
+  total: faker.number.int({ min: undefined, max: undefined }),
+  ...overrideResponse,
+});
+
+export const getCreateCertAuthorityResponseMock = (
+  overrideResponse: Partial<CertAuthority> = {},
+): CertAuthority => ({
+  createdAt: `${faker.date.past().toISOString().split('.')[0]}Z`,
+  fingerprintSha256: faker.helpers.arrayElement([faker.string.alpha(20), undefined]),
+  id: faker.string.alpha(20),
+  kind: faker.string.alpha(20),
+  name: faker.string.alpha(20),
+  notAfter: faker.helpers.arrayElement([
+    `${faker.date.past().toISOString().split('.')[0]}Z`,
+    undefined,
+  ]),
+  notBefore: faker.helpers.arrayElement([
+    `${faker.date.past().toISOString().split('.')[0]}Z`,
+    undefined,
+  ]),
+  subject: faker.string.alpha(20),
+  tenantId: faker.string.alpha(20),
+  updatedAt: `${faker.date.past().toISOString().split('.')[0]}Z`,
+  ...overrideResponse,
+});
+
+export const getGetCertAuthorityResponseMock = (
+  overrideResponse: Partial<CertAuthority> = {},
+): CertAuthority => ({
+  createdAt: `${faker.date.past().toISOString().split('.')[0]}Z`,
+  fingerprintSha256: faker.helpers.arrayElement([faker.string.alpha(20), undefined]),
+  id: faker.string.alpha(20),
+  kind: faker.string.alpha(20),
+  name: faker.string.alpha(20),
+  notAfter: faker.helpers.arrayElement([
+    `${faker.date.past().toISOString().split('.')[0]}Z`,
+    undefined,
+  ]),
+  notBefore: faker.helpers.arrayElement([
+    `${faker.date.past().toISOString().split('.')[0]}Z`,
+    undefined,
+  ]),
+  subject: faker.string.alpha(20),
+  tenantId: faker.string.alpha(20),
+  updatedAt: `${faker.date.past().toISOString().split('.')[0]}Z`,
+  ...overrideResponse,
+});
+
+export const getUpdateCertAuthorityResponseMock = (
+  overrideResponse: Partial<CertAuthority> = {},
+): CertAuthority => ({
+  createdAt: `${faker.date.past().toISOString().split('.')[0]}Z`,
+  fingerprintSha256: faker.helpers.arrayElement([faker.string.alpha(20), undefined]),
+  id: faker.string.alpha(20),
+  kind: faker.string.alpha(20),
+  name: faker.string.alpha(20),
+  notAfter: faker.helpers.arrayElement([
+    `${faker.date.past().toISOString().split('.')[0]}Z`,
+    undefined,
+  ]),
+  notBefore: faker.helpers.arrayElement([
+    `${faker.date.past().toISOString().split('.')[0]}Z`,
+    undefined,
+  ]),
+  subject: faker.string.alpha(20),
+  tenantId: faker.string.alpha(20),
+  updatedAt: `${faker.date.past().toISOString().split('.')[0]}Z`,
+  ...overrideResponse,
+});
+
+export const getListCertEnrollmentsResponseMock = (
+  overrideResponse: Partial<ListCertEnrollments200> = {},
+): ListCertEnrollments200 => ({
+  items: Array.from({ length: faker.number.int({ min: 1, max: 10 }) }, (_, i) => i + 1).map(() => ({
+    caId: faker.helpers.arrayElement([faker.string.alpha(20), undefined]),
+    dnsSans: Array.from({ length: faker.number.int({ min: 1, max: 10 }) }, (_, i) => i + 1).map(
+      () => faker.string.alpha(20),
+    ),
+    fingerprintSha256: faker.helpers.arrayElement([faker.string.alpha(20), undefined]),
+    id: faker.string.alpha(20),
+    issuedAt: faker.helpers.arrayElement([
+      `${faker.date.past().toISOString().split('.')[0]}Z`,
+      undefined,
+    ]),
+    requestedAt: `${faker.date.past().toISOString().split('.')[0]}Z`,
+    revocationReason: faker.helpers.arrayElement([faker.string.alpha(20), undefined]),
+    revokedAt: faker.helpers.arrayElement([
+      `${faker.date.past().toISOString().split('.')[0]}Z`,
+      undefined,
+    ]),
+    state: faker.string.alpha(20),
+    subject: faker.string.alpha(20),
+    tenantId: faker.string.alpha(20),
+  })),
+  total: faker.number.int({ min: undefined, max: undefined }),
+  ...overrideResponse,
+});
+
+export const getCreateCertEnrollmentResponseMock = (
+  overrideResponse: Partial<CertEnrollment> = {},
+): CertEnrollment => ({
+  caId: faker.helpers.arrayElement([faker.string.alpha(20), undefined]),
+  dnsSans: Array.from({ length: faker.number.int({ min: 1, max: 10 }) }, (_, i) => i + 1).map(() =>
+    faker.string.alpha(20),
+  ),
+  fingerprintSha256: faker.helpers.arrayElement([faker.string.alpha(20), undefined]),
+  id: faker.string.alpha(20),
+  issuedAt: faker.helpers.arrayElement([
+    `${faker.date.past().toISOString().split('.')[0]}Z`,
+    undefined,
+  ]),
+  requestedAt: `${faker.date.past().toISOString().split('.')[0]}Z`,
+  revocationReason: faker.helpers.arrayElement([faker.string.alpha(20), undefined]),
+  revokedAt: faker.helpers.arrayElement([
+    `${faker.date.past().toISOString().split('.')[0]}Z`,
+    undefined,
+  ]),
+  state: faker.string.alpha(20),
+  subject: faker.string.alpha(20),
+  tenantId: faker.string.alpha(20),
+  ...overrideResponse,
+});
+
+export const getGetCertEnrollmentResponseMock = (
+  overrideResponse: Partial<CertEnrollment> = {},
+): CertEnrollment => ({
+  caId: faker.helpers.arrayElement([faker.string.alpha(20), undefined]),
+  dnsSans: Array.from({ length: faker.number.int({ min: 1, max: 10 }) }, (_, i) => i + 1).map(() =>
+    faker.string.alpha(20),
+  ),
+  fingerprintSha256: faker.helpers.arrayElement([faker.string.alpha(20), undefined]),
+  id: faker.string.alpha(20),
+  issuedAt: faker.helpers.arrayElement([
+    `${faker.date.past().toISOString().split('.')[0]}Z`,
+    undefined,
+  ]),
+  requestedAt: `${faker.date.past().toISOString().split('.')[0]}Z`,
+  revocationReason: faker.helpers.arrayElement([faker.string.alpha(20), undefined]),
+  revokedAt: faker.helpers.arrayElement([
+    `${faker.date.past().toISOString().split('.')[0]}Z`,
+    undefined,
+  ]),
+  state: faker.string.alpha(20),
+  subject: faker.string.alpha(20),
+  tenantId: faker.string.alpha(20),
+  ...overrideResponse,
+});
+
+export const getRevokeCertEnrollmentResponseMock = (
+  overrideResponse: Partial<CertEnrollment> = {},
+): CertEnrollment => ({
+  caId: faker.helpers.arrayElement([faker.string.alpha(20), undefined]),
+  dnsSans: Array.from({ length: faker.number.int({ min: 1, max: 10 }) }, (_, i) => i + 1).map(() =>
+    faker.string.alpha(20),
+  ),
+  fingerprintSha256: faker.helpers.arrayElement([faker.string.alpha(20), undefined]),
+  id: faker.string.alpha(20),
+  issuedAt: faker.helpers.arrayElement([
+    `${faker.date.past().toISOString().split('.')[0]}Z`,
+    undefined,
+  ]),
+  requestedAt: `${faker.date.past().toISOString().split('.')[0]}Z`,
+  revocationReason: faker.helpers.arrayElement([faker.string.alpha(20), undefined]),
+  revokedAt: faker.helpers.arrayElement([
+    `${faker.date.past().toISOString().split('.')[0]}Z`,
+    undefined,
+  ]),
+  state: faker.string.alpha(20),
+  subject: faker.string.alpha(20),
+  tenantId: faker.string.alpha(20),
+  ...overrideResponse,
+});
+
 export const getListPKIRevocationsResponseMock = (
   overrideResponse: Partial<RevocationList> = {},
 ): RevocationList => ({
@@ -570,6 +771,129 @@ export const getPutSettingsTLSResponseMock = (
     })),
     undefined,
   ]),
+  ...overrideResponse,
+});
+
+export const getListTLSCertificatesResponseMock = (
+  overrideResponse: Partial<ListTLSCertificates200> = {},
+): ListTLSCertificates200 => ({
+  items: Array.from({ length: faker.number.int({ min: 1, max: 10 }) }, (_, i) => i + 1).map(() => ({
+    autoRenew: faker.datatype.boolean(),
+    createdAt: `${faker.date.past().toISOString().split('.')[0]}Z`,
+    domain: faker.string.alpha(20),
+    expiresAt: faker.helpers.arrayElement([
+      `${faker.date.past().toISOString().split('.')[0]}Z`,
+      undefined,
+    ]),
+    fingerprintSha256: faker.helpers.arrayElement([faker.string.alpha(20), undefined]),
+    id: faker.string.alpha(20),
+    issuer: faker.string.alpha(20),
+    source: faker.string.alpha(20),
+    tenantId: faker.string.alpha(20),
+  })),
+  total: faker.number.int({ min: undefined, max: undefined }),
+  ...overrideResponse,
+});
+
+export const getCreateTLSCertificateResponseMock = (
+  overrideResponse: Partial<TLSCertificate> = {},
+): TLSCertificate => ({
+  autoRenew: faker.datatype.boolean(),
+  createdAt: `${faker.date.past().toISOString().split('.')[0]}Z`,
+  domain: faker.string.alpha(20),
+  expiresAt: faker.helpers.arrayElement([
+    `${faker.date.past().toISOString().split('.')[0]}Z`,
+    undefined,
+  ]),
+  fingerprintSha256: faker.helpers.arrayElement([faker.string.alpha(20), undefined]),
+  id: faker.string.alpha(20),
+  issuer: faker.string.alpha(20),
+  source: faker.string.alpha(20),
+  tenantId: faker.string.alpha(20),
+  ...overrideResponse,
+});
+
+export const getGetTLSCertificateResponseMock = (
+  overrideResponse: Partial<TLSCertificate> = {},
+): TLSCertificate => ({
+  autoRenew: faker.datatype.boolean(),
+  createdAt: `${faker.date.past().toISOString().split('.')[0]}Z`,
+  domain: faker.string.alpha(20),
+  expiresAt: faker.helpers.arrayElement([
+    `${faker.date.past().toISOString().split('.')[0]}Z`,
+    undefined,
+  ]),
+  fingerprintSha256: faker.helpers.arrayElement([faker.string.alpha(20), undefined]),
+  id: faker.string.alpha(20),
+  issuer: faker.string.alpha(20),
+  source: faker.string.alpha(20),
+  tenantId: faker.string.alpha(20),
+  ...overrideResponse,
+});
+
+export const getToggleTLSCertificateAutoRenewResponseMock = (
+  overrideResponse: Partial<TLSCertificate> = {},
+): TLSCertificate => ({
+  autoRenew: faker.datatype.boolean(),
+  createdAt: `${faker.date.past().toISOString().split('.')[0]}Z`,
+  domain: faker.string.alpha(20),
+  expiresAt: faker.helpers.arrayElement([
+    `${faker.date.past().toISOString().split('.')[0]}Z`,
+    undefined,
+  ]),
+  fingerprintSha256: faker.helpers.arrayElement([faker.string.alpha(20), undefined]),
+  id: faker.string.alpha(20),
+  issuer: faker.string.alpha(20),
+  source: faker.string.alpha(20),
+  tenantId: faker.string.alpha(20),
+  ...overrideResponse,
+});
+
+export const getGetTLSConfigResponseMock = (
+  overrideResponse: Partial<TLSConfig> = {},
+): TLSConfig => ({
+  acmeDirectory: faker.helpers.arrayElement([faker.string.alpha(20), undefined]),
+  acmeEmail: faker.string.alpha(20),
+  acmeProvider: faker.string.alpha(20),
+  allowedCiphers: Array.from(
+    { length: faker.number.int({ min: 1, max: 10 }) },
+    (_, i) => i + 1,
+  ).map(() => faker.string.alpha(20)),
+  minProtocol: faker.string.alpha(20),
+  tenantId: faker.string.alpha(20),
+  updatedAt: `${faker.date.past().toISOString().split('.')[0]}Z`,
+  ...overrideResponse,
+});
+
+export const getPutTLSConfigACMEResponseMock = (
+  overrideResponse: Partial<TLSConfig> = {},
+): TLSConfig => ({
+  acmeDirectory: faker.helpers.arrayElement([faker.string.alpha(20), undefined]),
+  acmeEmail: faker.string.alpha(20),
+  acmeProvider: faker.string.alpha(20),
+  allowedCiphers: Array.from(
+    { length: faker.number.int({ min: 1, max: 10 }) },
+    (_, i) => i + 1,
+  ).map(() => faker.string.alpha(20)),
+  minProtocol: faker.string.alpha(20),
+  tenantId: faker.string.alpha(20),
+  updatedAt: `${faker.date.past().toISOString().split('.')[0]}Z`,
+  ...overrideResponse,
+});
+
+export const getPutTLSConfigCiphersResponseMock = (
+  overrideResponse: Partial<TLSConfig> = {},
+): TLSConfig => ({
+  acmeDirectory: faker.helpers.arrayElement([faker.string.alpha(20), undefined]),
+  acmeEmail: faker.string.alpha(20),
+  acmeProvider: faker.string.alpha(20),
+  allowedCiphers: Array.from(
+    { length: faker.number.int({ min: 1, max: 10 }) },
+    (_, i) => i + 1,
+  ).map(() => faker.string.alpha(20)),
+  minProtocol: faker.string.alpha(20),
+  tenantId: faker.string.alpha(20),
+  updatedAt: `${faker.date.past().toISOString().split('.')[0]}Z`,
   ...overrideResponse,
 });
 
@@ -1125,6 +1449,204 @@ export const getPutSettingsPKIMockHandler = (
   });
 };
 
+export const getListCertAuthoritiesMockHandler = (
+  overrideResponse?:
+    | ListCertAuthorities200
+    | ((
+        info: Parameters<Parameters<typeof http.get>[1]>[0],
+      ) => Promise<ListCertAuthorities200> | ListCertAuthorities200),
+) => {
+  return http.get('*/api/v1/t/:tenant/settings/pki/cas', async (info) => {
+    await delay(1000);
+
+    return new HttpResponse(
+      JSON.stringify(
+        overrideResponse !== undefined
+          ? typeof overrideResponse === 'function'
+            ? await overrideResponse(info)
+            : overrideResponse
+          : getListCertAuthoritiesResponseMock(),
+      ),
+      { status: 200, headers: { 'Content-Type': 'application/json' } },
+    );
+  });
+};
+
+export const getCreateCertAuthorityMockHandler = (
+  overrideResponse?:
+    | CertAuthority
+    | ((
+        info: Parameters<Parameters<typeof http.post>[1]>[0],
+      ) => Promise<CertAuthority> | CertAuthority),
+) => {
+  return http.post('*/api/v1/t/:tenant/settings/pki/cas', async (info) => {
+    await delay(1000);
+
+    return new HttpResponse(
+      JSON.stringify(
+        overrideResponse !== undefined
+          ? typeof overrideResponse === 'function'
+            ? await overrideResponse(info)
+            : overrideResponse
+          : getCreateCertAuthorityResponseMock(),
+      ),
+      { status: 201, headers: { 'Content-Type': 'application/json' } },
+    );
+  });
+};
+
+export const getDeleteCertAuthorityMockHandler = (
+  overrideResponse?:
+    | void
+    | ((info: Parameters<Parameters<typeof http.delete>[1]>[0]) => Promise<void> | void),
+) => {
+  return http.delete('*/api/v1/t/:tenant/settings/pki/cas/:id', async (info) => {
+    await delay(1000);
+    if (typeof overrideResponse === 'function') {
+      await overrideResponse(info);
+    }
+    return new HttpResponse(null, { status: 204 });
+  });
+};
+
+export const getGetCertAuthorityMockHandler = (
+  overrideResponse?:
+    | CertAuthority
+    | ((
+        info: Parameters<Parameters<typeof http.get>[1]>[0],
+      ) => Promise<CertAuthority> | CertAuthority),
+) => {
+  return http.get('*/api/v1/t/:tenant/settings/pki/cas/:id', async (info) => {
+    await delay(1000);
+
+    return new HttpResponse(
+      JSON.stringify(
+        overrideResponse !== undefined
+          ? typeof overrideResponse === 'function'
+            ? await overrideResponse(info)
+            : overrideResponse
+          : getGetCertAuthorityResponseMock(),
+      ),
+      { status: 200, headers: { 'Content-Type': 'application/json' } },
+    );
+  });
+};
+
+export const getUpdateCertAuthorityMockHandler = (
+  overrideResponse?:
+    | CertAuthority
+    | ((
+        info: Parameters<Parameters<typeof http.put>[1]>[0],
+      ) => Promise<CertAuthority> | CertAuthority),
+) => {
+  return http.put('*/api/v1/t/:tenant/settings/pki/cas/:id', async (info) => {
+    await delay(1000);
+
+    return new HttpResponse(
+      JSON.stringify(
+        overrideResponse !== undefined
+          ? typeof overrideResponse === 'function'
+            ? await overrideResponse(info)
+            : overrideResponse
+          : getUpdateCertAuthorityResponseMock(),
+      ),
+      { status: 200, headers: { 'Content-Type': 'application/json' } },
+    );
+  });
+};
+
+export const getListCertEnrollmentsMockHandler = (
+  overrideResponse?:
+    | ListCertEnrollments200
+    | ((
+        info: Parameters<Parameters<typeof http.get>[1]>[0],
+      ) => Promise<ListCertEnrollments200> | ListCertEnrollments200),
+) => {
+  return http.get('*/api/v1/t/:tenant/settings/pki/enrollments', async (info) => {
+    await delay(1000);
+
+    return new HttpResponse(
+      JSON.stringify(
+        overrideResponse !== undefined
+          ? typeof overrideResponse === 'function'
+            ? await overrideResponse(info)
+            : overrideResponse
+          : getListCertEnrollmentsResponseMock(),
+      ),
+      { status: 200, headers: { 'Content-Type': 'application/json' } },
+    );
+  });
+};
+
+export const getCreateCertEnrollmentMockHandler = (
+  overrideResponse?:
+    | CertEnrollment
+    | ((
+        info: Parameters<Parameters<typeof http.post>[1]>[0],
+      ) => Promise<CertEnrollment> | CertEnrollment),
+) => {
+  return http.post('*/api/v1/t/:tenant/settings/pki/enrollments', async (info) => {
+    await delay(1000);
+
+    return new HttpResponse(
+      JSON.stringify(
+        overrideResponse !== undefined
+          ? typeof overrideResponse === 'function'
+            ? await overrideResponse(info)
+            : overrideResponse
+          : getCreateCertEnrollmentResponseMock(),
+      ),
+      { status: 201, headers: { 'Content-Type': 'application/json' } },
+    );
+  });
+};
+
+export const getGetCertEnrollmentMockHandler = (
+  overrideResponse?:
+    | CertEnrollment
+    | ((
+        info: Parameters<Parameters<typeof http.get>[1]>[0],
+      ) => Promise<CertEnrollment> | CertEnrollment),
+) => {
+  return http.get('*/api/v1/t/:tenant/settings/pki/enrollments/:id', async (info) => {
+    await delay(1000);
+
+    return new HttpResponse(
+      JSON.stringify(
+        overrideResponse !== undefined
+          ? typeof overrideResponse === 'function'
+            ? await overrideResponse(info)
+            : overrideResponse
+          : getGetCertEnrollmentResponseMock(),
+      ),
+      { status: 200, headers: { 'Content-Type': 'application/json' } },
+    );
+  });
+};
+
+export const getRevokeCertEnrollmentMockHandler = (
+  overrideResponse?:
+    | CertEnrollment
+    | ((
+        info: Parameters<Parameters<typeof http.post>[1]>[0],
+      ) => Promise<CertEnrollment> | CertEnrollment),
+) => {
+  return http.post('*/api/v1/t/:tenant/settings/pki/enrollments/:id/revoke', async (info) => {
+    await delay(1000);
+
+    return new HttpResponse(
+      JSON.stringify(
+        overrideResponse !== undefined
+          ? typeof overrideResponse === 'function'
+            ? await overrideResponse(info)
+            : overrideResponse
+          : getRevokeCertEnrollmentResponseMock(),
+      ),
+      { status: 200, headers: { 'Content-Type': 'application/json' } },
+    );
+  });
+};
+
 export const getListPKIRevocationsMockHandler = (
   overrideResponse?:
     | RevocationList
@@ -1259,6 +1781,175 @@ export const getPutSettingsTLSMockHandler = (
   });
 };
 
+export const getListTLSCertificatesMockHandler = (
+  overrideResponse?:
+    | ListTLSCertificates200
+    | ((
+        info: Parameters<Parameters<typeof http.get>[1]>[0],
+      ) => Promise<ListTLSCertificates200> | ListTLSCertificates200),
+) => {
+  return http.get('*/api/v1/t/:tenant/settings/tls/certificates', async (info) => {
+    await delay(1000);
+
+    return new HttpResponse(
+      JSON.stringify(
+        overrideResponse !== undefined
+          ? typeof overrideResponse === 'function'
+            ? await overrideResponse(info)
+            : overrideResponse
+          : getListTLSCertificatesResponseMock(),
+      ),
+      { status: 200, headers: { 'Content-Type': 'application/json' } },
+    );
+  });
+};
+
+export const getCreateTLSCertificateMockHandler = (
+  overrideResponse?:
+    | TLSCertificate
+    | ((
+        info: Parameters<Parameters<typeof http.post>[1]>[0],
+      ) => Promise<TLSCertificate> | TLSCertificate),
+) => {
+  return http.post('*/api/v1/t/:tenant/settings/tls/certificates', async (info) => {
+    await delay(1000);
+
+    return new HttpResponse(
+      JSON.stringify(
+        overrideResponse !== undefined
+          ? typeof overrideResponse === 'function'
+            ? await overrideResponse(info)
+            : overrideResponse
+          : getCreateTLSCertificateResponseMock(),
+      ),
+      { status: 201, headers: { 'Content-Type': 'application/json' } },
+    );
+  });
+};
+
+export const getDeleteTLSCertificateMockHandler = (
+  overrideResponse?:
+    | void
+    | ((info: Parameters<Parameters<typeof http.delete>[1]>[0]) => Promise<void> | void),
+) => {
+  return http.delete('*/api/v1/t/:tenant/settings/tls/certificates/:id', async (info) => {
+    await delay(1000);
+    if (typeof overrideResponse === 'function') {
+      await overrideResponse(info);
+    }
+    return new HttpResponse(null, { status: 204 });
+  });
+};
+
+export const getGetTLSCertificateMockHandler = (
+  overrideResponse?:
+    | TLSCertificate
+    | ((
+        info: Parameters<Parameters<typeof http.get>[1]>[0],
+      ) => Promise<TLSCertificate> | TLSCertificate),
+) => {
+  return http.get('*/api/v1/t/:tenant/settings/tls/certificates/:id', async (info) => {
+    await delay(1000);
+
+    return new HttpResponse(
+      JSON.stringify(
+        overrideResponse !== undefined
+          ? typeof overrideResponse === 'function'
+            ? await overrideResponse(info)
+            : overrideResponse
+          : getGetTLSCertificateResponseMock(),
+      ),
+      { status: 200, headers: { 'Content-Type': 'application/json' } },
+    );
+  });
+};
+
+export const getToggleTLSCertificateAutoRenewMockHandler = (
+  overrideResponse?:
+    | TLSCertificate
+    | ((
+        info: Parameters<Parameters<typeof http.patch>[1]>[0],
+      ) => Promise<TLSCertificate> | TLSCertificate),
+) => {
+  return http.patch('*/api/v1/t/:tenant/settings/tls/certificates/:id/auto-renew', async (info) => {
+    await delay(1000);
+
+    return new HttpResponse(
+      JSON.stringify(
+        overrideResponse !== undefined
+          ? typeof overrideResponse === 'function'
+            ? await overrideResponse(info)
+            : overrideResponse
+          : getToggleTLSCertificateAutoRenewResponseMock(),
+      ),
+      { status: 200, headers: { 'Content-Type': 'application/json' } },
+    );
+  });
+};
+
+export const getGetTLSConfigMockHandler = (
+  overrideResponse?:
+    | TLSConfig
+    | ((info: Parameters<Parameters<typeof http.get>[1]>[0]) => Promise<TLSConfig> | TLSConfig),
+) => {
+  return http.get('*/api/v1/t/:tenant/settings/tls/config', async (info) => {
+    await delay(1000);
+
+    return new HttpResponse(
+      JSON.stringify(
+        overrideResponse !== undefined
+          ? typeof overrideResponse === 'function'
+            ? await overrideResponse(info)
+            : overrideResponse
+          : getGetTLSConfigResponseMock(),
+      ),
+      { status: 200, headers: { 'Content-Type': 'application/json' } },
+    );
+  });
+};
+
+export const getPutTLSConfigACMEMockHandler = (
+  overrideResponse?:
+    | TLSConfig
+    | ((info: Parameters<Parameters<typeof http.put>[1]>[0]) => Promise<TLSConfig> | TLSConfig),
+) => {
+  return http.put('*/api/v1/t/:tenant/settings/tls/config/acme', async (info) => {
+    await delay(1000);
+
+    return new HttpResponse(
+      JSON.stringify(
+        overrideResponse !== undefined
+          ? typeof overrideResponse === 'function'
+            ? await overrideResponse(info)
+            : overrideResponse
+          : getPutTLSConfigACMEResponseMock(),
+      ),
+      { status: 200, headers: { 'Content-Type': 'application/json' } },
+    );
+  });
+};
+
+export const getPutTLSConfigCiphersMockHandler = (
+  overrideResponse?:
+    | TLSConfig
+    | ((info: Parameters<Parameters<typeof http.put>[1]>[0]) => Promise<TLSConfig> | TLSConfig),
+) => {
+  return http.put('*/api/v1/t/:tenant/settings/tls/config/ciphers', async (info) => {
+    await delay(1000);
+
+    return new HttpResponse(
+      JSON.stringify(
+        overrideResponse !== undefined
+          ? typeof overrideResponse === 'function'
+            ? await overrideResponse(info)
+            : overrideResponse
+          : getPutTLSConfigCiphersResponseMock(),
+      ),
+      { status: 200, headers: { 'Content-Type': 'application/json' } },
+    );
+  });
+};
+
 export const getUploadManualCertMockHandler = (
   overrideResponse?:
     | ManualCertResponse
@@ -1341,12 +2032,29 @@ export const getSettingsMock = () => [
   getPutSettingsObservabilityTracesMockHandler(),
   getGetSettingsPKIMockHandler(),
   getPutSettingsPKIMockHandler(),
+  getListCertAuthoritiesMockHandler(),
+  getCreateCertAuthorityMockHandler(),
+  getDeleteCertAuthorityMockHandler(),
+  getGetCertAuthorityMockHandler(),
+  getUpdateCertAuthorityMockHandler(),
+  getListCertEnrollmentsMockHandler(),
+  getCreateCertEnrollmentMockHandler(),
+  getGetCertEnrollmentMockHandler(),
+  getRevokeCertEnrollmentMockHandler(),
   getListPKIRevocationsMockHandler(),
   getCreatePKIRevocationMockHandler(),
   getGetSettingsTenantMockHandler(),
   getPatchSettingsTenantMockHandler(),
   getGetSettingsTLSMockHandler(),
   getPutSettingsTLSMockHandler(),
+  getListTLSCertificatesMockHandler(),
+  getCreateTLSCertificateMockHandler(),
+  getDeleteTLSCertificateMockHandler(),
+  getGetTLSCertificateMockHandler(),
+  getToggleTLSCertificateAutoRenewMockHandler(),
+  getGetTLSConfigMockHandler(),
+  getPutTLSConfigACMEMockHandler(),
+  getPutTLSConfigCiphersMockHandler(),
   getUploadManualCertMockHandler(),
   getDeleteManualCertMockHandler(),
   getPostWebhookTestMockHandler(),

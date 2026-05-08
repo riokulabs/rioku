@@ -1,0 +1,224 @@
+# Stage-2 plan-16a: settings TLS sub-collections (certificates + config singleton).
+#
+# Mirrors the TLS-cert + TLS-config handlers in
+# packages/daemon/internal/gateway/pki_routes.go.
+
+paths:
+  /api/v1/t/{tenant}/settings/tls/certificates:
+    parameters:
+      - $ref: "#/components/parameters/Tenant"
+    get:
+      tags: [settings]
+      summary: List TLS certificates for the tenant
+      operationId: listTLSCertificates
+      responses:
+        "200":
+          description: ok
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [items, total]
+                properties:
+                  items:
+                    type: array
+                    items: { $ref: "#/components/schemas/TLSCertificate" }
+                  total: { type: integer }
+    post:
+      tags: [settings]
+      summary: Upload a TLS certificate
+      operationId: createTLSCertificate
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/CreateTLSCertificateBody" }
+      responses:
+        "201":
+          description: created
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/TLSCertificate" }
+        "409":
+          description: domain already in use
+          content:
+            application/problem+json:
+              schema: { $ref: "#/components/schemas/Problem" }
+    options:
+      responses: { "204": { description: no content } }
+
+  /api/v1/t/{tenant}/settings/tls/certificates/{id}:
+    parameters:
+      - $ref: "#/components/parameters/Tenant"
+      - in: path
+        name: id
+        required: true
+        schema: { type: string }
+    get:
+      tags: [settings]
+      operationId: getTLSCertificate
+      responses:
+        "200":
+          description: ok
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/TLSCertificate" }
+        "404":
+          description: not found
+          content:
+            application/problem+json:
+              schema: { $ref: "#/components/schemas/Problem" }
+    delete:
+      tags: [settings]
+      operationId: deleteTLSCertificate
+      responses:
+        "204": { description: deleted }
+        "404":
+          description: not found
+          content:
+            application/problem+json:
+              schema: { $ref: "#/components/schemas/Problem" }
+    options:
+      responses: { "204": { description: no content } }
+
+  /api/v1/t/{tenant}/settings/tls/certificates/{id}/auto-renew:
+    parameters:
+      - $ref: "#/components/parameters/Tenant"
+      - in: path
+        name: id
+        required: true
+        schema: { type: string }
+    patch:
+      tags: [settings]
+      summary: Toggle auto-renew flag for a TLS certificate
+      operationId: toggleTLSCertificateAutoRenew
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [autoRenew]
+              properties:
+                autoRenew: { type: boolean }
+      responses:
+        "200":
+          description: ok
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/TLSCertificate" }
+    options:
+      responses: { "204": { description: no content } }
+
+  /api/v1/t/{tenant}/settings/tls/config:
+    parameters:
+      - $ref: "#/components/parameters/Tenant"
+    get:
+      tags: [settings]
+      summary: Get tenant TLS config (ACME issuer + cipher policy)
+      operationId: getTLSConfig
+      responses:
+        "200":
+          description: ok
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/TLSConfig" }
+    options:
+      responses: { "204": { description: no content } }
+
+  /api/v1/t/{tenant}/settings/tls/config/acme:
+    parameters:
+      - $ref: "#/components/parameters/Tenant"
+    put:
+      tags: [settings]
+      summary: Update tenant ACME issuer settings
+      operationId: putTLSConfigACME
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/UpdateTLSACMEBody" }
+      responses:
+        "200":
+          description: ok
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/TLSConfig" }
+    options:
+      responses: { "204": { description: no content } }
+
+  /api/v1/t/{tenant}/settings/tls/config/ciphers:
+    parameters:
+      - $ref: "#/components/parameters/Tenant"
+    put:
+      tags: [settings]
+      summary: Update tenant TLS cipher policy
+      operationId: putTLSConfigCiphers
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/UpdateTLSCiphersBody" }
+      responses:
+        "200":
+          description: ok
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/TLSConfig" }
+    options:
+      responses: { "204": { description: no content } }
+
+components:
+  schemas:
+    TLSCertificate:
+      type: object
+      required: [id, tenantId, domain, issuer, source, autoRenew, createdAt]
+      properties:
+        id: { type: string }
+        tenantId: { type: string }
+        domain: { type: string }
+        issuer: { type: string }
+        source:
+          type: string
+          description: "Certificate provenance: `manual`, `acme`, `auto`."
+        expiresAt: { type: string, format: date-time }
+        autoRenew: { type: boolean }
+        fingerprintSha256: { type: string }
+        createdAt: { type: string, format: date-time }
+    CreateTLSCertificateBody:
+      type: object
+      required: [domain]
+      properties:
+        domain: { type: string }
+        issuer: { type: string }
+        source: { type: string }
+        certificatePem: { type: string }
+    TLSConfig:
+      type: object
+      required: [tenantId, acmeProvider, acmeEmail, allowedCiphers, minProtocol, updatedAt]
+      properties:
+        tenantId: { type: string }
+        acmeProvider: { type: string }
+        acmeEmail: { type: string }
+        acmeDirectory: { type: string }
+        allowedCiphers:
+          type: array
+          items: { type: string }
+        minProtocol:
+          type: string
+          description: "Minimum TLS protocol (e.g. `tls1.2`, `tls1.3`)."
+        updatedAt: { type: string, format: date-time }
+    UpdateTLSACMEBody:
+      type: object
+      required: [provider]
+      properties:
+        provider: { type: string }
+        email: { type: string }
+        directory: { type: string }
+    UpdateTLSCiphersBody:
+      type: object
+      properties:
+        allowedCiphers:
+          type: array
+          items: { type: string }
+        minProtocol: { type: string }
