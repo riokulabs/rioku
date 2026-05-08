@@ -406,6 +406,16 @@ else
   else
     success "Sandbox data seeded"
   fi
+
+  # Seed test users (testadmin/testoperator/testviewer). The rioku seed
+  # CLI only loads services/policies/routes from seed.json — user seeding
+  # uses the dedicated REST-based seed-users.sh because it needs to drive
+  # the auth flow (create user, assign role, enable account) rather than
+  # config-store inserts. Without this, every smoke-test login returns 401.
+  info "Seeding sandbox test users via seed-users.sh ..."
+  if ! bash "${SANDBOX_DIR}/scripts/seed-users.sh" "${ROOT_PASSWORD}"; then
+    warn "Test users seed encountered errors — auth smoke tests will fail"
+  fi
 fi
 
 # --------------------------------------------------------------------------
