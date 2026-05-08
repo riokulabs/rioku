@@ -51,11 +51,20 @@ fi
 : "${SANDBOX_OTLP_STATUS_PORT:=4319}"
 : "${SANDBOX_OTLP_ENDPOINT:=localhost:${SANDBOX_OTLP_PORT}}"
 
+# SMTP wiring for the daemon (tests/sandbox use mailpit on 11025 by default).
+# These need to be exported defaults — envsubst (gettext) does NOT understand
+# the `${VAR:-default}` bash form and leaves it literally in the rendered
+# config when the variable is unset.
+: "${SANDBOX_SMTP_HOST:=localhost}"
+: "${SANDBOX_SMTP_PORT:=11025}"
+: "${SANDBOX_SMTP_FROM:=noreply@rioku.local}"
+
 # Export all SANDBOX_ vars so envsubst can see them
 export SANDBOX_PORT_REST SANDBOX_PORT_GRPC SANDBOX_PORT_TRAFFIC SANDBOX_PORT_CADDY_ADMIN
 export SANDBOX_PORT_USERS SANDBOX_PORT_PRODUCTS SANDBOX_PORT_WEBHOOKS SANDBOX_PORT_AUTH SANDBOX_PORT_MEDIA
 export SANDBOX_DEV_MODE SANDBOX_RATE_LIMIT_RPM SANDBOX_RATE_LIMIT_BURST SANDBOX_REST_BIND
 export SANDBOX_OTLP_ENABLED SANDBOX_OTLP_PORT SANDBOX_OTLP_STATUS_PORT SANDBOX_OTLP_ENDPOINT
+export SANDBOX_SMTP_HOST SANDBOX_SMTP_PORT SANDBOX_SMTP_FROM
 
 # --------------------------------------------------------------------------
 # Derived paths and addresses
