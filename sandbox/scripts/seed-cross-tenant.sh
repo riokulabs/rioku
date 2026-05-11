@@ -255,8 +255,12 @@ import sys, json, re
 try:
     raw = re.sub(r'[\x00-\x1f]', '', '''${role_result}''')
     d = json.loads(raw)
-    # Roles endpoint returns either a bare array or {items: [...]}
-    items = d if isinstance(d, list) else d.get('items', [])
+    # Roles endpoint now returns {roles: [...]} per OpenAPI; older code
+    # paths returned bare arrays or {items: [...]} — be tolerant.
+    if isinstance(d, list):
+        items = d
+    else:
+        items = d.get('roles') or d.get('items') or []
     for r in items:
         if r.get('name') == '${TENANT}-viewer':
             print(r.get('id', ''))
