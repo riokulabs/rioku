@@ -14,31 +14,20 @@ make sandbox-reset              # Wipe data + restart fresh
 
 ### Containers (requires Podman or Docker)
 
-Container sandbox supports multiple profiles:
-
 ```bash
-# Rich mode (default: sandbox + Prometheus + Grafana + OTel + Tempo)
 make sandbox-container          # Build images + start in containers
-
-# Lean mode (smoke tests + RBAC tests only)
-make sandbox-container-lean     # Start with minimal services
-
-# Explicit rich mode
-make sandbox-container-rich     # Equivalent to sandbox-container
-
-# PostgreSQL profile (replaces SQLite)
-make sandbox-container-postgres # Rich services + PostgreSQL backend
-
-# Utility targets
-make sandbox-container-prepull  # Warm container image cache
-make sandbox-container-doctor   # Health probe for running sandbox
-make sandbox-container-certs    # Regenerate self-signed CA + leaf certs
 make sandbox-container-stop     # Stop containers
 make sandbox-container-logs     # Stream container logs
 make sandbox-container-clean    # Remove containers, volumes, and local images
 ```
 
-Podman is the canonical engine. The Makefile auto-detects `podman-compose` or falls back to `docker compose`. To force a specific tool:
+`make sandbox-container` brings up the full container stack (sandbox apps + daemon + Mailpit + Prometheus + Grafana + OTel + Tempo + Pebble). The `postgres` service in `compose.yaml` is gated by a compose profile and not started by default; to include it, run compose directly with `--profile postgres`:
+
+```bash
+cd sandbox && podman-compose --profile postgres --env-file .env.example up --build -d
+```
+
+Podman is the canonical engine. The Makefile auto-detects `podman-compose` first and falls back to `docker compose` or `docker-compose`. To force a specific tool:
 
 ```bash
 COMPOSE_CMD="docker compose" make sandbox-container
@@ -142,16 +131,12 @@ See `sandbox/.env.example` for all available port variables.
 
 | Target | Description |
 | --- | --- |
-| `sandbox-container` | Build + start sandbox in containers (rich mode: services + Prometheus + Grafana + OTel + Tempo) |
-| `sandbox-container-lean` | Start containers in lean mode (smoke tests + RBAC tests only) |
-| `sandbox-container-rich` | Explicit rich mode (equivalent to `sandbox-container`) |
-| `sandbox-container-postgres` | Rich mode with PostgreSQL backend (instead of SQLite) |
-| `sandbox-container-prepull` | Warm container image cache (pulls all Stage-2 images) |
-| `sandbox-container-doctor` | Health probe for running container sandbox |
-| `sandbox-container-certs` | Regenerate self-signed CA + leaf certificates |
+| `sandbox-container` | Build + start sandbox in containers (apps + daemon + Mailpit + Prometheus + Grafana + OTel + Tempo + Pebble) |
 | `sandbox-container-stop` | Stop container sandbox |
 | `sandbox-container-logs` | Stream container logs |
 | `sandbox-container-clean` | Remove containers, volumes, and local images |
+
+PostgreSQL is gated behind a compose profile. To run with Postgres instead of SQLite, invoke compose directly: `cd sandbox && podman-compose --profile postgres --env-file .env.example up --build -d`.
 
 ### Load Testing Targets
 

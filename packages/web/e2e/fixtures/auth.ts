@@ -57,18 +57,17 @@ export async function getStoreState(page: Page): Promise<Record<string, unknown>
  * wrapper so every navigation in a test is automatically safe.
  */
 export async function waitForAppReady(page: Page): Promise<void> {
+  // Stage-2: `__RIOKU_STORE` is no longer set in production (the SPA fetches
+  // identity from the daemon). The previous version of this helper waited
+  // 15s for that window key, which silently expired on every goto() and
+  // ate ~half of each test's 30s budget — leaving too little time for the
+  // first assertion to evaluate and producing the "browser has been closed"
+  // cascade. The new version waits on DOM-level signals only: the #root
+  // div has children, and either a heading is mounted or the body has
+  // meaningful text. Tolerates 404/login pages by swallowing the timeout.
   await page
     .waitForFunction(
       () => {
-        const store = (
-          window as unknown as {
-            __RIOKU_STORE?: { getState: () => { currentUserId: string | null } };
-          }
-        ).__RIOKU_STORE;
-        if (!store) return false;
-        if (store.getState().currentUserId === null) return false;
-        // Route content has mounted — at least one heading OR dialog OR a
-        // sizeable chunk of rendered body text exists inside #root.
         const root = document.getElementById('root');
         if (!root || root.children.length === 0) return false;
         const hasHeading = !!root.querySelector('h1, h2, h3, [role="heading"]');

@@ -22,7 +22,7 @@ import { execSync } from 'node:child_process';
 import { existsSync, mkdirSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { request, type FullConfig } from '@playwright/test';
+import { chromium, devices, request, type FullConfig } from '@playwright/test';
 
 function buildSamplePluginIfNeeded(webRoot: string): void {
   const sampleDir = join(webRoot, 'sample-plugin');
@@ -74,15 +74,43 @@ async function precomputeRootAuth(webRoot: string, baseURL: string): Promise<voi
   const username = process.env.RIOKU_ROOT_USERNAME ?? 'root';
   const password = process.env.SANDBOX_ROOT_PASSWORD ?? 'TestRoot1234!';
 
-  const ctx = await request.newContext({ baseURL });
+  // Log in from inside a real Chromium context so the resulting session
+  // cookie's server-side fingerprint (sha256(User-Agent + Accept-Language))
+  // matches the headers the test browsers send. Two non-obvious points:
+  //
+  //   1. `request.newContext()` ships Node-style headers (no chromium UA),
+  //      so its session is bound to a fingerprint the test browsers never
+  //      reproduce → 401 cascade and "browser has been closed" timeouts.
+  //   2. Even `BrowserContext.newPage().evaluate(fetch)` is not enough on
+  //      its own: `fetch()` from inside a chromium page does NOT emit
+  //      Accept-Language automatically (browsers attach that only on
+  //      navigation requests). The login then binds to UA + empty AL, but
+  //      the test browser's first navigation sends UA + "en-US", and the
+  //      fingerprints diverge.
+  //
+  // The fix is to launch with the SAME device descriptor the chromium
+  // project uses (`devices['Desktop Chrome']` — Windows Chrome UA), pin
+  // `locale: 'en-US'` so Accept-Language is identical to test browsers,
+  // and pass extraHTTPHeaders so the login request carries that AL.
+  // Without the device descriptor, a plain `chromium.launch()` emits a
+  // Linux HeadlessChrome UA while the test browsers emit Windows Chrome
+  // (the device emulation overrides UA) — the fingerprints diverge and
+  // the cookie is rejected on first use.
+  const browser = await chromium.launch();
+  const ctx = await browser.newContext({
+    ...devices['Desktop Chrome'],
+    baseURL,
+    locale: 'en-US',
+    extraHTTPHeaders: { 'Accept-Language': 'en-US' },
+  });
   try {
-    const res = await ctx.post('/api/v1/auth/login', {
+    const res = await ctx.request.post('/api/v1/auth/login', {
       data: { username, password },
       failOnStatusCode: false,
     });
     if (!res.ok()) {
       console.warn(
-        `[e2e/global-setup] login failed (${String(res.status())}: ${await res.text()}) — skipping auth precompute.`,
+        `[e2e/global-setup] login failed (HTTP ${String(res.status())}: ${await res.text()}) — skipping auth precompute.`,
       );
       return;
     }
@@ -91,7 +119,8 @@ async function precomputeRootAuth(webRoot: string, baseURL: string): Promise<voi
     await ctx.storageState({ path: statePath });
     console.info(`[e2e/global-setup] persisted root auth state to ${statePath}`);
   } finally {
-    await ctx.dispose();
+    await ctx.close();
+    await browser.close();
   }
 }
 

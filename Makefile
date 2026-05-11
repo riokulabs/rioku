@@ -177,13 +177,25 @@ web-embed: web-build-if-changed
 	@mkdir -p $(PKG)/daemon/web/build
 	@cp -r $(PKG)/web/dist/. $(PKG)/daemon/web/build/
 
-## build-daemon-fast: Build daemon binary without rebuilding web SPA (faster iteration)
-## The go:embed directive requires packages/daemon/web/build/ to exist. If it
-## doesn't (e.g. fresh clone / first CI run), fall back to a full build-daemon
-## so web-embed runs. Otherwise reuse the existing embedded assets.
+## build-daemon-fast: Build daemon binary, re-embed web SPA only when source drifts
+## from the embedded copy. The go:embed directive requires
+## packages/daemon/web/build/ to exist, so we fall back to a full build-daemon
+## when it's missing (fresh clone / first CI run) or when the embedded build's
+## source hash doesn't match the current web sources — that drift was the root
+## cause of the "stale May 3 SPA served by today's daemon" footgun: start.sh
+## called build-daemon-fast, which previously skipped web-embed unconditionally
+## once the embed existed, so source changes never reached the running daemon.
 build-daemon-fast:
-	@if [ ! -f $(PKG)/daemon/web/build/index.html ]; then \
+	@CURRENT_HASH=$$(find packages/web/src -type f -exec sha256sum {} + 2>/dev/null | sort | sha256sum | cut -d' ' -f1); \
+	for f in packages/web/vite.config.ts packages/web/tsconfig.json packages/web/package.json; do \
+		CURRENT_HASH="$${CURRENT_HASH}$$(sha256sum "$$f" 2>/dev/null | cut -d' ' -f1)"; \
+	done; \
+	CURRENT_HASH=$$(echo "$${CURRENT_HASH}" | sha256sum | cut -d' ' -f1); \
+	if [ ! -f $(PKG)/daemon/web/build/index.html ]; then \
 		echo "==> No embedded web assets yet — running full build-daemon..."; \
+		$(MAKE) build-daemon; \
+	elif [ ! -f "$(WEB_HASH_FILE)" ] || [ "$$(cat $(WEB_HASH_FILE) 2>/dev/null)" != "$${CURRENT_HASH}" ]; then \
+		echo "==> Web SPA source has drifted from embedded build — re-embedding..."; \
 		$(MAKE) build-daemon; \
 	else \
 		cd $(PKG)/daemon && $(GO) build -ldflags "$(LDFLAGS)" -o ../../$(BIN_DIR)/rioku ./cmd/rioku; \

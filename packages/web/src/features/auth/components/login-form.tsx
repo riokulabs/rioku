@@ -80,10 +80,9 @@ export function LoginForm({ returnUrl }: LoginFormProps) {
         )}
 
         <TextInput
-          label="Email"
-          placeholder="you@example.com"
-          type="email"
-          autoComplete="email"
+          label="Username or email"
+          placeholder="root or you@example.com"
+          autoComplete="username"
           data-autofocus
           required
           data-testid="email-input"

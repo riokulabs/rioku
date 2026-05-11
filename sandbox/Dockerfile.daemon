@@ -14,7 +14,11 @@ COPY packages/web/ ./
 RUN pnpm build
 
 # ── Stage 2: Daemon Binary ──────────────────────────────────
-FROM golang:1.24-bookworm AS daemon-builder
+# Pin to the Go version the workspace requires (go.work declares `go 1.26.3`).
+# Using golang:1.24 here forces GOTOOLCHAIN-driven auto-download on every
+# build inside the container, slowing builds and failing in offline
+# environments. Keep this in sync with go.work whenever the toolchain bumps.
+FROM golang:1.26-bookworm AS daemon-builder
 WORKDIR /src
 COPY go.work go.work.sum ./
 COPY packages/daemon/ packages/daemon/

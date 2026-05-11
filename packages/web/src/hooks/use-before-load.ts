@@ -66,7 +66,12 @@ export function requirePermissions(opts: RequirePermissionsOptions) {
       });
     }
 
-    const has = (k: string): boolean => me.permissions.includes(k);
+    // Wildcard '*' is the daemon-side representation for superadmin/root
+    // ("full access"). Without this branch the gate fails for root on every
+    // tenant-scoped route — guarded pages render the /access-denied screen
+    // even though the user has unrestricted permissions on the backend.
+    const isWildcard = me.permissions.includes('*');
+    const has = (k: string): boolean => isWildcard || me.permissions.includes(k);
     const pass = opts.requireAny ? opts.required.some(has) : opts.required.every(has);
 
     if (!pass) {

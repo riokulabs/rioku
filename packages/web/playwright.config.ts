@@ -61,6 +61,14 @@ export default defineConfig({
     trace: 'on-first-retry',
     screenshot: 'only-on-failure',
     actionTimeout: 15000,
+    // Pin the Accept-Language fingerprint inputs. The daemon binds each
+    // session cookie to sha256(User-Agent + Accept-Language); if test
+    // contexts emit any other AL than the one global-setup used at login
+    // time, the cookie is rejected as "invalid" and every test that
+    // depends on storageState lands on the /login page instead of the
+    // app shell. Pinning both sides to 'en-US' keeps them aligned.
+    locale: 'en-US',
+    extraHTTPHeaders: { 'Accept-Language': 'en-US' },
   },
   expect: {
     timeout: 15000,
