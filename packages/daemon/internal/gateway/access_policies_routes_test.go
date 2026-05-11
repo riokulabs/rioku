@@ -154,15 +154,18 @@ func TestAccessPolicy_List(t *testing.T) {
 	if resp.StatusCode != http.StatusOK {
 		t.Fatalf("list: %d", resp.StatusCode)
 	}
+	// Response now matches the OpenAPI ListAccessPolicies200 shape
+	// (`{accessPolicies, nextPageToken}`) so the SPA's Orval-typed
+	// hooks can read `data.data.accessPolicies` directly.
 	var body struct {
-		Items []accessPolicyDTO `json:"items"`
-		Total int               `json:"total"`
+		AccessPolicies []accessPolicyDTO `json:"accessPolicies"`
+		NextPageToken  string            `json:"nextPageToken"`
 	}
 	if err := json.NewDecoder(resp.Body).Decode(&body); err != nil {
 		t.Fatal(err)
 	}
-	if body.Total != 3 || len(body.Items) != 3 {
-		t.Errorf("expected 3 items, got total=%d len=%d", body.Total, len(body.Items))
+	if len(body.AccessPolicies) != 3 {
+		t.Errorf("expected 3 access policies, got len=%d", len(body.AccessPolicies))
 	}
 }
 

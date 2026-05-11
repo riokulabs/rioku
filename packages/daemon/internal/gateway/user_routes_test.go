@@ -173,10 +173,16 @@ func TestUserRoutes_ListUsers(t *testing.T) {
 		t.Fatalf("list users: expected 200, got %d", resp.StatusCode)
 	}
 
-	var users []userResponse
-	if err := json.NewDecoder(resp.Body).Decode(&users); err != nil {
+	// Response now matches the OpenAPI ListUsers200 shape
+	// (`{users: [...], nextPageToken: ""}`) so the SPA's
+	// `useUserList` can read `data.data.users` directly.
+	var usersWrap struct {
+		Users []userResponse `json:"users"`
+	}
+	if err := json.NewDecoder(resp.Body).Decode(&usersWrap); err != nil {
 		t.Fatalf("decode users list: %v", err)
 	}
+	users := usersWrap.Users
 
 	// root + alice + bob = 3
 	if len(users) < 3 {
@@ -898,10 +904,13 @@ func TestUserRoutes_ListUsers_WithLastLogin(t *testing.T) {
 		t.Fatalf("list users: expected 200, got %d", resp.StatusCode)
 	}
 
-	var users []userResponse
-	if err := json.NewDecoder(resp.Body).Decode(&users); err != nil {
+	var usersWrap2 struct {
+		Users []userResponse `json:"users"`
+	}
+	if err := json.NewDecoder(resp.Body).Decode(&usersWrap2); err != nil {
 		t.Fatalf("decode: %v", err)
 	}
+	users := usersWrap2.Users
 
 	// Find root user and check lastLogin is present.
 	for _, u := range users {
