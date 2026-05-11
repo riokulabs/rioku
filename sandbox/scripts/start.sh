@@ -38,8 +38,12 @@ fi
 : "${SANDBOX_PORT_AUTH:=9004}"
 : "${SANDBOX_PORT_MEDIA:=9005}"
 : "${SANDBOX_DEV_MODE:=true}"
-: "${SANDBOX_RATE_LIMIT_RPM:=6000}"
-: "${SANDBOX_RATE_LIMIT_BURST:=100}"
+# 60k RPM (1000/sec) + 1000 burst gives parallel Playwright workers
+# (2-4 workers × tens of requests per spec) and the cross-tenant seed
+# loop enough headroom to not trip the gateway-wide rate limiter,
+# which previously surfaced as flaky 429s on `/t/acme/dashboard`.
+: "${SANDBOX_RATE_LIMIT_RPM:=60000}"
+: "${SANDBOX_RATE_LIMIT_BURST:=1000}"
 : "${SANDBOX_REST_BIND:=0.0.0.0}"
 
 # OTLP smoke-test plumbing (off by default). When SANDBOX_OTLP_ENABLED=true,
