@@ -336,7 +336,11 @@ if actor_row is None:
     sys.exit(0)
 actor_id = actor_row[0]
 
-now_iso = datetime.now(timezone.utc).strftime('%Y-%m-%dT%H:%M:%S.%fZ')
+    # Match the daemon's `timeFormat` constant (millisecond precision,
+# no fractional micros). With %f Python emits 6 digits, which fails
+# `time.Parse(timeFormat, ...)` on the daemon and surfaces every
+# audit row as "0001-01-01T00:00:00Z" in /api/v1/t/{tenant}/audit.
+now_iso = datetime.now(timezone.utc).strftime('%Y-%m-%dT%H:%M:%S.') + f'{datetime.now(timezone.utc).microsecond // 1000:03d}Z'
 
 # Build a small variety of synthetic rows per tenant.
 rows = []
