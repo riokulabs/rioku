@@ -164,7 +164,11 @@ function adaptDaemonEntry(raw: DaemonAuditEntry, fallbackTenant: string): AuditE
 // ─── Filter matcher (post-fetch client-side) ─────────────────────────────────
 
 function matchesFilter(entry: AuditEntry, tenantId: string, filter: AuditFilter): boolean {
-  if (entry.tenant_id !== tenantId) return false;
+  // Skip the entry's own tenant_id check — the daemon already scopes the
+  // /api/v1/t/{tenant}/audit response to the URL tenant, so comparing
+  // here against the URL slug (e.g. `acme`) drops every row because the
+  // daemon stamps the internal id (`tenant_ed1cf0c3...`).
+  void tenantId;
 
   if (filter.actions.length > 0 && !filter.actions.includes(entry.action)) {
     return false;

@@ -75,7 +75,9 @@ function matchesFilter(
   tenantId: ID,
   filter: DeliveryLogFilter,
 ): boolean {
-  if (tenantId && entry.tenant_id !== tenantId) return false;
+  // Skip URL-slug vs internal-id comparison — see audit/api.ts for the
+  // same pattern. Daemon already scopes the response to the URL tenant.
+  void tenantId;
   if (filter.statuses.length > 0 && !filter.statuses.includes(entry.status)) return false;
   if (filter.channel_ids.length > 0 && !filter.channel_ids.includes(entry.channel_id)) return false;
   if (filter.date_from !== null && entry.last_attempted_at < filter.date_from) return false;

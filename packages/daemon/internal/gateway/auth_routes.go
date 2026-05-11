@@ -886,8 +886,14 @@ func handleListSessions(st store.Driver) http.HandlerFunc {
 			result = append(result, sr)
 		}
 
+		// OpenAPI: ListSessions200 = `{sessions: [...]}`. The SPA's
+		// `useSessionList` reads `data.data.sessions`; emitting a bare
+		// array gave `undefined → []` and rendered the Sessions page
+		// empty for every user.
 		w.Header().Set("Content-Type", "application/json")
-		_ = json.NewEncoder(w).Encode(result)
+		_ = json.NewEncoder(w).Encode(map[string]any{
+			"sessions": result,
+		})
 	}
 }
 

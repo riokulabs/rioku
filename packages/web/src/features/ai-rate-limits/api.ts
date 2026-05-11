@@ -123,7 +123,11 @@ export function useRateLimitList(tenantId: string, filter: RateLimitFilter): AiS
   const search = filter.search.toLowerCase().trim();
   const out: AiSemanticRateLimit[] = [];
   for (const proto of items) {
-    if (proto.tenantId !== tenantId) continue;
+    // The daemon already scopes the response to the URL's tenant; the
+    // previous `proto.tenantId !== tenantId` guard compared the URL slug
+    // (e.g. `acme`) against the daemon's internal tenant id (e.g.
+    // `tenant_ed1cf0c3...`), filtering out every row and rendering an
+    // empty page for every non-default tenant.
     const rule = fromProto(proto);
     if (filter.scopes.length > 0 && !filter.scopes.includes(rule.scope)) continue;
     if (filter.actions.length > 0 && !filter.actions.includes(rule.action)) continue;

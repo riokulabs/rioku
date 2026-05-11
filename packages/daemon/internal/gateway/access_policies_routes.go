@@ -190,7 +190,14 @@ func handleListAccessPolicies(st store.Driver) http.HandlerFunc {
 		for i, p := range policies {
 			dtos[i] = toDTO(p)
 		}
-		writeJSON(w, http.StatusOK, map[string]any{"items": dtos, "total": len(dtos)})
+		// OpenAPI: ListAccessPolicies200 = `{accessPolicies: [...], nextPageToken: ""}`.
+		// The legacy `{items, total}` shape made the SPA's
+		// `useAccessPolicyList` read `data.data.accessPolicies → undefined → []`
+		// so the page rendered empty across every tenant.
+		writeJSON(w, http.StatusOK, map[string]any{
+			"accessPolicies": dtos,
+			"nextPageToken":  "",
+		})
 	}
 }
 

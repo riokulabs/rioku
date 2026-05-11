@@ -261,8 +261,19 @@ func handleKeyList(st store.Driver) http.HandlerFunc {
 			})
 		}
 
+		// OpenAPI: ListApiKeys200 = `{apiKeys: [...], nextPageToken: ""}`.
+		// Emitting a bare array made `useAPIKeyList` (which reads
+		// `data.data.apiKeys`) resolve to `undefined → []`, so the
+		// Security › API keys page was empty even when keys existed.
+		// Pagination is unimplemented — emit an empty token.
+		if result == nil {
+			result = []keyResponse{}
+		}
 		w.Header().Set("Content-Type", "application/json")
-		_ = json.NewEncoder(w).Encode(result)
+		_ = json.NewEncoder(w).Encode(map[string]any{
+			"apiKeys":       result,
+			"nextPageToken": "",
+		})
 	}
 }
 

@@ -114,7 +114,12 @@ export function useRoutingRuleList(
     enabled: !!tenant,
   });
   const items = data ?? [];
-  return items.filter((r) => (!tenantId || r.tenant_id === tenantId) && matchesFilter(r, filter));
+  // `r.tenant_id` is the daemon's internal id (`tenant_…`) while
+  // `tenantId` is the URL slug (`acme`); the previous strict-equals
+  // dropped every row on non-default tenants. The daemon already scopes
+  // the fetch via the URL — keep only the user-facing filter predicate.
+  void tenantId;
+  return items.filter((r) => matchesFilter(r, filter));
 }
 
 export function useRoutingRuleDetail(id: ID): NotificationRoutingRule | undefined {

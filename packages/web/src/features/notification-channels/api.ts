@@ -106,7 +106,9 @@ export function useChannelList(tenantId: ID, filter: ChannelFilter): Notificatio
     enabled: !!tenant,
   });
   const items = data ?? [];
-  return items.filter((c) => (!tenantId || c.tenant_id === tenantId) && matchesFilter(c, filter));
+  // URL slug vs internal id mismatch — see notification-routing/api.ts.
+  void tenantId;
+  return items.filter((c) => matchesFilter(c, filter));
 }
 
 export function useChannelDetail(id: ID): NotificationChannel | undefined {

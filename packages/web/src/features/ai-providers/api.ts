@@ -32,6 +32,54 @@ function providerBase(tenant: string): string {
   return `/t/${tenant}/ai/providers`;
 }
 
+/**
+ * Bridge daemon (camelCase, partial fields) → SPA `AiProvider` (snake_case).
+ *
+ * The daemon's `/api/v1/t/{tenant}/ai/providers` response emits camelCase
+ * keys (`baseUrl`, `createdAt`, `updatedAt`) and does not include the
+ * SPA-only `credential_ref`, `models`, `description` slots that list and
+ * detail views expect. Accessing those undefined fields used to crash
+ * the page into the error boundary on every load with seeded providers.
+ * Map fields explicitly and supply safe defaults for the SPA-only slots.
+ */
+interface DaemonAiProvider {
+  id: string;
+  tenantId?: string;
+  tenant_id?: string;
+  name: string;
+  kind: AiProvider['kind'];
+  baseUrl?: string;
+  base_url?: string;
+  description?: string;
+  enabled?: boolean;
+  models?: AiProvider['models'];
+  credentialRef?: Partial<AiProvider['credential_ref']>;
+  credential_ref?: Partial<AiProvider['credential_ref']>;
+  createdAt?: string;
+  updatedAt?: string;
+  created_at?: string;
+  updated_at?: string;
+}
+function adaptProvider(raw: DaemonAiProvider): AiProvider {
+  const cred = raw.credentialRef ?? raw.credential_ref ?? {};
+  return {
+    id: raw.id,
+    tenant_id: raw.tenantId ?? raw.tenant_id ?? '',
+    name: raw.name,
+    kind: raw.kind,
+    base_url: raw.baseUrl ?? raw.base_url ?? '',
+    description: raw.description ?? '',
+    enabled: raw.enabled ?? true,
+    models: raw.models ?? [],
+    credential_ref: {
+      prefix: cred.prefix ?? '',
+      created_at: cred.created_at ?? raw.createdAt ?? raw.created_at ?? '',
+    },
+    created_at: raw.createdAt ?? raw.created_at ?? '',
+    updated_at: raw.updatedAt ?? raw.updated_at ?? '',
+  };
+}
+
 // ─── Selectors (query hooks) ──────────────────────────────────────────────────
 
 /** Fetch + filter providers for a tenant. Filter applied client-side after fetch. */
@@ -39,13 +87,13 @@ export function useProviderList(tenant: string, filter: ProviderFilter): AiProvi
   const { data } = useQuery({
     queryKey: providerKeys.list(tenant),
     queryFn: () =>
-      customFetch<{ items: AiProvider[] }>({
+      customFetch<{ items: DaemonAiProvider[] }>({
         url: providerBase(tenant),
         method: 'GET',
       }),
   });
 
-  const providers = data?.items ?? [];
+  const providers = (data?.items ?? []).map(adaptProvider);
   const search = filter.search.toLowerCase().trim();
   return providers.filter((p) => {
     if (filter.kinds.length > 0 && !filter.kinds.includes(p.kind)) return false;
@@ -65,13 +113,13 @@ export function useProviderDetail(tenant: string, id: string): AiProvider | unde
   const { data } = useQuery({
     queryKey: providerKeys.detail(tenant, id),
     queryFn: () =>
-      customFetch<AiProvider>({
+      customFetch<DaemonAiProvider>({
         url: `${providerBase(tenant)}/${id}`,
         method: 'GET',
       }),
     enabled: Boolean(id),
   });
-  return data;
+  return data ? adaptProvider(data) : undefined;
 }
 
 // ─── Mutations ────────────────────────────────────────────────────────────────

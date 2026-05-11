@@ -129,10 +129,14 @@ func handleListRbacPolicies(st store.Driver) http.HandlerFunc {
 		for _, p := range policies {
 			out = append(out, rbacPolicyToDTO(p, b))
 		}
+		// OpenAPI: ListRbacPolicies200 = `{rbacPolicies: [...], nextPageToken: ""}`.
+		// The legacy `{items, total, _links}` shape made the SPA's
+		// `useRbacPolicyList` read `data.data.rbacPolicies → undefined → []`
+		// and render an empty list across every tenant.
 		writeJSON(w, http.StatusOK, map[string]any{
-			"items":  out,
-			"total":  len(out),
-			"_links": links.Set{"self": b.Collection("rbac-policies")},
+			"rbacPolicies":  out,
+			"nextPageToken": "",
+			"_links":        links.Set{"self": b.Collection("rbac-policies")},
 		})
 	}
 }

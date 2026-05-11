@@ -103,3 +103,15 @@ fi
 echo ""
 echo -e "${BOLD}Config seeding complete.${NC}"
 echo ""
+
+# --------------------------------------------------------------------------
+# Cross-tenant seed
+# --------------------------------------------------------------------------
+# The default seed flow only populates `default`. Tests target /t/acme/*
+# and /t/beta/* too, so we replicate a minimum set of resources into the
+# non-default tenants via REST POST. Soft-failure: warnings only.
+if [[ -x "${SCRIPT_DIR}/seed-cross-tenant.sh" ]]; then
+    if ! "${SCRIPT_DIR}/seed-cross-tenant.sh" "${REST_BASE}"; then
+        warn "Cross-tenant seed failed — non-fatal; e2e tests targeting acme/beta may fail"
+    fi
+fi

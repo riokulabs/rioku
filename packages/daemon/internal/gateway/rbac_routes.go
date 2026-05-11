@@ -101,8 +101,18 @@ func handleListRoles(st store.Driver) http.HandlerFunc {
 			result = append(result, toRoleResponse(role))
 		}
 
+		// OpenAPI declares this endpoint returns
+		// `{roles: [...], nextPageToken: ""}` (see ListRoles200 in
+		// packages/proto/gen/openapi). Returning a bare array made the
+		// admin SPA's `useRoleList` read `data.data.roles` and silently
+		// resolve to `undefined → []`, so the Roles page rendered
+		// "No roles" on every tenant. Pagination is not implemented yet
+		// — emit an empty `nextPageToken` placeholder.
 		w.Header().Set("Content-Type", "application/json")
-		_ = json.NewEncoder(w).Encode(result)
+		_ = json.NewEncoder(w).Encode(map[string]any{
+			"roles":         result,
+			"nextPageToken": "",
+		})
 	}
 }
 
