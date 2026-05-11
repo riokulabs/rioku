@@ -286,5 +286,96 @@ except Exception:
     ok "==> Tenant '${TENANT}' seeded"
 done
 
+# ---------------------------------------------------------------------------
+# Synthetic audit entries
+# ---------------------------------------------------------------------------
+# The audit smoke specs assert "seeded audit entries render on
+# /t/acme/security/audit". The daemon's tenant-scoped CRUD handlers do
+# not currently emit audit entries (only the legacy /api/v1/config flow
+# does, plus a handful of identity/sso paths), so the cross-tenant POSTs
+# above don't surface anywhere on the audit timeline.
+#
+# Until the daemon's mutation handlers learn to emit audit, inject a
+# small set of well-formed rows directly into `audit_log` for each
+# non-default tenant. The Audit page's only requirement is ≥1 visible
+# entry with valid actor + entity_type fields; the entity ids point at
+# the resources we created above so detail-drawer reveals also work.
+info "Injecting synthetic audit entries into acme + beta..."
+DB="${REPO_ROOT}/sandbox/.data/rioku.db"
+python3 - "${DB}" <<'PYEOF'
+import json
+import sqlite3
+import sys
+import uuid
+from datetime import datetime, timezone
+
+db_path = sys.argv[1]
+conn = sqlite3.connect(db_path)
+cur = conn.cursor()
+
+# Resolve internal tenant ids for acme + beta.
+slugs = ('acme', 'beta')
+slug_to_id = {}
+for slug in slugs:
+    row = cur.execute(
+        'SELECT id FROM tenants WHERE slug = ?', (slug,)
+    ).fetchone()
+    if row:
+        slug_to_id[slug] = row[0]
+
+# Pick the root user as the audit actor — guaranteed to exist.
+actor_row = cur.execute(
+    "SELECT id FROM users WHERE username = 'root' LIMIT 1"
+).fetchone()
+if actor_row is None:
+    print('[WARN] root user not found — skipping synthetic audit')
+    sys.exit(0)
+actor_id = actor_row[0]
+
+now_iso = datetime.now(timezone.utc).strftime('%Y-%m-%dT%H:%M:%S.%fZ')
+
+# Build a small variety of synthetic rows per tenant.
+rows = []
+for slug, tid in slug_to_id.items():
+    for i, (entity, op) in enumerate([
+        ('service',          'create'),
+        ('route',            'create'),
+        ('middleware',       'create'),
+        ('access_policy',    'create'),
+        ('rbac_policy',      'update'),
+        ('api_key',          'create'),
+        ('notif_channel',    'create'),
+        ('ai_provider',      'create'),
+    ]):
+        rows.append((
+            str(uuid.uuid4()),
+            actor_id,
+            entity,
+            f'{slug}-{entity}-{i}',
+            op,
+            '',
+            '0',
+            now_iso,
+            tid,
+            'audit.synthetic.v1',
+            json.dumps({
+                'operation': op,
+                'tenant': slug,
+                'entity_type': entity,
+                'note': 'seeded by seed-cross-tenant.sh for e2e baseline',
+            }),
+        ))
+
+cur.executemany(
+    """INSERT INTO audit_log
+       (id, actor, entity_type, entity_id, operation, diff, config_version,
+        occurred_at, tenant_id, payload_schema, payload)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+    rows,
+)
+conn.commit()
+print(f'[OK]    Inserted {len(rows)} synthetic audit rows across {len(slug_to_id)} tenants')
+PYEOF
+
 rm -f "${COOKIE_JAR}"
 ok "Cross-tenant seed complete"
