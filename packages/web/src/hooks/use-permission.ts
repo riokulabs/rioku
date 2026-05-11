@@ -17,10 +17,14 @@ import { useCurrentUser } from '@/features/auth/use-current-user';
 
 /**
  * Returns true if the current user holds the given permission key,
- * false otherwise.
+ * false otherwise. Wildcard `*` (the daemon's representation for
+ * superadmin/root) grants any specific permission — without this
+ * branch, every action button gated by `usePermission(...)` is
+ * disabled for root, even though the user has unrestricted access.
  */
 export function usePermission(key: string): boolean {
   const me = useCurrentUser().data ?? null;
   if (!me) return false;
+  if (me.permissions.includes('*')) return true;
   return me.permissions.includes(key);
 }
