@@ -108,7 +108,13 @@ describe('useChannelList', () => {
     expect(result.current.every((c) => c.name.toLowerCase().includes('slack'))).toBe(true);
   });
 
-  it('respects tenant_id defense-in-depth filter', async () => {
+  it('returns every row the daemon responds with (tenant scoping happens at the URL level)', async () => {
+    // The previous defense-in-depth client filter compared the URL slug
+    // (`acme`) against the daemon's internal id (`tenant_…`), which dropped
+    // every row on non-default tenants — see notification-channels/api.ts.
+    // The daemon already scopes the response to the URL tenant, so the
+    // hook now returns whatever the daemon emits and leaves enforcement
+    // server-side.
     const otherTenant = { ...CHANNEL_EMAIL, tenantId: 'tenant-other' };
     server.use(
       http.get(`/api/v1/t/${TENANT}/notification-channels`, () =>
@@ -120,9 +126,8 @@ describe('useChannelList', () => {
       wrapper: wrapper(qc),
     });
     await waitFor(() => {
-      expect(result.current.length).toBe(1);
+      expect(result.current.length).toBe(2);
     });
-    expect(result.current[0]?.tenant_id).toBe(TENANT_ID);
   });
 });
 
