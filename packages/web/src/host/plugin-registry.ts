@@ -6,8 +6,6 @@
  * here; surface registries (zones, routes, etc.) are the authoritative stores
  * for rendering — this store is the accounting layer that lets the loader undo
  * everything a plugin registered when it is unloaded.
- *
- * spec §9.5
  */
 
 import { create } from 'zustand';

@@ -1,4 +1,4 @@
-// Package gateway: AI trace handlers (stage-2).
+// Package gateway: AI trace handlers.
 //
 // Traces are append-only from the daemon invoke path; this file exposes
 // the read-side endpoints (list + get). The shared `traceQueryFromRequest`

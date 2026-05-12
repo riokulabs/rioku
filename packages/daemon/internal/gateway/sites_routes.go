@@ -1,4 +1,4 @@
-// Package gateway: Sites REST endpoints (stage-2).
+// Package gateway: Sites REST endpoints.
 //
 //	GET    /api/v1/t/{tenant}/sites              list                 site:read
 //	POST   /api/v1/t/{tenant}/sites              create               site:write

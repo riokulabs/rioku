@@ -1,7 +1,7 @@
 /**
  * Dashboard builder route — /t/$tenant/dashboards/$dashboardId/edit
  *
- * Full-page interactive builder (Plan 4 Phase 4c). Guarded by `dashboard:write`
+ * Full-page interactive builder. Guarded by `dashboard:write`
  * and the same scope rules as the viewer: personal dashboards must match the
  * owner; shared dashboards must intersect the user's role ids.
  */

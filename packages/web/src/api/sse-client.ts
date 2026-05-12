@@ -2,8 +2,8 @@
 /**
  * Real SSE client.
  *
- * Daemon-side SSE protocol enhancements (Last-Event-ID resume + retry directive)
- * are shipped by Plan 1. This module manages connection lifecycle on the SPA side.
+ * The daemon implements SSE protocol enhancements (Last-Event-ID resume +
+ * retry directive). This module manages connection lifecycle on the SPA side.
  *
  * One EventSource per topic — multiple subscribers share the connection.
  * Auto-reconnect on error, replaying with `last-event-id` query parameter.

@@ -1,8 +1,8 @@
 /**
  * Full-page API key detail route — /t/$tenant/security/api-keys/$keyId
  *
- * Stage-2 plan-02. Renders <ApiKeyFullPage> with Profile / Usage /
- * Audit tabs against the real daemon endpoints.
+ * Renders <ApiKeyFullPage> with Profile / Usage / Audit tabs against the
+ * real daemon endpoints.
  */
 import { createFileRoute, Link, useParams } from '@tanstack/react-router';
 import { Stack, Group, Button } from '@mantine/core';

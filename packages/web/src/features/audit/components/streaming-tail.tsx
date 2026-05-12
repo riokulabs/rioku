@@ -2,22 +2,12 @@
  * Streaming tail (live mode) helpers for the audit list.
  *
  * Exposes:
- *   - <LiveTailBadge> — pulsing "LIVE" badge that sits in the page header
- *     whenever tail mode is active. Mirrors the Plan 3d trace-store
- *     `<LiveTailBadge>` for visual consistency; red "dot" variant signals
- *     streaming state while the gray "Paused" render is used when the
- *     switch has been toggled off but the badge is still in the tree.
- *   - useAuditStream(tenantId, enabled, onEntry) — subscribes to the
- *     real SSE stream at `/api/v1/t/:tenant/audit/stream` while
- *     `enabled === true` and unsubscribes cleanly on toggle-off /
- *     unmount / tenantId change. Preserves Last-Event-ID across pauses
- *     so reconnect replays missed entries.
- *
- * Stage 2: backed by `subscribeSSE` (real daemon EventSource). The
- * `onEntry` callback fires for each parsed JSON event carrying an
- * `AuditEntry`. The Zustand store is NOT updated here — the page's
- * query is responsible for invalidation; the callback is used only for
- * UI side effects (e.g. bumping the "+N" live counter in the header).
+ *   - <LiveTailBadge> — pulsing "LIVE" badge for the page header.
+ *   - useAuditStream(tenantId, enabled, onEntry) — subscribes to the SSE
+ *     stream at `/api/v1/t/:tenant/audit/stream` while `enabled === true`.
+ *     Preserves Last-Event-ID across pauses so reconnect replays missed
+ *     entries. The callback fires per `AuditEntry` and is used for UI
+ *     side effects only (the page's query handles cache invalidation).
  */
 import { useEffect, useRef } from 'react';
 import { Badge } from '@mantine/core';
@@ -44,9 +34,7 @@ interface LiveTailBadgeProps {
 export function LiveTailBadge({ newCount, isLive }: LiveTailBadgeProps) {
   // role="status" + aria-live="polite" announces the "+N" counter to
   // screen readers when new entries land. aria-atomic ensures the whole
-  // badge is read together rather than diffed, matching the Plan 3d
-  // trace-store pattern so the two features feel identical to assistive
-  // tech users.
+  // badge is read together rather than diffed.
   return (
     <div role="status" aria-live="polite" aria-atomic="true">
       <style>{LIVE_PULSE_KEYFRAMES}</style>

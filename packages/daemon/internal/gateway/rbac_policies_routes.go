@@ -1,8 +1,7 @@
-// Package gateway: tenant-scoped RBAC policy CRUD (stage-2 admin
-// completion chunk 7b). RBAC policies map subjects (user / group /
-// service-account) to roles within a tenant. Distinct from
-// access-policies (request-time conditional access) and the legacy
-// proto Policy (handler config blob).
+// Package gateway: tenant-scoped RBAC policy CRUD. RBAC policies map
+// subjects (user / group / service-account) to roles within a tenant.
+// Distinct from access-policies (request-time conditional access) and
+// the legacy proto Policy (handler config blob).
 //
 //	OPTIONS  /api/v1/t/{tenant}/rbac-policies                discovery
 //	GET      /api/v1/t/{tenant}/rbac-policies                list                rbac:read

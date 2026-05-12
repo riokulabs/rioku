@@ -13,11 +13,11 @@ import (
 // Reference syntax: {vault://op/<vault>/<item>/<field>} — the resource
 // segment is passed verbatim to `op read op://<resource>`.
 //
-// The plan treats this backend as `file://` shaped indirection: the
-// secret lives in 1Password, the daemon reads it once per cache TTL
-// via the operator-installed CLI, and the plaintext never leaves the
-// daemon process. The CLI handles authentication itself (typically
-// via a session token populated by `op signin` or by a Connect
+// This backend is `file://` shaped indirection: the secret lives in
+// 1Password, the daemon reads it once per cache TTL via the
+// operator-installed CLI, and the plaintext never leaves the daemon
+// process. The CLI handles authentication itself (typically via a
+// session token populated by `op signin` or by a Connect
 // service-account environment variable like OP_SERVICE_ACCOUNT_TOKEN).
 //
 // OnePasswordBackend is **not** Sync — `op read` shells out to a

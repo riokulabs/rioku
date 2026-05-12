@@ -1,4 +1,4 @@
-// Package gateway — Widget query engine (Plan 16c, closes #236).
+// Package gateway — Widget query engine (#236).
 //
 // Dashboard widgets execute PromQL expressions against the tenant's metrics
 // backend. This file implements POST /api/v1/t/{tenant}/widgets/query, which:
@@ -40,8 +40,8 @@ const (
 	widgetQuerySeries  = "series"
 )
 
-// widgetQueryRateBudget is the default per-tenant query budget. Plan 16c
-// ships a hardcoded sensible default; #237 will surface this in
+// widgetQueryRateBudget is the default per-tenant query budget.
+// Currently a hardcoded sensible default; #237 will surface this in
 // settings:write so operators can tune it per tenant.
 const (
 	widgetQueryRateBudget   = 60

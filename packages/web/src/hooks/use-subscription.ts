@@ -1,10 +1,9 @@
 /**
  * useSubscription — subscribe to a named event topic.
  *
- * Stage 1: delegates to the in-memory `mockBus` EventTarget.
- * Stage 2+: swap the implementation to open a real EventSource against
- *   /api/v1/events?topic=<topic> and call handler on each `message` event.
- *   The hook signature stays identical so call sites need no changes.
+ * Currently delegates to the in-memory `mockBus` EventTarget. The
+ * implementation can be swapped to a real EventSource against
+ * /api/v1/events?topic=<topic> without changing the hook signature.
  *
  * The handler ref pattern avoids re-subscribing on every render when the
  * consumer passes an inline function. Only `topic` changes trigger a new

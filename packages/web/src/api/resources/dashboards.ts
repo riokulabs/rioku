@@ -1,4 +1,4 @@
-// Owned by Plan 08 (dashboards) — types for the dashboards resource surface.
+// Types for the dashboards resource surface.
 
 import type { ID } from './common';
 
@@ -39,7 +39,6 @@ export interface Dashboard {
   name: string;
   default: boolean;
   widget_ids: ID[];
-  // New in Plan 4:
   description?: string;
   /** null = tenant-shared. */
   owner_user_id: ID | null;

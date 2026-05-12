@@ -357,7 +357,7 @@ function ApiKeyDetailPage({ entityId, tenantId, tenantSlug }: RendererProps) {
 }
 
 /**
- * Sessions render inline (RD5) — there is no full-page detail. Direct
+ * Sessions render inline — there is no full-page detail. Direct
  * deep-links to /t/$tenant/_detail/session/$id render an explanation
  * alert with a "Back to sessions" button so old links don't 404.
  */

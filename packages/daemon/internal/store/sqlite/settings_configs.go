@@ -1,4 +1,4 @@
-// Package sqlite — Settings config singletons (stage-2).
+// Package sqlite — Settings config singletons.
 //
 // Four tables, all keyed by tenant_id with no separate id PK. All four
 // follow the same INSERT...ON CONFLICT DO UPDATE upsert pattern, and

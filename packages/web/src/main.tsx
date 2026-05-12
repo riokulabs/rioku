@@ -33,9 +33,8 @@ setActiveImpersonationIdAccessor(() => getActiveImpersonationId());
 async function bootstrapHostSnapshots(): Promise<void> {
   if (import.meta.env.VITEST) return;
   if (!import.meta.env.DEV) return;
-  // Expose plugin-host snapshots for E2E probing (Task 1f.123). The shape
-  // is an accessor object so Playwright reads live state, not a stale
-  // snapshot.
+  // Expose plugin-host snapshots for E2E probing. The shape is an accessor
+  // object so Playwright reads live state, not a stale snapshot.
   const [
     { usePluginRegistry },
     { listPluginThemes },

@@ -1,14 +1,14 @@
 /**
  * Audit types + admin-audit hash-chain verification.
  *
- * Stage-2: admin-audit emission happens server-side. This module keeps the
+ * Admin-audit emission happens server-side. This module keeps the
  * shared types and the chain-verification helper used by the audit UI to
  * validate fetched entries.
  */
 
 import type { ID } from './common';
 
-// ─── Types (Plan 05 — audit) ──────────────────────────────────────────────────
+// ─── Types ────────────────────────────────────────────────────────────────────
 
 export interface AuditEntry {
   readonly id: ID;
@@ -25,7 +25,6 @@ export interface AuditEntry {
   acted_as_admin?: boolean;
   payload?: unknown;
   diff?: { before: unknown; after: unknown };
-  // Plan 5 additions:
   /** Correlates this audit entry with a gateway request id. */
   request_id?: string;
   /** Caller IP as observed at the gateway. Sensitive — masked without `audit:read-sensitive`. */
@@ -46,8 +45,7 @@ export interface AuditEntry {
  * Tenant-scoped audit retention configuration.
  *
  * One row per tenant controls how long audit entries are kept (per tier) and
- * how / whether they are auto-exported. Enforcement is a Stage 2+ daemon cron
- * — Stage 1 only persists the policy.
+ * how / whether they are auto-exported. Enforcement runs as a daemon cron.
  */
 export interface AuditRetentionConfig {
   readonly tenant_id: ID;

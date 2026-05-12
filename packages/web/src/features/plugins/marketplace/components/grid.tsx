@@ -1,17 +1,15 @@
 /**
- * <MarketplaceGrid> — browsable catalog of marketplace listings (Plan 6).
+ * <MarketplaceGrid> — browsable catalog of marketplace listings.
  *
- * Plan 1 shipped: text search + tag MultiSelect.
- * Plan 6 (Task 6b.7) adds:
- *   - Left category sidebar (derived from tags — each tag counts as a category
- *     with the number of listings). Clicking a category toggles it into the
- *     tag filter; clicking the "All" row clears tag filters.
+ * Filter UI:
+ *   - Text search + tag MultiSelect.
+ *   - Left category sidebar (derived from tags). Clicking a category toggles
+ *     it into the tag filter; the "All" row clears tag filters.
  *   - "Verified publishers only" Switch (filters `listing.verified === true`).
- *   - Sort control: installs (default) | verified-first | alphabetical | recently added.
- *     Persists in the URL via `sort` search param.
+ *   - Sort: installs (default) | verified-first | alphabetical | recently added.
  *
- * All state is URL-synced (q, tags, verified, sort) so that the chosen view
- * survives refresh/deep links.
+ * All state is URL-synced (q, tags, verified, sort) so the chosen view
+ * survives refresh / deep links.
  */
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import {

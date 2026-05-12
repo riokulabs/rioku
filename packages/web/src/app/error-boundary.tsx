@@ -4,7 +4,7 @@
  * Used as TanStack Router's `errorComponent` on the root route, so any
  * unhandled render-time error surfaces this UI instead of a blank screen.
  *
- * Logs errors to console.error only (no remote reporting — spec §5.2).
+ * Logs errors to console.error only (no remote reporting).
  */
 
 import { Component, type ErrorInfo, type ReactNode } from 'react';

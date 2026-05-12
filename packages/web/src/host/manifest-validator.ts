@@ -1,5 +1,5 @@
 /**
- * Plugin manifest validator — spec §9.2 + §9.6.1.
+ * Plugin manifest validator.+ §9.6.1.
  *
  * Two-stage validation:
  *   1. Structural: parsed through `manifestSchema` (Zod).
@@ -27,7 +27,7 @@ const PRIVILEGED_ROLES = ['admin', 'super-admin', 'root', 'superuser', 'owner'] 
 export function validateManifest(raw: unknown): ManifestValidationResult {
   const warnings: string[] = [];
 
-  // ── Stage 1: structural parse ───────────────────────────────────────────────
+  // ── Phase 1: structural parse ──────────────────────────────────────────────
   const parsed = manifestSchema.safeParse(raw);
 
   if (!parsed.success) {
@@ -41,9 +41,9 @@ export function validateManifest(raw: unknown): ManifestValidationResult {
   const manifest = parsed.data;
   const errors: string[] = [];
 
-  // ── Stage 2: semantic checks ────────────────────────────────────────────────
+  // ── Phase 2: semantic checks ───────────────────────────────────────────────
   for (const perm of manifest.permissions) {
-    // Rule §9.6.1 rule 3: reserved-prefix rejection.
+    // Reserved-prefix rejection.
     if (isReservedPermission(perm.key)) {
       errors.push(`permission "${perm.key}" uses reserved built-in prefix`);
     }

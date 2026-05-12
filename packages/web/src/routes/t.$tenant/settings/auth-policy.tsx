@@ -3,11 +3,10 @@
  *
  * Tenant-scoped authentication policy: TOTP enforcement, password rules,
  * and session timeouts. PUT to /api/v1/t/:tenant/settings/auth-policy.
- * Wraps the <AuthenticationSection> component built in stage-1 plan 8a.
+ * Wraps the <AuthenticationSection> component.
  *
  * Guard: tenant-auth:read (readers see disabled form; writers can mutate).
  *
- * Plan 7 — Task 3
  */
 import { createFileRoute, Link, useParams } from '@tanstack/react-router';
 import { Anchor, Group, Stack } from '@mantine/core';

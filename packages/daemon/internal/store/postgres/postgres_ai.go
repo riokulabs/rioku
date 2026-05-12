@@ -1,4 +1,4 @@
-// Package postgres — AI subsystem CRUD (stage-2).
+// Package postgres — AI subsystem CRUD.
 //
 // Seven entities: Providers, ProviderModels, MCPServers, Tools,
 // Agents, ToolBindings, RateLimits, Traces.

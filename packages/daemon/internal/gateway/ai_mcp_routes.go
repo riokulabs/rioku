@@ -1,4 +1,4 @@
-// Package gateway: AI MCP server handlers (stage-2).
+// Package gateway: AI MCP server handlers.
 //
 // See `ai_routes.go` for the full route registration table.
 package gateway
@@ -205,8 +205,8 @@ func handleDeleteMCPServer(st store.Driver) http.HandlerFunc {
 }
 
 // handleTestMCPServer issues a live(ish) connectivity probe against the MCP
-// server's configured URL. In stage-2 this performs a best-effort HTTP HEAD/GET
-// against the registered URL, with a short timeout. The shape is stable:
+// server's configured URL. Performs a best-effort HTTP HEAD/GET against the
+// registered URL, with a short timeout. The shape is stable:
 //
 //	{ ok: bool, latencyMs: number, error?: string, serverVersion?: string,
 //	  mcpServerId: string }

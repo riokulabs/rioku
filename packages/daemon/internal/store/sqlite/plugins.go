@@ -1,4 +1,4 @@
-// Package sqlite — Plugins + PluginSigners (stage-2).
+// Package sqlite — Plugins + PluginSigners.
 //
 // Both tables use a NULLABLE tenant_scope column: NULL means "global",
 // non-null means "scoped to that tenant". The CRUD helpers translate

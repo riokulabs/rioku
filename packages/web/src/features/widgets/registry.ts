@@ -1,9 +1,9 @@
 /**
- * Built-in widget registry (Plan 4 §4a.4).
+ * Built-in widget registry.
  *
  * The dashboard builder looks up a widget's visual component by its `kind`
- * here. Plugin-registered widgets live in `host.widgets` — both lookups are
- * surfaced by `<WidgetRendererDispatcher>` (Plan 4b).
+ * here. Plugin-registered widgets live in `host.widgets`; both lookups are
+ * surfaced by `<WidgetRendererDispatcher>`.
  */
 import { SingleStatWidget } from './components/single-stat';
 import { SparklineWidget } from './components/sparkline';

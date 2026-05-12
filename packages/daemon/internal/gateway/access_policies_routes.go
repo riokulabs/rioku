@@ -10,10 +10,6 @@
 //
 // Read endpoints require `access-policies:read`; mutating endpoints require
 // `access-policies:write`. Both permissions are seeded in migration 8.
-//
-// Stage-1 scope: the daemon persists policies and serves them; condition
-// *evaluation* in the auth middleware is a stage-2 follow-up. The frontend
-// can already drive full CRUD against this surface.
 package gateway
 
 import (
@@ -54,9 +50,9 @@ func RegisterAccessPolicyRoutes(mux *http.ServeMux, st store.Driver) {
 	mux.Handle("PATCH /api/v1/t/{tenant}/access-policies/{id}", update)
 	mux.Handle("DELETE /api/v1/t/{tenant}/access-policies/{id}", del)
 
-	// Test-CEL endpoint (Plan-03 Task 6 / decisions-needed.md item 004).
-	// Compiles and evaluates a CEL expression against a sample event using
-	// `github.com/google/cel-go`. Returns `{ matched, error?, durationMs }`.
+	// Test-CEL endpoint: compiles and evaluates a CEL expression against a
+	// sample event using `github.com/google/cel-go`. Returns
+	// `{ matched, error?, durationMs }`.
 	testCEL := RequirePermission("access-policies:read")(http.HandlerFunc(handleTestAccessPolicyCEL()))
 	mux.Handle("POST /api/v1/t/{tenant}/access-policies/test-cel", testCEL)
 	optionsutil.Register(mux, "/api/v1/t/{tenant}/access-policies/test-cel",

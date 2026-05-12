@@ -6,8 +6,8 @@ import (
 
 // buildTLSApp returns the `apps.tls` block for on-demand TLS provisioning
 // when c.onDemandTLS is enabled and/or for static wildcard cert loading
-// when c.subdomainCert is set (Plan 12). Returns nil to omit the block
-// entirely when neither feature is active.
+// when c.subdomainCert is set. Returns nil to omit the block entirely
+// when neither feature is active.
 //
 // On-demand TLS: the compiled block instructs Caddy to call AskURL
 // during the TLS handshake for any unknown SNI; the rioku tlsask

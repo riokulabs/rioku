@@ -1,4 +1,4 @@
-// Package gateway: SSO providers REST endpoints (stage-2 plan 17b, #240).
+// Package gateway: SSO providers REST endpoints (#240).
 //
 // Routes:
 //

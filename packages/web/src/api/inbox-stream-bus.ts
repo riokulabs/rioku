@@ -1,11 +1,10 @@
 /**
- * Inbox-stream bus — Stage 1 only.
+ * Inbox-stream bus.
  *
  * Module-level EventTarget that carries newly-emitted notifications to
  * interested UI subscribers (e.g. the top-bar bell + inbox dropdown). Any
  * write that adds a notification via `emitNotification` is expected to also
- * publish on this bus via {@link publishInbox}. In Stage 2+, this module is
- * replaced by a real SSE/WebSocket stream backed by the daemon.
+ * publish on this bus via {@link publishInbox}.
  *
  * The emitted event is always `'inbox'`; `event.detail` is the
  * `NotificationItem`. Consumers filter by user_id / tenant_id themselves.

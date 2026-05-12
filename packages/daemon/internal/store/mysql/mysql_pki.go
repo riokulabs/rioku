@@ -1,4 +1,4 @@
-// Package mysql — PKI/TLS subsystem CRUD (stage-2).
+// Package mysql — PKI/TLS subsystem CRUD.
 package mysql
 
 import (

@@ -51,10 +51,7 @@ function AiAgentsPage() {
   const search = Route.useSearch();
   const navigate = useNavigate();
 
-  // Tenant slug is the URL segment; the mock-store id is needed to filter
-  // provider/role/tool option lists in the form (those features are still on
-  // mock-store as of stage-2 plan-04 ai-agents slice).
-  // Stage-2: tenantId is the URL slug; daemon resolves it.
+  // Tenant slug is the URL segment; the daemon resolves it server-side.
   const tenantId = tenant;
 
   const filter: AgentFilter = {

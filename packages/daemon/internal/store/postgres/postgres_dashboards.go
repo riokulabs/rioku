@@ -1,4 +1,4 @@
-// Package postgres — Dashboard, Widget, and DashboardVersion CRUD (stage-2).
+// Package postgres — Dashboard, Widget, and DashboardVersion CRUD.
 package postgres
 
 import (

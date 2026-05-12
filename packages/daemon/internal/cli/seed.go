@@ -23,11 +23,11 @@ import (
 
 // SeedFile represents the top-level structure of a seed YAML file.
 //
-// Stage-2 entities (Sites onward) target tenant-scoped REST paths
+// Tenant-scoped entities (Sites onward) target REST paths
 // `/api/v1/t/{tenant}/...`. The optional Tenant field on each entity
 // selects which tenant; defaults to "default" if unset.
 type SeedFile struct {
-	// Legacy + identity (tenant-implicit; default tenant only)
+	// Tenant-implicit identity entities (default tenant only)
 	Roles    []SeedRole    `yaml:"roles"`
 	Services []SeedService `yaml:"services"`
 	Policies []SeedPolicy  `yaml:"policies"`
@@ -35,9 +35,9 @@ type SeedFile struct {
 	Users    []SeedUser    `yaml:"users"`
 	APIKeys  []SeedAPIKey  `yaml:"api_keys"`
 
-	// Stage-2 entities (tenant-scoped). Tenants block creates extra
-	// tenants beyond the seeded "default"; everything below uses the
-	// per-entity Tenant field (defaults to "default").
+	// Tenant-scoped entities. The Tenants block creates extra tenants
+	// beyond the seeded "default"; everything below uses the per-entity
+	// Tenant field (defaults to "default").
 	Tenants              []SeedTenant              `yaml:"tenants"`
 	Memberships          []SeedMembership          `yaml:"memberships"`
 	Sites                []SeedSite                `yaml:"sites"`
@@ -144,7 +144,7 @@ type SeedAPIKey struct {
 }
 
 // ---------------------------------------------------------------------------
-// Stage-2 entity seed types
+// Tenant-scoped entity seed types
 //
 // Each tenant-scoped entity carries a `Tenant` field that defaults to
 // "default" when unset. POSTs hit `/api/v1/t/{tenant}/...`.
@@ -278,8 +278,7 @@ type SeedMCPServer struct {
 	AuthCredential string `yaml:"auth_credential,omitempty"`
 }
 
-// SeedSsoProvider registers an SSO provider config for a tenant
-// (stage-2 plan 17b, #240).
+// SeedSsoProvider registers an SSO provider config for a tenant.
 type SeedSsoProvider struct {
 	Tenant              string            `yaml:"tenant,omitempty"`
 	Name                string            `yaml:"name"`
@@ -769,7 +768,7 @@ func runSeed(seedFile, seedDir, targetAddr, username, password string, direct bo
 		counts.apiKeys++
 	}
 
-	// --- Stage-2 entities ---
+	// --- Tenant-scoped entities ---
 	stage2Counts := applyStage2(client, sessionCookie, base, &seed, logger)
 
 	// Logout.
@@ -791,7 +790,7 @@ func runSeed(seedFile, seedDir, targetAddr, username, password string, direct bo
 }
 
 // ---------------------------------------------------------------------------
-// Stage-2 entity application
+// Tenant-scoped entity application
 // ---------------------------------------------------------------------------
 
 type stage2Counts struct {
@@ -1063,7 +1062,7 @@ func applyStage2(client *http.Client, sessionCookie, base string, seed *SeedFile
 		}
 	}
 
-	// 12a. SSO providers (stage-2 plan 17b, #240).
+	// SSO providers.
 	for _, sp := range seed.SsoProviders {
 		payload := map[string]any{
 			"name": sp.Name, "kind": sp.Kind,

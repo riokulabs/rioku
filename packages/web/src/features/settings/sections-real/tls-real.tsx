@@ -1,6 +1,6 @@
 /* eslint-disable react-hooks/set-state-in-effect -- form state hydrates from server fetch on first load; this is the correct pattern */
 /**
- * Real-API TLS section — stage-2 wiring.
+ * Real-API TLS section.
  *
  * Reads via `useGetSettingsTLS`, replaces via `usePutSettingsTLS`.
  *
@@ -11,12 +11,9 @@
  *   - List of currently uploaded manual certs (subject + expiry + auto-renew)
  *   - Manual cert upload form (cert PEM + key PEM textareas, "Upload" button)
  *
- * The manual upload posts to `/api/v1/t/{tenant}/settings/tls/manual` —
- * the daemon endpoint for PEM uploads. Until that endpoint is exercised the
- * UI surfaces a clear error to the operator (see daemon todo in
- * `decisions-needed.md` 07-002).
- *
- * Plan 07 — Task 5.
+ * The manual upload posts to `/api/v1/t/{tenant}/settings/tls/manual`.
+ * Until that daemon endpoint is exercised the UI surfaces a clear error
+ * to the operator.
  */
 import { useEffect, useState } from 'react';
 import {

@@ -1,15 +1,7 @@
 /**
- * Services API — Stage 2 wiring.
- *
- * This module is the public services API surface. It is backed by the
- * Orval-generated TanStack Query hooks (see `api.stage2.ts` for the
- * underlying real-endpoint wrappers) so every component that imports from
- * `features/services` ends up calling the live daemon.
- *
- * Legacy hook signatures are preserved; imperative mutations require an
- * explicit `tenantId` because
- * the daemon REST surface is `/api/v1/t/{tenant}/services/{id}`. Callers
- * that previously invoked `deleteService(id)` must pass the tenant.
+ * Public services API surface. Imperative mutations require an explicit
+ * `tenantId` because the daemon REST surface is
+ * `/api/v1/t/{tenant}/services/{id}`.
  */
 import type { Route, Service } from '@/api/resources';
 import { useRouteListReal } from '@/features/routes/api.stage2';
@@ -40,10 +32,8 @@ export {
 // ─── Selectors (legacy shape — Service[] / Service) ───────────────────────────
 
 /**
- * Returns services for a tenant, filtered by `filter`.
- * Wraps `useServiceListReal` and projects only the `services` array so legacy
- * call sites continue to compile. Loading/error state is available via
- * `useServiceListReal` for components that want richer UX.
+ * Returns services for a tenant, filtered by `filter`. Projects only the
+ * `services` array; use `useServiceListReal` directly for loading/error state.
  */
 export function useServiceList(tenantId: string, filter: ServiceFilter): Service[] {
   return useServiceListReal(tenantId, filter).services;
@@ -54,13 +44,7 @@ export function useServiceDetail(tenantId: string, serviceId: string): Service |
   return useServiceDetailReal(tenantId, serviceId);
 }
 
-/**
- * Returns routes attached to a given service via the real daemon endpoint.
- *
- * Signature change: stage-1 took only `serviceId`; stage-2 needs the tenant
- * because the listing endpoint is `/api/v1/t/{tenant}/routes`. Callers in
- * `components/{detail,full-page}.tsx` are updated.
- */
+/** Returns routes attached to a given service. */
 export function useServiceRoutes(tenantId: string, serviceId: string): Route[] {
   return useRouteListReal(tenantId, serviceId).routes;
 }

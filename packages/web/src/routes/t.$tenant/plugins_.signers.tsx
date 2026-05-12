@@ -1,5 +1,5 @@
 /**
- * /t/$tenant/plugins/signers — tenant-scoped signer allow-list (Plan 6).
+ * /t/$tenant/plugins/signers — tenant-scoped signer allow-list.
  *
  * List + filter bar + drawer for tenant-scoped signers. Global signers are
  * managed separately from /admin/plugin-signers (super-admin only); this view

@@ -1,4 +1,4 @@
-// Owned by Plan 03 (api-mgmt) — types for the services resource surface.
+// Types for the services resource surface.
 
 import type { ID } from './common';
 
@@ -10,7 +10,6 @@ export interface Service {
   env: string;
   health: 'healthy' | 'degraded' | 'unhealthy' | 'disabled';
   readonly created_at: string;
-  // Plan 2 additions:
   description?: string;
   upstream_protocol: 'http' | 'https' | 'grpc';
   health_check?: { path: string; interval_seconds: number; timeout_seconds: number };

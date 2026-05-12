@@ -2,12 +2,11 @@
  * Permissions catalog page — /t/$tenant/security/permissions-catalog
  *
  * Lists every permission known to the daemon, with `source` column +
- * source filter dropdown + free-text search (RD6, plan-02 task 5).
+ * source filter dropdown + free-text search.
  *
- * Stage-1 carve-out: backed by the mock-store catalog via
- * `usePermissionsCatalog`. Plan-13 will flip the underlying hook to a real
- * daemon endpoint once `GET /api/v1/permissions` is exposed
- * (decisions-needed.md item 02-003).
+ * Currently backed by the mock-store catalog via `usePermissionsCatalog`.
+ * Will flip to a real daemon endpoint once `GET /api/v1/permissions` is
+ * exposed.
  */
 import { useMemo, useState } from 'react';
 import { createFileRoute } from '@tanstack/react-router';

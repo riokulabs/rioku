@@ -1,12 +1,11 @@
 /**
- * Trace-stream bus — Stage 1 only.
+ * Trace-stream bus.
  *
  * Module-level EventTarget that carries newly-created AI traces. Used by:
  *   - `invokeAgentMock` (features/ai-agents/api.ts) to announce a new trace.
  *   - `subscribeTraceStream` (features/ai-traces/api.ts) to power the live-tail UI.
  *
  * The event is always `'trace'`; `event.detail` is the `AiTrace` instance.
- * In Stage 2+, this module is replaced by a real SSE/WebSocket stream.
  */
 import type { AiTrace } from './resources';
 

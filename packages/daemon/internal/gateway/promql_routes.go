@@ -1,6 +1,6 @@
 // Package gateway — PromQL proxy with tenant label injection.
 //
-// Plan 8 replaces the Plan 0c 501 stub with a real handler that:
+// The handler:
 //   - Reads the tenant from the URL path
 //   - Parses the PromQL query into an AST using github.com/prometheus/prometheus
 //     and walks every VectorSelector to inject tenant_id="<tenant>"

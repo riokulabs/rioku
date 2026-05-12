@@ -2,15 +2,13 @@
  * <WidgetRenderer> — dispatcher for built-in + plugin-registered widget types.
  *
  * Lookup order:
- *   1. `BUILT_IN_WIDGETS[widget.kind]` — the 10 Plan 4 first-party types.
+ *   1. `BUILT_IN_WIDGETS[widget.kind]` — first-party widget types.
  *   2. Plugin-registered widgets via `@/host/widgets` (`useWidgets()`).
  *   3. Fallback: an error Alert explaining the missing kind.
  *
  * Built-in widget components accept `{ widget, data, loading, error }` per
  * `WidgetRenderProps`. Plugin-registered widgets accept `{ data, config }` per
- * the legacy plan-1 contract — we adapt by passing `widget.config` as `config`.
- *
- * spec §9.5.8 + Plan 4 Task 4b.12
+ * the legacy contract — we adapt by passing `widget.config` as `config`.
  */
 
 import { Alert } from '@mantine/core';
@@ -48,7 +46,7 @@ export function WidgetRenderer({ widget, data, loading, error }: WidgetRendererP
   const plugin = pluginWidgets.find((w) => w.type === widget.kind);
   if (plugin) {
     const Component = plugin.component;
-    // Plugin-registered widgets follow the plan-1 contract: `{ data, config }`.
+    // Plugin-registered widgets follow the legacy contract: `{ data, config }`.
     return <Component data={data} config={widget.config} />;
   }
 

@@ -1,4 +1,4 @@
-// Package mysql — SSO providers (stage-2 plan 17b, #240).
+// Package mysql — SSO providers.
 package mysql
 
 import (

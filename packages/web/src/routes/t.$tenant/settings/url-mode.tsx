@@ -1,9 +1,9 @@
 /**
  * URL mode settings — /t/$tenant/settings/url-mode.
  *
- * Dedicated page for tenant URL mode configuration (Plan 12 §8.4).
- * Ownership of the url_mode setting lives here, not in the general tenant
- * section (which shows a read-only indicator that links here).
+ * Dedicated page for tenant URL mode configuration. Ownership of the
+ * url_mode setting lives here, not in the general tenant section (which
+ * shows a read-only indicator that links here).
  *
  * Form:
  *   - URL mode toggle (path / subdomain) via SegmentedControl
@@ -14,9 +14,6 @@
  *     `/api/v1/t/{tenant}/settings/tenant` PATCH endpoint.
  *
  * Permission guard: tenant:write for mutations; tenant:switch for read.
- *
- * Plan 12 Task 1 (originally mock-store-backed); rewired to the real
- * settings/tenant endpoint as part of plan 16a part 2.
  */
 import { useEffect, useRef, useState, useCallback } from 'react';
 import { createFileRoute, Link } from '@tanstack/react-router';

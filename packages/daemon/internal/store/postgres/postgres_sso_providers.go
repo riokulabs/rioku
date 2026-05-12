@@ -1,4 +1,4 @@
-// Package postgres — SSO providers (stage-2 plan 17b, #240).
+// Package postgres — SSO providers.
 package postgres
 
 import (

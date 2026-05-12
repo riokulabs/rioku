@@ -1,4 +1,4 @@
-// Channel send-side dispatcher (stage-2 plan-06 / decisions-needed item 001).
+// Channel send-side dispatcher.
 //
 // This file declares the Channel interface that every outbound delivery
 // destination (email, webhook, slack, ...) implements, plus the Message

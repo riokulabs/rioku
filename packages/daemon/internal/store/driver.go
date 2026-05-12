@@ -477,7 +477,7 @@ type Tx interface {
 	UpdateMCPRoute(ctx context.Context, id string, params UpdateMCPRouteParams) (*MCPRoute, error)
 	DeleteMCPRoute(ctx context.Context, id string) error
 
-	// --- Tenants (stage-2) ---
+	// --- Tenants ---
 
 	// CreateTenant persists a new tenant. The supplied Tenant must have
 	// Slug + Name set; ID is generated if empty. Returns ErrTenantSlugTaken
@@ -500,7 +500,7 @@ type Tx interface {
 	// default tenant cannot be deleted; ErrTenantImmutable is returned.
 	DeleteTenant(ctx context.Context, id string) error
 
-	// --- Memberships (stage-2) ---
+	// --- Memberships ---
 
 	// CreateMembership persists a new (tenant_id, user_id, state) tuple.
 	// Returns ErrMembershipExists if the pair already has a membership
@@ -532,7 +532,7 @@ type Tx interface {
 	// administrative cleanup.
 	DeleteMembership(ctx context.Context, id string) error
 
-	// --- Membership Roles (stage-2) ---
+	// --- Membership Roles ---
 
 	// AssignMembershipRole grants `roleID` to the membership. Idempotent.
 	AssignMembershipRole(ctx context.Context, membershipID, roleID, grantedBy string) error
@@ -541,7 +541,7 @@ type Tx interface {
 	// ListMembershipRoles returns every role granted to a membership.
 	ListMembershipRoles(ctx context.Context, membershipID string) ([]Role, error)
 
-	// --- Dashboards (stage-2) ---
+	// --- Dashboards ---
 
 	CreateDashboard(ctx context.Context, d *Dashboard) (*Dashboard, error)
 	GetDashboard(ctx context.Context, tenantID, id string) (*Dashboard, error)
@@ -557,7 +557,7 @@ type Tx interface {
 	// any other dashboard's home list in the same tenant. Per-user.
 	SetDashboardHomeForUser(ctx context.Context, tenantID, id, userID string) (*Dashboard, error)
 
-	// --- Widgets (stage-2) ---
+	// --- Widgets ---
 
 	CreateWidget(ctx context.Context, w *Widget) (*Widget, error)
 	GetWidget(ctx context.Context, id string) (*Widget, error)
@@ -569,19 +569,19 @@ type Tx interface {
 	// are left unchanged.
 	UpdateDashboardLayout(ctx context.Context, dashboardID string, layouts map[string]string) error
 
-	// --- Dashboard versions (stage-2) ---
+	// --- Dashboard versions ---
 
 	CreateDashboardVersion(ctx context.Context, v *DashboardVersion) (*DashboardVersion, error)
 	GetDashboardVersion(ctx context.Context, id string) (*DashboardVersion, error)
 	ListDashboardVersions(ctx context.Context, dashboardID string) ([]*DashboardVersion, error)
 
-	// --- Dashboard shares (stage-2 admin completion chunk 8) ---
+	// --- Dashboard shares ---
 
 	CreateDashboardShare(ctx context.Context, s *DashboardShare) (*DashboardShare, error)
 	ListDashboardShares(ctx context.Context, dashboardID string) ([]*DashboardShare, error)
 	DeleteDashboardShare(ctx context.Context, id string) error
 
-	// --- Webhooks (stage-2) ---
+	// --- Webhooks ---
 
 	CreateWebhookEndpoint(ctx context.Context, e *WebhookEndpoint) (*WebhookEndpoint, error)
 	GetWebhookEndpoint(ctx context.Context, tenantID, id string) (*WebhookEndpoint, error)
@@ -589,7 +589,7 @@ type Tx interface {
 	UpdateWebhookEndpoint(ctx context.Context, tenantID, id string, params UpdateWebhookEndpointParams) (*WebhookEndpoint, error)
 	DeleteWebhookEndpoint(ctx context.Context, tenantID, id string) error
 
-	// --- Cluster enrollment tokens (stage-2) ---
+	// --- Cluster enrollment tokens ---
 
 	CreateEnrollmentToken(ctx context.Context, t *ClusterEnrollmentToken) (*ClusterEnrollmentToken, error)
 	GetEnrollmentTokenByHash(ctx context.Context, hash string) (*ClusterEnrollmentToken, error)
@@ -597,7 +597,7 @@ type Tx interface {
 	ConsumeEnrollmentToken(ctx context.Context, hash, nodeID string) (*ClusterEnrollmentToken, error)
 	RevokeEnrollmentToken(ctx context.Context, id string) error
 
-	// --- Impersonation sessions (stage-2) ---
+	// --- Impersonation sessions ---
 
 	CreateImpersonationSession(ctx context.Context, s *ImpersonationSession) (*ImpersonationSession, error)
 	GetImpersonationSession(ctx context.Context, id string) (*ImpersonationSession, error)
@@ -605,7 +605,7 @@ type Tx interface {
 	EndImpersonationSession(ctx context.Context, id, reason string) (*ImpersonationSession, error)
 	TouchImpersonationSession(ctx context.Context, id string) error
 
-	// --- Settings configs (stage-2): singleton-per-tenant ---
+	// --- Settings configs: singleton-per-tenant ---
 
 	GetNetworkConfig(ctx context.Context, tenantID string) (*NetworkConfig, error)
 	UpsertNetworkConfig(ctx context.Context, c *NetworkConfig) (*NetworkConfig, error)
@@ -636,7 +636,7 @@ type Tx interface {
 	GetAuditRetentionConfig(ctx context.Context, tenantID string) (*AuditRetentionConfig, error)
 	UpsertAuditRetentionConfig(ctx context.Context, c *AuditRetentionConfig) (*AuditRetentionConfig, error)
 
-	// --- PKI/TLS (stage-2) ---
+	// --- PKI/TLS ---
 
 	CreateCertAuthority(ctx context.Context, ca *CertAuthority) (*CertAuthority, error)
 	GetCertAuthority(ctx context.Context, tenantID, id string) (*CertAuthority, error)
@@ -659,7 +659,7 @@ type Tx interface {
 	GetTLSConfig(ctx context.Context, tenantID string) (*TLSConfig, error)
 	UpsertTLSConfig(ctx context.Context, c *TLSConfig) (*TLSConfig, error)
 
-	// --- Plugins (stage-2) ---
+	// --- Plugins ---
 
 	CreatePlugin(ctx context.Context, p *Plugin) (*Plugin, error)
 	GetPlugin(ctx context.Context, tenantID, id string) (*Plugin, error)
@@ -674,7 +674,7 @@ type Tx interface {
 	DeletePluginSigner(ctx context.Context, tenantID, id string) error
 	ListPluginsBySigner(ctx context.Context, signerID string) ([]*Plugin, error)
 
-	// --- Notifications (stage-2) ---
+	// --- Notifications ---
 
 	// Items (per-user inbox)
 	AppendNotificationItem(ctx context.Context, n *NotificationItem) (*NotificationItem, error)
@@ -710,7 +710,7 @@ type Tx interface {
 	GetTenantNotificationConfig(ctx context.Context, tenantID string) (*TenantNotificationConfig, error)
 	UpsertTenantNotificationConfig(ctx context.Context, c *TenantNotificationConfig) (*TenantNotificationConfig, error)
 
-	// --- AI subsystem (stage-2) ---
+	// --- AI subsystem ---
 
 	// Providers
 	CreateAIProvider(ctx context.Context, p *AIProvider) (*AIProvider, error)
@@ -767,7 +767,7 @@ type Tx interface {
 	ListAITracesByTenant(ctx context.Context, tenantID string, query AITraceQuery) ([]*AITrace, error)
 	ListAITracesByAgent(ctx context.Context, agentID string, query AITraceQuery) ([]*AITrace, error)
 
-	// --- Sites (stage-2) ---
+	// --- Sites ---
 
 	CreateSite(ctx context.Context, s *Site) (*Site, error)
 	GetSite(ctx context.Context, tenantID, id string) (*Site, error)
@@ -776,7 +776,7 @@ type Tx interface {
 	ToggleSite(ctx context.Context, tenantID, id string, enabled bool) (*Site, error)
 	DeleteSite(ctx context.Context, tenantID, id string) error
 
-	// --- Middlewares (stage-2) ---
+	// --- Middlewares ---
 
 	CreateMiddleware(ctx context.Context, m *Middleware) (*Middleware, error)
 	GetMiddleware(ctx context.Context, tenantID, id string) (*Middleware, error)
@@ -784,7 +784,7 @@ type Tx interface {
 	UpdateMiddleware(ctx context.Context, tenantID, id string, params UpdateMiddlewareParams) (*Middleware, error)
 	DeleteMiddleware(ctx context.Context, tenantID, id string) error
 
-	// --- RBAC Policies (stage-2 admin completion chunk 7b) ---
+	// --- RBAC Policies ---
 
 	// CreateRbacPolicy persists a new rbac policy.
 	CreateRbacPolicy(ctx context.Context, p *RbacPolicy) (*RbacPolicy, error)
@@ -814,7 +814,7 @@ type Tx interface {
 	// if no row matched.
 	DeleteAccessPolicy(ctx context.Context, id string) error
 
-	// --- Opaque handles (stage-2 plan 00c) ---
+	// --- Opaque handles ---
 
 	// GetOpaqueHandle returns the handle for a (tenantID, handle) pair.
 	// Returns (nil, nil) when not found.
@@ -825,7 +825,7 @@ type Tx interface {
 	// UpsertOpaqueHandle inserts or replaces an opaque handle row.
 	UpsertOpaqueHandle(ctx context.Context, h OpaqueHandle) error
 
-	// --- SSO providers (stage-2 plan 17b, #240) ---
+	// --- SSO providers ---
 
 	// CreateSsoProvider inserts a tenant-scoped provider config. Returns
 	// ErrSsoProviderTaken when (tenant_id, name) collides.
@@ -849,7 +849,7 @@ type Tx interface {
 // Tenant represents a logical workspace boundary. Every tenant-scoped
 // entity carries a tenant_id FK referencing tenants(id). The default
 // tenant (slug "default") is seeded by migration 13 and is the parent
-// of all data created before stage-2.
+// tenant for legacy data.
 type Tenant struct {
 	ID      string
 	Slug    string
@@ -1755,7 +1755,7 @@ var (
 	ErrMCPServerNameTaken      = fmt.Errorf("store: mcp server name already in use")
 )
 
-// SSO provider sentinel errors (stage-2 plan 17b, #240).
+// SSO provider sentinel errors.
 var (
 	ErrSsoProviderNotFound = fmt.Errorf("store: sso provider not found")
 	ErrSsoProviderTaken    = fmt.Errorf("store: sso provider name already in use in this tenant")

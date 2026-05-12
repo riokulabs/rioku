@@ -3,11 +3,10 @@
  *
  * Certificate Authority list, CA creation (internal/external), certificate
  * enrollment list, enrollment creation, and revocation. Wraps the <PkiSection>
- * component built in stage-1 plan 8b.
+ * component built in.
  *
  * Guard: pki:read (readers see list; writers can create/revoke).
  *
- * Plan 7 — Task 6
  */
 import { createFileRoute, Link, useParams } from '@tanstack/react-router';
 import { Anchor, Group, Stack } from '@mantine/core';

@@ -4,8 +4,8 @@
  * List + filter bar + drawer (detail / create-wizard / edit). URL-synced
  * search + tls_mode + enabled + linked_service_ids filters.
  *
- * Per Plan 2 Task 2c.18: tls_mode / enabled / linked_service_ids are all
- * multi-value filters. URL serialization uses CSV
+ * tls_mode / enabled / linked_service_ids are all multi-value filters.
+ * URL serialization uses CSV
  * (e.g. `?tls_mode=auto,manual&enabled=enabled`).
  *
  * Permission guard: site:read to view, site:write for Create/Edit,

@@ -1,4 +1,4 @@
-// Package gateway: tenant identity resolver (stage-2 plan-17a).
+// Package gateway: tenant identity resolver.
 //
 // `GET /api/v1/t/{tenant}/identity` returns the minimum tenant
 // metadata SPA surfaces need when they hold only a tenant id (or

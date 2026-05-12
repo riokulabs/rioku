@@ -1,5 +1,5 @@
 /**
- * Plugin notification emitter — spec §9.5.7, §11
+ * Plugin notification emitter.
  *
  * Plugins call `emitPluginNotification(...)` to push notifications into the
  * in-app inbox. The function validates the category naming convention
@@ -88,7 +88,7 @@ function nextNotifId(pluginName: string): string {
  * Emit a plugin notification.
  *
  * Validates:
- *   - `category` must start with `plugin:<pluginName>` (spec §11). This is
+ *   - `category` must start with `plugin:<pluginName>`. This is
  *     enforced at the entry point so plugins cannot write to built-in
  *     category buckets (system / security / audit) even if the category
  *     schema downstream would accept `plugin:<othername>`.
@@ -109,7 +109,7 @@ export function emitPluginNotification(input: PluginNotificationInput): void {
     input.category.startsWith(`${expectedPrefix}.`);
   if (!valid) {
     throw new Error(
-      `Plugin notification category must start with "${expectedPrefix}", got "${input.category}" (spec §11).`,
+      `Plugin notification category must start with "${expectedPrefix}", got "${input.category}".`,
     );
   }
 

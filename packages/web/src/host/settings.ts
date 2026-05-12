@@ -1,8 +1,8 @@
 /**
- * Settings-panel registry — spec §9.5.4
+ * Settings-panel registry.
  *
  * Plugins register settings panels that are injected into the global Settings
- * page (Task 1f.109+). First-party code reads panels grouped by section.
+ * page. First-party code reads panels grouped by section.
  *
  * Duplicate-id policy: reject (panel ids must be unique across sections).
  */

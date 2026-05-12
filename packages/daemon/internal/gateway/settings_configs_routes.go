@@ -1,4 +1,4 @@
-// Package gateway: Settings config singleton REST endpoints (stage-2).
+// Package gateway: Settings config singleton REST endpoints.
 //
 // Each is a GET (returns defaults if absent) + PUT (upsert) pair.
 //

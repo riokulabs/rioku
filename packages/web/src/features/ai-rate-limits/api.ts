@@ -1,22 +1,10 @@
 /**
- * AI Semantic Rate Limits API — stage 2 wiring.
+ * AI Semantic Rate Limits API.
  *
- * This module is the public ai-rate-limits API surface. It is backed by
- * the Orval-generated TanStack Query hooks under
- * `@/api/generated/ai-rate-limits/ai-rate-limits` so every consumer that
- * imports from `features/ai-rate-limits` ends up calling the live daemon
- * REST endpoints under `/api/v1/t/{tenant}/ai/rate-limits/...`.
- *
- * Public names (`useRateLimitList`, `useRateLimitDetail`,
- * `createRateLimit`, `updateRateLimit`, `deleteRateLimit`,
- * `useRateLimitMetrics`, `simulateMatch`) are preserved. Mutators take
- * an explicit tenant id since the REST surface is tenant-scoped.
- *
- * Adapter:
- *   The daemon proto shape (`AIRateLimit`, camelCase) is translated to
- *   the admin `AiSemanticRateLimit` shape (snake_case, includes derived
- *   fields). `threshold` ↔ `max_matches`. `description` is not in the
- *   daemon model yet — adapter returns `undefined`.
+ * Adapter: the daemon proto shape (`AIRateLimit`, camelCase) is translated
+ * to the admin `AiSemanticRateLimit` shape (snake_case). `threshold` ↔
+ * `max_matches`. `description` is not in the daemon model yet — adapter
+ * returns `undefined`.
  */
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import {
@@ -107,11 +95,7 @@ function toUpdateBody(input: UpdateRateLimitInput): AIRateLimitUpdateRequest {
 
 // ─── Selectors (query hooks) ──────────────────────────────────────────────────
 
-/**
- * Returns rate-limit rules for a tenant after applying client-side filters.
- * Wraps `listAIRateLimits` and projects only the array so legacy call sites
- * (`useRateLimitList(...)` returning `AiSemanticRateLimit[]`) keep working.
- */
+/** Returns rate-limit rules for a tenant after applying client-side filters. */
 export function useRateLimitList(tenantId: string, filter: RateLimitFilter): AiSemanticRateLimit[] {
   const { data } = useQuery({
     queryKey: getListAIRateLimitsQueryKey(tenantId),
@@ -123,11 +107,9 @@ export function useRateLimitList(tenantId: string, filter: RateLimitFilter): AiS
   const search = filter.search.toLowerCase().trim();
   const out: AiSemanticRateLimit[] = [];
   for (const proto of items) {
-    // The daemon already scopes the response to the URL's tenant; the
-    // previous `proto.tenantId !== tenantId` guard compared the URL slug
-    // (e.g. `acme`) against the daemon's internal tenant id (e.g.
-    // `tenant_ed1cf0c3...`), filtering out every row and rendering an
-    // empty page for every non-default tenant.
+    // The daemon already scopes the response to the URL's tenant. Do NOT
+    // reintroduce a `proto.tenantId !== tenantId` guard — it would compare
+    // the URL slug against the daemon's internal id and filter out everything.
     const rule = fromProto(proto);
     if (filter.scopes.length > 0 && !filter.scopes.includes(rule.scope)) continue;
     if (filter.actions.length > 0 && !filter.actions.includes(rule.action)) continue;
@@ -138,11 +120,7 @@ export function useRateLimitList(tenantId: string, filter: RateLimitFilter): AiS
   return out;
 }
 
-/**
- * Returns a single rate-limit rule for a tenant. Stage-2 signature requires
- * an explicit tenantId because the REST surface is tenant-scoped; legacy
- * stage-1 callers that passed only `id` are migrated alongside this rewrite.
- */
+/** Returns a single rate-limit rule for a tenant. */
 export function useRateLimitDetail(tenantId: string, id: string): AiSemanticRateLimit | undefined {
   const { data } = useQuery({
     queryKey: getGetAIRateLimitQueryKey(tenantId, id),
@@ -167,10 +145,7 @@ export async function createRateLimit(
   return fromProto(res.data);
 }
 
-/**
- * Update a rate-limit rule. Stage-2 signature requires an explicit
- * tenantId. Real endpoint: PUT `/api/v1/t/{tenantId}/ai/rate-limits/{id}`.
- */
+/** Update a rate-limit rule. PUT `/api/v1/t/{tenantId}/ai/rate-limits/{id}`. */
 export async function updateRateLimit(
   tenantId: string,
   id: string,
@@ -264,13 +239,10 @@ export function useSimulateRateLimitProbeMutation(tenantId: string, id: string) 
 }
 
 /**
- * Compatibility shim. `simulateMatch(ruleId, candidateText)` returned a
- * Jaccard-like score in stage-1; the daemon doesn't ship that primitive
- * yet, and the UI consumer has migrated to the probe-style simulator.
- * This wrapper exists so the public name from the barrel keeps resolving
- * and any third-party caller gets a `matched: false` result with a
- * deterministic 0 score instead of a runtime crash. Prefer
- * `simulateRateLimitProbe`.
+ * Compatibility shim. The daemon doesn't ship a Jaccard-style match
+ * primitive; consumers should use `simulateRateLimitProbe` instead. This
+ * wrapper returns `{ matched: false, score: 0 }` so third-party callers
+ * don't crash.
  *
  * @deprecated Use `simulateRateLimitProbe` against the real daemon instead.
  */
@@ -281,11 +253,10 @@ export function simulateMatch(_ruleId: string, _candidateText: string): Simulate
 // ─── Metrics ─────────────────────────────────────────────────────────────────
 
 /**
- * Pull the throttle-event time-series for a rate-limit. Real endpoint:
+ * Pull the throttle-event time-series for a rate-limit.
  * GET `/api/v1/t/{tenantId}/ai/rate-limits/{id}/metrics?since={window}`.
  *
- * The legacy stage-1 hook returned `{timestamp, matches}`; we keep that
- * shape so the existing sparkline keeps working unchanged. New code should
+ * Returns `{timestamp, matches}` for sparkline back-compat. New code should
  * read `throttle_events` directly via `useRateLimitMetricsRaw`.
  */
 export function useRateLimitMetrics(
@@ -297,9 +268,7 @@ export function useRateLimitMetrics(
   return points.map((p) => ({ timestamp: p.timestamp, matches: p.throttle_events }));
 }
 
-/**
- * Stage-2 native metrics hook — returns the daemon shape directly.
- */
+/** Native metrics hook — returns the daemon shape directly. */
 export function useRateLimitMetricsRaw(
   tenantId: string,
   ruleId: string,

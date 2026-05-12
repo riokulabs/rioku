@@ -113,9 +113,9 @@ func (d *Daemon) Start(ctx context.Context) error {
 	d.logLevel = lv
 	d.loggingShutdown = loggingShutdown
 
-	// 0b. Attach the in-memory log-tail ring buffer (#191 / Plan 07-007)
-	// as a fan-out handler on top of the configured slog default. The
-	// buffer drives the SSE log-tail endpoint exposed by the gateway.
+	// Attach the in-memory log-tail ring buffer as a fan-out handler on
+	// top of the configured slog default. The buffer drives the SSE
+	// log-tail endpoint exposed by the gateway.
 	d.logTail = gateway.NewLogTailBuffer(1000)
 	if base := slog.Default(); base != nil {
 		slog.SetDefault(slog.New(newMultiHandler(base.Handler(), d.logTail)))
@@ -505,12 +505,12 @@ func (d *Daemon) Start(ctx context.Context) error {
 	d.engine.SetCompiler(compiler)
 	slog.Info("compiler updated with admin config", "component", "config")
 
-	// 8a. Wire the Caddy admin-API reload hook (Plan 03 / decision item 005).
-	// Every config-mutating REST handler calls triggerCaddyReload after its
-	// transaction commits; the hook here POSTs the freshly compiled config
-	// to Caddy's /load endpoint. The sync agent below remains responsible
-	// for store-watcher triggered reloads (initial sync + cluster changes);
-	// the hook adds synchronous reloads for direct admin-panel mutations.
+	// Wire the Caddy admin-API reload hook. Every config-mutating REST
+	// handler calls triggerCaddyReload after its transaction commits; the
+	// hook here POSTs the freshly compiled config to Caddy's /load
+	// endpoint. The sync agent below remains responsible for store-watcher
+	// triggered reloads (initial sync + cluster changes); the hook adds
+	// synchronous reloads for direct admin-panel mutations.
 	caddyAdminURL := "http://" + d.cfg.Caddy.AdminAddr
 	gateway.SetCaddyReloadHook(gateway.NewCaddyAdminReloader(gateway.CaddyReloaderConfig{
 		AdminURL: caddyAdminURL,

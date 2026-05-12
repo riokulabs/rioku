@@ -5,9 +5,9 @@
  * sibling detail URL without turning the list page `routes.tsx` into a
  * layout. URL path emitted: `/t/$tenant/routes/$routeId`.
  *
- * Renders the Stage 2 <RouteFullPage> component (Overview / Middlewares /
+ * Renders the <RouteFullPage> component (Overview / Middlewares /
  * Policies / Audit tabs). Component itself reads the route via the real
- * Stage-2 endpoint.
+ * daemon endpoint.
  */
 import { createFileRoute, Link, useNavigate } from '@tanstack/react-router';
 import { Button, Group, Stack } from '@mantine/core';

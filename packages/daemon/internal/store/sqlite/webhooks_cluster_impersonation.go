@@ -1,5 +1,5 @@
 // Package sqlite — Webhooks + ClusterEnrollmentTokens +
-// ImpersonationSessions (stage-2).
+// ImpersonationSessions.
 package sqlite
 
 import (

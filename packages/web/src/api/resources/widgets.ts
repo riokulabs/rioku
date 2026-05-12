@@ -1,4 +1,4 @@
-// Owned by Plan 08 (dashboards) — types for the widgets resource surface.
+// Types for the widgets resource surface.
 
 import type { ID } from './common';
 import type { Dashboard } from './dashboards';
@@ -29,10 +29,9 @@ export interface Widget {
   config: Record<string, unknown>;
   /**
    * Legacy grid position. Canonical layout source is `Dashboard.layout`.
-   * TODO(Plan 4c): remove once all builder paths migrate to `Dashboard.layout`.
+   * TODO: remove once all builder paths migrate to `Dashboard.layout`.
    */
   position: { x: number; y: number; w: number; h: number };
-  // New in Plan 4:
   /**
    * Data-source kind — one of the 6 built-in sources or a plugin-declared id.
    *

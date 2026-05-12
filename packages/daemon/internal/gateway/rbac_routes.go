@@ -392,7 +392,7 @@ func handleDeleteRole(st store.Driver) http.HandlerFunc {
 // The source field indicates permission origin: "built-in", "plugin-manifest",
 // or "plugin-dynamic". sourcePluginId is omitted when empty (built-in perms).
 //
-// TODO(plan-9-plugins): permissionRegistry.Register interface for plugin-side
+// TODO(plugins): permissionRegistry.Register interface for plugin-side
 // permission registration — plugins will call Register at init time and the
 // daemon will persist source="plugin-manifest" rows on first boot.
 type permissionResponse struct {

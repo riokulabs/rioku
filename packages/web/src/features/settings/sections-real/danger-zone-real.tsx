@@ -1,18 +1,16 @@
 /**
- * Real-API DangerZoneSection — stage-2 wiring with triple-confirm UX.
+ * Real-API DangerZoneSection with triple-confirm UX.
  *
  * Three actions, each gated behind a triple-confirm modal:
  *   1. Hard reset      — POST /settings/danger/hard-reset (tenant:hard-reset)
  *   2. Export          — GET  /settings/danger/export      (tenant:export)
  *   3. Delete tenant   — DELETE /settings/danger/tenant    (tenant:delete, super-admin only)
  *
- * Triple-confirm contract (per Plan 07 Task 9):
+ * Triple-confirm contract:
  *   Step 1: read description of action + risks
  *   Step 2: type the magic word (DELETE / RESET / EXPORT) or tenant slug
  *   Step 3: tick "I understand this is irreversible"
  * Submit button stays disabled until all three are satisfied.
- *
- * Plan 07 — Task 9.
  */
 import { useState } from 'react';
 import {

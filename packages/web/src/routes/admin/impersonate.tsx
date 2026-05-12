@@ -4,7 +4,6 @@
  * Requires: user:impersonate + admin:cross-tenant-write (any one of)
  * Wrapped by AdminLayout via parent /admin route.
  *
- * spec §8.2 / Task 1d.75
  */
 import { createFileRoute } from '@tanstack/react-router';
 import { requirePermissions } from '@/hooks/use-before-load';

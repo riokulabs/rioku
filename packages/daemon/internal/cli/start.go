@@ -49,8 +49,8 @@ func runStart() error {
 		return fmt.Errorf("load config: %w", err)
 	}
 
-	// Plan 12: --subdomain-cert / --subdomain-key flags override the
-	// YAML caddy.subdomain_cert_file / subdomain_key_file fields.
+	// --subdomain-cert / --subdomain-key flags override the YAML
+	// caddy.subdomain_cert_file / subdomain_key_file fields.
 	if flagSubdomainCert != "" {
 		cfg.Caddy.SubdomainCertFile = flagSubdomainCert
 	}

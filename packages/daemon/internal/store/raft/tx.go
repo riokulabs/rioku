@@ -605,9 +605,8 @@ func (t *raftTx) RecordAPIKeyUse(_ context.Context, _ string, _ time.Time) error
 	return nil
 }
 
-// UpdateAPIKey is not yet implemented on the raft driver — single-tenant
-// raft deployments aren't a stage-2 release target. Returns ErrUnsupported
-// (sentinel) so callers can fall back gracefully.
+// UpdateAPIKey is not yet implemented on the raft driver. Returns
+// ErrUnsupported (sentinel) so callers can fall back gracefully.
 func (t *raftTx) UpdateAPIKey(_ context.Context, _ string, _ store.UpdateAPIKeyParams) (*store.APIKey, error) {
 	return nil, fmt.Errorf("raft: UpdateAPIKey not implemented")
 }
@@ -851,9 +850,8 @@ func (t *raftTx) CountAuditLog(_ context.Context, query store.AuditQuery) (int, 
 }
 
 // GetAuditEntry / ListAuditActors / ListAuditResourceIDs — not yet
-// implemented on the raft driver. Single-tenant raft isn't a stage-2
-// release target; these stubs satisfy the Tx interface so the daemon
-// builds against either backend.
+// implemented on the raft driver. These stubs satisfy the Tx interface
+// so the daemon builds against either backend.
 
 func (t *raftTx) GetAuditEntry(_ context.Context, _ string) (*riokuv1.AuditEntry, error) {
 	return nil, fmt.Errorf("raft: GetAuditEntry not implemented")
@@ -1215,7 +1213,7 @@ func getString(m map[string]interface{}, key string) string {
 }
 
 // ---------------------------------------------------------------------------
-// Tenants + Memberships (stage-2) — raft stubs
+// Tenants + Memberships — raft stubs
 //
 // The raft FSM doesn't yet have ops for tenant/membership writes.
 // Callers should use the SQLite driver for tenant work until a
@@ -1296,7 +1294,7 @@ func (t *raftTx) ListMembershipRoles(_ context.Context, _ string) ([]store.Role,
 }
 
 // ---------------------------------------------------------------------------
-// Sites + Middlewares (stage-2) — raft stubs
+// Sites + Middlewares — raft stubs
 // ---------------------------------------------------------------------------
 
 func (t *raftTx) CreateSite(_ context.Context, _ *store.Site) (*store.Site, error) {
@@ -1335,7 +1333,7 @@ func (t *raftTx) DeleteMiddleware(_ context.Context, _, _ string) error {
 }
 
 // ---------------------------------------------------------------------------
-// Dashboards + Widgets + Versions (stage-2) — raft stubs
+// Dashboards + Widgets + Versions — raft stubs
 // ---------------------------------------------------------------------------
 
 func (t *raftTx) CreateDashboard(_ context.Context, _ *store.Dashboard) (*store.Dashboard, error) {
@@ -1390,7 +1388,7 @@ func (t *raftTx) ListDashboardVersions(_ context.Context, _ string) ([]*store.Da
 }
 
 // ---------------------------------------------------------------------------
-// AI subsystem (stage-2) — raft stubs
+// AI subsystem — raft stubs
 // ---------------------------------------------------------------------------
 
 func (t *raftTx) CreateAIProvider(_ context.Context, _ *store.AIProvider) (*store.AIProvider, error) {
@@ -1519,7 +1517,7 @@ func (t *raftTx) ListAITracesByAgent(_ context.Context, _ string, _ store.AITrac
 }
 
 // ---------------------------------------------------------------------------
-// Notifications (stage-2) — raft stubs
+// Notifications — raft stubs
 // ---------------------------------------------------------------------------
 
 func (t *raftTx) AppendNotificationItem(_ context.Context, _ *store.NotificationItem) (*store.NotificationItem, error) {
@@ -1563,7 +1561,7 @@ func (t *raftTx) DeleteNotificationChannel(_ context.Context, _, _ string) error
 	return fmt.Errorf("raft: DeleteNotificationChannel not implemented")
 }
 
-// SSO providers (stage-2 plan 17b, #240) — not yet implemented for raft.
+// SSO providers — not yet implemented for raft.
 func (t *raftTx) CreateSsoProvider(_ context.Context, _ *store.SsoProvider) (*store.SsoProvider, error) {
 	return nil, fmt.Errorf("raft: CreateSsoProvider not implemented")
 }
@@ -1620,7 +1618,7 @@ func (t *raftTx) UpsertTenantNotificationConfig(_ context.Context, _ *store.Tena
 }
 
 // ---------------------------------------------------------------------------
-// Plugins (stage-2) — raft stubs
+// Plugins — raft stubs
 // ---------------------------------------------------------------------------
 
 func (t *raftTx) CreatePlugin(_ context.Context, _ *store.Plugin) (*store.Plugin, error) {
@@ -1659,7 +1657,7 @@ func (t *raftTx) ListPluginsBySigner(_ context.Context, _ string) ([]*store.Plug
 }
 
 // ---------------------------------------------------------------------------
-// PKI/TLS (stage-2) — raft stubs
+// PKI/TLS — raft stubs
 // ---------------------------------------------------------------------------
 
 func (t *raftTx) CreateCertAuthority(_ context.Context, _ *store.CertAuthority) (*store.CertAuthority, error) {
@@ -1718,7 +1716,7 @@ func (t *raftTx) UpsertTLSConfig(_ context.Context, _ *store.TLSConfig) (*store.
 }
 
 // ---------------------------------------------------------------------------
-// Settings configs (stage-2) — raft stubs
+// Settings configs — raft stubs
 // ---------------------------------------------------------------------------
 
 func (t *raftTx) GetNetworkConfig(_ context.Context, tenantID string) (*store.NetworkConfig, error) {
@@ -1763,7 +1761,7 @@ func (t *raftTx) UpsertAuditRetentionConfig(_ context.Context, _ *store.AuditRet
 }
 
 // ---------------------------------------------------------------------------
-// Webhooks + cluster + impersonation (stage-2) — raft stubs
+// Webhooks + cluster + impersonation — raft stubs
 // ---------------------------------------------------------------------------
 
 func (t *raftTx) CreateWebhookEndpoint(_ context.Context, _ *store.WebhookEndpoint) (*store.WebhookEndpoint, error) {

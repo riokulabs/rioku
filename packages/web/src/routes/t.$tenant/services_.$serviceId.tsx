@@ -6,8 +6,8 @@
  * without turning the list page `services.tsx` into a layout with <Outlet>.
  * The URL path emitted is still `/t/$tenant/services/$serviceId`.
  *
- * Renders the Stage 2 <ServiceFullPage> component (Overview / Routes /
- * Health / Audit tabs) backed by real daemon endpoints.
+ * Renders the <ServiceFullPage> component (Overview / Routes / Health /
+ * Audit tabs) backed by real daemon endpoints.
  */
 import { createFileRoute, Link } from '@tanstack/react-router';
 import { Button, Group, Stack } from '@mantine/core';

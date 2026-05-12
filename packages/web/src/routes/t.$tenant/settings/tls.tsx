@@ -3,12 +3,9 @@
  *
  * TLS certificate list (manual + auto-renew toggle + delete), ACME provider
  * configuration (Let's Encrypt / ZeroSSL / custom Pebble), allowed cipher
- * suites, and manual cert upload. Wraps the <TlsSection> component built
- * in stage-1 plan 8b.
+ * suites, and manual cert upload. Wraps the <TlsSection> component.
  *
  * Guard: tls:read (readers see disabled form; writers can mutate).
- *
- * Plan 7 — Task 5
  */
 import { createFileRoute, Link, useParams } from '@tanstack/react-router';
 import { Anchor, Group, Stack } from '@mantine/core';

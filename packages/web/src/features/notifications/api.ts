@@ -1,19 +1,12 @@
 /**
  * Notifications inbox API — list, mark-read, archive, stream.
  *
- * Stage-2: backed by daemon REST endpoints + SSE stream.
- *
- * Permission model (Plan 7 §11):
+ * Permission model:
  *   notification:read         list + detail
  *   notification:manage-own   mark-read/archive for own user_id
  *
- * Daemon delivers only the authed user's notifications so the `userId`
- * parameter is used client-side for filtering (legacy compat) and for
- * the `markAllRead` response count.
- *
- * SSE stream subscribes to the per-tenant topic via `subscribeSSE`.
- * Each event is a lightweight `NotificationStreamDelta`; receipt invalidates
- * the React Query inbox cache so the list refetches silently.
+ * Daemon delivers only the authed user's notifications; the `userId`
+ * parameter is used client-side for defense-in-depth filtering.
  *
  * `emitNotification` is the client-side hot-path for plugin + first-party
  * emitters (immediate toast + host event). It does NOT persist to daemon.
@@ -339,18 +332,13 @@ export interface NotificationStreamDelta {
  * use this to drive cache invalidation (see `useInboxStream`).
  *
  * Returns an unsubscribe function.
- *
- * Stage-1 callers used `subscribeInboxStream(userId, listener)` with the
- * mock EventTarget bus. Stage-2 signature changes to `(tenant, onDelta)`.
- * The old `userId` param is retired — daemon scopes to the authed user.
  */
 export function subscribeInboxStream(
   tenantOrUserId: string,
   onDelta: ((delta: NotificationStreamDelta) => void) | InboxStreamListener,
 ): () => void {
-  // Heuristic: if the value looks like a userId (matches the mock-store prefix
-  // 'user-' or is not a tenant slug) we resolve the tenant from the URL
-  // instead. This keeps stage-1 call sites working without modification.
+  // Heuristic: if the value looks like a userId ('user-' prefix) resolve the
+  // tenant from the URL instead — keeps single-arg call sites working.
   const tenant = tenantOrUserId.startsWith('user-') ? resolveTenant() : tenantOrUserId;
   if (!tenant) {
     return () => {
@@ -359,10 +347,9 @@ export function subscribeInboxStream(
   }
   const topic = `t/${tenant}/notifications/stream`;
   return subscribeSSE(topic, (detail) => {
-    // The legacy InboxStreamListener expected a NotificationItem; SSE now
-    // sends a NotificationStreamDelta. Call onDelta with the delta directly —
-    // callers that used the old signature will receive a partial object.
-    // The inbox-dropdown and top-bar components use the hook instead.
+    // SSE sends NotificationStreamDelta; the legacy InboxStreamListener
+    // shape was NotificationItem — callers using the old signature get a
+    // partial object. Prefer `useInboxStream` for new code.
     (onDelta as (d: NotificationStreamDelta) => void)(detail as NotificationStreamDelta);
   });
 }

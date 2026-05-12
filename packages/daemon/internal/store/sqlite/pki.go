@@ -1,4 +1,4 @@
-// Package sqlite — PKI/TLS subsystem (stage-2).
+// Package sqlite — PKI/TLS subsystem.
 package sqlite
 
 import (

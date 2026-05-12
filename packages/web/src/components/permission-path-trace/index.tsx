@@ -8,8 +8,6 @@
  *   - granted:   green check + role chain path + optional CEL condition tooltip
  *   - denied:    red X + which role carries the deny entry
  *   - no-source: grey dash + "No role grants this permission"
- *
- * spec §7 / Task 1d.67
  */
 
 import { List, Text, Badge, Group, ThemeIcon, Tooltip, Stack, Box } from '@mantine/core';

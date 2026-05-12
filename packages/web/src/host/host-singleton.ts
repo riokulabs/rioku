@@ -6,8 +6,6 @@
  *
  * The singleton is built once and reused; it is identical in shape to the
  * object returned by `useHost()` because both call `buildHost()`.
- *
- * spec §9.4.1
  */
 
 import { buildHost } from './host-builder';

@@ -1,5 +1,5 @@
 /**
- * /t/$tenant/plugins/sideload — Plan 09 T5.
+ * /t/$tenant/plugins/sideload.
  *
  * Operator uploads a built plugin archive + manifest. Sideload is a
  * dev-mode-only feature: when the daemon's `sideload_enabled` flag is

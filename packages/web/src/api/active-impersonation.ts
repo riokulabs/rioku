@@ -7,9 +7,8 @@
  * so every daemon-bound request automatically stamps the
  * `X-Impersonation-Id` header while a session is active.
  *
- * Stage-2 plan-13 close-out: the mock-store has been retired; the active
- * id now lives in a module-local cell. Feature code reads/writes via the
- * helpers below.
+ * The active id lives in a module-local cell. Feature code reads/writes via
+ * the helpers below.
  */
 
 let activeImpersonationId: string | null = null;

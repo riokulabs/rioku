@@ -1,4 +1,4 @@
-// Package mysql — Dashboards + Widgets + Versions (stage-2).
+// Package mysql — Dashboards + Widgets + Versions.
 package mysql
 
 import (

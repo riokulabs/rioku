@@ -1,6 +1,5 @@
 /**
  * Invite acceptance page — reads token from route param.
- * Task 1e.89
  */
 import { createFileRoute } from '@tanstack/react-router';
 import { Title, Stack } from '@mantine/core';

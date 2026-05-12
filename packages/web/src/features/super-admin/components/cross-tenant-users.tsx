@@ -1,17 +1,14 @@
 /**
  * <CrossTenantUsers> — global user registry across all tenants.
  *
- * Plan 11 close-out: now consumes the real `/api/v1/admin/users` endpoint via
- * `useListAdminUsers`. The daemon currently returns `{id, username, status}`
- * per user; richer per-user detail (memberships, audit) lands as a follow-up
- * endpoint. The detail drawer shows the fields the daemon returns today.
+ * Consumes `/api/v1/admin/users` via `useListAdminUsers`. The daemon returns
+ * `{id, username, status}` per user; richer per-user detail (memberships,
+ * audit) is a follow-up endpoint.
  *
  * Features:
  *   - Search by username
  *   - Filter by status (active / disabled)
  *   - User detail drawer with profile fields
- *
- * spec §8.1 §8.4 / Task 1d.78 / Plan 11
  */
 import { useMemo, useState } from 'react';
 import { type ColumnDef } from '@tanstack/react-table';

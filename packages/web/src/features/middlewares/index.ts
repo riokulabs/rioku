@@ -1,6 +1,3 @@
-/**
- * Middlewares feature — barrel exports.
- */
 export {
   useMiddlewareList,
   useMiddlewareDetail,
@@ -33,9 +30,6 @@ export { MiddlewareDrawer } from './components/drawer';
 export type { MiddlewareDrawerProps } from './components/drawer';
 export { MiddlewareFullPage } from './components/full-page';
 export type { MiddlewareFullPageProps } from './components/full-page';
-// Stage-2 hooks (Orval-backed). Components currently call mock-store helpers
-// from `./api`; Stage-2 callers can import these directly when wiring real
-// daemon endpoints (gated by `VITE_USE_MOCKS=false` via `src/api/mode.ts`).
 export {
   useMiddlewareListReal,
   useMiddlewareDetailReal,

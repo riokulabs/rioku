@@ -1,4 +1,4 @@
-// Package gateway: AI agent handlers (stage-2).
+// Package gateway: AI agent handlers.
 //
 // Includes per-agent nested resources: tool bindings list, traces list,
 // and the rotate-credential stub. Bindings + trace types live in
@@ -275,7 +275,7 @@ func handleRotateAgentCredential(st store.Driver) http.HandlerFunc {
 			"ok":            true,
 			"newCredential": newCred,
 			"prefix":        newCred[:min(12, len(newCred))],
-			"note":          "scoped credential rotation is stubbed in stage-2",
+			"note":          "scoped credential rotation is stubbed",
 		})
 	}
 }
@@ -289,8 +289,8 @@ func handleRotateAgentCredential(st store.Driver) http.HandlerFunc {
 //	text fragments, terminated by `event: done` carrying token + cost
 //	summary, or `event: error` on failure.
 //
-// This is a stage-2 stub; real implementations will route through the
-// configured provider's streaming completion API.
+// Currently a stub; real implementations will route through the configured
+// provider's streaming completion API.
 func handleInvokeAIAgent(st store.Driver) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		tenant, ok := tenantOrError(w, r)
@@ -339,7 +339,7 @@ func handleInvokeAIAgent(st store.Driver) http.HandlerFunc {
 			agent.Name,
 			". ",
 			"Generating response… ",
-			"This is a stub completion produced by the stage-2 invoke handler.",
+			"This is a stub completion produced by the invoke handler.",
 		}
 		start := time.Now()
 		for i, c := range chunks {

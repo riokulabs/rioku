@@ -1,4 +1,4 @@
-// Owned by Plan 04 (ai) — types for the ai-rate-limits resource surface.
+// Types for the ai-rate-limits resource surface.
 
 import type { ID } from './common';
 

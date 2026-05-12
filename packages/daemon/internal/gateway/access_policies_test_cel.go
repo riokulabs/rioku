@@ -1,7 +1,5 @@
 // Package gateway: test-CEL endpoint for the access-policies surface.
 //
-// Plan-03 Task 6 / decisions-needed.md item 004:
-//
 //	POST /api/v1/t/{tenant}/access-policies/test-cel
 //	Body:  { expr: string, sample?: object }
 //	Reply: { matched: bool, error?: string, durationMs: number }

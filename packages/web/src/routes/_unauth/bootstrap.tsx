@@ -5,8 +5,6 @@
  * `{required: true}`. The root `beforeLoad` redirects everyone here when
  * bootstrap is required, and kicks anyone landing here to `/login` when it
  * is not.
- *
- * Plan 01 — stage 2 wiring.
  */
 import { createFileRoute } from '@tanstack/react-router';
 import { Title, Stack, Text } from '@mantine/core';

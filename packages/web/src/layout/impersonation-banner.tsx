@@ -13,8 +13,6 @@
  * both tenant pages (AppLayout) and admin pages (AdminLayout). The parent
  * div in app-layout.tsx positions it outside AppShell's header slot to avoid
  * conflicting with the TopBar.
- *
- * spec §8.2 / Task 1d.76
  */
 import { Alert, Group, Text, Button, Anchor, Badge } from '@mantine/core';
 import { modals } from '@mantine/modals';

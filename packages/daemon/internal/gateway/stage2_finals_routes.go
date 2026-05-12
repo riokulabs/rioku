@@ -1,6 +1,5 @@
-// Package gateway: stage-2 admin API completion chunks 12, 16-19 —
-// plugins install SSE, profile (`/settings/me`) family, super-admin
-// surface, auth flow recovery, danger-zone.
+// Package gateway: plugins install SSE, profile (`/settings/me`) family,
+// super-admin surface, auth flow recovery, danger-zone.
 //
 // Most of these endpoints accept the operator's intent and return a
 // placeholder response so the admin panel can wire its UI without
@@ -95,7 +94,7 @@ func handleCapabilities(w http.ResponseWriter, _ *http.Request) {
 	writeJSON(w, http.StatusOK, caps)
 }
 
-// ─── Chunk 12: plugins install SSE + marketplace alias + build-log + audit ─
+// ─── Plugins install SSE + marketplace alias + build-log + audit ─────────
 
 func registerPluginsExtras(mux *http.ServeMux, st store.Driver) {
 	// Existing in plugins_routes.go: POST /plugins/install, GET
@@ -106,9 +105,9 @@ func registerPluginsExtras(mux *http.ServeMux, st store.Driver) {
 	mux.Handle("POST /api/v1/t/{tenant}/plugins/install-from-marketplace",
 		RequirePermission("plugins:write")(http.HandlerFunc(handlePluginInstallMarketplace(st))))
 	// Sideload — accept multipart upload of a built plugin archive +
-	// manifest. Stage-2 stub: returns 501 with a documented decisions
-	// list so the admin form can wire end-to-end and exercise the
-	// permission guard. Real install pipeline ships with #142/#143/#146.
+	// manifest. Stub: returns 501 with a documented decisions list so
+	// the admin form can wire end-to-end and exercise the permission
+	// guard. Real install pipeline ships with #142/#143/#146.
 	mux.Handle("POST /api/v1/t/{tenant}/plugins/sideload",
 		RequirePermission("plugin:install")(http.HandlerFunc(handlePluginSideload(st))))
 	// /plugin-signers/{id}/plugins is already registered in
@@ -146,7 +145,7 @@ func handlePluginInstallMarketplace(_ store.Driver) http.HandlerFunc {
 //     be `verified`. The presence of a `signature` part is required.
 //     Cryptographic verification of the signature blob against the
 //     archive bytes is delegated to the build-service (#146 trust
-//     ladder); the stage-2 implementation records the signer
+//     ladder); the current implementation records the signer
 //     reference and `cosignVerified=true` only when the signer row is
 //     `verified`.
 //   - When no header is present, the artifact is stored unverified
@@ -454,7 +453,7 @@ func lookupTenantSignerByFingerprint(ctx context.Context, st store.Driver, tenan
 	return nil, fmt.Errorf("no tenant-scoped signer with fingerprint %s", fingerprint)
 }
 
-// ─── Chunk 16: /settings/me profile family ──────────────────────────────────
+// ─── /settings/me profile family ────────────────────────────────────────────
 
 func registerProfileFamily(mux *http.ServeMux, st store.Driver) {
 	get := RequirePermission("self:read")(http.HandlerFunc(handleProfileGet(st)))
@@ -615,7 +614,7 @@ func handleProfileBackupCodesReset(_ store.Driver) http.HandlerFunc {
 	}
 }
 
-// ─── Chunk 17: super-admin /api/v1/admin/* ──────────────────────────────────
+// ─── super-admin /api/v1/admin/* ────────────────────────────────────────────
 
 func registerSuperAdminExtras(mux *http.ServeMux, st store.Driver) {
 	mux.Handle("GET /api/v1/admin/users",
@@ -679,7 +678,7 @@ func handleAdminAuditLog(st store.Driver) http.HandlerFunc {
 	}
 }
 
-// ─── Chunk 18: auth flow recovery + invite-accept ───────────────────────────
+// ─── auth flow recovery + invite-accept ─────────────────────────────────────
 // Note: POST /auth/bootstrap and GET /auth/bootstrap-status are real
 // implementations registered via RegisterBootstrapRoutes (plan 01).
 // Password-reset and invite-accept are real implementations registered via
@@ -713,7 +712,7 @@ func handleAuthRecoveryStub(w http.ResponseWriter, r *http.Request, path string)
 	})
 }
 
-// ─── Chunk 19: tenant danger-zone ───────────────────────────────────────────
+// ─── tenant danger-zone ─────────────────────────────────────────────────────
 
 func registerDangerZone(mux *http.ServeMux, _ store.Driver) {
 	mux.Handle("POST /api/v1/t/{tenant}/settings/danger/hard-reset",

@@ -1,4 +1,4 @@
-// Package gateway: manual TLS-cert upload endpoints (#191 / Plan 07-002).
+// Package gateway: manual TLS-cert upload endpoints (#191).
 //
 //	POST   /api/v1/t/{tenant}/settings/tls/manual
 //	DELETE /api/v1/t/{tenant}/settings/tls/manual/{certId}
@@ -43,7 +43,7 @@ type manualCertRequest struct {
 	AutoRenew bool   `json:"auto_renew,omitempty"`
 }
 
-// manualCertResponse mirrors the contract documented in Plan 07-002: the
+// manualCertResponse is the response shape returned on upload: the
 // frontend stores `cert_id` to support the subsequent DELETE call, plus
 // the parsed metadata for the visible "uploaded certs" list.
 type manualCertResponse struct {

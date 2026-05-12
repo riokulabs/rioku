@@ -1,4 +1,4 @@
-// Package store: tenant context propagation (stage-2).
+// Package store: tenant context propagation.
 //
 // Storage methods on tenant-scoped tables apply `WHERE tenant_id = ?`
 // filters by reading the tenant from the request context. Handlers
@@ -31,8 +31,8 @@ func WithTenantID(ctx context.Context, tenantID string) context.Context {
 // when none has been attached. The default fallback is intentional —
 // every tenant-scoped table has a `tenant_id` column with this value
 // as the SQL default, so callers that haven't been migrated to the
-// stage-2 tenant-aware paths still hit the bootstrap tenant rather
-// than mixing rows across tenants.
+// tenant-aware paths still hit the bootstrap tenant rather than
+// mixing rows across tenants.
 func TenantIDFromContext(ctx context.Context) string {
 	if v, ok := ctx.Value(tenantIDCtxKey{}).(string); ok && v != "" {
 		return v

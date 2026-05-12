@@ -1,12 +1,12 @@
 /**
- * @rioku/plugin-sdk — B3 strict re-export surface.
+ * @rioku/plugin-sdk — strict re-export surface.
  *
  * Plugin authors import from `@rioku/plugin-sdk`. First-party admin code does NOT
  * import from this module (enforced by `no-restricted-imports` rule in the
- * ESLint config, per B2).
+ * ESLint config).
  *
  * NO WRAPPERS. Every export is a literal pass-through. Any PR adding a wrapper
- * here is rejected in review. See spec §9.10.1 B3.
+ * here is rejected in review.
  */
 
 // ─── React + ReactDOM ─────────────────────────────────────────────────────────

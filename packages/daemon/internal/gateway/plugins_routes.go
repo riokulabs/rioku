@@ -1,4 +1,4 @@
-// Package gateway: Plugins + PluginSigners REST endpoints (stage-2).
+// Package gateway: Plugins + PluginSigners REST endpoints.
 //
 // Tenant-scoped routes:
 //
@@ -194,10 +194,9 @@ func handleGetPlugin(st store.Driver, global bool) http.HandlerFunc {
 	}
 }
 
-// handleInstallPlugin is a stage-2 stub: it inserts a placeholder
-// `building` row that real install orchestration (#142/#143/#146) will
-// later fill in. The admin panel calls this and then polls for build
-// state transitions.
+// handleInstallPlugin is a stub: it inserts a placeholder `building` row
+// that real install orchestration (#142/#143/#146) will later fill in.
+// The admin panel calls this and then polls for build state transitions.
 func handleInstallPlugin(st store.Driver, global bool) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		scope, ok := scopeForRequest(r, global)

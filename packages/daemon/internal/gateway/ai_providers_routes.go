@@ -1,4 +1,4 @@
-// Package gateway: AI provider + provider-model handlers (stage-2).
+// Package gateway: AI provider + provider-model handlers.
 //
 // See `ai_routes.go` for the full route registration table.
 package gateway
@@ -223,12 +223,12 @@ func handleTestAIProvider(st store.Driver) http.HandlerFunc {
 				"No provider with id "+id, r.URL.Path, nil)
 			return
 		}
-		// Stage-2 stub: always returns ok=true. Real check lands with
-		// the LLM proxy work (#101).
+		// Stub: always returns ok=true. Real check lands with the LLM proxy
+		// work (#101).
 		writeJSON(w, http.StatusOK, map[string]any{
 			"providerId": p.ID,
 			"ok":         true,
-			"note":       "live connectivity check is stubbed in stage-2; lands with #101",
+			"note":       "live connectivity check is stubbed; lands with #101",
 		})
 	}
 }

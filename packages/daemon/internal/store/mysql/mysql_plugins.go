@@ -1,4 +1,4 @@
-// Package mysql — Plugins + PluginSigners CRUD (stage-2).
+// Package mysql — Plugins + PluginSigners CRUD.
 package mysql
 
 import (

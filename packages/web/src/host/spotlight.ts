@@ -1,6 +1,5 @@
 /**
- * Spotlight-command + resource registry — spec §9.5.6
- *
+ * Spotlight-command + resource registry.
  * Plugins register commands (static keyboard-accessible actions) and
  * resources (async search providers). The spotlight component reads both.
  *

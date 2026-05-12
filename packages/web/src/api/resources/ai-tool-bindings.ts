@@ -1,4 +1,4 @@
-// Owned by Plan 04 (ai) — types for the ai-tool-bindings resource surface.
+// Types for the ai-tool-bindings resource surface.
 
 import type { ID } from './common';
 

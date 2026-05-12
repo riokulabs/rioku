@@ -1,5 +1,5 @@
 /**
- * ABI version constants + compatibility check — spec §9.10.1 B1.
+ * ABI version constants + compatibility check.
  *
  * The admin host ABI version is a monotonically-increasing integer.
  * Plugins declare `abi.minVersion` (required) and `abi.maxVersion` (optional).

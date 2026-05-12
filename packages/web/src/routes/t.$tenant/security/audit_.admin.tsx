@@ -1,8 +1,8 @@
 /**
  * Tenant-scoped admin audit log — /t/$tenant/security/audit/admin
  *
- * Displays the hash-chained admin audit log for a single tenant.
- * Only entries whose `tenant_id` matches the current tenant are shown.
+ * Displays the hash-chained admin audit log for a single tenant. Only
+ * entries whose `tenant_id` matches the current tenant are shown.
  *
  * Shape:
  *   Header (title + "Verify chain" button + chain status badge)
@@ -10,12 +10,7 @@
  *   Expandable detail (prev_hash, hash, policies evaluated)
  *
  * Permission guard: requires `admin:cross-tenant-read`.
- *
- * Stage 2 (mock-backed): reads from the Zustand mock store `adminAudit`
- * slice filtered by tenant_id. The daemon endpoint is
- * `/api/v1/t/:tenant/audit/admin` (hash-chained response).
- *
- * spec §8.1 / Plan 5 Task 6
+ * Daemon endpoint: `/api/v1/t/:tenant/audit/admin` (hash-chained response).
  */
 import { useState, useMemo, useCallback } from 'react';
 import { createFileRoute, Link } from '@tanstack/react-router';

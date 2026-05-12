@@ -7,12 +7,11 @@
  *      "Stay on this page" (cancel).
  *   3. Registers a `beforeunload` listener for tab-close / hard navigation.
  *
- * NOTE — "Save" option omitted at stage 1.
+ * NOTE — "Save" option omitted by design.
  * A "Save" button in the modal would require the hook to know the form's
  * submit handler and whether submission succeeds before proceeding. That
  * coupling is caller-specific and not expressible in a generic hook. Callers
- * who need a Save shortcut should open the modal themselves. This is
- * documented as a known stage-1 limitation.
+ * who need a Save shortcut should open the modal themselves.
  */
 
 import { useEffect, useRef } from 'react';

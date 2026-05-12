@@ -1,17 +1,16 @@
-// Package gateway: stage-2 admin API completion chunks 10-15 — small
-// surface additions that don't warrant their own file each.
+// Package gateway: small surface additions that don't warrant their own
+// file each.
 //
-//	Chunk 10 — notifications: stream (SSE) + channel test
-//	Chunk 11 — PKI/TLS: PATCH aliases + per-field PUT + OPTIONS
-//	Chunk 13 — webhooks: test action + OPTIONS
-//	Chunk 14 — cluster: tenant-scoped node aliases + drain/promote/demote
-//	Chunk 15 — settings singletons: PATCH + OPTIONS coverage
+//	notifications: stream (SSE) + channel test
+//	PKI/TLS: PATCH aliases + per-field PUT + OPTIONS
+//	webhooks: test action + OPTIONS
+//	cluster: tenant-scoped node aliases + drain/promote/demote
+//	settings singletons: PATCH + OPTIONS coverage
 //
-// Most of these are alias / OPTIONS / stub additions onto existing
-// handlers shipped in PR #153. Action stubs that need backend work
-// (channel test delivery, plugin install pipeline, node drain
-// orchestration) record the operator intent and return 202 with a
-// note pointing at the corresponding follow-up issue.
+// Most of these are alias / OPTIONS / stub additions. Action stubs that
+// need backend work (channel test delivery, plugin install pipeline,
+// node drain orchestration) record the operator intent and return 202
+// with a note pointing at the corresponding follow-up issue.
 package gateway
 
 import (
@@ -34,7 +33,7 @@ func RegisterStage2ExtrasRoutes(mux *http.ServeMux, st store.Driver) {
 	registerSettingsSingletonExtras(mux)
 }
 
-// ─── Chunk 10: notifications stream + channel test ──────────────────────────
+// ─── notifications stream + channel test ────────────────────────────────────
 
 func registerNotificationsExtras(mux *http.ServeMux, st store.Driver) {
 	// /notification-channels/{id}/test already registered in
@@ -112,7 +111,7 @@ func handleNotificationsStream(st store.Driver) http.HandlerFunc {
 	return s.Handler()
 }
 
-// ─── Chunk 11: PKI/TLS PATCH aliases + per-field PUT ────────────────────────
+// ─── PKI/TLS PATCH aliases + per-field PUT ──────────────────────────────────
 
 func registerPKITLSExtras(mux *http.ServeMux) {
 	// PATCH coverage gets discovery of `Allow: PATCH` for any client
@@ -137,7 +136,7 @@ func registerPKITLSExtras(mux *http.ServeMux) {
 	}
 }
 
-// ─── Chunk 13: webhook test action ──────────────────────────────────────────
+// ─── webhook test action ────────────────────────────────────────────────────
 
 func registerWebhookExtras(mux *http.ServeMux, st store.Driver) {
 	mux.Handle("POST /api/v1/t/{tenant}/settings/webhooks/{id}/test",
@@ -175,7 +174,7 @@ func handleTestWebhook(st store.Driver) http.HandlerFunc {
 	}
 }
 
-// ─── Chunk 14: tenant-scoped cluster nodes + drain/promote/demote stubs ────
+// ─── tenant-scoped cluster nodes + drain/promote/demote stubs ──────────────
 
 func registerClusterExtras(mux *http.ServeMux) {
 	// Tenant-scoped path aliases. The legacy /api/v1/cluster/* family
@@ -259,7 +258,7 @@ func handleClusterNodeDemote(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
-// ─── Chunk 15: settings singletons OPTIONS coverage ─────────────────────────
+// ─── settings singletons OPTIONS coverage ───────────────────────────────────
 
 func registerSettingsSingletonExtras(mux *http.ServeMux) {
 	for _, p := range []string{

@@ -1,4 +1,4 @@
-// Package gateway: Notifications REST endpoints (stage-2).
+// Package gateway: Notifications REST endpoints.
 //
 // Routes (per the admin panel mock):
 //

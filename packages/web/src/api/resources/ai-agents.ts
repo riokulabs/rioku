@@ -1,4 +1,4 @@
-// Owned by Plan 04 (ai) — types for the ai-agents resource surface.
+// Types for the ai-agents resource surface.
 
 import type { ID } from './common';
 
@@ -12,7 +12,6 @@ export interface AiAgent {
   system_prompt: string;
   tool_ids: ID[];
   enabled: boolean;
-  // New in Plan 3:
   description?: string;
   /** Scoped credential reference; agent can hold its own API key distinct from provider. */
   scoped_credential_ref?: { prefix: string; created_at: string };

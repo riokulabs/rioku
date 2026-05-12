@@ -1,10 +1,6 @@
 /**
  * <ServiceFullPage> — full-page detail view for a single service.
  *
- * Stage 2: pulls every panel directly from real-endpoint hooks where
- * Stage 2 has landed (services, audit) and from the existing feature
- * hooks for adjacent slices (routes — owned by Plan 02).
- *
  * Tabs:
  *   - Overview  : header + upstream + tags + last reload metadata
  *   - Routes    : routes attached to this service

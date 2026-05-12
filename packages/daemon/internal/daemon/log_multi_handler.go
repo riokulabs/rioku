@@ -1,6 +1,6 @@
 // Package daemon: tiny fan-out slog.Handler so the in-memory log-tail
-// ring buffer (#191 / Plan 07-007) can co-exist with the configured
-// stderr/file/OTLP handler that `logging.Setup` produces.
+// ring buffer can co-exist with the configured stderr/file/OTLP handler
+// that `logging.Setup` produces.
 //
 // Each downstream handler decides for itself whether the record is
 // in-scope (via Enabled). Errors from individual handlers are returned

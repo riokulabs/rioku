@@ -1,4 +1,4 @@
-// Owned by Plan 02 (identity) — types for the api-keys resource surface.
+// Types for the api-keys resource surface.
 
 import type { ID } from './common';
 

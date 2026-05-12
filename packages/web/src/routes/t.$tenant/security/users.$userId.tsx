@@ -1,8 +1,8 @@
 /**
  * Full-page user detail route — /t/$tenant/security/users/$userId
  *
- * Stage-2 plan-02. Renders <UserFullPage> with Profile / Effective
- * Permissions / Sessions / Audit tabs against the real daemon endpoints.
+ * Renders <UserFullPage> with Profile / Effective Permissions / Sessions /
+ * Audit tabs against the real daemon endpoints.
  */
 import { createFileRoute, useNavigate } from '@tanstack/react-router';
 import { Stack, Group, Button } from '@mantine/core';

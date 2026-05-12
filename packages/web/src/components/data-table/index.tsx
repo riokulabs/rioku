@@ -6,17 +6,16 @@
  *   - Mantine 9 <Table> primitives (header/body/row/cell styling)
  *
  * Virtualization: @tanstack/react-virtual is NOT installed. Virtualization is
- * scaffold-only in stage 1. Datasets at admin audit scale (≤1 000 rows per page)
- * render fine without windowing. Real virtualization lands in a later stage-1
- * iteration if needed.
+ * scaffold-only. Datasets at admin audit scale (≤1 000 rows per page) render
+ * fine without windowing. Real virtualization can be added if needed.
  *
- * Column reorder: deferred to a future iteration. Column resize ships in stage 1
- * via drag-handle on header right-edge (inline width styles on <col> elements).
+ * Column reorder: deferred. Column resize works via drag-handle on header
+ * right-edge (inline width styles on <col> elements).
  *
  * URL-sync: if `urlSyncKey` is set, pagination + sort are encoded in search params
  * via useSearch({ strict: false }) + useNavigate(). Per-column filter URL-sync
- * for PII fields uses useFilterUrlHandle (imported by the caller, not wired internally
- * for stage 1 — filter state stays in React state unless the caller manages it).
+ * for PII fields uses useFilterUrlHandle (imported by the caller, not wired
+ * internally — filter state stays in React state unless the caller manages it).
  */
 
 import { type ReactNode, useCallback, useEffect, useMemo, useRef, useState } from 'react';

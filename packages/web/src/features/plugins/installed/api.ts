@@ -1,5 +1,5 @@
 /**
- * Installed plugins API — Stage-2 (real daemon endpoints).
+ * Installed plugins API.
  *
  * Routes:
  *   GET    /api/v1/t/{tenant}/plugins                — list installed plugins
@@ -10,11 +10,6 @@
  *   POST   /api/v1/t/{tenant}/plugins/install        — install from candidate
  *   GET    /api/v1/t/{tenant}/plugins/{id}/build-log — build log (text)
  *   SSE    /api/v1/t/{tenant}/plugins/{id}/build-log/stream — live progress
- *
- * Selectors return plain arrays/records derived from useQuery so existing
- * component code paths (which never touched react-query state directly)
- * keep working. Mutations go through bare async helpers exposed for the
- * "imperative" callers, plus useMutation hooks for component callers.
  */
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { customFetch } from '@/api/mutator';
@@ -144,10 +139,9 @@ export function useInstalledPlugin(pluginId: string, tenantId = ''): Plugin | un
 /**
  * Returns the last N audit entries for a plugin resource.
  *
- * Stage-2 placeholder: the daemon's per-resource audit is not yet
- * exposed via REST under the plugin path. Until the audit query
- * endpoint accepts resource_type+resource_id filters, this hook
- * returns an empty array; consumers degrade gracefully.
+ * TODO: the daemon's per-resource audit is not yet exposed via REST under
+ * the plugin path. Returns an empty array until the audit query endpoint
+ * accepts resource_type+resource_id filters.
  */
 export function usePluginAuditTail(_pluginId: string, _limit = 10): AuditEntry[] {
   return [];
@@ -229,7 +223,7 @@ export function useUninstallPluginMutation(tenantId: string) {
   });
 }
 
-// ─── Install progress streaming (Stage 2 — SSE) ──────────────────────────────
+// ─── Install progress streaming (SSE) ────────────────────────────────────────
 
 /** Discrete stages emitted by `installPluginWithProgress`. */
 export type InstallProgressStage =

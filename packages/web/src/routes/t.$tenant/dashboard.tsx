@@ -1,7 +1,7 @@
 /**
  * Tenant home — /t/$tenant/dashboard
  *
- * Resolution order (Plan 4 Task 4b.13):
+ * Resolution order:
  *   1. The current user's per-user home override (userHomeDashboards[userId]).
  *   2. The tenant's system-default dashboard (default: true).
  *   3. A stock placeholder with summary cards + recent audit entries.

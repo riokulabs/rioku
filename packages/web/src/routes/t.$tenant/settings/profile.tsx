@@ -3,13 +3,12 @@
  *
  * Standalone sub-page for the current user's profile: name, avatar, password,
  * TOTP backup codes, and preferences. Wraps the <ProfileSection> component
- * that was fully built in stage-1 plan 8a.
+ * that was fully built.
  *
  * Guard: user:update-own is enforced inside the section; the route itself
  * only requires tenant:switch (all authenticated members may view their
  * own profile settings).
  *
- * Plan 7 — Task 1
  */
 import { createFileRoute, Link, useParams } from '@tanstack/react-router';
 import { Anchor, Group, Stack } from '@mantine/core';

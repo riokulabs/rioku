@@ -1,8 +1,8 @@
 /**
  * API keys page — /t/$tenant/security/api-keys
  *
- * Stage-2 plan-02. Wired to the real daemon. Renders the list, the
- * quick-info drawer, the create form, and a `<SecretCaptureModal>`
+ * Wired to the real daemon. Renders the list, the quick-info drawer, the
+ * create form, and a `<SecretCaptureModal>`
  * that surfaces the one-time plaintext returned by `useCreateAPIKey`
  * + `useRotateAPIKey`.
  */

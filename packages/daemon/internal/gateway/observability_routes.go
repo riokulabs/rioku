@@ -1,7 +1,7 @@
 // Package gateway — observability endpoints (#191).
 //
 //	GET /api/v1/observability/jwks                       (legacy, unscoped)
-//	GET /api/v1/t/{tenant}/observability/logs/tail       SSE log tail (Plan 07-007)
+//	GET /api/v1/t/{tenant}/observability/logs/tail       SSE log tail
 //
 // The unscoped JWKS endpoint returns the in-process JWKS refresh
 // registry: per-source URL status, last-refresh time, last-error, and
@@ -92,8 +92,7 @@ type LogRecord struct {
 }
 
 // NewLogTailBuffer constructs a ring buffer with the given capacity. A
-// zero or negative capacity falls back to the default (1000 lines, per
-// Plan 07-007).
+// zero or negative capacity falls back to the default (1000 lines).
 func NewLogTailBuffer(capacity int) *LogTailBuffer {
 	if capacity <= 0 {
 		capacity = 1000

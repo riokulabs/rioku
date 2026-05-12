@@ -1,15 +1,13 @@
 /**
- * Per-widget-kind data fetcher registry (Plan 08 T4).
+ * Per-widget-kind data fetcher registry.
  *
- * Maps a widget's `dataSource` string to the function that fetches
- * its data from the daemon. Widgets carry their own `kind`
- * (line-chart / bar / single-stat / table) which determines how the
- * renderer interprets the result; the data source determines where
- * the bytes come from.
+ * Maps a widget's `dataSource` string to the function that fetches its data
+ * from the daemon. Widgets carry their own `kind` (line-chart / bar /
+ * single-stat / table) which determines how the renderer interprets the
+ * result; the data source determines where the bytes come from.
  *
- * For stage-2, the only fully-wired source is `promql` — other
- * sources (audit, notifications, traces) reuse their feature-local
- * generated clients and are dispatched here by name.
+ * The only fully-wired source is `promql`; audit / notifications / traces
+ * are stubbed pending wiring.
  */
 import type { DaemonWidget } from '@/features/widgets/daemon-api';
 import { fetchPromQLForRange, type PromQLResult } from './promql';
@@ -68,9 +66,8 @@ export async function fetchWidgetData(
     case 'audit':
     case 'notifications':
     case 'traces':
-      // Stage-2 stub: these data sources are stubbed pending Plan
-      // 05/06/04 final wiring. Returning an empty rows result keeps
-      // the renderer alive without lying about data.
+      // TODO: wire these data sources. Returning an empty rows result
+      // keeps the renderer alive without lying about data.
       return { rows: [] };
     default:
       throw new Error(`Unknown widget data source: ${source}`);

@@ -102,7 +102,7 @@ type OnDemandTLSConfig struct {
 }
 
 // SubdomainCertConfig is a static cert/key pair for the subdomain
-// tenancy mode (Plan 12). When both fields are non-empty, the compiler
+// tenancy mode. When both fields are non-empty, the compiler
 // emits an `apps.tls.certificates.load_files` entry so Caddy serves the
 // supplied wildcard cert for `*.<parent_domain>` connections without
 // going through ACME. The pair is typically a long-lived self-signed
@@ -143,8 +143,8 @@ func (c *Compiler) SetOnDemandTLS(cfg OnDemandTLSConfig) {
 	c.onDemandTLS = cfg
 }
 
-// SetSubdomainCert installs a static wildcard cert/key pair (Plan 12
-// subdomain tenancy mode). When both fields are non-empty, future
+// SetSubdomainCert installs a static wildcard cert/key pair for
+// subdomain tenancy mode. When both fields are non-empty, future
 // Compile() calls emit an `apps.tls.certificates.load_files` entry so
 // Caddy serves the supplied leaf for handshakes whose SNI matches it
 // (e.g. `*.localhost` in the sandbox or a customer-supplied wildcard

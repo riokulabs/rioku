@@ -1,19 +1,17 @@
 /**
  * <AdminAuditView> — super-admin cross-tenant audit log with chain verification.
  *
- * Plan 11 close-out: now consumes the real `/api/v1/admin/audit` endpoint via
- * `useListAdminAudit`. The daemon currently proxies the per-tenant audit log
- * (entity_type = "tenant") and returns a `note` field flagging that the
- * hash-chained super-admin audit is a follow-up. When the daemon ships
- * hash-chain entries (with `hash` + `prevHash` fields) the verify-chain button
- * runs `verifyAdminAuditChain` against them; otherwise it surfaces a notice.
+ * Consumes `/api/v1/admin/audit` via `useListAdminAudit`. The daemon
+ * currently proxies the per-tenant audit log (entity_type = "tenant") and
+ * returns a `note` field flagging that hash-chained super-admin audit is a
+ * follow-up. When the daemon ships hash-chain entries (with `hash` +
+ * `prevHash`) the verify-chain button runs `verifyAdminAuditChain`;
+ * otherwise it surfaces a notice.
  *
  * Features:
  *   - Filter by actor, action kind, date range
  *   - Detail drawer: Overview / Diff / Hash-chain integrity tabs
  *   - Hash-chain integrity verification when entries carry hash fields
- *
- * spec §8.1 §8.4 / Task 1d.78 / Plan 11
  */
 import { useMemo, useState } from 'react';
 import { type ColumnDef } from '@tanstack/react-table';

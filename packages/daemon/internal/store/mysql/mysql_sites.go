@@ -1,4 +1,4 @@
-// Package mysql — Site + Middleware CRUD (stage-2).
+// Package mysql — Site + Middleware CRUD.
 package mysql
 
 import (

@@ -2,15 +2,13 @@
  * useImpersonation — thin client-side wrapper around the daemon's
  * super-admin impersonation surface.
  *
- * Stage-2: the daemon owns the session lifecycle, audit log emission,
- * scope construction, and wall-clock expiry. The SPA only:
- *   - mirrors the active session id into the local active-impersonation
- *     cell (so the mutator can stamp `X-Impersonation-Id`);
- *   - surfaces the canonical session via the daemon-backed bridge hook
- *     `useImpersonationSession`;
- *   - exposes thin `entry` / `exit` / `extendSession` helpers that
- *     dispatch the corresponding mutations and invalidate the list
- *     query so consumers re-render.
+ * The daemon owns the session lifecycle, audit log emission, scope
+ * construction, and wall-clock expiry. The SPA mirrors the active session
+ * id into the active-impersonation cell (so the mutator can stamp
+ * `X-Impersonation-Id`), exposes the canonical session via
+ * `useImpersonationSession`, and provides `entry` / `exit` /
+ * `extendSession` helpers that dispatch the corresponding mutations and
+ * invalidate the list query.
  *
  * Returns:
  *   - `state`     — derived 'idle' | 'active' (transient 'entering' /
@@ -46,10 +44,9 @@ export interface ImpersonationEntryOpts {
   reason: string;
   ticketRef?: string;
   /**
-   * Stage-1 TOTP mock — retained for callers that still pass a code, but
-   * the actual TOTP step-up is handled by the daemon via the auth flow
+   * The actual TOTP step-up is handled by the daemon via the auth flow
    * before the entry mutation runs. Validated client-side as 6 digits to
-   * preserve the legacy entry-form contract.
+   * preserve the entry-form contract.
    */
   totpCode: string;
   /** minimal = super-admin's full perms. full = read-only + opt-in tiers. */
@@ -85,8 +82,8 @@ export function useImpersonation(): UseImpersonationReturn {
 
   const entry = useCallback(
     async (opts: ImpersonationEntryOpts): Promise<void> => {
-      // Preserve the stage-1 client-side TOTP shape check; the daemon
-      // does the authoritative verification.
+      // Client-side TOTP shape check; the daemon does the authoritative
+      // verification.
       if (!/^\d{6}$/.test(opts.totpCode)) {
         throw new Error('Invalid TOTP code — must be 6 digits');
       }

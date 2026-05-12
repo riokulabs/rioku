@@ -1,9 +1,8 @@
 /**
- * Feature flags for stage-1 admin.
+ * Feature flags for the admin SPA.
  *
- * Stage-1 mock UIs are now built out for every flag below — flipping them ON
- * exposes the section for design review even though the daemon side is still
- * stage-2. Mutations are persisted in the in-browser mock store.
+ * Flipping a flag ON exposes the corresponding UI section. Mutations made
+ * through these UIs are persisted via the active API layer.
  */
 export const FEATURE_FLAGS = {
   /** SSO — OAuth + SAML provider configuration. */
@@ -14,7 +13,7 @@ export const FEATURE_FLAGS = {
   integrationsOAuth: true,
   /** PKI revoke/delete action on certificate authorities. */
   pkiRevoke: true,
-  /** Network listen-address editing (stage-2 config write). */
+  /** Network listen-address editing. */
   networkListenAddressesEdit: false,
 } as const;
 

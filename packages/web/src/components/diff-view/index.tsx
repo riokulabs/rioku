@@ -1,8 +1,8 @@
 /**
  * <DiffView> — side-by-side JSON diff.
  *
- * Rolls its own recursive diff (no jsondiffpatch dep needed for stage-1
- * clarity). For each key in union(before, after):
+ * Rolls its own recursive diff (no jsondiffpatch dep needed for clarity).
+ * For each key in union(before, after):
  *   unchanged  → shown in both columns, muted color
  *   changed    → red in left (before) / green in right (after)
  *   added      → "—" left / green right

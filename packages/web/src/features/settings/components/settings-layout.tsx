@@ -1,12 +1,3 @@
-/**
- * <SettingsLayout> — settings page with subnav sidebar.
- *
- * Uses ?section=<slug> query param to track active section.
- * Each section renders a placeholder <EmptyState> citing the plan that
- * will populate it.
- *
- * spec / Task 1d.79
- */
 import { useMemo, useState } from 'react';
 import { Box, Button, Group, Stack, Text, Title, useMatches } from '@mantine/core';
 import {

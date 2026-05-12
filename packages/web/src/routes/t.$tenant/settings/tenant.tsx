@@ -2,13 +2,10 @@
  * Tenant general settings — /t/$tenant/settings/tenant.
  *
  * Tenant name, default theme, and logo upload. URL mode is excluded
- * (owned by Plan 12). Wraps the <TenantSection> component built in
- * stage-1 plan 8a.
+ * (owned by its own dedicated page). Wraps the <TenantSection> component.
  *
  * Guard: tenant:write (write access; readers see disabled form inside
  * the section component).
- *
- * Plan 7 — Task 2
  */
 import { createFileRoute, Link, useParams } from '@tanstack/react-router';
 import { Anchor, Group, Stack } from '@mantine/core';

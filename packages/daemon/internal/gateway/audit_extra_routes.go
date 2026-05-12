@@ -1,5 +1,4 @@
-// Package gateway: stage-2 audit additions — detail / stream /
-// export / typeahead.
+// Package gateway: audit detail / stream / export / typeahead.
 //
 //	OPTIONS  /api/v1/t/{tenant}/audit                discovery
 //	OPTIONS  /api/v1/t/{tenant}/audit/{id}           discovery

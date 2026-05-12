@@ -261,7 +261,7 @@ type CaddyConfig struct {
 
 	// SubdomainCertFile is an optional fallback wildcard TLS certificate
 	// (e.g. for `*.<parent_domain>`) used by tenants in subdomain URL
-	// mode (Plan 12). When set together with SubdomainKeyFile, the
+	// mode. When set together with SubdomainKeyFile, the
 	// compiler installs the cert as a static load entry so any
 	// per-tenant subdomain not matching a more-specific cert can still
 	// terminate TLS without provisioning ACME per tenant. Empty disables

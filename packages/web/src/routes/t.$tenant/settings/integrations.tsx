@@ -1,15 +1,13 @@
 /**
  * Integrations settings — /t/$tenant/settings/integrations.
  *
- * Webhook endpoints list (name, path, enabled toggle), add/update/delete via
- * mock store hooks, and a webhook test-send button. OAuth connector cards
- * are gated behind the `integrationsOAuth` feature flag (stage-2+).
+ * Webhook endpoints list (name, path, enabled toggle), add/update/delete, and
+ * a webhook test-send button. OAuth connector cards are gated behind the
+ * `integrationsOAuth` feature flag.
  *
- * Wraps the <IntegrationsSection> component built in stage-1 plan 8c.
+ * Wraps the <IntegrationsSection> component.
  *
  * Guard: integrations:read (readers see list; writers can create/edit/delete).
- *
- * Plan 7 — Task 8
  */
 import { createFileRoute, Link, useParams } from '@tanstack/react-router';
 import { Anchor, Group, Stack } from '@mantine/core';

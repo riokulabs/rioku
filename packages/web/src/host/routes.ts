@@ -1,8 +1,8 @@
 /**
- * Plugin-route registry — spec §9.5.2
+ * Plugin-route registry.
  *
- * Plugins register routes here; the router (app/router.tsx, Task 1f.106)
- * reads and injects them into the TanStack Router route tree.
+ * Plugins register routes here; the router (app/router.tsx) reads and
+ * injects them into the TanStack Router route tree.
  *
  * Duplicate-path policy: reject (warn in dev, skip duplicate silently).
  * Routes must have unique paths — duplicate paths would cause router ambiguity.

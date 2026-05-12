@@ -1,12 +1,9 @@
 /* eslint-disable react-hooks/set-state-in-effect -- form state hydrates from server fetch on first load; this is the correct pattern */
 /**
- * Real-API ProfileSection — stage-2 wiring against generated daemon hooks.
+ * Real-API ProfileSection.
  *
- * Replaces the mock-store-backed `<ProfileSection>` with a thin form that
- * reads via `useGetSettingsProfile` and patches via `usePatchSettingsProfile`
+ * Reads via `useGetSettingsProfile` and patches via `usePatchSettingsProfile`
  * (Orval-generated, see `src/api/generated/settings/settings.ts`).
- *
- * Plan 07 — Task 1.
  */
 import { useEffect, useState } from 'react';
 import { Alert, Button, Group, Loader, Stack, Switch, Text, TextInput, Title } from '@mantine/core';

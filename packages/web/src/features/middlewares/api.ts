@@ -1,16 +1,7 @@
 /**
- * Middlewares API — Stage 2 thin facade over the Orval-generated client and
- * the stage-2 hook layer in `api.stage2.ts`.
- *
- * Stage-1 published `useMiddlewareList`, `useMiddlewareDetail`,
- * `createMiddleware`, `updateMiddleware`, and `deleteMiddleware` against the
- * mock store. This module preserves the hook names but routes them through
- * the real daemon endpoints. Imperative mutators gain a leading `tenantId`
- * argument since the daemon REST surface is tenant-scoped.
- *
- * Delete still surfaces `MiddlewareInUseError` when the daemon returns a
- * 409 (routes still reference the middleware) so the existing UX path keeps
- * working.
+ * Middlewares API surface. Mutators take a leading `tenantId` since the
+ * daemon REST surface is tenant-scoped. `deleteMiddleware` translates a
+ * 409 (routes still reference the middleware) into `MiddlewareInUseError`.
  */
 
 import {

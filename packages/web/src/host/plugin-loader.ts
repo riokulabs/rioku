@@ -3,20 +3,18 @@
  * invokes the plugin's default export with a host object, tracks registered
  * contributions, and cleans up on unload.
  *
- * Stage-1 scope:
+ * Scope:
  *   - loadPluginFromUrl(manifestUrl)   — fetch + parse + load
  *   - loadDevPluginSideload(...)       — dev-only; skips manifest fetch
  *   - loadSandboxedPlugin(manifestUrl) — iframe-mode stub (real RPC later)
  *   - unloadPlugin(name)               — call the plugin's contribution unregister fns
  *
- * Limitations (stage-1):
- *   - YAML manifests are NOT supported — only JSON. A future stage can add the
- *     `yaml` package and detect the content-type or file extension.
+ * Limitations:
+ *   - YAML manifests are NOT supported — only JSON. Adding the `yaml` package
+ *     and detecting content-type / file extension would lift this.
  *   - `isolation: 'sandbox'` iframe mode is a STUB.  The iframe is created and
  *     a postMessage handshake is logged, but no actual plugin code is executed
- *     inside the frame.  Real sandboxed RPC lands in a later stage.
- *
- * spec §9.2, §9.4, §9.10.1 B1/B4
+ *     inside the frame.  Real sandboxed RPC is planned.
  */
 
 import { validateManifest } from './manifest-validator';
@@ -122,8 +120,8 @@ export async function loadPluginFromUrl(
   if (manifest.isolation === 'sandbox') {
     console.warn(
       `[plugin-loader] Plugin "${manifest.name}" requests isolation: 'sandbox' — ` +
-        'sandbox (iframe) mode is not fully implemented in stage-1. ' +
-        'Falling through to shared-context load. This will change in a later stage.',
+        'sandbox (iframe) mode is not fully implemented. ' +
+        'Falling through to shared-context load.',
     );
   }
 
@@ -178,7 +176,7 @@ export async function loadDevPluginSideload(
 // ─── loadSandboxedPlugin ──────────────────────────────────────────────────────
 
 /**
- * Iframe-mode plugin sandbox stub — spec §9.4 (sandbox path).
+ * Iframe-mode plugin sandbox stub.(sandbox path).
  *
  * Stage-1: Creates the iframe with the correct security attributes and wires a
  * minimal postMessage handshake that logs only.  Real sandboxed RPC (structured
@@ -187,7 +185,7 @@ export async function loadDevPluginSideload(
  * The plugin is registered in `pluginRegistry` with `isolation: 'sandbox'` so
  * the UI can display its status.  No contributions are tracked because the
  * plugin code runs inside the iframe and cannot call host registries directly
- * in stage-1.
+ * yet.
  */
 export async function loadSandboxedPlugin(manifestUrl: string): Promise<LoadResult> {
   // ── Fetch + validate manifest ──────────────────────────────────────────────
@@ -259,7 +257,7 @@ export async function loadSandboxedPlugin(manifestUrl: string): Promise<LoadResu
         '*',
         [channel.port2],
       );
-      console.info(`[plugin-sandbox] handshake sent to "${manifest.name}" (stage-1 stub)`);
+      console.info(`[plugin-sandbox] handshake sent to "${manifest.name}" (stub)`);
     },
     { once: true },
   );

@@ -4,7 +4,7 @@
  * List + filter bar + drawer (detail / create / edit). URL-synced search +
  * env + health + tags + optional drawer-selected id.
  *
- * Per Plan 2 Task 2b.9 Step 2: env / health / tags are multi-value filters.
+ * env / health / tags are multi-value filters.
  * URL serialization uses comma-separated values (e.g. `?env=prod,staging`);
  * an empty / missing param resolves to `[]` ("no filter").
  *

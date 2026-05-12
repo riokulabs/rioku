@@ -1,6 +1,5 @@
-// Package gateway: stage-2 admin completion chunk 9 — AI subsystem
-// extras (PATCH, OPTIONS, action verbs, sub-collections, traces
-// stream + CSV export).
+// Package gateway: AI subsystem extras (PATCH, OPTIONS, action verbs,
+// sub-collections, traces stream + CSV export).
 //
 // Many of the action endpoints here are currently stubs that record
 // the intent and return 202/200 with documentation noting the deeper
@@ -37,7 +36,7 @@ func RegisterAIExtraRoutes(mux *http.ServeMux, st store.Driver) {
 
 	// Sub-collections: relations from one entity to another.
 	// /ai/agents/{id}/{tools,traces} are already registered in
-	// ai_routes.go from PR #153. We add only the inverse relations.
+	// ai_routes.go. We add only the inverse relations.
 	mux.Handle("GET /api/v1/t/{tenant}/ai/tools/{id}/agents",
 		RequirePermission("ai:read")(http.HandlerFunc(handleListToolAgents(st))))
 	mux.Handle("GET /api/v1/t/{tenant}/ai/mcp-servers/{id}/tools",
@@ -62,8 +61,8 @@ func RegisterAIExtraRoutes(mux *http.ServeMux, st store.Driver) {
 		RequirePermission("ai:read")(http.HandlerFunc(handleAITracesStream(st))))
 	mux.Handle("GET /api/v1/t/{tenant}/ai/traces/export/csv",
 		RequirePermission("ai:read")(http.HandlerFunc(handleAITracesExportCSV(st))))
-	// POST variant per spec §7 RD5 — admin POSTs `?format=csv` so the
-	// browser can stream the response via response.body.getReader().
+	// POST variant — admin POSTs `?format=csv` so the browser can stream
+	// the response via response.body.getReader().
 	mux.Handle("POST /api/v1/t/{tenant}/ai/traces/export",
 		RequirePermission("ai:read")(http.HandlerFunc(handleAITracesExportCSV(st))))
 

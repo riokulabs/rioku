@@ -2,15 +2,11 @@
  * <SiteFullPage> — full-screen tabbed view for a single site, rendered by
  * the per-site route file (`/t/$tenant/sites/$siteId`).
  *
- * Tabs (per stage-2 plan-03 T5):
+ * Tabs:
  *   - Overview: name / domain / enabled / linked-service / rate-limit / basic-auth
  *   - TLS: tls_mode badge + auto/manual cert preview info
  *   - Routes: routes attached via the site's linked service (filtered list)
  *   - Audit: recent audit entries scoped to this site
- *
- * Backed by real Orval-generated hooks (`useSiteDetailReal` and the routes
- * `listRoutes` query). Audit entries are sourced from the host audit feed
- * (mock-backed today, replaced when Plan 5 ships SSE-backed audit lists).
  */
 import { useMemo } from 'react';
 import { useQuery } from '@tanstack/react-query';

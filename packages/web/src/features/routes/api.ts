@@ -1,22 +1,8 @@
 /**
- * Routes API — Stage 2 wiring.
- *
- * This module is the public routes API surface. It is backed by the
- * Orval-generated TanStack Query hooks (see `api.stage2.ts` for the
- * underlying real-endpoint wrappers) so every component that imports from
- * `features/routes` ends up calling the live daemon.
- *
- * ## Tenant ID is required
- * The daemon REST surface is `/api/v1/t/{tenant}/routes`, so all
- * mutations now take an explicit `tenantId`. Stage-1 imperative wrappers
- * that took no tenant have been retired; call sites read the tenant slug
- * from the URL via `useParams({ from: '/t/$tenant' })`.
- *
- * ## Middleware reorder (Decision 003 RESOLVED)
- * `reorderMiddlewares(tenantId, routeId, ids)` calls the dedicated
- * endpoint `PUT /api/v1/t/{tenant}/routes/{id}/middlewares/order`.
- *
- * @see ./api.stage2.ts
+ * Public routes API surface. All mutations require an explicit `tenantId`
+ * because the daemon REST surface is `/api/v1/t/{tenant}/routes`.
+ * `reorderMiddlewares` calls the dedicated endpoint
+ * `PUT /api/v1/t/{tenant}/routes/{id}/middlewares/order`.
  */
 
 import {
@@ -51,9 +37,8 @@ export {
 
 /**
  * Returns routes for a tenant (optionally filtered to a single service).
- * Wraps `useRouteListReal` and projects only the `routes` array so legacy
- * call sites continue to compile. Loading / error state is available via
- * `useRouteListReal` for components that want richer UX.
+ * Projects only the `routes` array; use `useRouteListReal` directly for
+ * loading / error state.
  */
 export function useRouteList(
   serviceId: string | undefined,

@@ -1,19 +1,3 @@
-/**
- * Sites API — Stage 2 thin facade over the Orval-generated client and the
- * stage-2 hook layer in `api.stage2.ts`.
- *
- * Stage-1 published the imperative `createSite / updateSite / deleteSite /
- * toggleSite` helpers and the `useSiteList / useSiteDetail` hooks, all
- * mock-store backed. The real-API wave landed parallel `*Real` hooks and
- * `use*Mutation` hooks in `api.stage2.ts`. This module collapses the two:
- * the legacy entry points keep their signatures (so call sites don't churn),
- * but their implementations now go through the daemon endpoints.
- *
- * Imperative mutators (`updateSite`, `deleteSite`, `toggleSite`) gain a
- * leading `tenantId` argument because the real endpoints are tenant-scoped.
- * Their three callers in `components/` are updated in the same change.
- */
-
 import { useMemo } from 'react';
 import {
   createSite as orvalCreateSite,
@@ -29,18 +13,13 @@ import type { SiteFilter, SiteUpdateInput, SiteWizardInput } from './types';
 
 // ─── Selectors ────────────────────────────────────────────────────────────────
 
-/** Stage-1 hook signature, now backed by the real daemon endpoint. */
 export function useSiteList(tenantId: string, filter: SiteFilter): Site[] {
   const { sites } = useSiteListReal(tenantId, filter);
   return useMemo(() => sites, [sites]);
 }
 
 /**
- * Stage-1 hook signature. The real endpoint requires a tenant; consumers
- * that don't have one in scope (legacy fixtures) will see `undefined`.
- *
- * The runtime-resolved tenant slug is read from the URL via
- * {@link useActiveTenantSlug} so existing single-arg call sites keep
+ * Resolves the tenant slug from the URL so single-arg call sites keep
  * working in path-prefix tenancy mode.
  */
 export function useSiteDetail(siteId: string): Site | undefined {
@@ -57,14 +36,10 @@ function readTenantFromLocation(): string | null {
 // ─── Mutations ────────────────────────────────────────────────────────────────
 
 /**
- * Wizard-level create. Honours the wizard's `new_upstream` mode by leaving
- * the upstream-service creation to the caller (the wizard component already
- * orchestrates this via `useCreateServiceMutation` before calling here in
- * stage-2). The `upstream_service_id` arrives via `input.upstream_service_id`
- * in `existing_service` mode.
- *
- * Returns `{ site }` always; `service` is no longer auto-created here. The
- * wizard component handles the two-step create flow when needed.
+ * Wizard-level create. The wizard component orchestrates upstream-service
+ * creation via `useCreateServiceMutation` before calling here; in
+ * `existing_service` mode the id arrives via `input.upstream_service_id`.
+ * Returns `{ site }` always; `service` is never auto-created here.
  */
 export async function createSite(
   tenantId: string,

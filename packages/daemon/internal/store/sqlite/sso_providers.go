@@ -1,4 +1,4 @@
-// Package sqlite — SSO providers (stage-2 plan 17b, #240).
+// Package sqlite — SSO providers.
 package sqlite
 
 import (

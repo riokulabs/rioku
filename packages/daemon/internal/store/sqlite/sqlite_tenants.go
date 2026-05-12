@@ -13,7 +13,7 @@ import (
 )
 
 // ---------------------------------------------------------------------------
-// Tenants (stage-2)
+// Tenants
 // ---------------------------------------------------------------------------
 
 // defaultTenantID is the immutable id of the seed tenant created by
@@ -186,7 +186,7 @@ func scanTenant(s scanner) (*store.Tenant, error) {
 }
 
 // ---------------------------------------------------------------------------
-// Memberships (stage-2)
+// Memberships
 // ---------------------------------------------------------------------------
 
 func (t *tx) CreateMembership(ctx context.Context, in *store.Membership) (*store.Membership, error) {
@@ -414,7 +414,7 @@ func scanMembership(s scanner) (*store.Membership, error) {
 }
 
 // ---------------------------------------------------------------------------
-// Membership Roles (stage-2)
+// Membership Roles
 // ---------------------------------------------------------------------------
 
 func (t *tx) AssignMembershipRole(ctx context.Context, membershipID, roleID, grantedBy string) error {

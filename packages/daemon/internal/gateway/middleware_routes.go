@@ -1,4 +1,4 @@
-// Package gateway: Middleware REST endpoints (stage-2).
+// Package gateway: Middleware REST endpoints.
 //
 // "Middleware" here means a per-tenant reusable handler-stack
 // component (rate-limit, auth, transform, cors, cache, logging,

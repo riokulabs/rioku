@@ -1,4 +1,4 @@
-// Package postgres — Site + Middleware CRUD (stage-2).
+// Package postgres — Site + Middleware CRUD.
 //
 // Both entities are tenant-scoped. Every read/write enforces the
 // tenant_id constraint.

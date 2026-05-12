@@ -11,9 +11,8 @@
 // Implementations:
 //
 //   - StubCertService: returns an empty list and a structured "not
-//     implemented in stage-1" message for renew/revoke. Ships today so
-//     the /api/v1/certificates endpoints exist and return well-shaped
-//     bodies.
+//     implemented" message for renew/revoke so the
+//     /api/v1/certificates endpoints exist and return well-shaped bodies.
 //   - (future) CaddyCertService: scans the `${data_dir}/caddy/
 //     certificates/` filesystem, parses PEM metadata, and proxies
 //     renew/revoke through Caddy's admin API + PKI app.
@@ -84,14 +83,14 @@ type CertService interface {
 
 // ─── StubCertService ────────────────────────────────────────────────────────
 
-// StubCertService is the default CertService for stage-1 deployments
-// where the Caddy filesystem scan + admin-API integration aren't wired
-// yet. It returns an empty list and a structured "not implemented"
-// response for actions so the admin panel can render without 404s and
-// operators see exactly what's missing.
+// StubCertService is the default CertService used when the Caddy
+// filesystem scan + admin-API integration aren't wired yet. It returns
+// an empty list and a structured "not implemented" response for actions
+// so the admin panel can render without 404s and operators see exactly
+// what's missing.
 type StubCertService struct{}
 
-// NewStubCertService returns the stage-1 stub implementation.
+// NewStubCertService returns the stub implementation.
 func NewStubCertService() *StubCertService { return &StubCertService{} }
 
 // ListCertificates returns an empty list — Caddy filesystem scanning is
@@ -100,7 +99,7 @@ func (s *StubCertService) ListCertificates(_ context.Context) ([]Certificate, er
 	return []Certificate{}, nil
 }
 
-// RenewCertificate is a no-op that surfaces the stage-2 plan.
+// RenewCertificate is a no-op that surfaces a structured note.
 func (s *StubCertService) RenewCertificate(_ context.Context, _ string) (CertActionResult, error) {
 	return CertActionResult{
 		StartedAt: time.Now().UTC(),
@@ -108,7 +107,7 @@ func (s *StubCertService) RenewCertificate(_ context.Context, _ string) (CertAct
 	}, nil
 }
 
-// RevokeCertificate is a no-op that surfaces the stage-2 plan.
+// RevokeCertificate is a no-op that surfaces a structured note.
 func (s *StubCertService) RevokeCertificate(_ context.Context, _ string) (CertActionResult, error) {
 	return CertActionResult{
 		StartedAt: time.Now().UTC(),

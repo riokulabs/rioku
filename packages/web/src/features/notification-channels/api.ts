@@ -1,5 +1,5 @@
 /**
- * Notification channels API — CRUD + test (stage-2, daemon-backed).
+ * Notification channels API — CRUD + test.
  *
  * Routes (per `notification-routes.go`):
  *   GET    /api/v1/t/{tenant}/notification-channels         list
@@ -9,12 +9,8 @@
  *   DELETE /api/v1/t/{tenant}/notification-channels/{id}    delete
  *   POST   /api/v1/t/{tenant}/notification-channels/{id}/test   send a test
  *
- * Selectors return shape-compatible {@link NotificationChannel} objects so
- * existing components keep working unchanged.
- *
- * Per stage-2 plan-06: non-email channel kinds are surfaced in the UI but
- * tagged as "Coming soon" — the daemon dispatcher only implements email
- * delivery in the first stage-2 cut.
+ * Non-email channel kinds are surfaced in the UI but tagged "Coming soon" —
+ * the daemon dispatcher only implements email delivery currently.
  */
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 

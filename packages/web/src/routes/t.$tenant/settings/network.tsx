@@ -3,12 +3,11 @@
  *
  * Listen addresses, HTTP3 toggle, Caddy JSON config overrides (Monaco editor),
  * and upstream timeouts. PUT to /api/v1/t/:tenant/settings/network.
- * After persist, the daemon invokes caddy.Reload() (wired at stage-2 daemon).
- * Wraps the <NetworkSection> component built in stage-1 plan 8b.
+ * After persist, the daemon invokes caddy.Reload() .
+ * Wraps the <NetworkSection> component.
  *
  * Guard: network:read (readers see disabled form; writers can mutate).
  *
- * Plan 7 — Task 4
  */
 import { createFileRoute, Link, useParams } from '@tanstack/react-router';
 import { Anchor, Group, Stack } from '@mantine/core';

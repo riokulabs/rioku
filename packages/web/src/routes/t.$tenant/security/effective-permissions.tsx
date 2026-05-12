@@ -4,8 +4,6 @@
  * Per-user effective-permissions view. The page lets the operator pick a user
  * (filtered to active memberships in the current tenant) and renders the
  * existing `<EffectivePermissionsPanel>` with `scope="user"`.
- *
- * Stage-2: user list comes from the daemon-backed `useUserList` hook.
  */
 import { useMemo, useState } from 'react';
 import { createFileRoute } from '@tanstack/react-router';
@@ -24,7 +22,6 @@ function EffectivePermissionsPage() {
   const { tenant } = Route.useParams();
   const tenantId = tenant;
 
-  // Stage-2: pull active memberships from the daemon-backed user list.
   const usersResult = useUserList(tenantId, { search: '', status: 'active' });
 
   const userOptions: UserOption[] = useMemo(() => {

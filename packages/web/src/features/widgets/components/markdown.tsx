@@ -1,12 +1,10 @@
 /**
  * <MarkdownWidget> — text/markdown panel for annotations and documentation.
  *
- * Stage-1: renders plain text with very light markdown-ish formatting
- * (line breaks, **bold**, *italic*, # headings, - bullets) without pulling
- * a real markdown parser. Stage-2 can swap in `react-markdown`.
- *
- * Expected data shape: { content: string }.
- * Falls back to `widget.config.content` when the data shape is empty.
+ * Renders plain text with light markdown-ish formatting (line breaks,
+ * **bold**, *italic*, # headings, - bullets) without pulling a real
+ * markdown parser. Expected data shape: `{ content: string }`. Falls back
+ * to `widget.config.content` when the data shape is empty.
  */
 import { Alert, Box, Skeleton, Stack, Text, Title } from '@mantine/core';
 import type { WidgetRenderProps } from '../types';

@@ -12,15 +12,15 @@ import (
 // RuntimeSettings holds the daemon's runtime-mutable configuration alongside
 // the synchronisation primitive that serialises PATCH writes.
 //
-// Stage-1 scope: only the subset of fields that downstream code reads on
-// every request (log level, auth/lockout/rate-limit, trace sampling) are
-// exposed via PATCH. Listen addresses, store driver, Caddy binary path and
-// similar restart-bound fields stay read-only — admin must edit rioku.yaml
-// and restart the daemon.
+// Only the subset of fields that downstream code reads on every request
+// (log level, auth/lockout/rate-limit, trace sampling) is exposed via
+// PATCH. Listen addresses, store driver, Caddy binary path and similar
+// restart-bound fields stay read-only — admin must edit rioku.yaml and
+// restart the daemon.
 //
 // Mutations made via PATCH apply at runtime but are NOT persisted back to
-// rioku.yaml — a daemon restart will revert them. A future stage-2 change
-// can layer a "config-overrides" store on top to make changes durable.
+// rioku.yaml — a daemon restart will revert them. A future "config-
+// overrides" store can layer on top to make changes durable.
 type RuntimeSettings struct {
 	cfg      *config.Config
 	levelVar *slog.LevelVar

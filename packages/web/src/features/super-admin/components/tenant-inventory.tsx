@@ -1,18 +1,12 @@
 /**
  * <TenantInventory> — super-admin view of all tenants.
  *
- * Plan 11 close-out: now consumes real daemon endpoints via the Orval-generated
- * `useListAdminTenants` / `useCreateAdminTenant` / `useDeleteAdminTenant` hooks.
- * The mock-store prime path is gone — tests stub the network layer with MSW.
- *
  * Features:
  *   - Filter by plan (community / pro / enterprise)
  *   - Search by slug or name
  *   - Tenant detail drawer (quick info + "Open in tenant" button)
  *   - Create tenant drawer
  *   - Delete tenant drawer (slug-confirmed destructive action)
- *
- * spec §8.1 §8.4 / Task 1d.78 / Plan 11
  */
 import { useState, useMemo } from 'react';
 import { type ColumnDef } from '@tanstack/react-table';

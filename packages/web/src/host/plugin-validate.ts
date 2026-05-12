@@ -1,16 +1,15 @@
 /**
- * Plugin bundle static scanner — spec §9.10.2.
- *
+ * Plugin bundle static scanner.
  * Scans the text of a compiled plugin ESM bundle looking for forbidden patterns:
  *   1. Bundled copies of externalized deps (react, @mantine/*, @tanstack/*, etc.)
  *   2. Object.prototype pollution patterns
  *   3. eval / new Function() usage
  *
  * Used by:
- *   - `rioku plugin validate` CLI (stub for stage-1)
+ *   - `rioku plugin validate` CLI (stub)
  *   - In-app install-time scanner (before showing the approval UI)
  *
- * Stage-1 approach: text-based heuristic scan.
+ * Current approach: text-based heuristic scan.
  * AST-based scan is a planned enhancement.
  *
  * Heuristic design notes:
@@ -23,7 +22,7 @@
  *   - We look for these bundler-produced assignment patterns rather than for
  *     the import statement (which would false-positive on correct externals).
  *
- * LIMITATIONS (acceptable for stage-1, per plan):
+ * LIMITATIONS:
  *   - Some false positives are possible for bundles that comment out imports
  *     or have unusual minifier output.
  *   - Obfuscated bundles may evade detection.
@@ -120,7 +119,7 @@ const POLLUTION_PATTERNS: { pattern: string; description: string }[] = [
   {
     pattern: 'Object.prototype.',
     description:
-      'Object.prototype mutation — potential prototype pollution (spec §9.4.1 freeze rule)',
+      'Object.prototype mutation — potential prototype pollution (the plugin spec freeze rule)',
   },
   {
     pattern: '__proto__',
@@ -131,11 +130,11 @@ const POLLUTION_PATTERNS: { pattern: string; description: string }[] = [
 const DANGEROUS_PATTERNS: { pattern: string; description: string }[] = [
   {
     pattern: 'eval(',
-    description: 'eval() usage — forbidden by spec §9.10.2',
+    description: 'eval() usage — forbidden by the plugin spec',
   },
   {
     pattern: 'new Function(',
-    description: 'new Function() usage — forbidden by spec §9.10.2',
+    description: 'new Function() usage — forbidden by the plugin spec',
   },
 ];
 

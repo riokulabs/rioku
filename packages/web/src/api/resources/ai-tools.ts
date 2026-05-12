@@ -1,4 +1,4 @@
-// Owned by Plan 04 (ai) — types for the ai-tools resource surface.
+// Types for the ai-tools resource surface.
 
 import type { ID } from './common';
 
@@ -10,7 +10,6 @@ export interface AiTool {
   /** JSON schema for tool input (JSON-schema draft-07). */
   schema: Record<string, unknown>;
   mcp_server_id?: ID;
-  // New in Plan 3:
   /** Handler kind — native = daemon-built-in, mcp = proxied via MCP server, http = call an external HTTP endpoint. */
   kind: 'native' | 'mcp' | 'http';
   /** Populated when kind === 'http'. */

@@ -1,4 +1,4 @@
-// Package gateway: AI semantic rate-limit handlers (stage-2).
+// Package gateway: AI semantic rate-limit handlers.
 //
 // See `ai_routes.go` for the full route registration table.
 package gateway

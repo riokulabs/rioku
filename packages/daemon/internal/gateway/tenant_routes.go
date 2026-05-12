@@ -1,4 +1,4 @@
-// Package gateway: tenant + membership REST endpoints (stage-2).
+// Package gateway: tenant + membership REST endpoints.
 //
 // Routes:
 //

@@ -1,7 +1,7 @@
 /**
  * Policies page — /t/$tenant/policies (API-management entry point)
  *
- * Wired to real daemon endpoints in stage-2 plan-02.
+ * Wired to real daemon endpoints.
  */
 import { useState } from 'react';
 import { createFileRoute } from '@tanstack/react-router';

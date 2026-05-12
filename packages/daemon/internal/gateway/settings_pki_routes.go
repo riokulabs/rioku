@@ -1,4 +1,4 @@
-// Package gateway: PKI revocation list endpoints (#191 / Plan 07-003).
+// Package gateway: PKI revocation list endpoints (#191).
 //
 //	GET  /api/v1/t/{tenant}/settings/pki/revocations
 //	POST /api/v1/t/{tenant}/settings/pki/revocations

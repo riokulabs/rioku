@@ -431,7 +431,7 @@ type CookieOptions struct {
 	// all tenant subdomains share the session (e.g. ".localhost").
 	Domain string
 	// Subdomain indicates the cookie is being issued in subdomain mode,
-	// which forces SameSite=Lax regardless of devMode (spec §4.3).
+	// which forces SameSite=Lax regardless of devMode.
 	Subdomain bool
 }
 

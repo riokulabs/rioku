@@ -1,9 +1,8 @@
 /* eslint-disable react-hooks/set-state-in-effect -- form state hydrates from server fetch on first load; this is the correct pattern */
 /**
- * Real-API TenantSection — stage-2 wiring.
+ * Real-API TenantSection.
  *
  * Reads via `useGetSettingsTenant`, patches via `usePatchSettingsTenant`.
- * Plan 07 — Task 2.
  */
 import { useEffect, useState } from 'react';
 import {

@@ -9,12 +9,9 @@
 //   - Discovery.Members() returns NodeMeta but the admin panel wants
 //     node-level health + version + last-seen + role rolled into one
 //     payload.
-//   - Stage-2 will add metric collection (#122 health polling) and the
-//     gateway shouldn't have to learn that pipeline.
 //
 // LocalOnlyService is the default implementation: it reports the running
-// daemon as the sole node and rejects multi-node operations. Once #57 +
-// real Discovery wiring lands, the daemon swaps in DiscoveryBackedService.
+// daemon as the sole node and rejects multi-node operations.
 package cluster
 
 import (

@@ -1,5 +1,5 @@
 /**
- * /t/$tenant/plugins/marketplace — Plan 09 T4.
+ * /t/$tenant/plugins/marketplace.
  *
  * Standalone marketplace browse view that pulls the curated catalog
  * via `useMarketplaceListings` and renders the `<MarketplaceGrid>`.

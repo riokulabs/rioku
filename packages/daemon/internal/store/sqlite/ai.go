@@ -1,4 +1,4 @@
-// Package sqlite — AI subsystem CRUD (stage-2).
+// Package sqlite — AI subsystem CRUD.
 //
 // Seven entities: Providers, ProviderModels, MCPServers, Tools,
 // Agents, ToolBindings, RateLimits, Traces.

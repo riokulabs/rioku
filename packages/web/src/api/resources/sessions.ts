@@ -1,4 +1,4 @@
-// Owned by Plan 01 (auth-bootstrap) — types for the sessions resource surface.
+// Types for the sessions resource surface.
 
 import type { ID } from './common';
 

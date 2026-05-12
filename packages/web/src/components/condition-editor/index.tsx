@@ -5,7 +5,7 @@
  *   - Monaco editor with a minimal 'cel' language (syntax-highlighting)
  *   - 250ms debounced onChange + parseCel validation
  *   - Inline error markers via Monaco's setModelMarkers
- *   - Chrome text per spec §7.2 (exact phrasing)
+ *   - Chrome text uses fixed phrasing (see below)
  *
  * Monaco in jsdom: Monaco relies on browser APIs (ResizeObserver, workers,
  * document.createRange) that jsdom does not fully implement. Tests must
@@ -13,8 +13,6 @@
  * index.test.tsx. This trade-off means the test exercises all non-Monaco
  * logic (debouncing, parseCel, chrome text, aria) but does not exercise
  * the Monaco widget itself in the unit-test environment.
- *
- * spec §7.2 / Task 1d.64
  */
 
 import { useEffect, useRef, useCallback } from 'react';
@@ -136,7 +134,7 @@ export function ConditionEditor({
         </Text>
       )}
 
-      {/* spec §7.2 exact phrasing */}
+      {/* Chrome label with fixed phrasing */}
       <Text size="xs" c="var(--mantine-color-gray-7)" aria-label="cel-editor-chrome">
         {CHROME_TEXT}
       </Text>

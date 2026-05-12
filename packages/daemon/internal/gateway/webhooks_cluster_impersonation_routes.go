@@ -1,4 +1,4 @@
-// Package gateway: Webhooks + Cluster enrollment + Impersonation REST (stage-2).
+// Package gateway: Webhooks + Cluster enrollment + Impersonation REST.
 //
 // Routes:
 //

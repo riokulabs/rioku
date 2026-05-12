@@ -1,4 +1,4 @@
-// Package gateway: Dashboards + Widgets + Versions REST endpoints (stage-2).
+// Package gateway: Dashboards + Widgets + Versions REST endpoints.
 //
 // Routes (per the admin panel mock):
 //

@@ -6,18 +6,17 @@
  * triple-confirm). Each action emits a high-tier audit row + admin audit
  * chain entry.
  *
- * Endpoints (stage-2 daemon):
+ * Endpoints:
  *   POST   /api/v1/t/:tenant/settings/danger/hard-reset  (body: { confirmation })
  *   GET    /api/v1/t/:tenant/settings/danger/export       (downloads JSON blob)
  *   DELETE /api/v1/t/:tenant/settings/danger/tenant        (super-admin only)
  *
- * Wraps the <DangerZoneSection> component built in stage-1 plan 8c.
+ * Wraps the <DangerZoneSection> component.
  *
  * Guard: tenant:hard-reset (readers without this permission cannot reach the
  * page; the delete tenant action additionally requires tenant:delete, which
  * the section component enforces and hides the section for non-super-admins).
  *
- * Plan 7 — Task 9
  */
 import { createFileRoute, Link, useParams } from '@tanstack/react-router';
 import { Anchor, Group, Stack } from '@mantine/core';

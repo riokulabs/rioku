@@ -1,4 +1,4 @@
-// Owned by Plan 03 (api-mgmt) — types for the middlewares resource surface.
+// Types for the middlewares resource surface.
 
 import type { ID } from './common';
 
@@ -9,7 +9,6 @@ export interface Middleware {
   kind: 'rate-limit' | 'auth' | 'transform' | 'cors' | 'cache' | 'logging' | 'custom';
   config: Record<string, unknown>;
   enabled: boolean;
-  // Plan 2 additions:
   description?: string;
   order_hint: number;
   readonly created_at: string;

@@ -9,8 +9,6 @@
  * `CURRENT_ABI_VERSION` in `@/host/abi`. A CI check wires `pnpm check-abi`
  * to enforce this.
  *
- * spec §9.4.1, §9.10.1 B4 / Task 1f.112
- *
  * NOTE: Surface interface definitions live here and are imported by
  * host-builder.ts. This is the single source of truth for the ABI surface —
  * the `/* ABI-SURFACE-START *\/` … `/* ABI-SURFACE-END *\/` markers delimit

@@ -1,4 +1,4 @@
-// Package postgres — PKI/TLS subsystem CRUD (stage-2).
+// Package postgres — PKI/TLS subsystem CRUD.
 //
 // Cert Authorities, Cert Enrollments, TLS Certificates, TLS Config.
 package postgres

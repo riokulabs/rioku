@@ -1,16 +1,14 @@
 /**
- * Daemon-backed widgets API (stage-2, Plan 08 T3).
+ * Daemon-backed widgets API.
  *
- * Thin wrappers around the generated orval clients for widgets +
- * dashboard layout updates. Used by the stage-2 SPA when
- * `VITE_USE_MOCKS=false`.
+ * Thin wrappers around the generated orval clients for widgets + dashboard
+ * layout updates. Mirrors
+ * `packages/daemon/internal/gateway/dashboards_routes.go`.
  *
- * Mirrors `packages/daemon/internal/gateway/dashboards_routes.go`.
- *
- * The bulk-layout endpoint (`PUT /dashboards/{id}/layout`) is the
- * sink for drag-drop reorder events: after `@dnd-kit/sortable`
- * commits, the client sends `{ layouts: { wid: {x,y,w,h}, ... } }`
- * server-side in a single round-trip — see `updateLayoutViaDaemon`.
+ * The bulk-layout endpoint (`PUT /dashboards/{id}/layout`) is the sink for
+ * drag-drop reorder events: after `@dnd-kit/sortable` commits, the client
+ * sends `{ layouts: { wid: {x,y,w,h}, ... } }` server-side in a single
+ * round-trip — see `updateLayoutViaDaemon`.
  */
 import {
   createWidget as createWidgetCall,

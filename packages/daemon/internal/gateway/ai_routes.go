@@ -1,4 +1,4 @@
-// Package gateway: AI subsystem REST endpoints (stage-2).
+// Package gateway: AI subsystem REST endpoints.
 //
 // Routes (all under /api/v1/t/{tenant}/ai/...):
 //

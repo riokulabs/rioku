@@ -1,6 +1,6 @@
 export type TenantMode = 'path-prefix' | 'subdomain' | 'single-tenant';
 
-// Simple detection: for stage 1, read a VITE env. Later Plan 1d wires tenant resolution.
+// Simple detection: read a VITE env to pick the tenant resolution mode.
 export function detectTenantMode(): TenantMode {
   const raw: unknown = import.meta.env.VITE_TENANT_MODE;
   if (raw === 'subdomain' || raw === 'single-tenant') return raw;

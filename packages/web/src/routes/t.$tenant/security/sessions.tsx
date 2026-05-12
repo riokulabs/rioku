@@ -1,8 +1,8 @@
 /**
  * Sessions page — /t/$tenant/security/sessions
  *
- * RD5: sessions render inline. No drawer, no detail page. The list
- * view is the canonical surface; rows expose Revoke directly.
+ * Sessions render inline. No drawer, no detail page. The list view is the
+ * canonical surface; rows expose Revoke directly.
  *
  * Permission guard: requires `session:read`.
  */

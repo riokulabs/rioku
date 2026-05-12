@@ -1,4 +1,4 @@
-// Owned by Plan 06 (notifications) — types for the notification-routing resource surface.
+// Types for the notification-routing resource surface.
 
 import type { ID } from './common';
 

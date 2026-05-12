@@ -1,6 +1,5 @@
 /**
- * Host event bus — spec §9.5.9
- *
+ * Host event bus.
  * Wraps `mockBus` (src/api/mock-sse.ts) so plugins can subscribe to and
  * emit typed host events without needing private mock-store access.
  *

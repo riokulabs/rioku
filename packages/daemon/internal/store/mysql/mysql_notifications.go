@@ -1,4 +1,4 @@
-// Package mysql — Notifications subsystem CRUD (stage-2).
+// Package mysql — Notifications subsystem CRUD.
 //
 // Five entities: Items (the inbox), Channels, RoutingRules,
 // DeliveryLog, and the per-tenant Config singleton.

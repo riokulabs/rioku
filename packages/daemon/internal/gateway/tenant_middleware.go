@@ -1,4 +1,4 @@
-// Package gateway: tenant resolution middleware (stage-2).
+// Package gateway: tenant resolution middleware.
 //
 // Every tenant-scoped endpoint lives under `/api/v1/t/{tenant}/...`.
 // The middleware below extracts the `{tenant}` path segment, resolves

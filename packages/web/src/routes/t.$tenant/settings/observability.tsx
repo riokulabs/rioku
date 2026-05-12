@@ -6,14 +6,12 @@
  *   /api/v1/t/:tenant/settings/observability/{metrics,logs,traces}
  *
  * Live metrics preview uses the daemon's /metrics endpoint directly (proxied
- * via the daemon's PromQL stub added in plan 00c). Full PromQL is Plan 8.
+ * via the daemon's PromQL stub). Full PromQL support is planned.
  *
- * Wraps the <ObservabilitySection> component built in stage-1 plan 8b.
+ * Wraps the <ObservabilitySection> component.
  *
  * Guard: tenant:read (all authenticated tenant members may view; write actions
  * require tenant:write, enforced inside the section component).
- *
- * Plan 7 — Task 7
  */
 import { createFileRoute, Link, useParams } from '@tanstack/react-router';
 import { Anchor, Group, Stack } from '@mantine/core';

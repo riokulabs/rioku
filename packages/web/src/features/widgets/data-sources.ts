@@ -1,18 +1,17 @@
 /**
- * Widget data-source adapters (Plan 4 §4a.5).
+ * Widget data-source adapters.
  *
- * Each adapter is a pure function that takes a Widget and a snapshot of the
- * mock store state and returns the widget's rendered data. Adapters honour
- * the widget's wizard_state (dimensions / measures / filters / group_by /
+ * Each adapter is a pure function that takes a Widget and a snapshot of
+ * state and returns the widget's rendered data. Adapters honour the
+ * widget's wizard_state (dimensions / measures / filters / group_by /
  * order_by / limit) over the source records.
  *
  * For widgets in advanced mode (`raw_query` is non-empty), adapters parse
- * the query text as JSON matching the `AdvancedQuery` schema below and
- * apply it instead of wizard_state. A parse failure surfaces as a
- * `WidgetQueryError` with the parse error detail.
+ * the query text as JSON matching the `AdvancedQuery` schema and apply it
+ * instead of wizard_state. A parse failure surfaces as a `WidgetQueryError`.
  *
- * The 'mock' adapter synthesises 20 deterministic rows per widget so
- * renderers can be exercised without real data.
+ * The 'mock' adapter synthesises deterministic rows so renderers can be
+ * exercised without real data.
  */
 import type {
   AuditEntry,
@@ -28,9 +27,8 @@ import { getTimeRange, type TimeRange, type TimeRangeId } from '@/hooks/use-dash
 
 /**
  * Structural state shape consumed by the widget data-source adapters.
- * Defined here so the adapters don't depend on the (retired) Zustand
- * mock-store type. Callers in dashboards/dashboard-builder construct
- * snapshots that satisfy this shape from real-API hooks.
+ * Callers in dashboards / dashboard-builder construct snapshots that
+ * satisfy this shape from real-API hooks.
  */
 export interface WidgetDataSourceState {
   currentTenantId: string | null;
@@ -108,12 +106,12 @@ function parseAdvancedQuery(raw: string): NormalizedQuery {
 /**
  * Replace `$name` tokens in a raw-query string using the dashboard variables.
  *
- * Stage-1 rules:
+ * Rules:
  *  - `$name` is substituted with `variable.default`.
  *  - Unknown `$name` tokens are left untouched (never throw) so the adapter's
  *    downstream JSON parse surfaces the error instead.
  *  - Tokens inside string literals are substituted too (naive textual
- *    substitution — sufficient for the current mock JSON syntax).
+ *    substitution).
  */
 export function substituteVariables(raw: string, variables: readonly DashboardVariable[]): string {
   if (raw.length === 0 || variables.length === 0) return raw;

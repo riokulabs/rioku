@@ -2,14 +2,14 @@
 // active routing rules and fan out to the bound channels via the
 // ChannelDispatcher.
 //
-// Stage-2 plan-06 wires this into the audit-emission path so that any
-// audited mutation can drive notifications without requiring callers
-// to know about routing rules. The wiring is async (per call goroutine)
-// so the originating request never blocks on dispatch.
+// This is wired into the audit-emission path so that any audited
+// mutation can drive notifications without requiring callers to know
+// about routing rules. The wiring is async (per call goroutine) so the
+// originating request never blocks on dispatch.
 //
-// EventFilter syntax (Plan 7 §11): `<category>.<subtype>` where each
-// side is a slug or `*`. We do NOT use cel-go — the schema is a simple
-// pattern-match that matches the web UI's eventFilterSchema.
+// EventFilter syntax: `<category>.<subtype>` where each side is a slug
+// or `*`. We do NOT use cel-go — the schema is a simple pattern-match
+// that matches the web UI's eventFilterSchema.
 package notifications
 
 import (
@@ -152,7 +152,7 @@ func (r *EventRouter) EvaluateAndDispatch(ctx context.Context, tenantID string, 
 
 	for _, rule := range rules {
 		// Decode EventFilter — daemon stores JSON for forward compatibility,
-		// but the stage-1/stage-2 grammar is a plain string. Try both.
+		// but the current grammar is a plain string. Try both.
 		filter := decodeEventFilter(rule.EventFilter)
 		if filter == "" {
 			r.Log.Warn("event_router: empty event filter, skipping", "rule_id", rule.ID)

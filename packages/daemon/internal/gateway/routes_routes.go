@@ -1,4 +1,4 @@
-// Package gateway: tenant-scoped Routes REST endpoints (stage-2).
+// Package gateway: tenant-scoped Routes REST endpoints.
 //
 //	OPTIONS  /api/v1/t/{tenant}/routes                    discovery
 //	GET      /api/v1/t/{tenant}/routes                    list                  route:read

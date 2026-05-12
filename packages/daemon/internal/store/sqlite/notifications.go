@@ -1,4 +1,4 @@
-// Package sqlite — Notifications subsystem (stage-2).
+// Package sqlite — Notifications subsystem.
 package sqlite
 
 import (

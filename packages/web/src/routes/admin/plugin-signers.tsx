@@ -1,5 +1,5 @@
 /**
- * /admin/plugin-signers — super-admin signer allow-list (Plan 6).
+ * /admin/plugin-signers — super-admin signer allow-list.
  *
  * Shows ALL signers across tenants (global + per-tenant) in a single flat
  * list. Only super-admins with admin:cross-tenant-read hit this route. Global

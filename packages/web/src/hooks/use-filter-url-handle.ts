@@ -1,18 +1,17 @@
 /**
- * useFilterUrlHandle — opaque handle ↔ filter-state bridge (stage-1 in-memory).
+ * useFilterUrlHandle — opaque handle ↔ filter-state bridge (in-memory).
  *
  * Syncs a typed filter object to the URL as a short opaque handle (`?f=<id>`)
  * instead of serialising the full filter into the query string.  This keeps
  * URLs short and prevents filter internals from leaking into browser history.
  *
- * STAGE-1 CONSTRAINT
+ * IN-MEMORY CONSTRAINT
  * The handle store is a module-level `Map<string, unknown>`.  It is NOT
  * persisted to localStorage or the daemon.  Handles are lost on a full
  * page reload — on reload the URL `?f=<handle>` will not resolve and the hook
- * returns `filterState` (the default the caller passed in).  This is
- * acceptable for stage 1 because the admin is a mock-only SPA.  In stage 2+
- * the handle will be persisted in a daemon-side table and the hook will fetch
- * it via TanStack Query.
+ * returns `filterState` (the default the caller passed in). Persisting the
+ * handle daemon-side and fetching via TanStack Query would lift this
+ * constraint.
  *
  * SEARCH-PARAM COUPLING
  * TanStack Router's `useSearch` requires a validated route schema per route.
