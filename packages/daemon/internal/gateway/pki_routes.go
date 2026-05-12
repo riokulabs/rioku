@@ -15,51 +15,52 @@ import (
 	"net/http"
 	"time"
 
+	"github.com/riokulabs/rioku/internal/rerr"
 	"github.com/riokulabs/rioku/internal/store"
 )
 
 func RegisterPKIRoutes(mux *http.ServeMux, st store.Driver) {
 	// Cert Authorities
 	mux.Handle("GET /api/v1/t/{tenant}/settings/pki/cas",
-		RequirePermission("pki:read")(http.HandlerFunc(handleListCAs(st))))
+		RequirePermission("pki:read")(rerr.H(handleListCAs(st))))
 	mux.Handle("POST /api/v1/t/{tenant}/settings/pki/cas",
-		RequirePermission("pki:write")(http.HandlerFunc(handleCreateCA(st))))
+		RequirePermission("pki:write")(rerr.H(handleCreateCA(st))))
 	mux.Handle("GET /api/v1/t/{tenant}/settings/pki/cas/{id}",
-		RequirePermission("pki:read")(http.HandlerFunc(handleGetCA(st))))
+		RequirePermission("pki:read")(rerr.H(handleGetCA(st))))
 	mux.Handle("PUT /api/v1/t/{tenant}/settings/pki/cas/{id}",
-		RequirePermission("pki:write")(http.HandlerFunc(handleUpdateCA(st))))
+		RequirePermission("pki:write")(rerr.H(handleUpdateCA(st))))
 	mux.Handle("DELETE /api/v1/t/{tenant}/settings/pki/cas/{id}",
-		RequirePermission("pki:write")(http.HandlerFunc(handleDeleteCA(st))))
+		RequirePermission("pki:write")(rerr.H(handleDeleteCA(st))))
 
 	// Cert Enrollments
 	mux.Handle("GET /api/v1/t/{tenant}/settings/pki/enrollments",
-		RequirePermission("pki:read")(http.HandlerFunc(handleListEnrollments(st))))
+		RequirePermission("pki:read")(rerr.H(handleListEnrollments(st))))
 	mux.Handle("POST /api/v1/t/{tenant}/settings/pki/enrollments",
-		RequirePermission("pki:write")(http.HandlerFunc(handleCreateEnrollment(st))))
+		RequirePermission("pki:write")(rerr.H(handleCreateEnrollment(st))))
 	mux.Handle("GET /api/v1/t/{tenant}/settings/pki/enrollments/{id}",
-		RequirePermission("pki:read")(http.HandlerFunc(handleGetEnrollment(st))))
+		RequirePermission("pki:read")(rerr.H(handleGetEnrollment(st))))
 	mux.Handle("POST /api/v1/t/{tenant}/settings/pki/enrollments/{id}/revoke",
-		RequirePermission("pki:write")(http.HandlerFunc(handleRevokeEnrollment(st))))
+		RequirePermission("pki:write")(rerr.H(handleRevokeEnrollment(st))))
 
 	// TLS Certificates
 	mux.Handle("GET /api/v1/t/{tenant}/settings/tls/certificates",
-		RequirePermission("tls:read")(http.HandlerFunc(handleListTLSCerts(st))))
+		RequirePermission("tls:read")(rerr.H(handleListTLSCerts(st))))
 	mux.Handle("POST /api/v1/t/{tenant}/settings/tls/certificates",
-		RequirePermission("tls:write")(http.HandlerFunc(handleCreateTLSCert(st))))
+		RequirePermission("tls:write")(rerr.H(handleCreateTLSCert(st))))
 	mux.Handle("GET /api/v1/t/{tenant}/settings/tls/certificates/{id}",
-		RequirePermission("tls:read")(http.HandlerFunc(handleGetTLSCert(st))))
+		RequirePermission("tls:read")(rerr.H(handleGetTLSCert(st))))
 	mux.Handle("PATCH /api/v1/t/{tenant}/settings/tls/certificates/{id}/auto-renew",
-		RequirePermission("tls:write")(http.HandlerFunc(handleToggleAutoRenew(st))))
+		RequirePermission("tls:write")(rerr.H(handleToggleAutoRenew(st))))
 	mux.Handle("DELETE /api/v1/t/{tenant}/settings/tls/certificates/{id}",
-		RequirePermission("tls:write")(http.HandlerFunc(handleDeleteTLSCert(st))))
+		RequirePermission("tls:write")(rerr.H(handleDeleteTLSCert(st))))
 
 	// TLS Config (singleton)
 	mux.Handle("GET /api/v1/t/{tenant}/settings/tls/config",
-		RequirePermission("tls:read")(http.HandlerFunc(handleGetTLSConfig(st))))
+		RequirePermission("tls:read")(rerr.H(handleGetTLSConfig(st))))
 	mux.Handle("PUT /api/v1/t/{tenant}/settings/tls/config/acme",
-		RequirePermission("tls:write")(http.HandlerFunc(handleUpdateTLSACME(st))))
+		RequirePermission("tls:write")(rerr.H(handleUpdateTLSACME(st))))
 	mux.Handle("PUT /api/v1/t/{tenant}/settings/tls/config/ciphers",
-		RequirePermission("tls:write")(http.HandlerFunc(handleUpdateTLSCiphers(st))))
+		RequirePermission("tls:write")(rerr.H(handleUpdateTLSCiphers(st))))
 }
 
 // ─── DTOs ───────────────────────────────────────────────────────────────────
@@ -175,32 +176,31 @@ func tlsConfigToResponse(c *store.TLSConfig) tlsConfigResponse {
 
 // ─── CA handlers ────────────────────────────────────────────────────────────
 
-func handleListCAs(st store.Driver) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
+func handleListCAs(st store.Driver) rerr.Handler {
+	return func(w http.ResponseWriter, r *http.Request) error {
 		tenant, ok := tenantOrError(w, r)
 		if !ok {
-			return
+			return nil
 		}
 		tx, _ := st.Begin(r.Context(), store.TxOptions{ReadOnly: true})
 		defer func() { _ = tx.Rollback() }()
 		items, err := tx.ListCertAuthoritiesByTenant(r.Context(), tenant.ID)
 		if err != nil {
-			writeInternalError(w, r, "list cas")
-			return
+			return rerr.Wrap(err, "list cas")
 		}
 		out := make([]caResponse, 0, len(items))
 		for _, c := range items {
 			out = append(out, caToResponse(c))
 		}
-		writeJSON(w, http.StatusOK, map[string]any{"items": out, "total": len(out)})
+		return rerr.JSON(w, map[string]any{"items": out, "total": len(out)})
 	}
 }
 
-func handleCreateCA(st store.Driver) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
+func handleCreateCA(st store.Driver) rerr.Handler {
+	return func(w http.ResponseWriter, r *http.Request) error {
 		tenant, ok := tenantOrError(w, r)
 		if !ok {
-			return
+			return nil
 		}
 		var req struct {
 			Name           string  `json:"name"`
@@ -210,12 +210,10 @@ func handleCreateCA(st store.Driver) http.HandlerFunc {
 			PrivateKeyRef  *string `json:"privateKeyRef,omitempty"`
 		}
 		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-			writeBadRequest(w, r, "invalid JSON body")
-			return
+			return rerr.Validation(map[string]string{"body": "invalid JSON body"})
 		}
 		if req.Name == "" || req.Kind == "" || req.Subject == "" {
-			writeBadRequest(w, r, "name, kind, subject are required")
-			return
+			return rerr.Validation(map[string]string{"body": "name, kind, subject are required"})
 		}
 		tx, _ := st.Begin(r.Context(), store.TxOptions{})
 		created, err := tx.CreateCertAuthority(r.Context(), &store.CertAuthority{
@@ -225,45 +223,40 @@ func handleCreateCA(st store.Driver) http.HandlerFunc {
 		if err != nil {
 			_ = tx.Rollback()
 			if errors.Is(err, store.ErrCertAuthorityNameTaken) {
-				writeProblem(w, http.StatusConflict, errTypeConflict, "Name already in use",
-					"A CA with that name already exists in this tenant", r.URL.Path, nil)
-				return
+				return rerr.Conflict("A CA with that name already exists in this tenant", err)
 			}
-			writeInternalError(w, r, "create ca")
-			return
+			return rerr.Wrap(err, "create ca")
 		}
 		if err := tx.Commit(); err != nil {
-			writeInternalError(w, r, "commit")
-			return
+			return rerr.Wrap(err, "commit")
 		}
-		writeJSON(w, http.StatusCreated, caToResponse(created))
+		w.WriteHeader(http.StatusCreated)
+		return rerr.JSON(w, caToResponse(created))
 	}
 }
 
-func handleGetCA(st store.Driver) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
+func handleGetCA(st store.Driver) rerr.Handler {
+	return func(w http.ResponseWriter, r *http.Request) error {
 		tenant, ok := tenantOrError(w, r)
 		if !ok {
-			return
+			return nil
 		}
 		id := r.PathValue("id")
 		tx, _ := st.Begin(r.Context(), store.TxOptions{ReadOnly: true})
 		defer func() { _ = tx.Rollback() }()
 		c, err := tx.GetCertAuthority(r.Context(), tenant.ID, id)
 		if err != nil {
-			writeProblem(w, http.StatusNotFound, errTypeNotFound, "CA not found",
-				"No CA with id "+id, r.URL.Path, nil)
-			return
+			return rerr.NotFound("cert_authority", id)
 		}
-		writeJSON(w, http.StatusOK, caToResponse(c))
+		return rerr.JSON(w, caToResponse(c))
 	}
 }
 
-func handleUpdateCA(st store.Driver) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
+func handleUpdateCA(st store.Driver) rerr.Handler {
+	return func(w http.ResponseWriter, r *http.Request) error {
 		tenant, ok := tenantOrError(w, r)
 		if !ok {
-			return
+			return nil
 		}
 		id := r.PathValue("id")
 		var req struct {
@@ -272,8 +265,7 @@ func handleUpdateCA(st store.Driver) http.HandlerFunc {
 			Subject *string `json:"subject,omitempty"`
 		}
 		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-			writeBadRequest(w, r, "invalid JSON body")
-			return
+			return rerr.Validation(map[string]string{"body": "invalid JSON body"})
 		}
 		tx, _ := st.Begin(r.Context(), store.TxOptions{})
 		updated, err := tx.UpdateCertAuthority(r.Context(), tenant.ID, id, store.UpdateCertAuthorityParams{
@@ -282,75 +274,67 @@ func handleUpdateCA(st store.Driver) http.HandlerFunc {
 		if err != nil {
 			_ = tx.Rollback()
 			if errors.Is(err, store.ErrCertAuthorityNotFound) {
-				writeProblem(w, http.StatusNotFound, errTypeNotFound, "CA not found",
-					"No CA with id "+id, r.URL.Path, nil)
-				return
+				return rerr.NotFound("cert_authority", id)
 			}
-			writeInternalError(w, r, "update ca")
-			return
+			return rerr.Wrap(err, "update ca")
 		}
 		if err := tx.Commit(); err != nil {
-			writeInternalError(w, r, "commit")
-			return
+			return rerr.Wrap(err, "commit")
 		}
-		writeJSON(w, http.StatusOK, caToResponse(updated))
+		return rerr.JSON(w, caToResponse(updated))
 	}
 }
 
-func handleDeleteCA(st store.Driver) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
+func handleDeleteCA(st store.Driver) rerr.Handler {
+	return func(w http.ResponseWriter, r *http.Request) error {
 		tenant, ok := tenantOrError(w, r)
 		if !ok {
-			return
+			return nil
 		}
 		id := r.PathValue("id")
 		tx, _ := st.Begin(r.Context(), store.TxOptions{})
 		if err := tx.DeleteCertAuthority(r.Context(), tenant.ID, id); err != nil {
 			_ = tx.Rollback()
 			if errors.Is(err, store.ErrCertAuthorityNotFound) {
-				writeProblem(w, http.StatusNotFound, errTypeNotFound, "CA not found",
-					"No CA with id "+id, r.URL.Path, nil)
-				return
+				return rerr.NotFound("cert_authority", id)
 			}
-			writeInternalError(w, r, "delete ca")
-			return
+			return rerr.Wrap(err, "delete ca")
 		}
 		if err := tx.Commit(); err != nil {
-			writeInternalError(w, r, "commit")
-			return
+			return rerr.Wrap(err, "commit")
 		}
 		w.WriteHeader(http.StatusNoContent)
+		return nil
 	}
 }
 
 // ─── Enrollment handlers ────────────────────────────────────────────────────
 
-func handleListEnrollments(st store.Driver) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
+func handleListEnrollments(st store.Driver) rerr.Handler {
+	return func(w http.ResponseWriter, r *http.Request) error {
 		tenant, ok := tenantOrError(w, r)
 		if !ok {
-			return
+			return nil
 		}
 		tx, _ := st.Begin(r.Context(), store.TxOptions{ReadOnly: true})
 		defer func() { _ = tx.Rollback() }()
 		items, err := tx.ListCertEnrollmentsByTenant(r.Context(), tenant.ID)
 		if err != nil {
-			writeInternalError(w, r, "list enrollments")
-			return
+			return rerr.Wrap(err, "list enrollments")
 		}
 		out := make([]enrollmentResponse, 0, len(items))
 		for _, e := range items {
 			out = append(out, enrollmentToResponse(e))
 		}
-		writeJSON(w, http.StatusOK, map[string]any{"items": out, "total": len(out)})
+		return rerr.JSON(w, map[string]any{"items": out, "total": len(out)})
 	}
 }
 
-func handleCreateEnrollment(st store.Driver) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
+func handleCreateEnrollment(st store.Driver) rerr.Handler {
+	return func(w http.ResponseWriter, r *http.Request) error {
 		tenant, ok := tenantOrError(w, r)
 		if !ok {
-			return
+			return nil
 		}
 		var req struct {
 			CAID    *string         `json:"caId,omitempty"`
@@ -358,12 +342,10 @@ func handleCreateEnrollment(st store.Driver) http.HandlerFunc {
 			DNSSANs json.RawMessage `json:"dnsSans,omitempty"`
 		}
 		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-			writeBadRequest(w, r, "invalid JSON body")
-			return
+			return rerr.Validation(map[string]string{"body": "invalid JSON body"})
 		}
 		if req.Subject == "" {
-			writeBadRequest(w, r, "subject is required")
-			return
+			return rerr.Validation(map[string]string{"subject": "subject is required"})
 		}
 		tx, _ := st.Begin(r.Context(), store.TxOptions{})
 		created, err := tx.CreateCertEnrollment(r.Context(), &store.CertEnrollment{
@@ -372,41 +354,38 @@ func handleCreateEnrollment(st store.Driver) http.HandlerFunc {
 		})
 		if err != nil {
 			_ = tx.Rollback()
-			writeInternalError(w, r, "create enrollment")
-			return
+			return rerr.Wrap(err, "create enrollment")
 		}
 		if err := tx.Commit(); err != nil {
-			writeInternalError(w, r, "commit")
-			return
+			return rerr.Wrap(err, "commit")
 		}
-		writeJSON(w, http.StatusCreated, enrollmentToResponse(created))
+		w.WriteHeader(http.StatusCreated)
+		return rerr.JSON(w, enrollmentToResponse(created))
 	}
 }
 
-func handleGetEnrollment(st store.Driver) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
+func handleGetEnrollment(st store.Driver) rerr.Handler {
+	return func(w http.ResponseWriter, r *http.Request) error {
 		tenant, ok := tenantOrError(w, r)
 		if !ok {
-			return
+			return nil
 		}
 		id := r.PathValue("id")
 		tx, _ := st.Begin(r.Context(), store.TxOptions{ReadOnly: true})
 		defer func() { _ = tx.Rollback() }()
 		e, err := tx.GetCertEnrollment(r.Context(), tenant.ID, id)
 		if err != nil {
-			writeProblem(w, http.StatusNotFound, errTypeNotFound, "Enrollment not found",
-				"No enrollment with id "+id, r.URL.Path, nil)
-			return
+			return rerr.NotFound("cert_enrollment", id)
 		}
-		writeJSON(w, http.StatusOK, enrollmentToResponse(e))
+		return rerr.JSON(w, enrollmentToResponse(e))
 	}
 }
 
-func handleRevokeEnrollment(st store.Driver) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
+func handleRevokeEnrollment(st store.Driver) rerr.Handler {
+	return func(w http.ResponseWriter, r *http.Request) error {
 		tenant, ok := tenantOrError(w, r)
 		if !ok {
-			return
+			return nil
 		}
 		id := r.PathValue("id")
 		var req struct {
@@ -418,49 +397,44 @@ func handleRevokeEnrollment(st store.Driver) http.HandlerFunc {
 		if err != nil {
 			_ = tx.Rollback()
 			if errors.Is(err, store.ErrCertEnrollmentNotFound) {
-				writeProblem(w, http.StatusNotFound, errTypeNotFound, "Enrollment not found",
-					"No enrollment with id "+id, r.URL.Path, nil)
-				return
+				return rerr.NotFound("cert_enrollment", id)
 			}
-			writeInternalError(w, r, "revoke enrollment")
-			return
+			return rerr.Wrap(err, "revoke enrollment")
 		}
 		if err := tx.Commit(); err != nil {
-			writeInternalError(w, r, "commit")
-			return
+			return rerr.Wrap(err, "commit")
 		}
-		writeJSON(w, http.StatusOK, enrollmentToResponse(updated))
+		return rerr.JSON(w, enrollmentToResponse(updated))
 	}
 }
 
 // ─── TLS Certificate handlers ───────────────────────────────────────────────
 
-func handleListTLSCerts(st store.Driver) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
+func handleListTLSCerts(st store.Driver) rerr.Handler {
+	return func(w http.ResponseWriter, r *http.Request) error {
 		tenant, ok := tenantOrError(w, r)
 		if !ok {
-			return
+			return nil
 		}
 		tx, _ := st.Begin(r.Context(), store.TxOptions{ReadOnly: true})
 		defer func() { _ = tx.Rollback() }()
 		items, err := tx.ListTLSCertificatesByTenant(r.Context(), tenant.ID)
 		if err != nil {
-			writeInternalError(w, r, "list tls certs")
-			return
+			return rerr.Wrap(err, "list tls certs")
 		}
 		out := make([]tlsCertResponse, 0, len(items))
 		for _, c := range items {
 			out = append(out, tlsCertToResponse(c))
 		}
-		writeJSON(w, http.StatusOK, map[string]any{"items": out, "total": len(out)})
+		return rerr.JSON(w, map[string]any{"items": out, "total": len(out)})
 	}
 }
 
-func handleCreateTLSCert(st store.Driver) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
+func handleCreateTLSCert(st store.Driver) rerr.Handler {
+	return func(w http.ResponseWriter, r *http.Request) error {
 		tenant, ok := tenantOrError(w, r)
 		if !ok {
-			return
+			return nil
 		}
 		var req struct {
 			Domain         string `json:"domain"`
@@ -469,12 +443,10 @@ func handleCreateTLSCert(st store.Driver) http.HandlerFunc {
 			CertificatePEM string `json:"certificatePem,omitempty"`
 		}
 		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-			writeBadRequest(w, r, "invalid JSON body")
-			return
+			return rerr.Validation(map[string]string{"body": "invalid JSON body"})
 		}
 		if req.Domain == "" {
-			writeBadRequest(w, r, "domain is required")
-			return
+			return rerr.Validation(map[string]string{"domain": "domain is required"})
 		}
 		tx, _ := st.Begin(r.Context(), store.TxOptions{})
 		created, err := tx.CreateTLSCertificate(r.Context(), &store.TLSCertificate{
@@ -484,105 +456,92 @@ func handleCreateTLSCert(st store.Driver) http.HandlerFunc {
 		if err != nil {
 			_ = tx.Rollback()
 			if errors.Is(err, store.ErrTLSCertificateTaken) {
-				writeProblem(w, http.StatusConflict, errTypeConflict, "Domain already in use",
-					"A certificate for that domain already exists", r.URL.Path, nil)
-				return
+				return rerr.Conflict("a certificate for that domain already exists", err)
 			}
-			writeInternalError(w, r, "create tls cert")
-			return
+			return rerr.Wrap(err, "create tls cert")
 		}
 		if err := tx.Commit(); err != nil {
-			writeInternalError(w, r, "commit")
-			return
+			return rerr.Wrap(err, "commit")
 		}
-		writeJSON(w, http.StatusCreated, tlsCertToResponse(created))
+		w.WriteHeader(http.StatusCreated)
+		return rerr.JSON(w, tlsCertToResponse(created))
 	}
 }
 
-func handleGetTLSCert(st store.Driver) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
+func handleGetTLSCert(st store.Driver) rerr.Handler {
+	return func(w http.ResponseWriter, r *http.Request) error {
 		tenant, ok := tenantOrError(w, r)
 		if !ok {
-			return
+			return nil
 		}
 		id := r.PathValue("id")
 		tx, _ := st.Begin(r.Context(), store.TxOptions{ReadOnly: true})
 		defer func() { _ = tx.Rollback() }()
 		c, err := tx.GetTLSCertificate(r.Context(), tenant.ID, id)
 		if err != nil {
-			writeProblem(w, http.StatusNotFound, errTypeNotFound, "Certificate not found",
-				"No certificate with id "+id, r.URL.Path, nil)
-			return
+			return rerr.NotFound("tls_certificate", id)
 		}
-		writeJSON(w, http.StatusOK, tlsCertToResponse(c))
+		return rerr.JSON(w, tlsCertToResponse(c))
 	}
 }
 
-func handleToggleAutoRenew(st store.Driver) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
+func handleToggleAutoRenew(st store.Driver) rerr.Handler {
+	return func(w http.ResponseWriter, r *http.Request) error {
 		tenant, ok := tenantOrError(w, r)
 		if !ok {
-			return
+			return nil
 		}
 		id := r.PathValue("id")
 		var req struct {
 			AutoRenew bool `json:"autoRenew"`
 		}
 		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-			writeBadRequest(w, r, "invalid JSON body")
-			return
+			return rerr.Validation(map[string]string{"body": "invalid JSON body"})
 		}
 		tx, _ := st.Begin(r.Context(), store.TxOptions{})
 		updated, err := tx.UpdateTLSCertificate(r.Context(), tenant.ID, id, store.UpdateTLSCertificateParams{AutoRenew: &req.AutoRenew})
 		if err != nil {
 			_ = tx.Rollback()
 			if errors.Is(err, store.ErrTLSCertificateNotFound) {
-				writeProblem(w, http.StatusNotFound, errTypeNotFound, "Certificate not found",
-					"No certificate with id "+id, r.URL.Path, nil)
-				return
+				return rerr.NotFound("tls_certificate", id)
 			}
-			writeInternalError(w, r, "toggle auto-renew")
-			return
+			return rerr.Wrap(err, "toggle auto-renew")
 		}
 		if err := tx.Commit(); err != nil {
-			writeInternalError(w, r, "commit")
-			return
+			return rerr.Wrap(err, "commit")
 		}
-		writeJSON(w, http.StatusOK, tlsCertToResponse(updated))
+		return rerr.JSON(w, tlsCertToResponse(updated))
 	}
 }
 
-func handleDeleteTLSCert(st store.Driver) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
+func handleDeleteTLSCert(st store.Driver) rerr.Handler {
+	return func(w http.ResponseWriter, r *http.Request) error {
 		tenant, ok := tenantOrError(w, r)
 		if !ok {
-			return
+			return nil
 		}
 		id := r.PathValue("id")
 		tx, _ := st.Begin(r.Context(), store.TxOptions{})
 		if err := tx.DeleteTLSCertificate(r.Context(), tenant.ID, id); err != nil {
 			_ = tx.Rollback()
 			if errors.Is(err, store.ErrTLSCertificateNotFound) {
-				writeProblem(w, http.StatusNotFound, errTypeNotFound, "Certificate not found",
-					"No certificate with id "+id, r.URL.Path, nil)
-				return
+				return rerr.NotFound("tls_certificate", id)
 			}
-			writeInternalError(w, r, "delete tls cert")
-			return
+			return rerr.Wrap(err, "delete tls cert")
 		}
 		if err := tx.Commit(); err != nil {
-			writeInternalError(w, r, "commit")
-			return
+			return rerr.Wrap(err, "commit")
 		}
 		w.WriteHeader(http.StatusNoContent)
+		return nil
 	}
 }
 
 // ─── TLS Config handlers ────────────────────────────────────────────────────
 
-func handleGetTLSConfig(st store.Driver) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
-		handleReadConfig(w, r, st, "get tls config",
+func handleGetTLSConfig(st store.Driver) rerr.Handler {
+	return func(w http.ResponseWriter, r *http.Request) error {
+		return handleReadConfig(w, r, st, "get tls config",
 			func(ctx context.Context, tx store.Tx, tenantID string) (any, error) {
 				c, err := tx.GetTLSConfig(ctx, tenantID)
 				if err != nil {
@@ -593,14 +552,14 @@ func handleGetTLSConfig(st store.Driver) http.HandlerFunc {
 	}
 }
 
-func handleUpdateTLSACME(st store.Driver) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
+func handleUpdateTLSACME(st store.Driver) rerr.Handler {
+	return func(w http.ResponseWriter, r *http.Request) error {
 		var req struct {
 			Provider  string  `json:"provider"`
 			Email     string  `json:"email,omitempty"`
 			Directory *string `json:"directory,omitempty"`
 		}
-		handleUpsertConfig(w, r, st, "update acme", &req,
+		return handleUpsertConfig(w, r, st, "update acme", &req,
 			func(ctx context.Context, tx store.Tx, tenantID string) (any, error) {
 				current, _ := tx.GetTLSConfig(ctx, tenantID)
 				current.ACMEProvider = req.Provider
@@ -616,13 +575,13 @@ func handleUpdateTLSACME(st store.Driver) http.HandlerFunc {
 	}
 }
 
-func handleUpdateTLSCiphers(st store.Driver) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
+func handleUpdateTLSCiphers(st store.Driver) rerr.Handler {
+	return func(w http.ResponseWriter, r *http.Request) error {
 		var req struct {
 			AllowedCiphers json.RawMessage `json:"allowedCiphers"`
 			MinProtocol    string          `json:"minProtocol,omitempty"`
 		}
-		handleUpsertConfig(w, r, st, "update ciphers", &req,
+		return handleUpsertConfig(w, r, st, "update ciphers", &req,
 			func(ctx context.Context, tx store.Tx, tenantID string) (any, error) {
 				current, _ := tx.GetTLSConfig(ctx, tenantID)
 				current.AllowedCiphers = string(req.AllowedCiphers)
