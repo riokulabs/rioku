@@ -139,8 +139,7 @@ func handleCreateWebhook(st store.Driver) rerr.Handler {
 		if err := tx.Commit(); err != nil {
 			return rerr.Wrap(err, "commit")
 		}
-		w.WriteHeader(http.StatusCreated)
-		return rerr.JSON(w, webhookToResponse(created))
+		return rerr.JSONStatus(w, http.StatusCreated, webhookToResponse(created))
 	}
 }
 
@@ -333,8 +332,7 @@ func handleCreateEnrollmentToken(st store.Driver) rerr.Handler {
 		if err := tx.Commit(); err != nil {
 			return rerr.Wrap(err, "commit")
 		}
-		w.WriteHeader(http.StatusCreated)
-		return rerr.JSON(w, createEnrollmentTokenResponse{
+		return rerr.JSONStatus(w, http.StatusCreated, createEnrollmentTokenResponse{
 			enrollmentTokenResponse: enrollmentTokenToResponse(created),
 			Token:                   token,
 		})
@@ -437,8 +435,7 @@ func handleStartImpersonation(st store.Driver) rerr.Handler {
 		if err := tx.Commit(); err != nil {
 			return rerr.Wrap(err, "commit")
 		}
-		w.WriteHeader(http.StatusCreated)
-		return rerr.JSON(w, impersonationToResponse(created))
+		return rerr.JSONStatus(w, http.StatusCreated, impersonationToResponse(created))
 	}
 }
 

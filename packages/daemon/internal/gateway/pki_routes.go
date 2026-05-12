@@ -230,8 +230,7 @@ func handleCreateCA(st store.Driver) rerr.Handler {
 		if err := tx.Commit(); err != nil {
 			return rerr.Wrap(err, "commit")
 		}
-		w.WriteHeader(http.StatusCreated)
-		return rerr.JSON(w, caToResponse(created))
+		return rerr.JSONStatus(w, http.StatusCreated, caToResponse(created))
 	}
 }
 
@@ -359,8 +358,7 @@ func handleCreateEnrollment(st store.Driver) rerr.Handler {
 		if err := tx.Commit(); err != nil {
 			return rerr.Wrap(err, "commit")
 		}
-		w.WriteHeader(http.StatusCreated)
-		return rerr.JSON(w, enrollmentToResponse(created))
+		return rerr.JSONStatus(w, http.StatusCreated, enrollmentToResponse(created))
 	}
 }
 
@@ -463,8 +461,7 @@ func handleCreateTLSCert(st store.Driver) rerr.Handler {
 		if err := tx.Commit(); err != nil {
 			return rerr.Wrap(err, "commit")
 		}
-		w.WriteHeader(http.StatusCreated)
-		return rerr.JSON(w, tlsCertToResponse(created))
+		return rerr.JSONStatus(w, http.StatusCreated, tlsCertToResponse(created))
 	}
 }
 

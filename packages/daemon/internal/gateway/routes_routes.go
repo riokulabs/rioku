@@ -129,8 +129,7 @@ func handleCreateRoute(st store.Driver) rerr.Handler {
 		if err := tx.Commit(); err != nil {
 			return rerr.Wrap(err, "commit")
 		}
-		w.WriteHeader(http.StatusCreated)
-		return rerr.JSON(w, routeToDTO(created, links.NewTenantBuilder(tenant.Slug)))
+		return rerr.JSONStatus(w, http.StatusCreated, routeToDTO(created, links.NewTenantBuilder(tenant.Slug)))
 	}
 }
 
@@ -295,8 +294,7 @@ func handleAttachPolicyToRoute(st store.Driver) rerr.Handler {
 			return rerr.Wrap(err, "commit")
 		}
 		b := links.NewTenantBuilder(tenant.Slug)
-		w.WriteHeader(http.StatusCreated)
-		return rerr.JSON(w, map[string]any{
+		return rerr.JSONStatus(w, http.StatusCreated, map[string]any{
 			"routeId":  routeID,
 			"policyId": policyID,
 			"_links": links.Set{

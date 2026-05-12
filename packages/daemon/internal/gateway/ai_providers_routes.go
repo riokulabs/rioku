@@ -96,8 +96,7 @@ func handleCreateAIProvider(st store.Driver) rerr.Handler {
 		if err := tx.Commit(); err != nil {
 			return rerr.Wrap(err, "commit")
 		}
-		w.WriteHeader(http.StatusCreated)
-		return rerr.JSON(w, aiProviderToResponse(created))
+		return rerr.JSONStatus(w, http.StatusCreated, aiProviderToResponse(created))
 	}
 }
 
@@ -274,8 +273,7 @@ func handleAddProviderModel(st store.Driver) rerr.Handler {
 		if err := tx.Commit(); err != nil {
 			return rerr.Wrap(err, "commit")
 		}
-		w.WriteHeader(http.StatusCreated)
-		return rerr.JSON(w, providerModelToResponse(created))
+		return rerr.JSONStatus(w, http.StatusCreated, providerModelToResponse(created))
 	}
 }
 

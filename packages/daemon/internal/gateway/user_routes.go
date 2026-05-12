@@ -267,8 +267,7 @@ func handleCreateUser(st store.Driver, cfg *config.Config) rerr.Handler {
 			return rerr.Wrap(err, "commit")
 		}
 
-		w.WriteHeader(http.StatusCreated)
-		return rerr.JSON(w, toUserResponse(created, []string{}, []string{}))
+		return rerr.JSONStatus(w, http.StatusCreated, toUserResponse(created, []string{}, []string{}))
 	}
 }
 

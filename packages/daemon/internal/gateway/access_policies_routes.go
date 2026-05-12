@@ -252,8 +252,7 @@ func handleCreateAccessPolicy(st store.Driver) rerr.Handler {
 			}
 			return rerr.Wrap(err, "create access policy")
 		}
-		w.WriteHeader(http.StatusCreated)
-		return rerr.JSON(w, toDTO(created))
+		return rerr.JSONStatus(w, http.StatusCreated, toDTO(created))
 	}
 }
 

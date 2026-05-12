@@ -119,8 +119,7 @@ func handleCreateInvite(st store.Driver, mailer auth.Mailer, baseURL string) rer
 			),
 		})
 
-		w.WriteHeader(http.StatusCreated)
-		return rerr.JSON(w, map[string]string{
+		return rerr.JSONStatus(w, http.StatusCreated, map[string]string{
 			"membershipId": m.ID,
 			"status":       "pending",
 		})
@@ -225,16 +224,14 @@ func handleInviteAccept(st store.Driver, sm *auth.SessionManager, cfg *config.Co
 		session, err := sm.CreateSession(ctx, user.ID, r)
 		if err != nil {
 			// Non-fatal: user created, just can't auto-login.
-			w.WriteHeader(http.StatusCreated)
-			return rerr.JSON(w, map[string]string{
+			return rerr.JSONStatus(w, http.StatusCreated, map[string]string{
 				"userId": user.ID,
 				"status": "created",
 			})
 		}
 		sm.SetCookie(w, session.ID, auth.CookieOptions{})
 
-		w.WriteHeader(http.StatusCreated)
-		return rerr.JSON(w, map[string]string{
+		return rerr.JSONStatus(w, http.StatusCreated, map[string]string{
 			"userId":    user.ID,
 			"sessionId": session.ID,
 			"status":    "created",

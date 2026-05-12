@@ -188,8 +188,7 @@ func handleBootstrap(st store.Driver, _ *auth.SessionManager, cfg *config.Config
 			return rerr.Wrap(err, "commit")
 		}
 
-		w.WriteHeader(http.StatusCreated)
-		return rerr.JSON(w, bootstrapResponse{
+		return rerr.JSONStatus(w, http.StatusCreated, bootstrapResponse{
 			TenantID: tenant.ID,
 			UserID:   user.ID,
 		})

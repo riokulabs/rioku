@@ -146,8 +146,7 @@ func handleUploadManualCert(st store.Driver) rerr.Handler {
 			SANs:      append([]string{}, leaf.DNSNames...),
 			AutoRenew: created.AutoRenew,
 		}
-		w.WriteHeader(http.StatusCreated)
-		return rerr.JSON(w, manualCertResponse{
+		return rerr.JSONStatus(w, http.StatusCreated, manualCertResponse{
 			CertID:            created.ID,
 			Ref:               ref,
 			SHA256Fingerprint: fpHex,

@@ -219,8 +219,7 @@ func handleCreateTenant(st store.Driver) rerr.Handler {
 		if err := tx.Commit(); err != nil {
 			return rerr.Wrap(err, "commit")
 		}
-		w.WriteHeader(http.StatusCreated)
-		return rerr.JSON(w, tenantToResponse(created))
+		return rerr.JSONStatus(w, http.StatusCreated, tenantToResponse(created))
 	}
 }
 
@@ -454,8 +453,7 @@ func handleCreateMembership(st store.Driver) rerr.Handler {
 		if err := tx.Commit(); err != nil {
 			return rerr.Wrap(err, "commit")
 		}
-		w.WriteHeader(http.StatusCreated)
-		return rerr.JSON(w, membershipToResponse(created))
+		return rerr.JSONStatus(w, http.StatusCreated, membershipToResponse(created))
 	}
 }
 

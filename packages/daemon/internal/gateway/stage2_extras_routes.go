@@ -163,8 +163,7 @@ func handleTestWebhook(st store.Driver) rerr.Handler {
 		if err != nil {
 			return rerr.NotFound("webhook", id)
 		}
-		w.WriteHeader(http.StatusAccepted)
-		return rerr.JSON(w, map[string]any{
+		return rerr.JSONStatus(w, http.StatusAccepted, map[string]any{
 			"webhookId": ep.ID,
 			"url":       ep.URL,
 			"status":    "queued",
@@ -232,8 +231,7 @@ func handleClusterNodeAlias(w http.ResponseWriter, r *http.Request) error {
 
 func handleClusterNodeDrain(w http.ResponseWriter, r *http.Request) error {
 	id := r.PathValue("id")
-	w.WriteHeader(http.StatusAccepted)
-	return rerr.JSON(w, map[string]any{
+	return rerr.JSONStatus(w, http.StatusAccepted, map[string]any{
 		"nodeId": id, "status": "queued",
 		"action": "drain",
 		"note":   "real drain orchestration lands with the multi-node cluster work (#57)",
@@ -242,8 +240,7 @@ func handleClusterNodeDrain(w http.ResponseWriter, r *http.Request) error {
 
 func handleClusterNodePromote(w http.ResponseWriter, r *http.Request) error {
 	id := r.PathValue("id")
-	w.WriteHeader(http.StatusAccepted)
-	return rerr.JSON(w, map[string]any{
+	return rerr.JSONStatus(w, http.StatusAccepted, map[string]any{
 		"nodeId": id, "status": "queued",
 		"action": "promote",
 		"note":   "real promote orchestration lands with the multi-node cluster work (#57)",
@@ -252,8 +249,7 @@ func handleClusterNodePromote(w http.ResponseWriter, r *http.Request) error {
 
 func handleClusterNodeDemote(w http.ResponseWriter, r *http.Request) error {
 	id := r.PathValue("id")
-	w.WriteHeader(http.StatusAccepted)
-	return rerr.JSON(w, map[string]any{
+	return rerr.JSONStatus(w, http.StatusAccepted, map[string]any{
 		"nodeId": id, "status": "queued",
 		"action": "demote",
 		"note":   "real demote orchestration lands with the multi-node cluster work (#57)",

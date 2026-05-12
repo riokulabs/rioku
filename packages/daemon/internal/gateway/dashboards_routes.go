@@ -171,8 +171,7 @@ func handleShareDashboard(st store.Driver) rerr.Handler {
 		if err := tx.Commit(); err != nil {
 			return rerr.Wrap(err, "commit")
 		}
-		w.WriteHeader(http.StatusCreated)
-		return rerr.JSON(w, dashboardShareToResponse(created, tenant.Slug))
+		return rerr.JSONStatus(w, http.StatusCreated, dashboardShareToResponse(created, tenant.Slug))
 	}
 }
 
@@ -422,8 +421,7 @@ func handleCreateDashboard(st store.Driver) rerr.Handler {
 		if err := tx.Commit(); err != nil {
 			return rerr.Wrap(err, "commit")
 		}
-		w.WriteHeader(http.StatusCreated)
-		return rerr.JSON(w, dashboardToResponse(created))
+		return rerr.JSONStatus(w, http.StatusCreated, dashboardToResponse(created))
 	}
 }
 
@@ -694,8 +692,7 @@ func handleAddWidget(st store.Driver) rerr.Handler {
 		if err := tx.Commit(); err != nil {
 			return rerr.Wrap(err, "commit")
 		}
-		w.WriteHeader(http.StatusCreated)
-		return rerr.JSON(w, widgetToResponse(created))
+		return rerr.JSONStatus(w, http.StatusCreated, widgetToResponse(created))
 	}
 }
 
@@ -926,8 +923,7 @@ func handleSnapshotDashboard(st store.Driver) rerr.Handler {
 		if err := tx.Commit(); err != nil {
 			return rerr.Wrap(err, "commit")
 		}
-		w.WriteHeader(http.StatusCreated)
-		return rerr.JSON(w, versionToResponse(v))
+		return rerr.JSONStatus(w, http.StatusCreated, versionToResponse(v))
 	}
 }
 
@@ -1102,7 +1098,6 @@ func handleImportDashboard(st store.Driver) rerr.Handler {
 		if err := tx.Commit(); err != nil {
 			return rerr.Wrap(err, "commit")
 		}
-		w.WriteHeader(http.StatusCreated)
-		return rerr.JSON(w, dashboardToResponse(created))
+		return rerr.JSONStatus(w, http.StatusCreated, dashboardToResponse(created))
 	}
 }

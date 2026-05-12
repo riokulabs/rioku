@@ -148,8 +148,7 @@ func handleCreateService(st store.Driver) rerr.Handler {
 			return rerr.Wrap(err, "commit")
 		}
 		_ = triggerCaddyReload(r.Context(), "service.create")
-		w.WriteHeader(http.StatusCreated)
-		return rerr.JSON(w, serviceToDTO(created, links.NewTenantBuilder(tenant.Slug)))
+		return rerr.JSONStatus(w, http.StatusCreated, serviceToDTO(created, links.NewTenantBuilder(tenant.Slug)))
 	}
 }
 
@@ -283,8 +282,7 @@ func handleForceReloadService(st store.Driver) rerr.Handler {
 		// Trigger the registered Caddy reload hook (no-op in production
 		// until decisions-needed.md item 005 wires the real helper).
 		_ = triggerCaddyReload(r.Context(), "service.force-reload")
-		w.WriteHeader(http.StatusAccepted)
-		return rerr.JSON(w, map[string]any{
+		return rerr.JSONStatus(w, http.StatusAccepted, map[string]any{
 			"id":     id,
 			"status": "queued",
 			"_links": links.Set{

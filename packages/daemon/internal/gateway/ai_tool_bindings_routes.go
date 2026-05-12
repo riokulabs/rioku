@@ -94,8 +94,7 @@ func handleCreateAIToolBinding(st store.Driver) rerr.Handler {
 		if err := tx.Commit(); err != nil {
 			return rerr.Wrap(err, "commit")
 		}
-		w.WriteHeader(http.StatusCreated)
-		return rerr.JSON(w, aiToolBindingToResponse(created))
+		return rerr.JSONStatus(w, http.StatusCreated, aiToolBindingToResponse(created))
 	}
 }
 

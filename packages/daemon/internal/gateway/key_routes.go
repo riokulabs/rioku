@@ -153,8 +153,7 @@ func handleKeyCreate(st store.Driver) rerr.Handler {
 			return rerr.Wrap(err, "commit")
 		}
 
-		w.WriteHeader(http.StatusCreated)
-		return rerr.JSON(w, map[string]any{
+		return rerr.JSONStatus(w, http.StatusCreated, map[string]any{
 			"id":     id,
 			"key":    rawKey,
 			"prefix": prefix,

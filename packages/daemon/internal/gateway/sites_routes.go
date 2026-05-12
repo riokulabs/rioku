@@ -173,8 +173,7 @@ func handleCreateSite(st store.Driver) rerr.Handler {
 			return rerr.Wrap(err, "commit")
 		}
 		_ = triggerCaddyReload(r.Context(), "site.create")
-		w.WriteHeader(http.StatusCreated)
-		return rerr.JSON(w, siteToResponse(created))
+		return rerr.JSONStatus(w, http.StatusCreated, siteToResponse(created))
 	}
 }
 

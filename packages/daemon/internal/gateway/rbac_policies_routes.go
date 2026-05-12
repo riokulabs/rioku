@@ -178,8 +178,7 @@ func handleCreateRbacPolicy(st store.Driver) rerr.Handler {
 		if err := tx.Commit(); err != nil {
 			return rerr.Wrap(err, "commit")
 		}
-		w.WriteHeader(http.StatusCreated)
-		return rerr.JSON(w, rbacPolicyToDTO(created, links.NewTenantBuilder(tenant.Slug)))
+		return rerr.JSONStatus(w, http.StatusCreated, rbacPolicyToDTO(created, links.NewTenantBuilder(tenant.Slug)))
 	}
 }
 

@@ -53,8 +53,7 @@ func handleRegisterOpaque(st store.Driver) rerr.Handler {
 		// Idempotent: same (tenant, value_hash) → same handle.
 		if existing, err := tx.GetOpaqueHandleByValueHash(ctx, tenantID, valueHash); err == nil && existing != nil {
 			_ = tx.Commit()
-			w.WriteHeader(http.StatusCreated)
-			return rerr.JSON(w, opaqueResponse{Handle: existing.Handle})
+			return rerr.JSONStatus(w, http.StatusCreated, opaqueResponse{Handle: existing.Handle})
 		}
 
 		// New handle: "oh_" + base64url of 10 random bytes (80 bits entropy).
@@ -76,8 +75,7 @@ func handleRegisterOpaque(st store.Driver) rerr.Handler {
 			return rerr.Wrap(err, "commit")
 		}
 
-		w.WriteHeader(http.StatusCreated)
-		return rerr.JSON(w, opaqueResponse{Handle: handle})
+		return rerr.JSONStatus(w, http.StatusCreated, opaqueResponse{Handle: handle})
 	}
 }
 

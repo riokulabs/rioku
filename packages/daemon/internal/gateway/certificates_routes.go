@@ -65,8 +65,7 @@ func handleRenewCertificate(svc caddy.CertService) rerr.Handler {
 			}
 			return rerr.Wrap(err, "renew certificate")
 		}
-		w.WriteHeader(http.StatusAccepted)
-		return rerr.JSON(w, result)
+		return rerr.JSONStatus(w, http.StatusAccepted, result)
 	}
 }
 
@@ -83,7 +82,6 @@ func handleRevokeCertificate(svc caddy.CertService) rerr.Handler {
 			}
 			return rerr.Wrap(err, "revoke certificate")
 		}
-		w.WriteHeader(http.StatusAccepted)
-		return rerr.JSON(w, result)
+		return rerr.JSONStatus(w, http.StatusAccepted, result)
 	}
 }

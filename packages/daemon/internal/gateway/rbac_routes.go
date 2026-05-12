@@ -170,8 +170,7 @@ func handleCreateRole(st store.Driver) rerr.Handler {
 			return rerr.Wrap(err, "commit")
 		}
 
-		w.WriteHeader(http.StatusCreated)
-		return rerr.JSON(w, toRoleResponse(role))
+		return rerr.JSONStatus(w, http.StatusCreated, toRoleResponse(role))
 	}
 }
 
@@ -464,8 +463,7 @@ func handleAssignRole(st store.Driver) rerr.Handler {
 			return rerr.Wrap(err, "commit")
 		}
 
-		w.WriteHeader(http.StatusCreated)
-		return rerr.JSON(w, map[string]bool{"ok": true})
+		return rerr.JSONStatus(w, http.StatusCreated, map[string]bool{"ok": true})
 	}
 }
 

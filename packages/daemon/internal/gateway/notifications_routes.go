@@ -658,8 +658,7 @@ func handleCreateChannel(st store.Driver) rerr.Handler {
 		if err := tx.Commit(); err != nil {
 			return rerr.Wrap(err, "commit")
 		}
-		w.WriteHeader(http.StatusCreated)
-		return rerr.JSON(w, channelToResponse(created))
+		return rerr.JSONStatus(w, http.StatusCreated, channelToResponse(created))
 	}
 }
 
@@ -869,8 +868,7 @@ func handleCreateRule(st store.Driver) rerr.Handler {
 		if err := tx.Commit(); err != nil {
 			return rerr.Wrap(err, "commit")
 		}
-		w.WriteHeader(http.StatusCreated)
-		return rerr.JSON(w, routingRuleToResponse(created))
+		return rerr.JSONStatus(w, http.StatusCreated, routingRuleToResponse(created))
 	}
 }
 

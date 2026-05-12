@@ -200,8 +200,7 @@ func handleCreateSsoProvider(st store.Driver) rerr.Handler {
 		if err := tx.Commit(); err != nil {
 			return rerr.Wrap(err, "commit")
 		}
-		w.WriteHeader(http.StatusCreated)
-		return rerr.JSON(w, ssoProviderToResponse(created))
+		return rerr.JSONStatus(w, http.StatusCreated, ssoProviderToResponse(created))
 	}
 }
 

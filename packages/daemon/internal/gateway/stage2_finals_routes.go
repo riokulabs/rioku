@@ -122,8 +122,7 @@ func handlePluginInstallMarketplace(_ store.Driver) rerr.Handler {
 	return func(w http.ResponseWriter, r *http.Request) error {
 		var req map[string]any
 		_ = json.NewDecoder(r.Body).Decode(&req)
-		w.WriteHeader(http.StatusAccepted)
-		return rerr.JSON(w, map[string]any{
+		return rerr.JSONStatus(w, http.StatusAccepted, map[string]any{
 			"installId": "install-mkt-" + fmt.Sprint(time.Now().UnixNano()),
 			"status":    "queued",
 			"note":      "marketplace install pipeline ships with the plugin-marketplace subsystem",
@@ -358,8 +357,7 @@ func handlePluginSideload(st store.Driver) rerr.Handler {
 		}
 		stagedOK = true
 
-		w.WriteHeader(http.StatusCreated)
-		return rerr.JSON(w, map[string]any{
+		return rerr.JSONStatus(w, http.StatusCreated, map[string]any{
 			"pluginId":    created.ID,
 			"status":      statusOut,
 			"buildLogUrl": fmt.Sprintf("/api/v1/t/%s/plugins/%s/build-log", scope, created.ID),
@@ -652,8 +650,7 @@ func registerAuthRecoveryFlow(mux *http.ServeMux, _ store.Driver) {
 func handleAuthRecoveryStub(w http.ResponseWriter, r *http.Request, path string) error {
 	var body map[string]any
 	_ = json.NewDecoder(r.Body).Decode(&body)
-	w.WriteHeader(http.StatusAccepted)
-	return rerr.JSON(w, map[string]any{
+	return rerr.JSONStatus(w, http.StatusAccepted, map[string]any{
 		"status": "ok",
 		"path":   path,
 		"note":   "auth flow recovery endpoints land in the bootstrap subsystem follow-up",
@@ -683,8 +680,7 @@ func handleDangerHardReset(w http.ResponseWriter, r *http.Request) error {
 	if r.Header.Get("Idempotency-Key") == "" {
 		return rerr.Validation(map[string]string{"Idempotency-Key": "hard-reset requires an Idempotency-Key header"})
 	}
-	w.WriteHeader(http.StatusAccepted)
-	return rerr.JSON(w, map[string]any{
+	return rerr.JSONStatus(w, http.StatusAccepted, map[string]any{
 		"status": "queued",
 		"note":   "hard-reset implementation lands in the danger-zone follow-up",
 	})
@@ -704,8 +700,7 @@ func handleDangerDeleteTenant(w http.ResponseWriter, r *http.Request) error {
 	if q.Get("confirm_phrase") == "" {
 		return rerr.Validation(map[string]string{"confirm_phrase": "DELETE tenant requires ?confirm_phrase= and Idempotency-Key header"})
 	}
-	w.WriteHeader(http.StatusAccepted)
-	return rerr.JSON(w, map[string]any{
+	return rerr.JSONStatus(w, http.StatusAccepted, map[string]any{
 		"status": "queued",
 		"note":   "tenant delete implementation lands in the danger-zone follow-up",
 	})

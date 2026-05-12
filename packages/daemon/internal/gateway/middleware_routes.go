@@ -147,8 +147,7 @@ func handleCreateMiddleware(st store.Driver) rerr.Handler {
 			return rerr.Wrap(err, "commit")
 		}
 		_ = triggerCaddyReload(r.Context(), "middleware.create")
-		w.WriteHeader(http.StatusCreated)
-		return rerr.JSON(w, middlewareToResponse(created))
+		return rerr.JSONStatus(w, http.StatusCreated, middlewareToResponse(created))
 	}
 }
 

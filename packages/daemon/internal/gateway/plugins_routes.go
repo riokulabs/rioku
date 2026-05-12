@@ -233,8 +233,7 @@ func handleInstallPlugin(st store.Driver, global bool) rerr.Handler {
 		if err := tx.Commit(); err != nil {
 			return rerr.Wrap(err, "commit")
 		}
-		w.WriteHeader(http.StatusAccepted)
-		return rerr.JSON(w, pluginToResponse(created))
+		return rerr.JSONStatus(w, http.StatusAccepted, pluginToResponse(created))
 	}
 }
 
@@ -421,8 +420,7 @@ func handleCreatePluginSigner(st store.Driver, global bool) rerr.Handler {
 		if err := tx.Commit(); err != nil {
 			return rerr.Wrap(err, "commit")
 		}
-		w.WriteHeader(http.StatusCreated)
-		return rerr.JSON(w, signerToResponse(created))
+		return rerr.JSONStatus(w, http.StatusCreated, signerToResponse(created))
 	}
 }
 
