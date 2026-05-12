@@ -32,13 +32,13 @@ func TestSsoProviders_CreateValidationsAndDefaults(t *testing.T) {
 		body map[string]any
 		want int
 	}{
-		{"missing-name", map[string]any{"kind": "oidc"}, http.StatusBadRequest},
-		{"missing-kind", map[string]any{"name": "okta"}, http.StatusBadRequest},
-		{"unknown-kind", map[string]any{"name": "okta", "kind": "wat"}, http.StatusBadRequest},
+		{"missing-name", map[string]any{"kind": "oidc"}, http.StatusUnprocessableEntity},
+		{"missing-kind", map[string]any{"name": "okta"}, http.StatusUnprocessableEntity},
+		{"unknown-kind", map[string]any{"name": "okta", "kind": "wat"}, http.StatusUnprocessableEntity},
 		{"oidc-missing-issuer", map[string]any{"name": "okta", "kind": "oidc",
-			"oidcClientId": "abc"}, http.StatusBadRequest},
+			"oidcClientId": "abc"}, http.StatusUnprocessableEntity},
 		{"oidc-missing-client-id", map[string]any{"name": "okta", "kind": "oidc",
-			"oidcIssuer": "https://idp.example.com"}, http.StatusBadRequest},
+			"oidcIssuer": "https://idp.example.com"}, http.StatusUnprocessableEntity},
 		{"saml-without-oidc-fields-allowed", map[string]any{"name": "ent", "kind": "saml"}, http.StatusCreated},
 	}
 	for _, tc := range cases {
@@ -134,8 +134,8 @@ func TestSsoProviders_FullCRUDLifecycle(t *testing.T) {
 	mux.ServeHTTP(rec, authedTenantRequest(t, drv, http.MethodPatch,
 		"/api/v1/t/default/sso/providers/"+p.ID, "default",
 		map[string]any{"kind": "carrier-pigeon"}))
-	if rec.Code != http.StatusBadRequest {
-		t.Errorf("patch bad kind: %d, want 400", rec.Code)
+	if rec.Code != http.StatusUnprocessableEntity {
+		t.Errorf("patch bad kind: %d, want 422", rec.Code)
 	}
 
 	// Patch unknown id → 404
