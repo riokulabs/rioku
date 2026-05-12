@@ -19,110 +19,111 @@ package gateway
 import (
 	"net/http"
 
+	"github.com/riokulabs/rioku/internal/rerr"
 	"github.com/riokulabs/rioku/internal/store"
 )
 
 func RegisterAIRoutes(mux *http.ServeMux, st store.Driver) {
 	// Providers
 	mux.Handle("GET /api/v1/t/{tenant}/ai/providers",
-		RequirePermission("ai-provider:read")(http.HandlerFunc(handleListAIProviders(st))))
+		RequirePermission("ai-provider:read")(rerr.H(handleListAIProviders(st))))
 	mux.Handle("POST /api/v1/t/{tenant}/ai/providers",
-		RequirePermission("ai-provider:write")(http.HandlerFunc(handleCreateAIProvider(st))))
+		RequirePermission("ai-provider:write")(rerr.H(handleCreateAIProvider(st))))
 	mux.Handle("GET /api/v1/t/{tenant}/ai/providers/{id}",
-		RequirePermission("ai-provider:read")(http.HandlerFunc(handleGetAIProvider(st))))
+		RequirePermission("ai-provider:read")(rerr.H(handleGetAIProvider(st))))
 	mux.Handle("PUT /api/v1/t/{tenant}/ai/providers/{id}",
-		RequirePermission("ai-provider:write")(http.HandlerFunc(handleUpdateAIProvider(st))))
+		RequirePermission("ai-provider:write")(rerr.H(handleUpdateAIProvider(st))))
 	mux.Handle("DELETE /api/v1/t/{tenant}/ai/providers/{id}",
-		RequirePermission("ai-provider:delete")(http.HandlerFunc(handleDeleteAIProvider(st))))
+		RequirePermission("ai-provider:delete")(rerr.H(handleDeleteAIProvider(st))))
 	mux.Handle("POST /api/v1/t/{tenant}/ai/providers/{id}/test",
-		RequirePermission("ai-provider:read")(http.HandlerFunc(handleTestAIProvider(st))))
+		RequirePermission("ai-provider:read")(rerr.H(handleTestAIProvider(st))))
 	mux.Handle("POST /api/v1/t/{tenant}/ai/providers/{id}/models",
-		RequirePermission("ai-provider:write")(http.HandlerFunc(handleAddProviderModel(st))))
+		RequirePermission("ai-provider:write")(rerr.H(handleAddProviderModel(st))))
 	mux.Handle("PUT /api/v1/t/{tenant}/ai/providers/{id}/models/{modelId}",
-		RequirePermission("ai-provider:write")(http.HandlerFunc(handleUpdateProviderModel(st))))
+		RequirePermission("ai-provider:write")(rerr.H(handleUpdateProviderModel(st))))
 	mux.Handle("DELETE /api/v1/t/{tenant}/ai/providers/{id}/models/{modelId}",
-		RequirePermission("ai-provider:write")(http.HandlerFunc(handleRemoveProviderModel(st))))
+		RequirePermission("ai-provider:write")(rerr.H(handleRemoveProviderModel(st))))
 
 	// MCP servers
 	mux.Handle("GET /api/v1/t/{tenant}/ai/mcp-servers",
-		RequirePermission("mcp-server:read")(http.HandlerFunc(handleListMCPServers(st))))
+		RequirePermission("mcp-server:read")(rerr.H(handleListMCPServers(st))))
 	mux.Handle("POST /api/v1/t/{tenant}/ai/mcp-servers",
-		RequirePermission("mcp-server:write")(http.HandlerFunc(handleCreateMCPServer(st))))
+		RequirePermission("mcp-server:write")(rerr.H(handleCreateMCPServer(st))))
 	mux.Handle("GET /api/v1/t/{tenant}/ai/mcp-servers/{id}",
-		RequirePermission("mcp-server:read")(http.HandlerFunc(handleGetMCPServer(st))))
+		RequirePermission("mcp-server:read")(rerr.H(handleGetMCPServer(st))))
 	mux.Handle("PUT /api/v1/t/{tenant}/ai/mcp-servers/{id}",
-		RequirePermission("mcp-server:write")(http.HandlerFunc(handleUpdateMCPServer(st))))
+		RequirePermission("mcp-server:write")(rerr.H(handleUpdateMCPServer(st))))
 	mux.Handle("DELETE /api/v1/t/{tenant}/ai/mcp-servers/{id}",
-		RequirePermission("mcp-server:delete")(http.HandlerFunc(handleDeleteMCPServer(st))))
+		RequirePermission("mcp-server:delete")(rerr.H(handleDeleteMCPServer(st))))
 	mux.Handle("POST /api/v1/t/{tenant}/ai/mcp-servers/{id}/test",
-		RequirePermission("mcp-server:read")(http.HandlerFunc(handleTestMCPServer(st))))
+		RequirePermission("mcp-server:read")(rerr.H(handleTestMCPServer(st))))
 
 	// Tools
 	mux.Handle("GET /api/v1/t/{tenant}/ai/tools",
-		RequirePermission("ai-tool:read")(http.HandlerFunc(handleListAITools(st))))
+		RequirePermission("ai-tool:read")(rerr.H(handleListAITools(st))))
 	mux.Handle("POST /api/v1/t/{tenant}/ai/tools",
-		RequirePermission("ai-tool:write")(http.HandlerFunc(handleCreateAITool(st))))
+		RequirePermission("ai-tool:write")(rerr.H(handleCreateAITool(st))))
 	mux.Handle("GET /api/v1/t/{tenant}/ai/tools/{id}",
-		RequirePermission("ai-tool:read")(http.HandlerFunc(handleGetAITool(st))))
+		RequirePermission("ai-tool:read")(rerr.H(handleGetAITool(st))))
 	mux.Handle("PUT /api/v1/t/{tenant}/ai/tools/{id}",
-		RequirePermission("ai-tool:write")(http.HandlerFunc(handleUpdateAITool(st))))
+		RequirePermission("ai-tool:write")(rerr.H(handleUpdateAITool(st))))
 	mux.Handle("DELETE /api/v1/t/{tenant}/ai/tools/{id}",
-		RequirePermission("ai-tool:delete")(http.HandlerFunc(handleDeleteAITool(st))))
+		RequirePermission("ai-tool:delete")(rerr.H(handleDeleteAITool(st))))
 	mux.Handle("POST /api/v1/t/{tenant}/ai/tools/{id}/test",
-		RequirePermission("ai-tool:write")(http.HandlerFunc(handleTestAITool(st))))
+		RequirePermission("ai-tool:write")(rerr.H(handleTestAITool(st))))
 
 	// Agents
 	mux.Handle("GET /api/v1/t/{tenant}/ai/agents",
-		RequirePermission("ai-agent:read")(http.HandlerFunc(handleListAIAgents(st))))
+		RequirePermission("ai-agent:read")(rerr.H(handleListAIAgents(st))))
 	mux.Handle("POST /api/v1/t/{tenant}/ai/agents",
-		RequirePermission("ai-agent:write")(http.HandlerFunc(handleCreateAIAgent(st))))
+		RequirePermission("ai-agent:write")(rerr.H(handleCreateAIAgent(st))))
 	mux.Handle("GET /api/v1/t/{tenant}/ai/agents/{id}",
-		RequirePermission("ai-agent:read")(http.HandlerFunc(handleGetAIAgent(st))))
+		RequirePermission("ai-agent:read")(rerr.H(handleGetAIAgent(st))))
 	mux.Handle("PUT /api/v1/t/{tenant}/ai/agents/{id}",
-		RequirePermission("ai-agent:write")(http.HandlerFunc(handleUpdateAIAgent(st))))
+		RequirePermission("ai-agent:write")(rerr.H(handleUpdateAIAgent(st))))
 	mux.Handle("DELETE /api/v1/t/{tenant}/ai/agents/{id}",
-		RequirePermission("ai-agent:delete")(http.HandlerFunc(handleDeleteAIAgent(st))))
+		RequirePermission("ai-agent:delete")(rerr.H(handleDeleteAIAgent(st))))
 	mux.Handle("GET /api/v1/t/{tenant}/ai/agents/{id}/tools",
-		RequirePermission("ai-agent:read")(http.HandlerFunc(handleListAgentBindings(st))))
+		RequirePermission("ai-agent:read")(rerr.H(handleListAgentBindings(st))))
 	mux.Handle("GET /api/v1/t/{tenant}/ai/agents/{id}/traces",
-		RequirePermission("ai-trace:read")(http.HandlerFunc(handleListAgentTraces(st))))
+		RequirePermission("ai-trace:read")(rerr.H(handleListAgentTraces(st))))
 	mux.Handle("POST /api/v1/t/{tenant}/ai/agents/{id}/rotate-credential",
-		RequirePermission("ai-agent:write")(http.HandlerFunc(handleRotateAgentCredential(st))))
+		RequirePermission("ai-agent:write")(rerr.H(handleRotateAgentCredential(st))))
 	mux.Handle("POST /api/v1/t/{tenant}/ai/agents/{id}/invoke",
-		RequirePermission("ai-agent:read")(http.HandlerFunc(handleInvokeAIAgent(st))))
+		RequirePermission("ai-agent:read")(rerr.H(handleInvokeAIAgent(st))))
 
 	// Tool bindings
 	mux.Handle("GET /api/v1/t/{tenant}/ai/tool-bindings",
-		RequirePermission("ai-tool:read")(http.HandlerFunc(handleListAIToolBindings(st))))
+		RequirePermission("ai-tool:read")(rerr.H(handleListAIToolBindings(st))))
 	mux.Handle("POST /api/v1/t/{tenant}/ai/tool-bindings",
-		RequirePermission("ai-tool:write")(http.HandlerFunc(handleCreateAIToolBinding(st))))
+		RequirePermission("ai-tool:write")(rerr.H(handleCreateAIToolBinding(st))))
 	mux.Handle("GET /api/v1/t/{tenant}/ai/tool-bindings/{id}",
-		RequirePermission("ai-tool:read")(http.HandlerFunc(handleGetAIToolBinding(st))))
+		RequirePermission("ai-tool:read")(rerr.H(handleGetAIToolBinding(st))))
 	mux.Handle("PUT /api/v1/t/{tenant}/ai/tool-bindings/{id}",
-		RequirePermission("ai-tool:write")(http.HandlerFunc(handleUpdateAIToolBinding(st))))
+		RequirePermission("ai-tool:write")(rerr.H(handleUpdateAIToolBinding(st))))
 	mux.Handle("DELETE /api/v1/t/{tenant}/ai/tool-bindings/{id}",
-		RequirePermission("ai-tool:delete")(http.HandlerFunc(handleDeleteAIToolBinding(st))))
+		RequirePermission("ai-tool:delete")(rerr.H(handleDeleteAIToolBinding(st))))
 	mux.Handle("POST /api/v1/t/{tenant}/ai/tool-bindings/bulk-attach",
-		RequirePermission("ai-tool:write")(http.HandlerFunc(handleBulkAttachBindings(st))))
+		RequirePermission("ai-tool:write")(rerr.H(handleBulkAttachBindings(st))))
 
 	// Rate limits
 	mux.Handle("GET /api/v1/t/{tenant}/ai/rate-limits",
-		RequirePermission("ai-rate-limit:read")(http.HandlerFunc(handleListAIRateLimits(st))))
+		RequirePermission("ai-rate-limit:read")(rerr.H(handleListAIRateLimits(st))))
 	mux.Handle("POST /api/v1/t/{tenant}/ai/rate-limits",
-		RequirePermission("ai-rate-limit:write")(http.HandlerFunc(handleCreateAIRateLimit(st))))
+		RequirePermission("ai-rate-limit:write")(rerr.H(handleCreateAIRateLimit(st))))
 	mux.Handle("GET /api/v1/t/{tenant}/ai/rate-limits/{id}",
-		RequirePermission("ai-rate-limit:read")(http.HandlerFunc(handleGetAIRateLimit(st))))
+		RequirePermission("ai-rate-limit:read")(rerr.H(handleGetAIRateLimit(st))))
 	mux.Handle("PUT /api/v1/t/{tenant}/ai/rate-limits/{id}",
-		RequirePermission("ai-rate-limit:write")(http.HandlerFunc(handleUpdateAIRateLimit(st))))
+		RequirePermission("ai-rate-limit:write")(rerr.H(handleUpdateAIRateLimit(st))))
 	mux.Handle("DELETE /api/v1/t/{tenant}/ai/rate-limits/{id}",
-		RequirePermission("ai-rate-limit:write")(http.HandlerFunc(handleDeleteAIRateLimit(st))))
+		RequirePermission("ai-rate-limit:write")(rerr.H(handleDeleteAIRateLimit(st))))
 
 	// Traces (read-only API; writes happen from the daemon's invoke path)
 	mux.Handle("GET /api/v1/t/{tenant}/ai/traces",
-		RequirePermission("ai-trace:read")(http.HandlerFunc(handleListAITraces(st))))
+		RequirePermission("ai-trace:read")(rerr.H(handleListAITraces(st))))
 	mux.Handle("GET /api/v1/t/{tenant}/ai/traces/{id}",
-		RequirePermission("ai-trace:read")(http.HandlerFunc(handleGetAITrace(st))))
+		RequirePermission("ai-trace:read")(rerr.H(handleGetAITrace(st))))
 	// Reveal: returns prompt/completion after appending an audit row.
 	mux.Handle("POST /api/v1/t/{tenant}/ai/traces/{id}/reveal",
-		RequirePermission("ai-trace:read-sensitive")(http.HandlerFunc(handleRevealAITrace(st))))
+		RequirePermission("ai-trace:read-sensitive")(rerr.H(handleRevealAITrace(st))))
 }

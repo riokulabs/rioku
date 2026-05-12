@@ -8,6 +8,7 @@ import (
 	"errors"
 	"net/http"
 
+	"github.com/riokulabs/rioku/internal/rerr"
 	"github.com/riokulabs/rioku/internal/store"
 )
 
@@ -39,32 +40,31 @@ func aiToolToResponse(x *store.AITool) aiToolResponse {
 	}
 }
 
-func handleListAITools(st store.Driver) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
+func handleListAITools(st store.Driver) rerr.Handler {
+	return func(w http.ResponseWriter, r *http.Request) error {
 		tenant, ok := tenantOrError(w, r)
 		if !ok {
-			return
+			return nil
 		}
 		tx, _ := st.Begin(r.Context(), store.TxOptions{ReadOnly: true})
 		defer func() { _ = tx.Rollback() }()
 		items, err := tx.ListAIToolsByTenant(r.Context(), tenant.ID)
 		if err != nil {
-			writeInternalError(w, r, "list ai_tools")
-			return
+			return rerr.Wrap(err, "list ai_tools")
 		}
 		out := make([]aiToolResponse, 0, len(items))
 		for _, x := range items {
 			out = append(out, aiToolToResponse(x))
 		}
-		writeJSON(w, http.StatusOK, map[string]any{"items": out, "total": len(out)})
+		return rerr.JSON(w, map[string]any{"items": out, "total": len(out)})
 	}
 }
 
-func handleCreateAITool(st store.Driver) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
+func handleCreateAITool(st store.Driver) rerr.Handler {
+	return func(w http.ResponseWriter, r *http.Request) error {
 		tenant, ok := tenantOrError(w, r)
 		if !ok {
-			return
+			return nil
 		}
 		var req struct {
 			Name         string          `json:"name"`
@@ -76,12 +76,10 @@ func handleCreateAITool(st store.Driver) http.HandlerFunc {
 			Dangerous    bool            `json:"dangerous,omitempty"`
 		}
 		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-			writeBadRequest(w, r, "invalid JSON body")
-			return
+			return rerr.Validation(map[string]string{"body": "invalid JSON body"})
 		}
 		if req.Name == "" || req.Kind == "" {
-			writeBadRequest(w, r, "name and kind are required")
-			return
+			return rerr.Validation(map[string]string{"name": "required", "kind": "required"})
 		}
 		tx, _ := st.Begin(r.Context(), store.TxOptions{})
 		created, err := tx.CreateAITool(r.Context(), &store.AITool{
@@ -92,26 +90,23 @@ func handleCreateAITool(st store.Driver) http.HandlerFunc {
 		if err != nil {
 			_ = tx.Rollback()
 			if errors.Is(err, store.ErrAIToolNameTaken) {
-				writeProblem(w, http.StatusConflict, errTypeConflict, "Name already in use",
-					"A tool with that name already exists in this tenant", r.URL.Path, nil)
-				return
+				return rerr.Conflict("a tool with that name already exists in this tenant", err)
 			}
-			writeInternalError(w, r, "create ai_tool")
-			return
+			return rerr.Wrap(err, "create ai_tool")
 		}
 		if err := tx.Commit(); err != nil {
-			writeInternalError(w, r, "commit")
-			return
+			return rerr.Wrap(err, "commit")
 		}
-		writeJSON(w, http.StatusCreated, aiToolToResponse(created))
+		w.WriteHeader(http.StatusCreated)
+		return rerr.JSON(w, aiToolToResponse(created))
 	}
 }
 
-func handleGetAITool(st store.Driver) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
+func handleGetAITool(st store.Driver) rerr.Handler {
+	return func(w http.ResponseWriter, r *http.Request) error {
 		tenant, ok := tenantOrError(w, r)
 		if !ok {
-			return
+			return nil
 		}
 		id := r.PathValue("id")
 		tx, _ := st.Begin(r.Context(), store.TxOptions{ReadOnly: true})
@@ -119,22 +114,19 @@ func handleGetAITool(st store.Driver) http.HandlerFunc {
 		x, err := tx.GetAITool(r.Context(), tenant.ID, id)
 		if err != nil {
 			if errors.Is(err, store.ErrAIToolNotFound) {
-				writeProblem(w, http.StatusNotFound, errTypeNotFound, "Tool not found",
-					"No tool with id "+id, r.URL.Path, nil)
-				return
+				return rerr.NotFound("tool", id)
 			}
-			writeInternalError(w, r, "get ai_tool")
-			return
+			return rerr.Wrap(err, "get ai_tool")
 		}
-		writeJSON(w, http.StatusOK, aiToolToResponse(x))
+		return rerr.JSON(w, aiToolToResponse(x))
 	}
 }
 
-func handleUpdateAITool(st store.Driver) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
+func handleUpdateAITool(st store.Driver) rerr.Handler {
+	return func(w http.ResponseWriter, r *http.Request) error {
 		tenant, ok := tenantOrError(w, r)
 		if !ok {
-			return
+			return nil
 		}
 		id := r.PathValue("id")
 		var req struct {
@@ -148,8 +140,7 @@ func handleUpdateAITool(st store.Driver) http.HandlerFunc {
 			Enabled      *bool            `json:"enabled,omitempty"`
 		}
 		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-			writeBadRequest(w, r, "invalid JSON body")
-			return
+			return rerr.Validation(map[string]string{"body": "invalid JSON body"})
 		}
 		params := store.UpdateAIToolParams{
 			Name: req.Name, Kind: req.Kind, Description: req.Description,
@@ -165,51 +156,44 @@ func handleUpdateAITool(st store.Driver) http.HandlerFunc {
 		if err != nil {
 			_ = tx.Rollback()
 			if errors.Is(err, store.ErrAIToolNotFound) {
-				writeProblem(w, http.StatusNotFound, errTypeNotFound, "Tool not found",
-					"No tool with id "+id, r.URL.Path, nil)
-				return
+				return rerr.NotFound("tool", id)
 			}
-			writeInternalError(w, r, "update ai_tool")
-			return
+			return rerr.Wrap(err, "update ai_tool")
 		}
 		if err := tx.Commit(); err != nil {
-			writeInternalError(w, r, "commit")
-			return
+			return rerr.Wrap(err, "commit")
 		}
-		writeJSON(w, http.StatusOK, aiToolToResponse(updated))
+		return rerr.JSON(w, aiToolToResponse(updated))
 	}
 }
 
-func handleDeleteAITool(st store.Driver) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
+func handleDeleteAITool(st store.Driver) rerr.Handler {
+	return func(w http.ResponseWriter, r *http.Request) error {
 		tenant, ok := tenantOrError(w, r)
 		if !ok {
-			return
+			return nil
 		}
 		id := r.PathValue("id")
 		tx, _ := st.Begin(r.Context(), store.TxOptions{})
 		if err := tx.DeleteAITool(r.Context(), tenant.ID, id); err != nil {
 			_ = tx.Rollback()
 			if errors.Is(err, store.ErrAIToolNotFound) {
-				writeProblem(w, http.StatusNotFound, errTypeNotFound, "Tool not found",
-					"No tool with id "+id, r.URL.Path, nil)
-				return
+				return rerr.NotFound("tool", id)
 			}
-			writeInternalError(w, r, "delete ai_tool")
-			return
+			return rerr.Wrap(err, "delete ai_tool")
 		}
 		if err := tx.Commit(); err != nil {
-			writeInternalError(w, r, "commit")
-			return
+			return rerr.Wrap(err, "commit")
 		}
 		w.WriteHeader(http.StatusNoContent)
+		return nil
 	}
 }
 
-func handleTestAITool(st store.Driver) http.HandlerFunc {
+func handleTestAITool(_ store.Driver) rerr.Handler {
 	// Stub — actual invocation lands with #103.
-	return func(w http.ResponseWriter, r *http.Request) {
-		writeJSON(w, http.StatusOK, map[string]any{
+	return func(w http.ResponseWriter, r *http.Request) error {
+		return rerr.JSON(w, map[string]any{
 			"toolId": r.PathValue("id"), "ok": true,
 			"note": "live tool invocation is stubbed",
 		})

@@ -19,6 +19,7 @@ import (
 	"github.com/riokulabs/rioku/internal/gateway/links"
 	"github.com/riokulabs/rioku/internal/gateway/optionsutil"
 	"github.com/riokulabs/rioku/internal/gateway/stream"
+	"github.com/riokulabs/rioku/internal/rerr"
 	"github.com/riokulabs/rioku/internal/store"
 )
 
@@ -26,45 +27,45 @@ func RegisterAIExtraRoutes(mux *http.ServeMux, st store.Driver) {
 	// PATCH aliases for the entity update handlers (the existing PUT
 	// handlers already accept partial bodies via pointer fields).
 	mux.Handle("PATCH /api/v1/t/{tenant}/ai/providers/{id}",
-		RequirePermission("ai:write")(http.HandlerFunc(handleUpdateAIProvider(st))))
+		RequirePermission("ai:write")(rerr.H(handleUpdateAIProvider(st))))
 	mux.Handle("PATCH /api/v1/t/{tenant}/ai/agents/{id}",
-		RequirePermission("ai:write")(http.HandlerFunc(handleUpdateAIAgent(st))))
+		RequirePermission("ai:write")(rerr.H(handleUpdateAIAgent(st))))
 	mux.Handle("PATCH /api/v1/t/{tenant}/ai/tools/{id}",
-		RequirePermission("ai:write")(http.HandlerFunc(handleUpdateAITool(st))))
+		RequirePermission("ai:write")(rerr.H(handleUpdateAITool(st))))
 	mux.Handle("PATCH /api/v1/t/{tenant}/ai/mcp-servers/{id}",
-		RequirePermission("ai:write")(http.HandlerFunc(handleUpdateMCPServer(st))))
+		RequirePermission("ai:write")(rerr.H(handleUpdateMCPServer(st))))
 
 	// Sub-collections: relations from one entity to another.
 	// /ai/agents/{id}/{tools,traces} are already registered in
 	// ai_routes.go. We add only the inverse relations.
 	mux.Handle("GET /api/v1/t/{tenant}/ai/tools/{id}/agents",
-		RequirePermission("ai:read")(http.HandlerFunc(handleListToolAgents(st))))
+		RequirePermission("ai:read")(rerr.H(handleListToolAgents(st))))
 	mux.Handle("GET /api/v1/t/{tenant}/ai/mcp-servers/{id}/tools",
-		RequirePermission("ai:read")(http.HandlerFunc(handleListMCPServerTools(st))))
+		RequirePermission("ai:read")(rerr.H(handleListMCPServerTools(st))))
 	mux.Handle("GET /api/v1/t/{tenant}/ai/providers/{id}/agents",
-		RequirePermission("ai:read")(http.HandlerFunc(handleListProviderAgents(st))))
+		RequirePermission("ai:read")(rerr.H(handleListProviderAgents(st))))
 
 	// Action stubs — all return 202/200 with the operator's intent
 	// recorded. Deeper protocols ride alongside the corresponding
 	// subsystem rollouts. handleListAgentTraces +
 	// handleRotateAgentCredential already exist in ai_routes.go.
 	mux.Handle("POST /api/v1/t/{tenant}/ai/tool-bindings/preview-condition",
-		RequirePermission("ai:write")(http.HandlerFunc(handlePreviewToolBinding(st))))
+		RequirePermission("ai:write")(rerr.H(handlePreviewToolBinding(st))))
 	// /tool-bindings/bulk-attach already exists in ai_routes.go.
 	mux.Handle("POST /api/v1/t/{tenant}/ai/rate-limits/{id}/simulate",
-		RequirePermission("ai:read")(http.HandlerFunc(handleSimulateAIRateLimit(st))))
+		RequirePermission("ai:read")(rerr.H(handleSimulateAIRateLimit(st))))
 	mux.Handle("GET /api/v1/t/{tenant}/ai/rate-limits/{id}/metrics",
-		RequirePermission("ai:read")(http.HandlerFunc(handleAIRateLimitMetrics(st))))
+		RequirePermission("ai:read")(rerr.H(handleAIRateLimitMetrics(st))))
 
 	// Traces — stream (SSE) + CSV export.
 	mux.Handle("GET /api/v1/t/{tenant}/ai/traces/stream",
 		RequirePermission("ai:read")(http.HandlerFunc(handleAITracesStream(st))))
 	mux.Handle("GET /api/v1/t/{tenant}/ai/traces/export/csv",
-		RequirePermission("ai:read")(http.HandlerFunc(handleAITracesExportCSV(st))))
+		RequirePermission("ai:read")(rerr.H(handleAITracesExportCSV(st))))
 	// POST variant — admin POSTs `?format=csv` so the browser can stream
 	// the response via response.body.getReader().
 	mux.Handle("POST /api/v1/t/{tenant}/ai/traces/export",
-		RequirePermission("ai:read")(http.HandlerFunc(handleAITracesExportCSV(st))))
+		RequirePermission("ai:read")(rerr.H(handleAITracesExportCSV(st))))
 
 	// OPTIONS coverage.
 	for _, p := range []struct {
@@ -104,23 +105,21 @@ func RegisterAIExtraRoutes(mux *http.ServeMux, st store.Driver) {
 
 // ─── Sub-collections ────────────────────────────────────────────────────────
 
-func handleListToolAgents(st store.Driver) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
+func handleListToolAgents(st store.Driver) rerr.Handler {
+	return func(w http.ResponseWriter, r *http.Request) error {
 		tenant, ok := tenantOrError(w, r)
 		if !ok {
-			return
+			return nil
 		}
 		toolID := r.PathValue("id")
 		tx, err := st.Begin(r.Context(), store.TxOptions{ReadOnly: true})
 		if err != nil {
-			writeInternalError(w, r, "begin tx")
-			return
+			return rerr.Wrap(err, "begin tx")
 		}
 		defer func() { _ = tx.Rollback() }()
 		bindings, err := tx.ListAIToolBindingsByTenant(r.Context(), tenant.ID)
 		if err != nil {
-			writeInternalError(w, r, "list bindings")
-			return
+			return rerr.Wrap(err, "list bindings")
 		}
 		b := links.NewTenantBuilder(tenant.Slug)
 		items := make([]map[string]any, 0)
@@ -133,30 +132,28 @@ func handleListToolAgents(st store.Driver) http.HandlerFunc {
 				"_links":  map[string]any{"agent": b.Self("ai/agents", bd.AgentID)},
 			})
 		}
-		writeJSON(w, http.StatusOK, map[string]any{
+		return rerr.JSON(w, map[string]any{
 			"items": items,
 			"total": len(items),
 		})
 	}
 }
 
-func handleListMCPServerTools(st store.Driver) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
+func handleListMCPServerTools(st store.Driver) rerr.Handler {
+	return func(w http.ResponseWriter, r *http.Request) error {
 		tenant, ok := tenantOrError(w, r)
 		if !ok {
-			return
+			return nil
 		}
 		mcpID := r.PathValue("id")
 		tx, err := st.Begin(r.Context(), store.TxOptions{ReadOnly: true})
 		if err != nil {
-			writeInternalError(w, r, "begin tx")
-			return
+			return rerr.Wrap(err, "begin tx")
 		}
 		defer func() { _ = tx.Rollback() }()
 		tools, err := tx.ListAIToolsByTenant(r.Context(), tenant.ID)
 		if err != nil {
-			writeInternalError(w, r, "list tools")
-			return
+			return rerr.Wrap(err, "list tools")
 		}
 		b := links.NewTenantBuilder(tenant.Slug)
 		items := make([]map[string]any, 0)
@@ -174,27 +171,25 @@ func handleListMCPServerTools(st store.Driver) http.HandlerFunc {
 				"_links":      map[string]any{"tool": b.Self("ai/tools", t.ID)},
 			})
 		}
-		writeJSON(w, http.StatusOK, map[string]any{"items": items, "total": len(items)})
+		return rerr.JSON(w, map[string]any{"items": items, "total": len(items)})
 	}
 }
 
-func handleListProviderAgents(st store.Driver) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
+func handleListProviderAgents(st store.Driver) rerr.Handler {
+	return func(w http.ResponseWriter, r *http.Request) error {
 		tenant, ok := tenantOrError(w, r)
 		if !ok {
-			return
+			return nil
 		}
 		providerID := r.PathValue("id")
 		tx, err := st.Begin(r.Context(), store.TxOptions{ReadOnly: true})
 		if err != nil {
-			writeInternalError(w, r, "begin tx")
-			return
+			return rerr.Wrap(err, "begin tx")
 		}
 		defer func() { _ = tx.Rollback() }()
 		agents, err := tx.ListAIAgentsByTenant(r.Context(), tenant.ID)
 		if err != nil {
-			writeInternalError(w, r, "list agents")
-			return
+			return rerr.Wrap(err, "list agents")
 		}
 		b := links.NewTenantBuilder(tenant.Slug)
 		items := make([]map[string]any, 0)
@@ -208,7 +203,7 @@ func handleListProviderAgents(st store.Driver) http.HandlerFunc {
 				"_links": map[string]any{"agent": b.Self("ai/agents", a.ID)},
 			})
 		}
-		writeJSON(w, http.StatusOK, map[string]any{"items": items, "total": len(items)})
+		return rerr.JSON(w, map[string]any{"items": items, "total": len(items)})
 	}
 }
 
@@ -218,21 +213,20 @@ func handleListProviderAgents(st store.Driver) http.HandlerFunc {
 // router subsystems. For now these accept the operator's intent and
 // return a placeholder result so the admin panel doesn't 404.
 
-func handlePreviewToolBinding(_ store.Driver) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
+func handlePreviewToolBinding(_ store.Driver) rerr.Handler {
+	return func(w http.ResponseWriter, r *http.Request) error {
 		var req struct {
 			Condition string         `json:"condition"`
 			Envelope  map[string]any `json:"envelope"`
 		}
 		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-			writeBadRequest(w, r, "invalid JSON body")
-			return
+			return rerr.Validation(map[string]string{"body": "invalid JSON body"})
 		}
 		// Real CEL evaluation lands with the tool-call router. For
 		// now we report the condition was received and assume "match"
 		// when the condition is empty — empty condition = always-match.
 		matched := req.Condition == ""
-		writeJSON(w, http.StatusOK, map[string]any{
+		return rerr.JSON(w, map[string]any{
 			"condition": req.Condition,
 			"matched":   matched,
 			"note":      "real CEL evaluation pending tool-call router rollout",
@@ -241,38 +235,12 @@ func handlePreviewToolBinding(_ store.Driver) http.HandlerFunc {
 }
 
 // handleSimulateAIRateLimit accepts a deterministic what-if probe against a
-// configured rate-limit. The caller specifies a candidate request volume
-// (request_count) over a window (time_window_seconds) for a principal
-// (subject id, e.g. agent or tenant user). The handler compares the probe
-// against the rule's configured threshold/window and reports whether the
-// principal would have been throttled, plus the wait-before-retry hint.
-//
-// Body (all optional; sane defaults applied):
-//
-//	{
-//	  "request_count":        int,    // probe volume; default 1
-//	  "time_window_seconds":  int,    // probe window; default = rule.windowSeconds
-//	  "principal":            string  // subject id; informational
-//	}
-//
-// Response:
-//
-//	{
-//	  "rate_limit_id":         string,
-//	  "principal":             string,
-//	  "would_throttle":        bool,
-//	  "retry_after_ms":        int,    // 0 when not throttled
-//	  "current_consumption":   int,    // probe volume normalised to rule's window
-//	  "limit":                 int     // rule.threshold
-//	}
-//
-// The shape is deterministic (no historical replay) and exists so the admin
-// panel "Simulate" tab can validate a rule without wiring the LLM proxy.
-func handleSimulateAIRateLimit(st store.Driver) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
+// configured rate-limit.
+func handleSimulateAIRateLimit(st store.Driver) rerr.Handler {
+	return func(w http.ResponseWriter, r *http.Request) error {
 		tenant, ok := tenantOrError(w, r)
 		if !ok {
-			return
+			return nil
 		}
 		id := r.PathValue("id")
 		var req struct {
@@ -280,29 +248,21 @@ func handleSimulateAIRateLimit(st store.Driver) http.HandlerFunc {
 			TimeWindowSeconds int    `json:"time_window_seconds"`
 			Principal         string `json:"principal"`
 		}
-		// An empty body is fine (defaults apply). If the body isn't valid
-		// JSON, fail fast — silently coercing is the wrong behaviour for a
-		// what-if probe.
 		if r.ContentLength > 0 {
 			if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-				writeBadRequest(w, r, "invalid JSON body")
-				return
+				return rerr.Validation(map[string]string{"body": "invalid JSON body"})
 			}
 		}
 		tx, err := st.Begin(r.Context(), store.TxOptions{ReadOnly: true})
 		if err != nil {
-			writeInternalError(w, r, "begin tx")
-			return
+			return rerr.Wrap(err, "begin tx")
 		}
 		defer func() { _ = tx.Rollback() }()
 		rl, err := tx.GetAIRateLimit(r.Context(), tenant.ID, id)
 		if err != nil {
-			writeProblem(w, http.StatusNotFound, errTypeNotFound,
-				"Rate limit not found", "No rate-limit with id "+id, r.URL.Path, nil)
-			return
+			return rerr.NotFound("rate_limit", id)
 		}
 
-		// Defaults.
 		probeCount := req.RequestCount
 		if probeCount < 1 {
 			probeCount = 1
@@ -319,13 +279,9 @@ func handleSimulateAIRateLimit(st store.Driver) http.HandlerFunc {
 		if ruleWindow < 1 {
 			ruleWindow = probeWindow
 		}
-		// Normalise the probe to the rule's window: requests per second
-		// extrapolated to the rule's bucket size.
 		var consumption int
 		if probeWindow > 0 {
 			consumption = (probeCount * ruleWindow) / probeWindow
-			// Always round up so a 1-request probe registers as ≥1 even
-			// when the rule's window is much wider than the probe's.
 			if (probeCount*ruleWindow)%probeWindow != 0 {
 				consumption++
 			}
@@ -339,15 +295,12 @@ func handleSimulateAIRateLimit(st store.Driver) http.HandlerFunc {
 		}
 		wouldThrottle := limit > 0 && consumption > limit
 
-		// retry_after_ms: how long until the bucket would refresh enough to
-		// admit the next request — for the simulator we report a full window
-		// (in milliseconds) when throttling, 0 otherwise.
 		retryAfterMs := 0
 		if wouldThrottle {
 			retryAfterMs = ruleWindow * 1000
 		}
 
-		writeJSON(w, http.StatusOK, map[string]any{
+		return rerr.JSON(w, map[string]any{
 			"rate_limit_id":       id,
 			"principal":           req.Principal,
 			"would_throttle":      wouldThrottle,
@@ -358,31 +311,12 @@ func handleSimulateAIRateLimit(st store.Driver) http.HandlerFunc {
 	}
 }
 
-// handleAIRateLimitMetrics returns a deterministic time-series of throttle
-// events for a rule. The caller specifies the lookback window via the
-// `since` query parameter, which accepts a Go-style duration ("1h", "24h",
-// "7d") or any RFC3339 timestamp.
-//
-// The implementation is deterministic (rule-id-seeded) and exists so the
-// admin panel's "Metrics" tab can render a chart before the LLM proxy emits
-// real Prometheus events. The shape matches what the production handler
-// will return once the proxy ships.
-//
-// Response:
-//
-//	{
-//	  "rate_limit_id": string,
-//	  "since":         string,    // echoed query param
-//	  "points":  [
-//	    { "timestamp": RFC3339, "throttle_events": int },
-//	    ...
-//	  ]
-//	}
-func handleAIRateLimitMetrics(st store.Driver) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
+// handleAIRateLimitMetrics returns a deterministic time-series of throttle events.
+func handleAIRateLimitMetrics(st store.Driver) rerr.Handler {
+	return func(w http.ResponseWriter, r *http.Request) error {
 		tenant, ok := tenantOrError(w, r)
 		if !ok {
-			return
+			return nil
 		}
 		id := r.PathValue("id")
 		since := r.URL.Query().Get("since")
@@ -391,18 +325,13 @@ func handleAIRateLimitMetrics(st store.Driver) http.HandlerFunc {
 		}
 		tx, err := st.Begin(r.Context(), store.TxOptions{ReadOnly: true})
 		if err != nil {
-			writeInternalError(w, r, "begin tx")
-			return
+			return rerr.Wrap(err, "begin tx")
 		}
 		defer func() { _ = tx.Rollback() }()
 		if _, err := tx.GetAIRateLimit(r.Context(), tenant.ID, id); err != nil {
-			writeProblem(w, http.StatusNotFound, errTypeNotFound,
-				"Rate limit not found", "No rate-limit with id "+id, r.URL.Path, nil)
-			return
+			return rerr.NotFound("rate_limit", id)
 		}
 
-		// Decode `since` into a bucket count + bucket interval. Anything
-		// other than the canonical short forms degrades to the 24h default.
 		bucketCount, bucketDur := 24, time.Hour
 		switch since {
 		case "1h":
@@ -413,8 +342,6 @@ func handleAIRateLimitMetrics(st store.Driver) http.HandlerFunc {
 			bucketCount, bucketDur = 7, 24*time.Hour
 		}
 
-		// djb2 seed off the rule id so callers see stable curves between
-		// reloads — same property the admin panel sparkline relies on.
 		var seed uint32 = 5381
 		for i := 0; i < len(id); i++ {
 			seed = ((seed << 5) + seed + uint32(id[i])) & 0xffffffff
@@ -428,9 +355,6 @@ func handleAIRateLimitMetrics(st store.Driver) http.HandlerFunc {
 		points := make([]map[string]any, 0, bucketCount)
 		for i := bucketCount - 1; i >= 0; i-- {
 			ts := now.Add(-time.Duration(i) * bucketDur)
-			// Business-hours modulation so 09–17 UTC carries more weight,
-			// matching the panel's deterministic mock so the chart looks
-			// believable.
 			boost := 0.5
 			if h := ts.Hour(); h >= 9 && h <= 17 {
 				boost = 1.6
@@ -442,7 +366,7 @@ func handleAIRateLimitMetrics(st store.Driver) http.HandlerFunc {
 			})
 		}
 
-		writeJSON(w, http.StatusOK, map[string]any{
+		return rerr.JSON(w, map[string]any{
 			"rate_limit_id": id,
 			"since":         since,
 			"points":        points,
@@ -450,8 +374,8 @@ func handleAIRateLimitMetrics(st store.Driver) http.HandlerFunc {
 	}
 }
 
-// handleAITracesStream pushes new AI traces over SSE. Backed by a 5s
-// poll like the audit stream.
+// handleAITracesStream pushes new AI traces over SSE. Backed by a 5s poll.
+// rerr-skip: SSE streaming handler; stream.Stream.Handler() returns http.HandlerFunc.
 func handleAITracesStream(st store.Driver) http.HandlerFunc {
 	s := stream.Stream[*store.AITrace]{
 		EventName: "ai-trace",
@@ -524,22 +448,20 @@ func handleAITracesStream(st store.Driver) http.HandlerFunc {
 	return s.Handler()
 }
 
-func handleAITracesExportCSV(st store.Driver) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
+func handleAITracesExportCSV(st store.Driver) rerr.Handler {
+	return func(w http.ResponseWriter, r *http.Request) error {
 		tenant, ok := tenantOrError(w, r)
 		if !ok {
-			return
+			return nil
 		}
 		tx, err := st.Begin(r.Context(), store.TxOptions{ReadOnly: true})
 		if err != nil {
-			writeInternalError(w, r, "begin tx")
-			return
+			return rerr.Wrap(err, "begin tx")
 		}
 		defer func() { _ = tx.Rollback() }()
 		traces, err := tx.ListAITracesByTenant(r.Context(), tenant.ID, store.AITraceQuery{})
 		if err != nil {
-			writeInternalError(w, r, "list traces")
-			return
+			return rerr.Wrap(err, "list traces")
 		}
 		rows := make([]map[string]any, 0, len(traces))
 		for _, t := range traces {
@@ -563,5 +485,6 @@ func handleAITracesExportCSV(st store.Driver) http.HandlerFunc {
 		_ = export.WriteCSV(w, r, "ai-traces.csv",
 			[]string{"id", "occurredAt", "agentId", "providerId", "model", "status", "inputTokens", "outputTokens", "durationMs"},
 			export.FromSlice(r.Context(), rows))
+		return nil
 	}
 }

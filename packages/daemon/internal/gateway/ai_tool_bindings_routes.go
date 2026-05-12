@@ -8,6 +8,7 @@ import (
 	"errors"
 	"net/http"
 
+	"github.com/riokulabs/rioku/internal/rerr"
 	"github.com/riokulabs/rioku/internal/store"
 )
 
@@ -33,32 +34,31 @@ func aiToolBindingToResponse(b *store.AIToolBinding) aiToolBindingResponse {
 	}
 }
 
-func handleListAIToolBindings(st store.Driver) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
+func handleListAIToolBindings(st store.Driver) rerr.Handler {
+	return func(w http.ResponseWriter, r *http.Request) error {
 		tenant, ok := tenantOrError(w, r)
 		if !ok {
-			return
+			return nil
 		}
 		tx, _ := st.Begin(r.Context(), store.TxOptions{ReadOnly: true})
 		defer func() { _ = tx.Rollback() }()
 		items, err := tx.ListAIToolBindingsByTenant(r.Context(), tenant.ID)
 		if err != nil {
-			writeInternalError(w, r, "list bindings")
-			return
+			return rerr.Wrap(err, "list bindings")
 		}
 		out := make([]aiToolBindingResponse, 0, len(items))
 		for _, b := range items {
 			out = append(out, aiToolBindingToResponse(b))
 		}
-		writeJSON(w, http.StatusOK, map[string]any{"items": out, "total": len(out)})
+		return rerr.JSON(w, map[string]any{"items": out, "total": len(out)})
 	}
 }
 
-func handleCreateAIToolBinding(st store.Driver) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
+func handleCreateAIToolBinding(st store.Driver) rerr.Handler {
+	return func(w http.ResponseWriter, r *http.Request) error {
 		tenant, ok := tenantOrError(w, r)
 		if !ok {
-			return
+			return nil
 		}
 		var req struct {
 			AgentID   string `json:"agentId"`
@@ -66,26 +66,20 @@ func handleCreateAIToolBinding(st store.Driver) http.HandlerFunc {
 			Condition string `json:"condition,omitempty"`
 		}
 		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-			writeBadRequest(w, r, "invalid JSON body")
-			return
+			return rerr.Validation(map[string]string{"body": "invalid JSON body"})
 		}
 		if req.AgentID == "" || req.ToolID == "" {
-			writeBadRequest(w, r, "agentId and toolId are required")
-			return
+			return rerr.Validation(map[string]string{"agentId": "required", "toolId": "required"})
 		}
 		tx, _ := st.Begin(r.Context(), store.TxOptions{})
 		// Cross-tenant guards on agent + tool.
 		if _, err := tx.GetAIAgent(r.Context(), tenant.ID, req.AgentID); err != nil {
 			_ = tx.Rollback()
-			writeProblem(w, http.StatusNotFound, errTypeNotFound, "Agent not found",
-				"No agent with id "+req.AgentID, r.URL.Path, nil)
-			return
+			return rerr.NotFound("agent", req.AgentID)
 		}
 		if _, err := tx.GetAITool(r.Context(), tenant.ID, req.ToolID); err != nil {
 			_ = tx.Rollback()
-			writeProblem(w, http.StatusNotFound, errTypeNotFound, "Tool not found",
-				"No tool with id "+req.ToolID, r.URL.Path, nil)
-			return
+			return rerr.NotFound("tool", req.ToolID)
 		}
 		created, err := tx.CreateAIToolBinding(r.Context(), &store.AIToolBinding{
 			TenantID: tenant.ID, AgentID: req.AgentID, ToolID: req.ToolID, Condition: req.Condition, Enabled: true,
@@ -93,26 +87,23 @@ func handleCreateAIToolBinding(st store.Driver) http.HandlerFunc {
 		if err != nil {
 			_ = tx.Rollback()
 			if errors.Is(err, store.ErrAIBindingExists) {
-				writeProblem(w, http.StatusConflict, errTypeConflict, "Binding already exists",
-					"That agent already has a binding to this tool", r.URL.Path, nil)
-				return
+				return rerr.Conflict("that agent already has a binding to this tool", err)
 			}
-			writeInternalError(w, r, "create binding")
-			return
+			return rerr.Wrap(err, "create binding")
 		}
 		if err := tx.Commit(); err != nil {
-			writeInternalError(w, r, "commit")
-			return
+			return rerr.Wrap(err, "commit")
 		}
-		writeJSON(w, http.StatusCreated, aiToolBindingToResponse(created))
+		w.WriteHeader(http.StatusCreated)
+		return rerr.JSON(w, aiToolBindingToResponse(created))
 	}
 }
 
-func handleGetAIToolBinding(st store.Driver) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
+func handleGetAIToolBinding(st store.Driver) rerr.Handler {
+	return func(w http.ResponseWriter, r *http.Request) error {
 		tenant, ok := tenantOrError(w, r)
 		if !ok {
-			return
+			return nil
 		}
 		id := r.PathValue("id")
 		tx, _ := st.Begin(r.Context(), store.TxOptions{ReadOnly: true})
@@ -120,22 +111,19 @@ func handleGetAIToolBinding(st store.Driver) http.HandlerFunc {
 		b, err := tx.GetAIToolBinding(r.Context(), tenant.ID, id)
 		if err != nil {
 			if errors.Is(err, store.ErrAIBindingNotFound) {
-				writeProblem(w, http.StatusNotFound, errTypeNotFound, "Binding not found",
-					"No binding with id "+id, r.URL.Path, nil)
-				return
+				return rerr.NotFound("binding", id)
 			}
-			writeInternalError(w, r, "get binding")
-			return
+			return rerr.Wrap(err, "get binding")
 		}
-		writeJSON(w, http.StatusOK, aiToolBindingToResponse(b))
+		return rerr.JSON(w, aiToolBindingToResponse(b))
 	}
 }
 
-func handleUpdateAIToolBinding(st store.Driver) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
+func handleUpdateAIToolBinding(st store.Driver) rerr.Handler {
+	return func(w http.ResponseWriter, r *http.Request) error {
 		tenant, ok := tenantOrError(w, r)
 		if !ok {
-			return
+			return nil
 		}
 		id := r.PathValue("id")
 		var req struct {
@@ -143,8 +131,7 @@ func handleUpdateAIToolBinding(st store.Driver) http.HandlerFunc {
 			Enabled   *bool   `json:"enabled,omitempty"`
 		}
 		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-			writeBadRequest(w, r, "invalid JSON body")
-			return
+			return rerr.Validation(map[string]string{"body": "invalid JSON body"})
 		}
 		tx, _ := st.Begin(r.Context(), store.TxOptions{})
 		updated, err := tx.UpdateAIToolBinding(r.Context(), tenant.ID, id, store.UpdateAIToolBindingParams{
@@ -153,71 +140,60 @@ func handleUpdateAIToolBinding(st store.Driver) http.HandlerFunc {
 		if err != nil {
 			_ = tx.Rollback()
 			if errors.Is(err, store.ErrAIBindingNotFound) {
-				writeProblem(w, http.StatusNotFound, errTypeNotFound, "Binding not found",
-					"No binding with id "+id, r.URL.Path, nil)
-				return
+				return rerr.NotFound("binding", id)
 			}
-			writeInternalError(w, r, "update binding")
-			return
+			return rerr.Wrap(err, "update binding")
 		}
 		if err := tx.Commit(); err != nil {
-			writeInternalError(w, r, "commit")
-			return
+			return rerr.Wrap(err, "commit")
 		}
-		writeJSON(w, http.StatusOK, aiToolBindingToResponse(updated))
+		return rerr.JSON(w, aiToolBindingToResponse(updated))
 	}
 }
 
-func handleDeleteAIToolBinding(st store.Driver) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
+func handleDeleteAIToolBinding(st store.Driver) rerr.Handler {
+	return func(w http.ResponseWriter, r *http.Request) error {
 		tenant, ok := tenantOrError(w, r)
 		if !ok {
-			return
+			return nil
 		}
 		id := r.PathValue("id")
 		tx, _ := st.Begin(r.Context(), store.TxOptions{})
 		if err := tx.DeleteAIToolBinding(r.Context(), tenant.ID, id); err != nil {
 			_ = tx.Rollback()
 			if errors.Is(err, store.ErrAIBindingNotFound) {
-				writeProblem(w, http.StatusNotFound, errTypeNotFound, "Binding not found",
-					"No binding with id "+id, r.URL.Path, nil)
-				return
+				return rerr.NotFound("binding", id)
 			}
-			writeInternalError(w, r, "delete binding")
-			return
+			return rerr.Wrap(err, "delete binding")
 		}
 		if err := tx.Commit(); err != nil {
-			writeInternalError(w, r, "commit")
-			return
+			return rerr.Wrap(err, "commit")
 		}
 		w.WriteHeader(http.StatusNoContent)
+		return nil
 	}
 }
 
-func handleBulkAttachBindings(st store.Driver) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
+func handleBulkAttachBindings(st store.Driver) rerr.Handler {
+	return func(w http.ResponseWriter, r *http.Request) error {
 		tenant, ok := tenantOrError(w, r)
 		if !ok {
-			return
+			return nil
 		}
 		var req struct {
 			AgentID string   `json:"agentId"`
 			ToolIDs []string `json:"toolIds"`
 		}
 		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-			writeBadRequest(w, r, "invalid JSON body")
-			return
+			return rerr.Validation(map[string]string{"body": "invalid JSON body"})
 		}
 		if req.AgentID == "" {
-			writeBadRequest(w, r, "agentId is required")
-			return
+			return rerr.Validation(map[string]string{"agentId": "required"})
 		}
 		tx, _ := st.Begin(r.Context(), store.TxOptions{})
 		if _, err := tx.GetAIAgent(r.Context(), tenant.ID, req.AgentID); err != nil {
 			_ = tx.Rollback()
-			writeProblem(w, http.StatusNotFound, errTypeNotFound, "Agent not found",
-				"No agent with id "+req.AgentID, r.URL.Path, nil)
-			return
+			return rerr.NotFound("agent", req.AgentID)
 		}
 		created := make([]aiToolBindingResponse, 0, len(req.ToolIDs))
 		for _, toolID := range req.ToolIDs {
@@ -232,15 +208,13 @@ func handleBulkAttachBindings(st store.Driver) http.HandlerFunc {
 					continue // idempotent on duplicates
 				}
 				_ = tx.Rollback()
-				writeInternalError(w, r, "bulk attach")
-				return
+				return rerr.Wrap(err, "bulk attach")
 			}
 			created = append(created, aiToolBindingToResponse(b))
 		}
 		if err := tx.Commit(); err != nil {
-			writeInternalError(w, r, "commit")
-			return
+			return rerr.Wrap(err, "commit")
 		}
-		writeJSON(w, http.StatusOK, map[string]any{"items": created, "total": len(created)})
+		return rerr.JSON(w, map[string]any{"items": created, "total": len(created)})
 	}
 }
