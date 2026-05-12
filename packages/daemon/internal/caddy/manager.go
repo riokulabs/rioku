@@ -66,16 +66,41 @@ func (m *Manager) Start(ctx context.Context) error {
 	// Use exec.Command (not CommandContext) so Stop() controls shutdown
 	// via SIGTERM rather than Go killing the process on context cancellation.
 	cmd := exec.Command(path, "run", "--config", "-", "--adapter", "")
-	cmd.Stdout = os.Stdout
-	cmd.Stderr = os.Stderr
+
+	// Wire subprocess output through the log bridge instead of os.Stdout/os.Stderr
+	// so Caddy's JSON log lines are parsed and re-emitted via slog.
+	stdoutR, stdoutW, err := os.Pipe()
+	if err != nil {
+		return fmt.Errorf("create stdout pipe: %w", err)
+	}
+	stderrR, stderrW, err := os.Pipe()
+	if err != nil {
+		_ = stdoutR.Close()
+		_ = stdoutW.Close()
+		return fmt.Errorf("create stderr pipe: %w", err)
+	}
+	cmd.Stdout = stdoutW
+	cmd.Stderr = stderrW
 
 	// Provide minimal Caddy config via stdin.
 	minimalConfig := fmt.Sprintf(`{"admin":{"listen":"%s"}}`, m.cfg.AdminAddr)
 	cmd.Stdin = bytes.NewReader([]byte(minimalConfig))
 
 	if err := cmd.Start(); err != nil {
+		_ = stdoutR.Close()
+		_ = stdoutW.Close()
+		_ = stderrR.Close()
+		_ = stderrW.Close()
 		return fmt.Errorf("start caddy: %w", err)
 	}
+
+	// Close write ends in this process now that they are inherited by the child.
+	_ = stdoutW.Close()
+	_ = stderrW.Close()
+
+	// Start the log bridge in the background; it exits when both readers reach EOF
+	// (child process exits) or ctx is cancelled.
+	go Bridge(ctx, stdoutR, stderrR, m.log)
 
 	m.cmd = cmd
 	m.running = true
