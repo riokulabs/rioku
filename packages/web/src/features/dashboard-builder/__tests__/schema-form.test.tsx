@@ -71,13 +71,7 @@ describe('<SchemaForm>', () => {
   it('falls back to warning alert for unsupported Zod types', () => {
     const schema = z.object({ bigint_field: z.bigint() });
     const onChange = vi.fn();
-    wrap(
-      <SchemaForm
-        schema={schema}
-        value={{ bigint_field: null }}
-        onChange={onChange}
-      />,
-    );
+    wrap(<SchemaForm schema={schema} value={{ bigint_field: null }} onChange={onChange} />);
     expect(screen.getByText(/unsupported schema type/i)).toBeTruthy();
   });
 

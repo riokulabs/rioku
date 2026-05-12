@@ -19,10 +19,7 @@ interface SingleStatData {
 
 function isSingleStatData(data: unknown): data is SingleStatData {
   return (
-    typeof data === 'object' &&
-    data !== null &&
-    'value' in data &&
-    typeof (data).value === 'number'
+    typeof data === 'object' && data !== null && 'value' in data && typeof data.value === 'number'
   );
 }
 

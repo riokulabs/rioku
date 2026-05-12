@@ -79,10 +79,9 @@ export function useCreateMiddlewareMutation(tenantId: string) {
   return useMutation({
     mutationFn: async (input: MiddlewareInput): Promise<Middleware> => {
       const body = toProtoMiddlewareCreate(input);
-      const res = (await orvalCreateMiddleware(
-        tenantId,
-        body,
-      )) as unknown as { data: ProtoMiddleware };
+      const res = (await orvalCreateMiddleware(tenantId, body)) as unknown as {
+        data: ProtoMiddleware;
+      };
       return fromProtoMiddleware(res.data, tenantId);
     },
     onSuccess: () => {
@@ -96,11 +95,9 @@ export function useUpdateMiddlewareMutation(tenantId: string) {
   return useMutation({
     mutationFn: async (args: { id: string; input: MiddlewareUpdateInput }): Promise<Middleware> => {
       const body = toProtoMiddlewarePatch(args.input);
-      const res = (await patchMiddleware(
-        tenantId,
-        args.id,
-        body,
-      )) as unknown as { data: ProtoMiddleware };
+      const res = (await patchMiddleware(tenantId, args.id, body)) as unknown as {
+        data: ProtoMiddleware;
+      };
       return fromProtoMiddleware(res.data, tenantId);
     },
     onSuccess: (_, vars) => {

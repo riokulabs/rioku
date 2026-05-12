@@ -20,10 +20,7 @@ import {
   getListSitesQueryKey,
   getGetSiteQueryKey,
 } from '@/api/generated/sites/sites';
-import type {
-  ListSites200,
-  Site as ProtoSite,
-} from '@/api/generated/schemas';
+import type { ListSites200, Site as ProtoSite } from '@/api/generated/schemas';
 import type { Site } from '@/api/resources';
 import type { SiteFilter, SiteUpdateInput, SiteWizardInput } from './types';
 import { fromProtoSite, toProtoSiteCreate, toProtoSitePatch } from './adapter';

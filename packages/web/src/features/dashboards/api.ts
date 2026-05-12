@@ -281,7 +281,7 @@ function useTenantSlugForDashboard(dashboardId: string): string {
   });
   for (const [key, value] of cached) {
     if (!value || !Array.isArray((value as { items?: unknown[] }).items)) continue;
-    const list = (value).items;
+    const list = value.items;
     if (list.some((d) => d.id === dashboardId)) {
       const slug = key[1];
       if (typeof slug === 'string') return slug;
@@ -310,7 +310,7 @@ export function useDashboardDetail(id: string): Dashboard | undefined {
     });
     for (const [, value] of cached) {
       if (!value || !Array.isArray((value as { items?: unknown[] }).items)) continue;
-      const list = (value).items;
+      const list = value.items;
       const match = list.find((d) => d.id === id);
       if (match) return mapDaemonDashboard(match, daemonWidgets);
     }
@@ -357,7 +357,7 @@ export function useUserHomeDashboard(userId: string): string | undefined {
   });
   for (const [, value] of cached) {
     if (!value || !Array.isArray((value as { items?: unknown[] }).items)) continue;
-    const list = (value).items;
+    const list = value.items;
     for (const d of list) {
       if (d.homeForUsers.includes(userId)) return d.id;
     }
@@ -577,7 +577,7 @@ function resolveCachedTenantSlug(dashboardId: string): string | undefined {
   const cached = qc.getQueriesData<{ items: DaemonDashboard[] }>({ queryKey: ['dashboards'] });
   for (const [key, value] of cached) {
     if (!value || !Array.isArray((value as { items?: unknown[] }).items)) continue;
-    const list = (value).items;
+    const list = value.items;
     if (list.some((d) => d.id === dashboardId)) {
       const slug = key[1];
       if (typeof slug === 'string') return slug;
@@ -591,7 +591,7 @@ function findCachedDashboard(id: string): DaemonDashboard | undefined {
   const cached = qc.getQueriesData<{ items: DaemonDashboard[] }>({ queryKey: ['dashboards'] });
   for (const [, value] of cached) {
     if (!value || !Array.isArray((value as { items?: unknown[] }).items)) continue;
-    const list = (value).items;
+    const list = value.items;
     const found = list.find((d) => d.id === id);
     if (found) return found;
   }
@@ -612,7 +612,7 @@ function findCachedVersion(versionId: string): { tenant: string; dashboardId: st
     if (!value || !Array.isArray((value as { items?: unknown[] }).items)) continue;
     const arr = key;
     if (arr[3] !== 'versions') continue;
-    const items = (value).items;
+    const items = value.items;
     if (items.some((v) => v.id === versionId)) {
       const tenant = arr[1];
       const dashboardId = arr[2];

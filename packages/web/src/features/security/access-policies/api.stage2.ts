@@ -73,10 +73,9 @@ export function useCreateAccessPolicyMutation(tenantId: string) {
   return useMutation({
     mutationFn: async (payload: AccessPolicyPayload): Promise<AccessPolicy> => {
       const body = toProtoAccessPolicyCreate(payload);
-      const res = (await orvalCreateAccessPolicy(
-        tenantId,
-        body,
-      )) as unknown as { data: ProtoAccessPolicy };
+      const res = (await orvalCreateAccessPolicy(tenantId, body)) as unknown as {
+        data: ProtoAccessPolicy;
+      };
       return fromProtoAccessPolicy(res.data, tenantId);
     },
     onSuccess: () => {

@@ -31,10 +31,7 @@ interface KpiCardData {
 
 function isKpiCardData(data: unknown): data is KpiCardData {
   return (
-    typeof data === 'object' &&
-    data !== null &&
-    'value' in data &&
-    typeof (data).value === 'number'
+    typeof data === 'object' && data !== null && 'value' in data && typeof data.value === 'number'
   );
 }
 

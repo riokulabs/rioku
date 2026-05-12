@@ -29,10 +29,7 @@ interface GaugeData {
 
 function isGaugeData(data: unknown): data is GaugeData {
   return (
-    typeof data === 'object' &&
-    data !== null &&
-    'value' in data &&
-    typeof (data).value === 'number'
+    typeof data === 'object' && data !== null && 'value' in data && typeof data.value === 'number'
   );
 }
 
