@@ -481,6 +481,7 @@ shiki
 Shiki
 sideload
 sideloaded
+sideloading
 sideloads
 SIEM
 signin
