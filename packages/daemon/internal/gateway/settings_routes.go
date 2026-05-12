@@ -228,4 +228,3 @@ func handlePatchTraces(rs *RuntimeSettings) rerr.Handler {
 		return handleSettingsTraces(rs.Config())(w, r)
 	}
 }
-

@@ -586,4 +586,3 @@ func tenantBuilderOrRoot(tenant *store.Tenant) *links.Builder {
 	}
 	return links.NewRootBuilder()
 }
-
