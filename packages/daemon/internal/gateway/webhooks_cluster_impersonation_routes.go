@@ -18,41 +18,42 @@ import (
 	"time"
 
 	"github.com/riokulabs/rioku/internal/auth"
+	"github.com/riokulabs/rioku/internal/rerr"
 	"github.com/riokulabs/rioku/internal/store"
 )
 
 func RegisterWebhooksClusterImpersonationRoutes(mux *http.ServeMux, st store.Driver) {
 	// Webhooks
 	mux.Handle("GET /api/v1/t/{tenant}/settings/webhooks",
-		RequirePermission("integrations:read")(http.HandlerFunc(handleListWebhooks(st))))
+		RequirePermission("integrations:read")(rerr.H(handleListWebhooks(st))))
 	mux.Handle("POST /api/v1/t/{tenant}/settings/webhooks",
-		RequirePermission("integrations:write")(http.HandlerFunc(handleCreateWebhook(st))))
+		RequirePermission("integrations:write")(rerr.H(handleCreateWebhook(st))))
 	mux.Handle("GET /api/v1/t/{tenant}/settings/webhooks/{id}",
-		RequirePermission("integrations:read")(http.HandlerFunc(handleGetWebhook(st))))
+		RequirePermission("integrations:read")(rerr.H(handleGetWebhook(st))))
 	mux.Handle("PATCH /api/v1/t/{tenant}/settings/webhooks/{id}",
-		RequirePermission("integrations:write")(http.HandlerFunc(handleUpdateWebhook(st))))
+		RequirePermission("integrations:write")(rerr.H(handleUpdateWebhook(st))))
 	mux.Handle("DELETE /api/v1/t/{tenant}/settings/webhooks/{id}",
-		RequirePermission("integrations:write")(http.HandlerFunc(handleDeleteWebhook(st))))
+		RequirePermission("integrations:write")(rerr.H(handleDeleteWebhook(st))))
 
 	// Cluster enrollment tokens — read available to tenant cluster admins,
 	// generate/revoke is super-admin (admin/cluster:enroll). The tenant
 	// /cluster/enrollment-tokens path mirrors the spec.
 	mux.Handle("GET /api/v1/t/{tenant}/cluster/enrollment-tokens",
-		RequirePermission("cluster:read")(http.HandlerFunc(handleListEnrollmentTokens(st))))
+		RequirePermission("cluster:read")(rerr.H(handleListEnrollmentTokens(st))))
 	mux.Handle("POST /api/v1/t/{tenant}/cluster/enrollment-tokens",
-		RequirePermission("cluster:enroll")(http.HandlerFunc(handleCreateEnrollmentToken(st))))
+		RequirePermission("cluster:enroll")(rerr.H(handleCreateEnrollmentToken(st))))
 	mux.Handle("DELETE /api/v1/t/{tenant}/cluster/enrollment-tokens/{id}",
-		RequirePermission("cluster:enroll")(http.HandlerFunc(handleRevokeEnrollmentToken(st))))
+		RequirePermission("cluster:enroll")(rerr.H(handleRevokeEnrollmentToken(st))))
 
 	// Impersonation (super-admin only)
 	mux.Handle("POST /api/v1/admin/impersonation",
-		RequirePermission("user:impersonate")(http.HandlerFunc(handleStartImpersonation(st))))
+		RequirePermission("user:impersonate")(rerr.H(handleStartImpersonation(st))))
 	mux.Handle("DELETE /api/v1/admin/impersonation/{id}",
-		RequirePermission("user:impersonate")(http.HandlerFunc(handleEndImpersonation(st))))
+		RequirePermission("user:impersonate")(rerr.H(handleEndImpersonation(st))))
 	mux.Handle("GET /api/v1/admin/impersonation",
-		RequirePermission("admin:cross-tenant-read")(http.HandlerFunc(handleListImpersonationSessions(st))))
+		RequirePermission("admin:cross-tenant-read")(rerr.H(handleListImpersonationSessions(st))))
 	mux.Handle("POST /api/v1/admin/impersonation/{id}/touch",
-		RequirePermission("user:impersonate")(http.HandlerFunc(handleTouchImpersonation(st))))
+		RequirePermission("user:impersonate")(rerr.H(handleTouchImpersonation(st))))
 }
 
 // ─── Webhooks ───────────────────────────────────────────────────────────────
@@ -79,32 +80,34 @@ func webhookToResponse(e *store.WebhookEndpoint) webhookResponse {
 	}
 }
 
-func handleListWebhooks(st store.Driver) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
+func handleListWebhooks(st store.Driver) rerr.Handler {
+	return func(w http.ResponseWriter, r *http.Request) error {
 		tenant, ok := tenantOrError(w, r)
 		if !ok {
-			return
+			return nil
 		}
-		tx, _ := st.Begin(r.Context(), store.TxOptions{ReadOnly: true})
+		tx, err := st.Begin(r.Context(), store.TxOptions{ReadOnly: true})
+		if err != nil {
+			return rerr.Wrap(err, "begin tx")
+		}
 		defer func() { _ = tx.Rollback() }()
 		items, err := tx.ListWebhookEndpointsByTenant(r.Context(), tenant.ID)
 		if err != nil {
-			writeInternalError(w, r, "list webhooks")
-			return
+			return rerr.Wrap(err, "list webhooks")
 		}
 		out := make([]webhookResponse, 0, len(items))
 		for _, e := range items {
 			out = append(out, webhookToResponse(e))
 		}
-		writeJSON(w, http.StatusOK, map[string]any{"items": out, "total": len(out)})
+		return rerr.JSON(w, map[string]any{"items": out, "total": len(out)})
 	}
 }
 
-func handleCreateWebhook(st store.Driver) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
+func handleCreateWebhook(st store.Driver) rerr.Handler {
+	return func(w http.ResponseWriter, r *http.Request) error {
 		tenant, ok := tenantOrError(w, r)
 		if !ok {
-			return
+			return nil
 		}
 		var req struct {
 			Name   string          `json:"name"`
@@ -113,60 +116,59 @@ func handleCreateWebhook(st store.Driver) http.HandlerFunc {
 			Events json.RawMessage `json:"events,omitempty"`
 		}
 		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-			writeBadRequest(w, r, "invalid JSON body")
-			return
+			return rerr.Validation(map[string]string{"body": "invalid JSON body"})
 		}
 		if req.Name == "" || req.URL == "" {
-			writeBadRequest(w, r, "name and url are required")
-			return
+			return rerr.Validation(map[string]string{"name": "name and url are required"})
 		}
-		tx, _ := st.Begin(r.Context(), store.TxOptions{})
+		tx, err := st.Begin(r.Context(), store.TxOptions{})
+		if err != nil {
+			return rerr.Wrap(err, "begin tx")
+		}
+		defer func() { _ = tx.Rollback() }()
 		created, err := tx.CreateWebhookEndpoint(r.Context(), &store.WebhookEndpoint{
 			TenantID: tenant.ID, Name: req.Name, URL: req.URL, Secret: req.Secret,
 			Events: string(req.Events), Enabled: true,
 		})
 		if err != nil {
-			_ = tx.Rollback()
 			if errors.Is(err, store.ErrWebhookEndpointNameTaken) {
-				writeProblem(w, http.StatusConflict, errTypeConflict, "Name already in use",
-					"A webhook with that name already exists in this tenant", r.URL.Path, nil)
-				return
+				return rerr.Conflict("A webhook with that name already exists in this tenant", err)
 			}
-			writeInternalError(w, r, "create webhook")
-			return
+			return rerr.Wrap(err, "create webhook")
 		}
 		if err := tx.Commit(); err != nil {
-			writeInternalError(w, r, "commit")
-			return
+			return rerr.Wrap(err, "commit")
 		}
-		writeJSON(w, http.StatusCreated, webhookToResponse(created))
+		w.WriteHeader(http.StatusCreated)
+		return rerr.JSON(w, webhookToResponse(created))
 	}
 }
 
-func handleGetWebhook(st store.Driver) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
+func handleGetWebhook(st store.Driver) rerr.Handler {
+	return func(w http.ResponseWriter, r *http.Request) error {
 		tenant, ok := tenantOrError(w, r)
 		if !ok {
-			return
+			return nil
 		}
 		id := r.PathValue("id")
-		tx, _ := st.Begin(r.Context(), store.TxOptions{ReadOnly: true})
+		tx, err := st.Begin(r.Context(), store.TxOptions{ReadOnly: true})
+		if err != nil {
+			return rerr.Wrap(err, "begin tx")
+		}
 		defer func() { _ = tx.Rollback() }()
 		e, err := tx.GetWebhookEndpoint(r.Context(), tenant.ID, id)
 		if err != nil {
-			writeProblem(w, http.StatusNotFound, errTypeNotFound, "Webhook not found",
-				"No webhook with id "+id, r.URL.Path, nil)
-			return
+			return rerr.NotFound("webhook", id)
 		}
-		writeJSON(w, http.StatusOK, webhookToResponse(e))
+		return rerr.JSON(w, webhookToResponse(e))
 	}
 }
 
-func handleUpdateWebhook(st store.Driver) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
+func handleUpdateWebhook(st store.Driver) rerr.Handler {
+	return func(w http.ResponseWriter, r *http.Request) error {
 		tenant, ok := tenantOrError(w, r)
 		if !ok {
-			return
+			return nil
 		}
 		id := r.PathValue("id")
 		var req struct {
@@ -177,8 +179,7 @@ func handleUpdateWebhook(st store.Driver) http.HandlerFunc {
 			Enabled *bool            `json:"enabled,omitempty"`
 		}
 		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-			writeBadRequest(w, r, "invalid JSON body")
-			return
+			return rerr.Validation(map[string]string{"body": "invalid JSON body"})
 		}
 		params := store.UpdateWebhookEndpointParams{
 			Name: req.Name, URL: req.URL, Secret: req.Secret, Enabled: req.Enabled,
@@ -187,49 +188,48 @@ func handleUpdateWebhook(st store.Driver) http.HandlerFunc {
 			s := string(*req.Events)
 			params.Events = &s
 		}
-		tx, _ := st.Begin(r.Context(), store.TxOptions{})
+		tx, err := st.Begin(r.Context(), store.TxOptions{})
+		if err != nil {
+			return rerr.Wrap(err, "begin tx")
+		}
+		defer func() { _ = tx.Rollback() }()
 		updated, err := tx.UpdateWebhookEndpoint(r.Context(), tenant.ID, id, params)
 		if err != nil {
-			_ = tx.Rollback()
 			if errors.Is(err, store.ErrWebhookEndpointNotFound) {
-				writeProblem(w, http.StatusNotFound, errTypeNotFound, "Webhook not found",
-					"No webhook with id "+id, r.URL.Path, nil)
-				return
+				return rerr.NotFound("webhook", id)
 			}
-			writeInternalError(w, r, "update webhook")
-			return
+			return rerr.Wrap(err, "update webhook")
 		}
 		if err := tx.Commit(); err != nil {
-			writeInternalError(w, r, "commit")
-			return
+			return rerr.Wrap(err, "commit")
 		}
-		writeJSON(w, http.StatusOK, webhookToResponse(updated))
+		return rerr.JSON(w, webhookToResponse(updated))
 	}
 }
 
-func handleDeleteWebhook(st store.Driver) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
+func handleDeleteWebhook(st store.Driver) rerr.Handler {
+	return func(w http.ResponseWriter, r *http.Request) error {
 		tenant, ok := tenantOrError(w, r)
 		if !ok {
-			return
+			return nil
 		}
 		id := r.PathValue("id")
-		tx, _ := st.Begin(r.Context(), store.TxOptions{})
+		tx, err := st.Begin(r.Context(), store.TxOptions{})
+		if err != nil {
+			return rerr.Wrap(err, "begin tx")
+		}
+		defer func() { _ = tx.Rollback() }()
 		if err := tx.DeleteWebhookEndpoint(r.Context(), tenant.ID, id); err != nil {
-			_ = tx.Rollback()
 			if errors.Is(err, store.ErrWebhookEndpointNotFound) {
-				writeProblem(w, http.StatusNotFound, errTypeNotFound, "Webhook not found",
-					"No webhook with id "+id, r.URL.Path, nil)
-				return
+				return rerr.NotFound("webhook", id)
 			}
-			writeInternalError(w, r, "delete webhook")
-			return
+			return rerr.Wrap(err, "delete webhook")
 		}
 		if err := tx.Commit(); err != nil {
-			writeInternalError(w, r, "commit")
-			return
+			return rerr.Wrap(err, "commit")
 		}
 		w.WriteHeader(http.StatusNoContent)
+		return nil
 	}
 }
 
@@ -270,27 +270,29 @@ func enrollmentTokenToResponse(t *store.ClusterEnrollmentToken) enrollmentTokenR
 	return out
 }
 
-func handleListEnrollmentTokens(st store.Driver) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
+func handleListEnrollmentTokens(st store.Driver) rerr.Handler {
+	return func(w http.ResponseWriter, r *http.Request) error {
 		// No tenant filter — cluster is global. The route is tenant-scoped
 		// only because the admin UI lives under /t/{tenant}/cluster.
-		tx, _ := st.Begin(r.Context(), store.TxOptions{ReadOnly: true})
+		tx, err := st.Begin(r.Context(), store.TxOptions{ReadOnly: true})
+		if err != nil {
+			return rerr.Wrap(err, "begin tx")
+		}
 		defer func() { _ = tx.Rollback() }()
 		items, err := tx.ListActiveEnrollmentTokens(r.Context())
 		if err != nil {
-			writeInternalError(w, r, "list enrollment tokens")
-			return
+			return rerr.Wrap(err, "list enrollment tokens")
 		}
 		out := make([]enrollmentTokenResponse, 0, len(items))
 		for _, tok := range items {
 			out = append(out, enrollmentTokenToResponse(tok))
 		}
-		writeJSON(w, http.StatusOK, map[string]any{"items": out, "total": len(out)})
+		return rerr.JSON(w, map[string]any{"items": out, "total": len(out)})
 	}
 }
 
-func handleCreateEnrollmentToken(st store.Driver) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
+func handleCreateEnrollmentToken(st store.Driver) rerr.Handler {
+	return func(w http.ResponseWriter, r *http.Request) error {
 		var req struct {
 			TTLSeconds int    `json:"ttlSeconds,omitempty"`
 			Notes      string `json:"notes,omitempty"`
@@ -304,8 +306,7 @@ func handleCreateEnrollmentToken(st store.Driver) http.HandlerFunc {
 		// Generate a 32-byte token, hash with SHA-256 for storage.
 		raw := make([]byte, 32)
 		if _, err := rand.Read(raw); err != nil {
-			writeInternalError(w, r, "generate token")
-			return
+			return rerr.Wrap(err, "generate token")
 		}
 		token := hex.EncodeToString(raw)
 		hash := sha256.Sum256(raw)
@@ -317,50 +318,52 @@ func handleCreateEnrollmentToken(st store.Driver) http.HandlerFunc {
 			createdBy = &id
 		}
 
-		tx, _ := st.Begin(r.Context(), store.TxOptions{})
+		tx, err := st.Begin(r.Context(), store.TxOptions{})
+		if err != nil {
+			return rerr.Wrap(err, "begin tx")
+		}
+		defer func() { _ = tx.Rollback() }()
 		created, err := tx.CreateEnrollmentToken(r.Context(), &store.ClusterEnrollmentToken{
 			TokenHash: hashHex, CreatedBy: createdBy,
 			ExpiresAt: time.Now().UTC().Add(ttl), Notes: req.Notes,
 		})
 		if err != nil {
-			_ = tx.Rollback()
-			writeInternalError(w, r, "create enrollment token")
-			return
+			return rerr.Wrap(err, "create enrollment token")
 		}
 		if err := tx.Commit(); err != nil {
-			writeInternalError(w, r, "commit")
-			return
+			return rerr.Wrap(err, "commit")
 		}
-		writeJSON(w, http.StatusCreated, createEnrollmentTokenResponse{
+		w.WriteHeader(http.StatusCreated)
+		return rerr.JSON(w, createEnrollmentTokenResponse{
 			enrollmentTokenResponse: enrollmentTokenToResponse(created),
 			Token:                   token,
 		})
 	}
 }
 
-func handleRevokeEnrollmentToken(st store.Driver) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
+func handleRevokeEnrollmentToken(st store.Driver) rerr.Handler {
+	return func(w http.ResponseWriter, r *http.Request) error {
 		id := r.PathValue("id")
-		tx, _ := st.Begin(r.Context(), store.TxOptions{})
+		tx, err := st.Begin(r.Context(), store.TxOptions{})
+		if err != nil {
+			return rerr.Wrap(err, "begin tx")
+		}
+		defer func() { _ = tx.Rollback() }()
 		if err := tx.RevokeEnrollmentToken(r.Context(), id); err != nil {
-			_ = tx.Rollback()
 			switch {
 			case errors.Is(err, store.ErrEnrollmentTokenNotFound):
-				writeProblem(w, http.StatusNotFound, errTypeNotFound, "Token not found",
-					"No enrollment token with id "+id, r.URL.Path, nil)
+				return rerr.NotFound("enrollment token", id)
 			case errors.Is(err, store.ErrEnrollmentTokenAlreadyUsed):
-				writeProblem(w, http.StatusConflict, errTypeConflict, "Token unavailable",
-					"Token already consumed or revoked", r.URL.Path, nil)
+				return rerr.Conflict("Token already consumed or revoked", err)
 			default:
-				writeInternalError(w, r, "revoke token")
+				return rerr.Wrap(err, "revoke token")
 			}
-			return
 		}
 		if err := tx.Commit(); err != nil {
-			writeInternalError(w, r, "commit")
-			return
+			return rerr.Wrap(err, "commit")
 		}
 		w.WriteHeader(http.StatusNoContent)
+		return nil
 	}
 }
 
@@ -397,8 +400,8 @@ func impersonationToResponse(s *store.ImpersonationSession) impersonationRespons
 	return out
 }
 
-func handleStartImpersonation(st store.Driver) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
+func handleStartImpersonation(st store.Driver) rerr.Handler {
+	return func(w http.ResponseWriter, r *http.Request) error {
 		var req struct {
 			TenantID   *string `json:"tenantId,omitempty"`
 			UserID     *string `json:"userId,omitempty"`
@@ -406,12 +409,10 @@ func handleStartImpersonation(st store.Driver) http.HandlerFunc {
 			TTLSeconds int     `json:"ttlSeconds,omitempty"`
 		}
 		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-			writeBadRequest(w, r, "invalid JSON body")
-			return
+			return rerr.Validation(map[string]string{"body": "invalid JSON body"})
 		}
 		if req.Reason == "" {
-			writeBadRequest(w, r, "reason is required")
-			return
+			return rerr.Validation(map[string]string{"reason": "reason is required"})
 		}
 		ttl := time.Hour // default 1h
 		if req.TTLSeconds > 0 {
@@ -419,63 +420,64 @@ func handleStartImpersonation(st store.Driver) http.HandlerFunc {
 		}
 		sc := auth.SessionClaimsFromContext(r.Context())
 		if sc == nil || sc.UserID == "" {
-			writeProblem(w, http.StatusUnauthorized, errTypeUnauth, "Authentication required",
-				"Session required to start impersonation", r.URL.Path, nil)
-			return
+			return rerr.Unauthenticated()
 		}
-		tx, _ := st.Begin(r.Context(), store.TxOptions{})
+		tx, err := st.Begin(r.Context(), store.TxOptions{})
+		if err != nil {
+			return rerr.Wrap(err, "begin tx")
+		}
+		defer func() { _ = tx.Rollback() }()
 		created, err := tx.CreateImpersonationSession(r.Context(), &store.ImpersonationSession{
 			SuperAdminID: sc.UserID, TenantID: req.TenantID, UserID: req.UserID,
 			Reason: req.Reason, ExpiresAt: time.Now().UTC().Add(ttl),
 		})
 		if err != nil {
-			_ = tx.Rollback()
-			writeInternalError(w, r, "start impersonation")
-			return
+			return rerr.Wrap(err, "start impersonation")
 		}
 		if err := tx.Commit(); err != nil {
-			writeInternalError(w, r, "commit")
-			return
+			return rerr.Wrap(err, "commit")
 		}
-		writeJSON(w, http.StatusCreated, impersonationToResponse(created))
+		w.WriteHeader(http.StatusCreated)
+		return rerr.JSON(w, impersonationToResponse(created))
 	}
 }
 
-func handleEndImpersonation(st store.Driver) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
+func handleEndImpersonation(st store.Driver) rerr.Handler {
+	return func(w http.ResponseWriter, r *http.Request) error {
 		id := r.PathValue("id")
-		tx, _ := st.Begin(r.Context(), store.TxOptions{})
+		tx, err := st.Begin(r.Context(), store.TxOptions{})
+		if err != nil {
+			return rerr.Wrap(err, "begin tx")
+		}
+		defer func() { _ = tx.Rollback() }()
 		updated, err := tx.EndImpersonationSession(r.Context(), id, "explicit_exit")
 		if err != nil {
-			_ = tx.Rollback()
 			switch {
 			case errors.Is(err, store.ErrImpersonationSessionNotFound):
-				writeProblem(w, http.StatusNotFound, errTypeNotFound, "Session not found",
-					"No impersonation session with id "+id, r.URL.Path, nil)
+				return rerr.NotFound("impersonation session", id)
 			case errors.Is(err, store.ErrImpersonationSessionEnded):
-				writeProblem(w, http.StatusConflict, errTypeConflict, "Session already ended",
-					"That impersonation session is already closed", r.URL.Path, nil)
+				return rerr.Conflict("That impersonation session is already closed", err)
 			default:
-				writeInternalError(w, r, "end impersonation")
+				return rerr.Wrap(err, "end impersonation")
 			}
-			return
 		}
 		if err := tx.Commit(); err != nil {
-			writeInternalError(w, r, "commit")
-			return
+			return rerr.Wrap(err, "commit")
 		}
-		writeJSON(w, http.StatusOK, impersonationToResponse(updated))
+		return rerr.JSON(w, impersonationToResponse(updated))
 	}
 }
 
-func handleListImpersonationSessions(st store.Driver) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
-		tx, _ := st.Begin(r.Context(), store.TxOptions{ReadOnly: true})
+func handleListImpersonationSessions(st store.Driver) rerr.Handler {
+	return func(w http.ResponseWriter, r *http.Request) error {
+		tx, err := st.Begin(r.Context(), store.TxOptions{ReadOnly: true})
+		if err != nil {
+			return rerr.Wrap(err, "begin tx")
+		}
 		defer func() { _ = tx.Rollback() }()
 		items, err := tx.ListActiveImpersonationSessions(r.Context())
 		if err != nil {
-			writeInternalError(w, r, "list impersonation sessions")
-			return
+			return rerr.Wrap(err, "list impersonation sessions")
 		}
 		out := make([]impersonationResponse, 0, len(items))
 		for _, s := range items {
@@ -485,30 +487,30 @@ func handleListImpersonationSessions(st store.Driver) http.HandlerFunc {
 		// Emitting `{items}` made the SPA's `useImpersonationSession`
 		// read `data.data.sessions → undefined → []`, which kept the
 		// banner permanently hidden even with a live session.
-		writeJSON(w, http.StatusOK, map[string]any{
+		return rerr.JSON(w, map[string]any{
 			"sessions": out,
 		})
 	}
 }
 
-func handleTouchImpersonation(st store.Driver) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
+func handleTouchImpersonation(st store.Driver) rerr.Handler {
+	return func(w http.ResponseWriter, r *http.Request) error {
 		id := r.PathValue("id")
-		tx, _ := st.Begin(r.Context(), store.TxOptions{})
+		tx, err := st.Begin(r.Context(), store.TxOptions{})
+		if err != nil {
+			return rerr.Wrap(err, "begin tx")
+		}
+		defer func() { _ = tx.Rollback() }()
 		if err := tx.TouchImpersonationSession(r.Context(), id); err != nil {
-			_ = tx.Rollback()
 			if errors.Is(err, store.ErrImpersonationSessionNotFound) {
-				writeProblem(w, http.StatusNotFound, errTypeNotFound, "Session not found",
-					"No impersonation session with id "+id, r.URL.Path, nil)
-				return
+				return rerr.NotFound("impersonation session", id)
 			}
-			writeInternalError(w, r, "touch impersonation")
-			return
+			return rerr.Wrap(err, "touch impersonation")
 		}
 		if err := tx.Commit(); err != nil {
-			writeInternalError(w, r, "commit")
-			return
+			return rerr.Wrap(err, "commit")
 		}
 		w.WriteHeader(http.StatusNoContent)
+		return nil
 	}
 }
