@@ -202,7 +202,7 @@ func handleLogsTail(tail *LogTailBuffer) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		flusher, ok := w.(http.Flusher)
 		if !ok {
-			http.Error(w, "streaming not supported", http.StatusInternalServerError)
+			http.Error(w, "streaming not supported", http.StatusInternalServerError) //nolint:forbidigo // SSE fallback path
 			return
 		}
 		w.Header().Set("Content-Type", "text/event-stream")

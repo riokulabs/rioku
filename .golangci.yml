@@ -17,9 +17,13 @@ linters:
         - pattern: "^slog\\.Default$"
           msg: "use logging.From(r.Context()) instead of slog.Default() in gateway handlers"
 
-  # Enforce forbidigo only inside the gateway package; allow elsewhere.
+  # Enforce forbidigo only inside the gateway package (non-test code).
+  # Test files, build-service, plugins, and other daemon packages are exempt.
   exclusions:
     rules:
       - path-except: "packages/daemon/internal/gateway/"
+        linters:
+          - forbidigo
+      - path: "_test\\.go"
         linters:
           - forbidigo

@@ -297,7 +297,7 @@ func handleInvokeAIAgent(st store.Driver) rerr.Handler {
 		flusher, fok := w.(http.Flusher)
 		if !fok {
 			// rerr-skip: non-SSE environment; cannot use rerr after http.Error
-			http.Error(w, "streaming not supported", http.StatusInternalServerError)
+			http.Error(w, "streaming not supported", http.StatusInternalServerError) //nolint:forbidigo // SSE fallback path
 			return nil
 		}
 		w.Header().Set("Content-Type", "text/event-stream")
