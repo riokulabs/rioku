@@ -113,7 +113,7 @@ const config: Config = {
           title: 'Contributor Docs',
           items: [
             {label: 'Getting Started', to: '/docs/getting-started'},
-            {label: 'Design', to: '/docs/design/architecture'},
+            {label: 'Architecture', to: '/docs/architecture/process-topology'},
             {label: 'Development', to: '/docs/development/coding-guidelines'},
           ],
         },
