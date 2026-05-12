@@ -24,7 +24,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
-	"log/slog"
 	"net/http"
 	"net/url"
 	"strings"
@@ -34,6 +33,7 @@ import (
 	"github.com/prometheus/common/model"
 	"github.com/prometheus/prometheus/model/labels"
 	"github.com/prometheus/prometheus/promql/parser"
+	"github.com/riokulabs/rioku/internal/rerr"
 	"github.com/riokulabs/rioku/internal/store"
 )
 
@@ -47,9 +47,9 @@ const tenantLabelName = "tenant_id"
 // RegisterPromQLRoutes registers the PromQL query proxy.
 func RegisterPromQLRoutes(mux *http.ServeMux, st store.Driver) {
 	mux.Handle("POST /api/v1/t/{tenant}/promql/query",
-		RequirePermission("metrics:read")(http.HandlerFunc(handlePromQLQuery(st))))
+		RequirePermission("metrics:read")(rerr.H(handlePromQLQuery(st))))
 	mux.Handle("GET /api/v1/t/{tenant}/promql/query",
-		RequirePermission("metrics:read")(http.HandlerFunc(handlePromQLQuery(st))))
+		RequirePermission("metrics:read")(rerr.H(handlePromQLQuery(st))))
 }
 
 // promqlRequest is the JSON body accepted by our proxy endpoint.
@@ -62,34 +62,26 @@ type promqlRequest struct {
 	Step  string `json:"step,omitempty"`
 }
 
-func handlePromQLQuery(st store.Driver) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
+func handlePromQLQuery(st store.Driver) rerr.Handler {
+	return func(w http.ResponseWriter, r *http.Request) error {
 		tenant, ok := tenantOrError(w, r)
 		if !ok {
-			return
+			return nil
 		}
 
 		// Parse request body.
 		var req promqlRequest
 		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-			writeBadRequest(w, r, "invalid JSON body: "+err.Error())
-			return
+			return rerr.Validation(map[string]string{"body": "invalid JSON body: " + err.Error()})
 		}
 		if strings.TrimSpace(req.Query) == "" {
-			writeBadRequest(w, r, "query is required")
-			return
+			return rerr.Validation(map[string]string{"query": "query is required"})
 		}
 
 		// Validate + inject in a single AST walk.
 		rewritten, err := injectTenantLabel(req.Query, tenant.ID)
 		if err != nil {
-			writeProblem(w, http.StatusBadRequest, errTypeValidation,
-				"PromQL query rejected",
-				err.Error(),
-				r.URL.Path,
-				nil,
-			)
-			return
+			return rerr.Validation(map[string]string{"query": err.Error()})
 		}
 
 		// Look up Prometheus endpoint from tenant observability config.
@@ -107,14 +99,7 @@ func handlePromQLQuery(st store.Driver) http.HandlerFunc {
 		// Forward to Prometheus query API.
 		promResult, status, headers, err := forwardToPrometheus(r.Context(), prometheusURL, rewritten, req)
 		if err != nil {
-			slog.Error("promql proxy: upstream error", "err", err, "tenant", tenant.ID)
-			writeProblem(w, http.StatusBadGateway, errTypeBadGateway,
-				"Prometheus upstream error",
-				fmt.Sprintf("Failed to reach Prometheus: %v", err),
-				r.URL.Path,
-				nil,
-			)
-			return
+			return rerr.BadGateway(err)
 		}
 
 		// Forward useful headers from Prometheus response.
@@ -125,9 +110,11 @@ func handlePromQLQuery(st store.Driver) http.HandlerFunc {
 		}
 
 		// Cache: metrics data is fine to cache briefly.
+		// rerr-skip: Prometheus result is streamed directly; headers already set above
 		w.Header().Set("Cache-Control", "private, max-age=15")
 		w.WriteHeader(status)
 		_, _ = io.Copy(w, promResult)
+		return nil
 	}
 }
 

@@ -25,6 +25,7 @@ import (
 	"time"
 
 	"github.com/riokulabs/rioku/internal/observability"
+	"github.com/riokulabs/rioku/internal/rerr"
 )
 
 type jwksObservabilityResponse struct {
@@ -44,25 +45,24 @@ type jwksObservabilityResponse struct {
 // than seeing a 404.
 func RegisterObservabilityRoutes(mux *http.ServeMux, reg *observability.JWKSRegistry, tail *LogTailBuffer) {
 	mux.Handle("GET /api/v1/observability/jwks",
-		RequirePermission("settings:read")(http.HandlerFunc(handleJWKSObservability(reg))))
+		RequirePermission("settings:read")(rerr.H(handleJWKSObservability(reg))))
 	mux.Handle("GET /api/v1/t/{tenant}/observability/logs/tail",
-		RequirePermission("observability:read")(http.HandlerFunc(handleLogsTail(tail))))
+		RequirePermission("observability:read")(http.HandlerFunc(handleLogsTail(tail)))) // rerr-skip: SSE streaming handler
 }
 
-func handleJWKSObservability(reg *observability.JWKSRegistry) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
+func handleJWKSObservability(reg *observability.JWKSRegistry) rerr.Handler {
+	return func(w http.ResponseWriter, r *http.Request) error {
 		if reg == nil {
-			writeJSON(w, http.StatusOK, jwksObservabilityResponse{
+			return rerr.JSON(w, jwksObservabilityResponse{
 				Available: false,
 				Entries:   []observability.JWKSEntry{},
 			})
-			return
 		}
 		snap := reg.Snapshot()
 		if snap == nil {
 			snap = []observability.JWKSEntry{}
 		}
-		writeJSON(w, http.StatusOK, jwksObservabilityResponse{
+		return rerr.JSON(w, jwksObservabilityResponse{
 			Available: true,
 			Entries:   snap,
 		})

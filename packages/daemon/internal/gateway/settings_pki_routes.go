@@ -17,14 +17,15 @@ import (
 	"strings"
 	"time"
 
+	"github.com/riokulabs/rioku/internal/rerr"
 	"github.com/riokulabs/rioku/internal/store"
 )
 
 func RegisterSettingsPKIRoutes(mux *http.ServeMux, st store.Driver) {
 	mux.Handle("GET /api/v1/t/{tenant}/settings/pki/revocations",
-		RequirePermission("settings:read")(http.HandlerFunc(handleListRevocations(st))))
+		RequirePermission("settings:read")(rerr.H(handleListRevocations(st))))
 	mux.Handle("POST /api/v1/t/{tenant}/settings/pki/revocations",
-		RequirePermission("settings:write")(http.HandlerFunc(handleCreateRevocation(st))))
+		RequirePermission("settings:write")(rerr.H(handleCreateRevocation(st))))
 }
 
 type revocationItem struct {
@@ -39,18 +40,17 @@ type revocationListResponse struct {
 	Items []revocationItem `json:"items"`
 }
 
-func handleListRevocations(st store.Driver) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
+func handleListRevocations(st store.Driver) rerr.Handler {
+	return func(w http.ResponseWriter, r *http.Request) error {
 		tenant, ok := tenantOrError(w, r)
 		if !ok {
-			return
+			return nil
 		}
 		tx, _ := st.Begin(r.Context(), store.TxOptions{ReadOnly: true})
 		defer func() { _ = tx.Rollback() }()
 		rows, err := tx.ListCertEnrollmentsByTenant(r.Context(), tenant.ID)
 		if err != nil {
-			writeInternalError(w, r, "list revocations")
-			return
+			return rerr.Wrap(err, "list revocations")
 		}
 		out := make([]revocationItem, 0)
 		for _, e := range rows {
@@ -69,7 +69,7 @@ func handleListRevocations(st store.Driver) http.HandlerFunc {
 				Reason:    reason,
 			})
 		}
-		writeJSON(w, http.StatusOK, revocationListResponse{Items: out})
+		return rerr.JSON(w, revocationListResponse{Items: out})
 	}
 }
 
@@ -79,26 +79,23 @@ type createRevocationRequest struct {
 	Subject string `json:"subject,omitempty"`
 }
 
-func handleCreateRevocation(st store.Driver) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
+func handleCreateRevocation(st store.Driver) rerr.Handler {
+	return func(w http.ResponseWriter, r *http.Request) error {
 		tenant, ok := tenantOrError(w, r)
 		if !ok {
-			return
+			return nil
 		}
 		var req createRevocationRequest
 		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-			writeBadRequest(w, r, "invalid JSON body")
-			return
+			return rerr.Validation(map[string]string{"body": "invalid JSON body"})
 		}
 		req.Serial = strings.TrimSpace(req.Serial)
 		req.Reason = strings.TrimSpace(req.Reason)
 		if req.Serial == "" {
-			writeBadRequest(w, r, "serial is required")
-			return
+			return rerr.Validation(map[string]string{"serial": "serial is required"})
 		}
 		if req.Reason == "" {
-			writeBadRequest(w, r, "reason is required")
-			return
+			return rerr.Validation(map[string]string{"reason": "reason is required"})
 		}
 
 		tx, _ := st.Begin(r.Context(), store.TxOptions{})
@@ -111,15 +108,12 @@ func handleCreateRevocation(st store.Driver) http.HandlerFunc {
 			updated, revErr := tx.RevokeCertEnrollmentRow(r.Context(), tenant.ID, existing.ID, req.Reason)
 			if revErr != nil {
 				_ = tx.Rollback()
-				writeInternalError(w, r, "revoke enrollment")
-				return
+				return rerr.Wrap(revErr, "revoke enrollment")
 			}
 			if err := tx.Commit(); err != nil {
-				writeInternalError(w, r, "commit")
-				return
+				return rerr.Wrap(err, "commit")
 			}
-			writeJSON(w, http.StatusOK, revocationToItem(updated))
-			return
+			return rerr.JSON(w, revocationToItem(updated))
 		}
 		// Serial unknown → create a synthetic enrollment row so the
 		// revocation surfaces in the list endpoint.
@@ -142,14 +136,13 @@ func handleCreateRevocation(st store.Driver) http.HandlerFunc {
 		created, err := tx.CreateCertEnrollment(r.Context(), row)
 		if err != nil {
 			_ = tx.Rollback()
-			writeInternalError(w, r, "create revocation")
-			return
+			return rerr.Wrap(err, "create revocation")
 		}
 		if err := tx.Commit(); err != nil {
-			writeInternalError(w, r, "commit")
-			return
+			return rerr.Wrap(err, "commit")
 		}
-		writeJSON(w, http.StatusCreated, revocationToItem(created))
+		w.WriteHeader(http.StatusCreated)
+		return rerr.JSON(w, revocationToItem(created))
 	}
 }
 
