@@ -31,73 +31,74 @@ import (
 
 	"github.com/riokulabs/rioku/internal/auth"
 	"github.com/riokulabs/rioku/internal/gateway/optionsutil"
+	"github.com/riokulabs/rioku/internal/rerr"
 	"github.com/riokulabs/rioku/internal/store"
 )
 
 func RegisterDashboardRoutes(mux *http.ServeMux, st store.Driver) {
 	// Dashboards
 	mux.Handle("GET /api/v1/t/{tenant}/dashboards",
-		RequirePermission("dashboard:read")(http.HandlerFunc(handleListDashboards(st))))
+		RequirePermission("dashboard:read")(rerr.H(handleListDashboards(st))))
 	mux.Handle("POST /api/v1/t/{tenant}/dashboards",
-		RequirePermission("dashboard:write")(http.HandlerFunc(handleCreateDashboard(st))))
+		RequirePermission("dashboard:write")(rerr.H(handleCreateDashboard(st))))
 	mux.Handle("GET /api/v1/t/{tenant}/dashboards/{id}",
-		RequirePermission("dashboard:read")(http.HandlerFunc(handleGetDashboard(st))))
+		RequirePermission("dashboard:read")(rerr.H(handleGetDashboard(st))))
 	mux.Handle("PUT /api/v1/t/{tenant}/dashboards/{id}",
-		RequirePermission("dashboard:write")(http.HandlerFunc(handleUpdateDashboard(st))))
+		RequirePermission("dashboard:write")(rerr.H(handleUpdateDashboard(st))))
 	mux.Handle("DELETE /api/v1/t/{tenant}/dashboards/{id}",
-		RequirePermission("dashboard:delete")(http.HandlerFunc(handleDeleteDashboard(st))))
+		RequirePermission("dashboard:delete")(rerr.H(handleDeleteDashboard(st))))
 	mux.Handle("POST /api/v1/t/{tenant}/dashboards/{id}/set-default",
-		RequirePermission("dashboard:set-default")(http.HandlerFunc(handleSetDefaultDashboard(st))))
+		RequirePermission("dashboard:set-default")(rerr.H(handleSetDefaultDashboard(st))))
 	mux.Handle("POST /api/v1/t/{tenant}/dashboards/{id}/set-home",
-		RequirePermission("dashboard:write")(http.HandlerFunc(handleSetDashboardHome(st))))
+		RequirePermission("dashboard:write")(rerr.H(handleSetDashboardHome(st))))
 
 	// Widgets
 	mux.Handle("GET /api/v1/t/{tenant}/dashboards/{id}/widgets",
-		RequirePermission("dashboard:read")(http.HandlerFunc(handleListWidgets(st))))
+		RequirePermission("dashboard:read")(rerr.H(handleListWidgets(st))))
 	mux.Handle("POST /api/v1/t/{tenant}/dashboards/{id}/widgets",
-		RequirePermission("dashboard:write")(http.HandlerFunc(handleAddWidget(st))))
+		RequirePermission("dashboard:write")(rerr.H(handleAddWidget(st))))
 	mux.Handle("PUT /api/v1/t/{tenant}/widgets/{id}",
-		RequirePermission("dashboard:write")(http.HandlerFunc(handleUpdateWidget(st))))
+		RequirePermission("dashboard:write")(rerr.H(handleUpdateWidget(st))))
 	mux.Handle("DELETE /api/v1/t/{tenant}/dashboards/{id}/widgets/{wid}",
-		RequirePermission("dashboard:write")(http.HandlerFunc(handleDeleteWidget(st))))
+		RequirePermission("dashboard:write")(rerr.H(handleDeleteWidget(st))))
 	mux.Handle("PUT /api/v1/t/{tenant}/dashboards/{id}/layout",
-		RequirePermission("dashboard:write")(http.HandlerFunc(handleUpdateLayout(st))))
+		RequirePermission("dashboard:write")(rerr.H(handleUpdateLayout(st))))
 	mux.Handle("POST /api/v1/t/{tenant}/widgets/{id}/flip-advanced",
-		RequirePermission("dashboard:write")(http.HandlerFunc(handleFlipWidget(st, true))))
+		RequirePermission("dashboard:write")(rerr.H(handleFlipWidget(st, true))))
 	mux.Handle("POST /api/v1/t/{tenant}/widgets/{id}/flip-wizard",
-		RequirePermission("dashboard:write")(http.HandlerFunc(handleFlipWidget(st, false))))
+		RequirePermission("dashboard:write")(rerr.H(handleFlipWidget(st, false))))
 
 	// Versions
 	mux.Handle("GET /api/v1/t/{tenant}/dashboards/{id}/versions",
-		RequirePermission("dashboard:read")(http.HandlerFunc(handleListVersions(st))))
+		RequirePermission("dashboard:read")(rerr.H(handleListVersions(st))))
 	mux.Handle("POST /api/v1/t/{tenant}/dashboards/{id}/snapshot",
-		RequirePermission("dashboard:write")(http.HandlerFunc(handleSnapshotDashboard(st))))
+		RequirePermission("dashboard:write")(rerr.H(handleSnapshotDashboard(st))))
 	mux.Handle("POST /api/v1/t/{tenant}/dashboards/versions/{vid}/restore",
-		RequirePermission("dashboard:write")(http.HandlerFunc(handleRestoreDashboardVersion(st))))
+		RequirePermission("dashboard:write")(rerr.H(handleRestoreDashboardVersion(st))))
 
 	// Import/export
 	mux.Handle("GET /api/v1/t/{tenant}/dashboards/{id}/export",
-		RequirePermission("dashboard:read")(http.HandlerFunc(handleExportDashboard(st))))
+		RequirePermission("dashboard:read")(rerr.H(handleExportDashboard(st))))
 	mux.Handle("POST /api/v1/t/{tenant}/dashboards/import",
-		RequirePermission("dashboard:write")(http.HandlerFunc(handleImportDashboard(st))))
+		RequirePermission("dashboard:write")(rerr.H(handleImportDashboard(st))))
 
 	// PATCH aliases for the existing PUT handlers — semantics
 	// identical at this layer (the PUT handler already accepts
 	// pointer-field partial bodies); both verbs map to the same
 	// closure so the OpenAPI advertises the canonical pair.
 	mux.Handle("PATCH /api/v1/t/{tenant}/dashboards/{id}",
-		RequirePermission("dashboard:write")(http.HandlerFunc(handleUpdateDashboard(st))))
+		RequirePermission("dashboard:write")(rerr.H(handleUpdateDashboard(st))))
 	mux.Handle("PATCH /api/v1/t/{tenant}/widgets/{id}",
-		RequirePermission("dashboard:write")(http.HandlerFunc(handleUpdateWidget(st))))
+		RequirePermission("dashboard:write")(rerr.H(handleUpdateWidget(st))))
 
 	// Sharing — POST creates a role grant; GET lists all grants for
 	// the dashboard; DELETE revokes one grant by share id.
 	mux.Handle("POST /api/v1/t/{tenant}/dashboards/{id}/share",
-		RequirePermission("dashboard:write")(http.HandlerFunc(handleShareDashboard(st))))
+		RequirePermission("dashboard:write")(rerr.H(handleShareDashboard(st))))
 	mux.Handle("GET /api/v1/t/{tenant}/dashboards/{id}/shares",
-		RequirePermission("dashboard:read")(http.HandlerFunc(handleListDashboardShares(st))))
+		RequirePermission("dashboard:read")(rerr.H(handleListDashboardShares(st))))
 	mux.Handle("DELETE /api/v1/t/{tenant}/dashboards/{id}/shares/{shareId}",
-		RequirePermission("dashboard:write")(http.HandlerFunc(handleDeleteDashboardShare(st))))
+		RequirePermission("dashboard:write")(rerr.H(handleDeleteDashboardShare(st))))
 
 	// OPTIONS coverage on the canonical dashboards/widgets paths.
 	// The dashboards/versions/{vid}/restore POST endpoint occupies a
@@ -120,11 +121,11 @@ func RegisterDashboardRoutes(mux *http.ServeMux, st store.Driver) {
 //
 // Body: { "roleId": "role_xyz", "expiresAt": "2026-12-31T00:00:00Z" }
 // (expiresAt optional). Returns the created share with `_links`.
-func handleShareDashboard(st store.Driver) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
+func handleShareDashboard(st store.Driver) rerr.Handler {
+	return func(w http.ResponseWriter, r *http.Request) error {
 		tenant, ok := tenantOrError(w, r)
 		if !ok {
-			return
+			return nil
 		}
 		dashboardID := r.PathValue("id")
 		var req struct {
@@ -132,12 +133,10 @@ func handleShareDashboard(st store.Driver) http.HandlerFunc {
 			ExpiresAt *string `json:"expiresAt,omitempty"`
 		}
 		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-			writeBadRequest(w, r, "invalid JSON body")
-			return
+			return rerr.Validation(map[string]string{"body": "invalid JSON body"})
 		}
 		if req.RoleID == "" {
-			writeBadRequest(w, r, "roleId is required")
-			return
+			return rerr.Validation(map[string]string{"roleId": "roleId is required"})
 		}
 
 		share := &store.DashboardShare{
@@ -151,88 +150,76 @@ func handleShareDashboard(st store.Driver) http.HandlerFunc {
 		if req.ExpiresAt != nil && *req.ExpiresAt != "" {
 			t, err := time.Parse(time.RFC3339, *req.ExpiresAt)
 			if err != nil {
-				writeBadRequest(w, r, "expiresAt must be RFC3339")
-				return
+				return rerr.Validation(map[string]string{"expiresAt": "expiresAt must be RFC3339"})
 			}
 			share.ExpiresAt = &t
 		}
 
 		tx, err := st.Begin(r.Context(), store.TxOptions{})
 		if err != nil {
-			writeInternalError(w, r, "begin tx")
-			return
+			return rerr.Wrap(err, "begin tx")
 		}
+		defer func() { _ = tx.Rollback() }()
 		// Confirm the dashboard belongs to this tenant before creating the share.
 		if _, err := tx.GetDashboard(r.Context(), tenant.ID, dashboardID); err != nil {
-			_ = tx.Rollback()
-			writeProblem(w, http.StatusNotFound, errTypeNotFound,
-				"Dashboard not found", "No dashboard with id "+dashboardID, r.URL.Path, nil)
-			return
+			return rerr.NotFound("dashboard", dashboardID)
 		}
 		created, err := tx.CreateDashboardShare(r.Context(), share)
 		if err != nil {
-			_ = tx.Rollback()
-			writeProblem(w, http.StatusUnprocessableEntity, errTypeUnprocess,
-				"Share failed", err.Error(), r.URL.Path, nil)
-			return
+			return rerr.Wrap(err, "create share")
 		}
 		if err := tx.Commit(); err != nil {
-			writeInternalError(w, r, "commit")
-			return
+			return rerr.Wrap(err, "commit")
 		}
-		writeJSON(w, http.StatusCreated, dashboardShareToResponse(created, tenant.Slug))
+		w.WriteHeader(http.StatusCreated)
+		return rerr.JSON(w, dashboardShareToResponse(created, tenant.Slug))
 	}
 }
 
-func handleListDashboardShares(st store.Driver) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
+func handleListDashboardShares(st store.Driver) rerr.Handler {
+	return func(w http.ResponseWriter, r *http.Request) error {
 		tenant, ok := tenantOrError(w, r)
 		if !ok {
-			return
+			return nil
 		}
 		dashboardID := r.PathValue("id")
 		tx, err := st.Begin(r.Context(), store.TxOptions{ReadOnly: true})
 		if err != nil {
-			writeInternalError(w, r, "begin tx")
-			return
+			return rerr.Wrap(err, "begin tx")
 		}
 		defer func() { _ = tx.Rollback() }()
 		shares, err := tx.ListDashboardShares(r.Context(), dashboardID)
 		if err != nil {
-			writeInternalError(w, r, "list shares")
-			return
+			return rerr.Wrap(err, "list shares")
 		}
 		out := make([]map[string]any, 0, len(shares))
 		for _, s := range shares {
 			out = append(out, dashboardShareToResponse(s, tenant.Slug))
 		}
-		writeJSON(w, http.StatusOK, map[string]any{
+		return rerr.JSON(w, map[string]any{
 			"items": out,
 			"total": len(out),
 		})
 	}
 }
 
-func handleDeleteDashboardShare(st store.Driver) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
+func handleDeleteDashboardShare(st store.Driver) rerr.Handler {
+	return func(w http.ResponseWriter, r *http.Request) error {
 		_ = TenantFromContext(r.Context())
 		shareID := r.PathValue("shareId")
 		tx, err := st.Begin(r.Context(), store.TxOptions{})
 		if err != nil {
-			writeInternalError(w, r, "begin tx")
-			return
+			return rerr.Wrap(err, "begin tx")
 		}
+		defer func() { _ = tx.Rollback() }()
 		if err := tx.DeleteDashboardShare(r.Context(), shareID); err != nil {
-			_ = tx.Rollback()
-			writeProblem(w, http.StatusNotFound, errTypeNotFound,
-				"Share not found", "No share with id "+shareID, r.URL.Path, nil)
-			return
+			return rerr.NotFound("dashboard share", shareID)
 		}
 		if err := tx.Commit(); err != nil {
-			writeInternalError(w, r, "commit")
-			return
+			return rerr.Wrap(err, "commit")
 		}
 		w.WriteHeader(http.StatusNoContent)
+		return nil
 	}
 }
 
@@ -373,48 +360,52 @@ type updateDashboardRequest struct {
 	Variables     *json.RawMessage `json:"variables,omitempty"`
 }
 
-func handleListDashboards(st store.Driver) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
+func handleListDashboards(st store.Driver) rerr.Handler {
+	return func(w http.ResponseWriter, r *http.Request) error {
 		tenant, ok := tenantOrError(w, r)
 		if !ok {
-			return
+			return nil
 		}
-		tx, _ := st.Begin(r.Context(), store.TxOptions{ReadOnly: true})
+		tx, err := st.Begin(r.Context(), store.TxOptions{ReadOnly: true})
+		if err != nil {
+			return rerr.Wrap(err, "begin tx")
+		}
 		defer func() { _ = tx.Rollback() }()
 		dashboards, err := tx.ListDashboardsByTenant(r.Context(), tenant.ID)
 		if err != nil {
-			writeInternalError(w, r, "list dashboards")
-			return
+			return rerr.Wrap(err, "list dashboards")
 		}
 		out := make([]dashboardResponse, 0, len(dashboards))
 		for _, d := range dashboards {
 			out = append(out, dashboardToResponse(d))
 		}
-		writeJSON(w, http.StatusOK, map[string]any{"items": out, "total": len(out)})
+		return rerr.JSON(w, map[string]any{"items": out, "total": len(out)})
 	}
 }
 
-func handleCreateDashboard(st store.Driver) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
+func handleCreateDashboard(st store.Driver) rerr.Handler {
+	return func(w http.ResponseWriter, r *http.Request) error {
 		tenant, ok := tenantOrError(w, r)
 		if !ok {
-			return
+			return nil
 		}
 		var req createDashboardRequest
 		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-			writeBadRequest(w, r, "invalid JSON body")
-			return
+			return rerr.Validation(map[string]string{"body": "invalid JSON body"})
 		}
 		if req.Name == "" {
-			writeBadRequest(w, r, "name is required")
-			return
+			return rerr.Validation(map[string]string{"name": "name is required"})
 		}
 		var ownerID *string
 		if sc := auth.SessionClaimsFromContext(r.Context()); sc != nil && sc.UserID != "" {
 			id := sc.UserID
 			ownerID = &id
 		}
-		tx, _ := st.Begin(r.Context(), store.TxOptions{})
+		tx, err := st.Begin(r.Context(), store.TxOptions{})
+		if err != nil {
+			return rerr.Wrap(err, "begin tx")
+		}
+		defer func() { _ = tx.Rollback() }()
 		created, err := tx.CreateDashboard(r.Context(), &store.Dashboard{
 			TenantID:      tenant.ID,
 			Name:          req.Name,
@@ -426,52 +417,49 @@ func handleCreateDashboard(st store.Driver) http.HandlerFunc {
 			Variables:     string(req.Variables),
 		})
 		if err != nil {
-			_ = tx.Rollback()
-			writeInternalError(w, r, "create dashboard")
-			return
+			return rerr.Wrap(err, "create dashboard")
 		}
 		if err := tx.Commit(); err != nil {
-			writeInternalError(w, r, "commit")
-			return
+			return rerr.Wrap(err, "commit")
 		}
-		writeJSON(w, http.StatusCreated, dashboardToResponse(created))
+		w.WriteHeader(http.StatusCreated)
+		return rerr.JSON(w, dashboardToResponse(created))
 	}
 }
 
-func handleGetDashboard(st store.Driver) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
+func handleGetDashboard(st store.Driver) rerr.Handler {
+	return func(w http.ResponseWriter, r *http.Request) error {
 		tenant, ok := tenantOrError(w, r)
 		if !ok {
-			return
+			return nil
 		}
 		id := r.PathValue("id")
-		tx, _ := st.Begin(r.Context(), store.TxOptions{ReadOnly: true})
+		tx, err := st.Begin(r.Context(), store.TxOptions{ReadOnly: true})
+		if err != nil {
+			return rerr.Wrap(err, "begin tx")
+		}
 		defer func() { _ = tx.Rollback() }()
 		d, err := tx.GetDashboard(r.Context(), tenant.ID, id)
 		if err != nil {
 			if errors.Is(err, store.ErrDashboardNotFound) {
-				writeProblem(w, http.StatusNotFound, errTypeNotFound,
-					"Dashboard not found", "No dashboard with id "+id, r.URL.Path, nil)
-				return
+				return rerr.NotFound("dashboard", id)
 			}
-			writeInternalError(w, r, "get dashboard")
-			return
+			return rerr.Wrap(err, "get dashboard")
 		}
-		writeJSON(w, http.StatusOK, dashboardToResponse(d))
+		return rerr.JSON(w, dashboardToResponse(d))
 	}
 }
 
-func handleUpdateDashboard(st store.Driver) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
+func handleUpdateDashboard(st store.Driver) rerr.Handler {
+	return func(w http.ResponseWriter, r *http.Request) error {
 		tenant, ok := tenantOrError(w, r)
 		if !ok {
-			return
+			return nil
 		}
 		id := r.PathValue("id")
 		var req updateDashboardRequest
 		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-			writeBadRequest(w, r, "invalid JSON body")
-			return
+			return rerr.Validation(map[string]string{"body": "invalid JSON body"})
 		}
 		params := store.UpdateDashboardParams{
 			Name:        req.Name,
@@ -487,109 +475,104 @@ func handleUpdateDashboard(st store.Driver) http.HandlerFunc {
 			s := string(*req.Variables)
 			params.Variables = &s
 		}
-		tx, _ := st.Begin(r.Context(), store.TxOptions{})
+		tx, err := st.Begin(r.Context(), store.TxOptions{})
+		if err != nil {
+			return rerr.Wrap(err, "begin tx")
+		}
+		defer func() { _ = tx.Rollback() }()
 		updated, err := tx.UpdateDashboard(r.Context(), tenant.ID, id, params)
 		if err != nil {
-			_ = tx.Rollback()
 			if errors.Is(err, store.ErrDashboardNotFound) {
-				writeProblem(w, http.StatusNotFound, errTypeNotFound,
-					"Dashboard not found", "No dashboard with id "+id, r.URL.Path, nil)
-				return
+				return rerr.NotFound("dashboard", id)
 			}
-			writeInternalError(w, r, "update dashboard")
-			return
+			return rerr.Wrap(err, "update dashboard")
 		}
 		if err := tx.Commit(); err != nil {
-			writeInternalError(w, r, "commit")
-			return
+			return rerr.Wrap(err, "commit")
 		}
-		writeJSON(w, http.StatusOK, dashboardToResponse(updated))
+		return rerr.JSON(w, dashboardToResponse(updated))
 	}
 }
 
-func handleDeleteDashboard(st store.Driver) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
+func handleDeleteDashboard(st store.Driver) rerr.Handler {
+	return func(w http.ResponseWriter, r *http.Request) error {
 		tenant, ok := tenantOrError(w, r)
 		if !ok {
-			return
+			return nil
 		}
 		id := r.PathValue("id")
-		tx, _ := st.Begin(r.Context(), store.TxOptions{})
+		tx, err := st.Begin(r.Context(), store.TxOptions{})
+		if err != nil {
+			return rerr.Wrap(err, "begin tx")
+		}
+		defer func() { _ = tx.Rollback() }()
 		if err := tx.DeleteDashboard(r.Context(), tenant.ID, id); err != nil {
-			_ = tx.Rollback()
 			if errors.Is(err, store.ErrDashboardNotFound) {
-				writeProblem(w, http.StatusNotFound, errTypeNotFound,
-					"Dashboard not found", "No dashboard with id "+id, r.URL.Path, nil)
-				return
+				return rerr.NotFound("dashboard", id)
 			}
-			writeInternalError(w, r, "delete dashboard")
-			return
+			return rerr.Wrap(err, "delete dashboard")
 		}
 		if err := tx.Commit(); err != nil {
-			writeInternalError(w, r, "commit")
-			return
+			return rerr.Wrap(err, "commit")
 		}
 		w.WriteHeader(http.StatusNoContent)
+		return nil
 	}
 }
 
-func handleSetDefaultDashboard(st store.Driver) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
+func handleSetDefaultDashboard(st store.Driver) rerr.Handler {
+	return func(w http.ResponseWriter, r *http.Request) error {
 		tenant, ok := tenantOrError(w, r)
 		if !ok {
-			return
+			return nil
 		}
 		id := r.PathValue("id")
-		tx, _ := st.Begin(r.Context(), store.TxOptions{})
+		tx, err := st.Begin(r.Context(), store.TxOptions{})
+		if err != nil {
+			return rerr.Wrap(err, "begin tx")
+		}
+		defer func() { _ = tx.Rollback() }()
 		updated, err := tx.SetDefaultDashboard(r.Context(), tenant.ID, id)
 		if err != nil {
-			_ = tx.Rollback()
 			if errors.Is(err, store.ErrDashboardNotFound) {
-				writeProblem(w, http.StatusNotFound, errTypeNotFound,
-					"Dashboard not found", "No dashboard with id "+id, r.URL.Path, nil)
-				return
+				return rerr.NotFound("dashboard", id)
 			}
-			writeInternalError(w, r, "set default")
-			return
+			return rerr.Wrap(err, "set default")
 		}
 		if err := tx.Commit(); err != nil {
-			writeInternalError(w, r, "commit")
-			return
+			return rerr.Wrap(err, "commit")
 		}
-		writeJSON(w, http.StatusOK, dashboardToResponse(updated))
+		return rerr.JSON(w, dashboardToResponse(updated))
 	}
 }
 
-func handleSetDashboardHome(st store.Driver) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
+func handleSetDashboardHome(st store.Driver) rerr.Handler {
+	return func(w http.ResponseWriter, r *http.Request) error {
 		tenant, ok := tenantOrError(w, r)
 		if !ok {
-			return
+			return nil
 		}
 		id := r.PathValue("id")
 		sc := auth.SessionClaimsFromContext(r.Context())
 		if sc == nil || sc.UserID == "" {
-			writeProblem(w, http.StatusUnauthorized, errTypeUnauth,
-				"Authentication required", "Session required to set home dashboard", r.URL.Path, nil)
-			return
+			return rerr.Unauthenticated()
 		}
-		tx, _ := st.Begin(r.Context(), store.TxOptions{})
+		tx, err := st.Begin(r.Context(), store.TxOptions{})
+		if err != nil {
+			return rerr.Wrap(err, "begin tx")
+		}
+		defer func() { _ = tx.Rollback() }()
 		updated, err := tx.SetDashboardHomeForUser(r.Context(), tenant.ID, id, sc.UserID)
 		if err != nil {
-			_ = tx.Rollback()
 			if errors.Is(err, store.ErrDashboardNotFound) {
-				writeProblem(w, http.StatusNotFound, errTypeNotFound,
-					"Dashboard not found", "No dashboard with id "+id, r.URL.Path, nil)
-				return
+				return rerr.NotFound("dashboard", id)
 			}
-			writeInternalError(w, r, "set home")
-			return
+			return rerr.Wrap(err, "set home")
 		}
 		if err := tx.Commit(); err != nil {
-			writeInternalError(w, r, "commit")
-			return
+			return rerr.Wrap(err, "commit")
 		}
-		writeJSON(w, http.StatusOK, dashboardToResponse(updated))
+		return rerr.JSON(w, dashboardToResponse(updated))
 	}
 }
 
@@ -617,81 +600,85 @@ type updateLayoutRequest struct {
 	Layouts map[string]json.RawMessage `json:"layouts"`
 }
 
-// ensureDashboardOwnership returns the dashboard if it's in the
-// caller's tenant, else writes a 404 and returns nil.
-func ensureDashboardOwnership(w http.ResponseWriter, r *http.Request, tx store.Tx, tenantID, dashboardID string) *store.Dashboard {
+// checkDashboardOwnership returns an error if the dashboard is not in the
+// caller's tenant.
+func checkDashboardOwnership(r *http.Request, tx store.Tx, tenantID, dashboardID string) (*store.Dashboard, error) {
 	d, err := tx.GetDashboard(r.Context(), tenantID, dashboardID)
 	if err != nil {
-		writeProblem(w, http.StatusNotFound, errTypeNotFound,
-			"Dashboard not found", "No dashboard with id "+dashboardID, r.URL.Path, nil)
-		return nil
+		return nil, rerr.NotFound("dashboard", dashboardID)
 	}
-	return d
+	return d, nil
 }
 
-// ensureWidgetOwnership returns the widget if it belongs to a
-// dashboard in the caller's tenant, else writes 404 and returns nil.
-func ensureWidgetOwnership(w http.ResponseWriter, r *http.Request, tx store.Tx, tenantID, widgetID string) *store.Widget {
+// checkWidgetOwnership returns an error if the widget does not belong to a
+// dashboard in the caller's tenant.
+func checkWidgetOwnership(r *http.Request, tx store.Tx, tenantID, widgetID string) (*store.Widget, error) {
 	widget, err := tx.GetWidget(r.Context(), widgetID)
 	if err != nil {
-		writeProblem(w, http.StatusNotFound, errTypeNotFound,
-			"Widget not found", "No widget with id "+widgetID, r.URL.Path, nil)
-		return nil
+		return nil, rerr.NotFound("widget", widgetID)
 	}
 	// Verify the parent dashboard is in this tenant.
 	if _, err := tx.GetDashboard(r.Context(), tenantID, widget.DashboardID); err != nil {
-		writeProblem(w, http.StatusNotFound, errTypeNotFound,
-			"Widget not found", "No widget with id "+widgetID, r.URL.Path, nil)
-		return nil
+		return nil, rerr.NotFound("widget", widgetID)
 	}
-	return widget
+	return widget, nil
 }
 
-func handleListWidgets(st store.Driver) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
+func handleListWidgets(st store.Driver) rerr.Handler {
+	return func(w http.ResponseWriter, r *http.Request) error {
 		tenant, ok := tenantOrError(w, r)
 		if !ok {
-			return
+			return nil
 		}
 		dashboardID := r.PathValue("id")
-		tx, _ := st.Begin(r.Context(), store.TxOptions{ReadOnly: true})
+		tx, err := st.Begin(r.Context(), store.TxOptions{ReadOnly: true})
+		if err != nil {
+			return rerr.Wrap(err, "begin tx")
+		}
 		defer func() { _ = tx.Rollback() }()
-		if d := ensureDashboardOwnership(w, r, tx, tenant.ID, dashboardID); d == nil {
-			return
+		if _, err := checkDashboardOwnership(r, tx, tenant.ID, dashboardID); err != nil {
+			return err
 		}
 		widgets, err := tx.ListWidgetsByDashboard(r.Context(), dashboardID)
 		if err != nil {
-			writeInternalError(w, r, "list widgets")
-			return
+			return rerr.Wrap(err, "list widgets")
 		}
 		out := make([]widgetResponse, 0, len(widgets))
 		for _, wg := range widgets {
 			out = append(out, widgetToResponse(wg))
 		}
-		writeJSON(w, http.StatusOK, map[string]any{"items": out, "total": len(out)})
+		return rerr.JSON(w, map[string]any{"items": out, "total": len(out)})
 	}
 }
 
-func handleAddWidget(st store.Driver) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
+func handleAddWidget(st store.Driver) rerr.Handler {
+	return func(w http.ResponseWriter, r *http.Request) error {
 		tenant, ok := tenantOrError(w, r)
 		if !ok {
-			return
+			return nil
 		}
 		dashboardID := r.PathValue("id")
 		var req addWidgetRequest
 		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-			writeBadRequest(w, r, "invalid JSON body")
-			return
+			return rerr.Validation(map[string]string{"body": "invalid JSON body"})
 		}
-		if req.Kind == "" || req.Title == "" {
-			writeBadRequest(w, r, "kind and title are required")
-			return
+		fields := map[string]string{}
+		if req.Kind == "" {
+			fields["kind"] = "kind is required"
 		}
-		tx, _ := st.Begin(r.Context(), store.TxOptions{})
-		if d := ensureDashboardOwnership(w, r, tx, tenant.ID, dashboardID); d == nil {
-			_ = tx.Rollback()
-			return
+		if req.Title == "" {
+			fields["title"] = "title is required"
+		}
+		if len(fields) > 0 {
+			return rerr.Validation(fields)
+		}
+		tx, err := st.Begin(r.Context(), store.TxOptions{})
+		if err != nil {
+			return rerr.Wrap(err, "begin tx")
+		}
+		defer func() { _ = tx.Rollback() }()
+		if _, err := checkDashboardOwnership(r, tx, tenant.ID, dashboardID); err != nil {
+			return err
 		}
 		created, err := tx.CreateWidget(r.Context(), &store.Widget{
 			DashboardID: dashboardID,
@@ -702,29 +689,26 @@ func handleAddWidget(st store.Driver) http.HandlerFunc {
 			Layout:      string(req.Layout),
 		})
 		if err != nil {
-			_ = tx.Rollback()
-			writeInternalError(w, r, "create widget")
-			return
+			return rerr.Wrap(err, "create widget")
 		}
 		if err := tx.Commit(); err != nil {
-			writeInternalError(w, r, "commit")
-			return
+			return rerr.Wrap(err, "commit")
 		}
-		writeJSON(w, http.StatusCreated, widgetToResponse(created))
+		w.WriteHeader(http.StatusCreated)
+		return rerr.JSON(w, widgetToResponse(created))
 	}
 }
 
-func handleUpdateWidget(st store.Driver) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
+func handleUpdateWidget(st store.Driver) rerr.Handler {
+	return func(w http.ResponseWriter, r *http.Request) error {
 		tenant, ok := tenantOrError(w, r)
 		if !ok {
-			return
+			return nil
 		}
 		id := r.PathValue("id")
 		var req updateWidgetRequest
 		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-			writeBadRequest(w, r, "invalid JSON body")
-			return
+			return rerr.Validation(map[string]string{"body": "invalid JSON body"})
 		}
 		params := store.UpdateWidgetParams{
 			Kind:           req.Kind,
@@ -741,113 +725,112 @@ func handleUpdateWidget(st store.Driver) http.HandlerFunc {
 			s := string(*req.Layout)
 			params.Layout = &s
 		}
-		tx, _ := st.Begin(r.Context(), store.TxOptions{})
-		if widget := ensureWidgetOwnership(w, r, tx, tenant.ID, id); widget == nil {
-			_ = tx.Rollback()
-			return
+		tx, err := st.Begin(r.Context(), store.TxOptions{})
+		if err != nil {
+			return rerr.Wrap(err, "begin tx")
+		}
+		defer func() { _ = tx.Rollback() }()
+		if _, err := checkWidgetOwnership(r, tx, tenant.ID, id); err != nil {
+			return err
 		}
 		updated, err := tx.UpdateWidget(r.Context(), id, params)
 		if err != nil {
-			_ = tx.Rollback()
-			writeInternalError(w, r, "update widget")
-			return
+			return rerr.Wrap(err, "update widget")
 		}
 		if err := tx.Commit(); err != nil {
-			writeInternalError(w, r, "commit")
-			return
+			return rerr.Wrap(err, "commit")
 		}
-		writeJSON(w, http.StatusOK, widgetToResponse(updated))
+		return rerr.JSON(w, widgetToResponse(updated))
 	}
 }
 
-func handleDeleteWidget(st store.Driver) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
+func handleDeleteWidget(st store.Driver) rerr.Handler {
+	return func(w http.ResponseWriter, r *http.Request) error {
 		tenant, ok := tenantOrError(w, r)
 		if !ok {
-			return
+			return nil
 		}
 		dashboardID := r.PathValue("id")
 		widgetID := r.PathValue("wid")
-		tx, _ := st.Begin(r.Context(), store.TxOptions{})
-		if d := ensureDashboardOwnership(w, r, tx, tenant.ID, dashboardID); d == nil {
-			_ = tx.Rollback()
-			return
+		tx, err := st.Begin(r.Context(), store.TxOptions{})
+		if err != nil {
+			return rerr.Wrap(err, "begin tx")
+		}
+		defer func() { _ = tx.Rollback() }()
+		if _, err := checkDashboardOwnership(r, tx, tenant.ID, dashboardID); err != nil {
+			return err
 		}
 		if err := tx.DeleteWidget(r.Context(), dashboardID, widgetID); err != nil {
-			_ = tx.Rollback()
 			if errors.Is(err, store.ErrWidgetNotFound) {
-				writeProblem(w, http.StatusNotFound, errTypeNotFound,
-					"Widget not found", "No widget with id "+widgetID, r.URL.Path, nil)
-				return
+				return rerr.NotFound("widget", widgetID)
 			}
-			writeInternalError(w, r, "delete widget")
-			return
+			return rerr.Wrap(err, "delete widget")
 		}
 		if err := tx.Commit(); err != nil {
-			writeInternalError(w, r, "commit")
-			return
+			return rerr.Wrap(err, "commit")
 		}
 		w.WriteHeader(http.StatusNoContent)
+		return nil
 	}
 }
 
-func handleUpdateLayout(st store.Driver) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
+func handleUpdateLayout(st store.Driver) rerr.Handler {
+	return func(w http.ResponseWriter, r *http.Request) error {
 		tenant, ok := tenantOrError(w, r)
 		if !ok {
-			return
+			return nil
 		}
 		dashboardID := r.PathValue("id")
 		var req updateLayoutRequest
 		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-			writeBadRequest(w, r, "invalid JSON body")
-			return
+			return rerr.Validation(map[string]string{"body": "invalid JSON body"})
 		}
 		layouts := make(map[string]string, len(req.Layouts))
 		for k, v := range req.Layouts {
 			layouts[k] = string(v)
 		}
-		tx, _ := st.Begin(r.Context(), store.TxOptions{})
-		if d := ensureDashboardOwnership(w, r, tx, tenant.ID, dashboardID); d == nil {
-			_ = tx.Rollback()
-			return
+		tx, err := st.Begin(r.Context(), store.TxOptions{})
+		if err != nil {
+			return rerr.Wrap(err, "begin tx")
+		}
+		defer func() { _ = tx.Rollback() }()
+		if _, err := checkDashboardOwnership(r, tx, tenant.ID, dashboardID); err != nil {
+			return err
 		}
 		if err := tx.UpdateDashboardLayout(r.Context(), dashboardID, layouts); err != nil {
-			_ = tx.Rollback()
-			writeInternalError(w, r, "update layout")
-			return
+			return rerr.Wrap(err, "update layout")
 		}
 		if err := tx.Commit(); err != nil {
-			writeInternalError(w, r, "commit")
-			return
+			return rerr.Wrap(err, "commit")
 		}
 		w.WriteHeader(http.StatusNoContent)
+		return nil
 	}
 }
 
-func handleFlipWidget(st store.Driver, locked bool) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
+func handleFlipWidget(st store.Driver, locked bool) rerr.Handler {
+	return func(w http.ResponseWriter, r *http.Request) error {
 		tenant, ok := tenantOrError(w, r)
 		if !ok {
-			return
+			return nil
 		}
 		id := r.PathValue("id")
-		tx, _ := st.Begin(r.Context(), store.TxOptions{})
-		if widget := ensureWidgetOwnership(w, r, tx, tenant.ID, id); widget == nil {
-			_ = tx.Rollback()
-			return
+		tx, err := st.Begin(r.Context(), store.TxOptions{})
+		if err != nil {
+			return rerr.Wrap(err, "begin tx")
+		}
+		defer func() { _ = tx.Rollback() }()
+		if _, err := checkWidgetOwnership(r, tx, tenant.ID, id); err != nil {
+			return err
 		}
 		updated, err := tx.UpdateWidget(r.Context(), id, store.UpdateWidgetParams{LockedAdvanced: &locked})
 		if err != nil {
-			_ = tx.Rollback()
-			writeInternalError(w, r, "flip widget")
-			return
+			return rerr.Wrap(err, "flip widget")
 		}
 		if err := tx.Commit(); err != nil {
-			writeInternalError(w, r, "commit")
-			return
+			return rerr.Wrap(err, "commit")
 		}
-		writeJSON(w, http.StatusOK, widgetToResponse(updated))
+		return rerr.JSON(w, widgetToResponse(updated))
 	}
 }
 
@@ -862,28 +845,30 @@ type exportPayload struct {
 	Widgets   []widgetResponse  `json:"widgets"`
 }
 
-func handleListVersions(st store.Driver) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
+func handleListVersions(st store.Driver) rerr.Handler {
+	return func(w http.ResponseWriter, r *http.Request) error {
 		tenant, ok := tenantOrError(w, r)
 		if !ok {
-			return
+			return nil
 		}
 		dashboardID := r.PathValue("id")
-		tx, _ := st.Begin(r.Context(), store.TxOptions{ReadOnly: true})
+		tx, err := st.Begin(r.Context(), store.TxOptions{ReadOnly: true})
+		if err != nil {
+			return rerr.Wrap(err, "begin tx")
+		}
 		defer func() { _ = tx.Rollback() }()
-		if d := ensureDashboardOwnership(w, r, tx, tenant.ID, dashboardID); d == nil {
-			return
+		if _, err := checkDashboardOwnership(r, tx, tenant.ID, dashboardID); err != nil {
+			return err
 		}
 		versions, err := tx.ListDashboardVersions(r.Context(), dashboardID)
 		if err != nil {
-			writeInternalError(w, r, "list versions")
-			return
+			return rerr.Wrap(err, "list versions")
 		}
 		out := make([]versionResponse, 0, len(versions))
 		for _, v := range versions {
 			out = append(out, versionToResponse(v))
 		}
-		writeJSON(w, http.StatusOK, map[string]any{"items": out, "total": len(out)})
+		return rerr.JSON(w, map[string]any{"items": out, "total": len(out)})
 	}
 }
 
@@ -916,63 +901,62 @@ func snapshotDashboardLocked(r *http.Request, tx store.Tx, d *store.Dashboard, n
 	})
 }
 
-func handleSnapshotDashboard(st store.Driver) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
+func handleSnapshotDashboard(st store.Driver) rerr.Handler {
+	return func(w http.ResponseWriter, r *http.Request) error {
 		tenant, ok := tenantOrError(w, r)
 		if !ok {
-			return
+			return nil
 		}
 		dashboardID := r.PathValue("id")
 		var req snapshotRequest
 		_ = json.NewDecoder(r.Body).Decode(&req)
-		tx, _ := st.Begin(r.Context(), store.TxOptions{})
-		d := ensureDashboardOwnership(w, r, tx, tenant.ID, dashboardID)
-		if d == nil {
-			_ = tx.Rollback()
-			return
+		tx, err := st.Begin(r.Context(), store.TxOptions{})
+		if err != nil {
+			return rerr.Wrap(err, "begin tx")
+		}
+		defer func() { _ = tx.Rollback() }()
+		d, err := checkDashboardOwnership(r, tx, tenant.ID, dashboardID)
+		if err != nil {
+			return err
 		}
 		v, err := snapshotDashboardLocked(r, tx, d, req.Note)
 		if err != nil {
-			_ = tx.Rollback()
-			writeInternalError(w, r, "snapshot")
-			return
+			return rerr.Wrap(err, "snapshot")
 		}
 		if err := tx.Commit(); err != nil {
-			writeInternalError(w, r, "commit")
-			return
+			return rerr.Wrap(err, "commit")
 		}
-		writeJSON(w, http.StatusCreated, versionToResponse(v))
+		w.WriteHeader(http.StatusCreated)
+		return rerr.JSON(w, versionToResponse(v))
 	}
 }
 
-func handleRestoreDashboardVersion(st store.Driver) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
+func handleRestoreDashboardVersion(st store.Driver) rerr.Handler {
+	return func(w http.ResponseWriter, r *http.Request) error {
 		tenant, ok := tenantOrError(w, r)
 		if !ok {
-			return
+			return nil
 		}
 		vid := r.PathValue("vid")
-		tx, _ := st.Begin(r.Context(), store.TxOptions{})
+		tx, err := st.Begin(r.Context(), store.TxOptions{})
+		if err != nil {
+			return rerr.Wrap(err, "begin tx")
+		}
+		defer func() { _ = tx.Rollback() }()
 		v, err := tx.GetDashboardVersion(r.Context(), vid)
 		if err != nil {
-			_ = tx.Rollback()
-			writeProblem(w, http.StatusNotFound, errTypeNotFound,
-				"Version not found", "No version with id "+vid, r.URL.Path, nil)
-			return
+			return rerr.NotFound("dashboard version", vid)
 		}
 		// Verify the version belongs to a dashboard in this tenant.
-		dash := ensureDashboardOwnership(w, r, tx, tenant.ID, v.DashboardID)
-		if dash == nil {
-			_ = tx.Rollback()
-			return
+		dash, err := checkDashboardOwnership(r, tx, tenant.ID, v.DashboardID)
+		if err != nil {
+			return err
 		}
 
 		// Decode the snapshot back into a dashboard + widgets.
 		var payload exportPayload
 		if err := json.Unmarshal([]byte(v.SnapshotJSON), &payload); err != nil {
-			_ = tx.Rollback()
-			writeInternalError(w, r, "decode snapshot")
-			return
+			return rerr.Wrap(err, "decode snapshot")
 		}
 
 		// Apply: update dashboard fields, replace widgets.
@@ -990,22 +974,16 @@ func handleRestoreDashboardVersion(st store.Driver) http.HandlerFunc {
 			SharedRoleIDs: &sharedJSON,
 			Variables:     &varsJSON,
 		}); err != nil {
-			_ = tx.Rollback()
-			writeInternalError(w, r, "update dashboard")
-			return
+			return rerr.Wrap(err, "update dashboard")
 		}
 		// Drop existing widgets and re-create from snapshot.
 		existing, err := tx.ListWidgetsByDashboard(r.Context(), dash.ID)
 		if err != nil {
-			_ = tx.Rollback()
-			writeInternalError(w, r, "list existing widgets")
-			return
+			return rerr.Wrap(err, "list existing widgets")
 		}
 		for _, e := range existing {
 			if err := tx.DeleteWidget(r.Context(), dash.ID, e.ID); err != nil {
-				_ = tx.Rollback()
-				writeInternalError(w, r, "delete existing widget")
-				return
+				return rerr.Wrap(err, "delete existing widget")
 			}
 		}
 		for _, snap := range payload.Widgets {
@@ -1020,70 +998,77 @@ func handleRestoreDashboardVersion(st store.Driver) http.HandlerFunc {
 				LockedAdvanced: snap.LockedAdvanced,
 				Layout:         string(snap.Layout),
 			}); err != nil {
-				_ = tx.Rollback()
-				writeInternalError(w, r, "create widget from snapshot")
-				return
+				return rerr.Wrap(err, "create widget from snapshot")
 			}
 		}
 		if err := tx.Commit(); err != nil {
-			writeInternalError(w, r, "commit")
-			return
+			return rerr.Wrap(err, "commit")
 		}
 		// Return the restored dashboard.
-		tx2, _ := st.Begin(r.Context(), store.TxOptions{ReadOnly: true})
+		tx2, err := st.Begin(r.Context(), store.TxOptions{ReadOnly: true})
+		if err != nil {
+			return rerr.Wrap(err, "begin read tx")
+		}
 		defer func() { _ = tx2.Rollback() }()
-		restored, _ := tx2.GetDashboard(r.Context(), tenant.ID, dash.ID)
-		writeJSON(w, http.StatusOK, dashboardToResponse(restored))
+		restored, err := tx2.GetDashboard(r.Context(), tenant.ID, dash.ID)
+		if err != nil {
+			return rerr.Wrap(err, "get restored dashboard")
+		}
+		return rerr.JSON(w, dashboardToResponse(restored))
 	}
 }
 
-func handleExportDashboard(st store.Driver) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
+func handleExportDashboard(st store.Driver) rerr.Handler {
+	return func(w http.ResponseWriter, r *http.Request) error {
 		tenant, ok := tenantOrError(w, r)
 		if !ok {
-			return
+			return nil
 		}
 		dashboardID := r.PathValue("id")
-		tx, _ := st.Begin(r.Context(), store.TxOptions{ReadOnly: true})
+		tx, err := st.Begin(r.Context(), store.TxOptions{ReadOnly: true})
+		if err != nil {
+			return rerr.Wrap(err, "begin tx")
+		}
 		defer func() { _ = tx.Rollback() }()
-		d := ensureDashboardOwnership(w, r, tx, tenant.ID, dashboardID)
-		if d == nil {
-			return
+		d, err := checkDashboardOwnership(r, tx, tenant.ID, dashboardID)
+		if err != nil {
+			return err
 		}
 		widgets, err := tx.ListWidgetsByDashboard(r.Context(), dashboardID)
 		if err != nil {
-			writeInternalError(w, r, "list widgets")
-			return
+			return rerr.Wrap(err, "list widgets")
 		}
 		out := exportPayload{Dashboard: dashboardToResponse(d), Widgets: make([]widgetResponse, 0, len(widgets))}
 		for _, wg := range widgets {
 			out.Widgets = append(out.Widgets, widgetToResponse(wg))
 		}
-		writeJSON(w, http.StatusOK, out)
+		return rerr.JSON(w, out)
 	}
 }
 
-func handleImportDashboard(st store.Driver) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
+func handleImportDashboard(st store.Driver) rerr.Handler {
+	return func(w http.ResponseWriter, r *http.Request) error {
 		tenant, ok := tenantOrError(w, r)
 		if !ok {
-			return
+			return nil
 		}
 		var payload exportPayload
 		if err := json.NewDecoder(r.Body).Decode(&payload); err != nil {
-			writeBadRequest(w, r, "invalid JSON body")
-			return
+			return rerr.Validation(map[string]string{"body": "invalid JSON body"})
 		}
 		if payload.Dashboard.Name == "" {
-			writeBadRequest(w, r, "dashboard.name is required")
-			return
+			return rerr.Validation(map[string]string{"dashboard.name": "dashboard.name is required"})
 		}
 		var ownerID *string
 		if sc := auth.SessionClaimsFromContext(r.Context()); sc != nil && sc.UserID != "" {
 			id := sc.UserID
 			ownerID = &id
 		}
-		tx, _ := st.Begin(r.Context(), store.TxOptions{})
+		tx, err := st.Begin(r.Context(), store.TxOptions{})
+		if err != nil {
+			return rerr.Wrap(err, "begin tx")
+		}
+		defer func() { _ = tx.Rollback() }()
 		// Create a fresh dashboard (ignore the imported id to prevent
 		// cross-tenant id collisions).
 		created, err := tx.CreateDashboard(r.Context(), &store.Dashboard{
@@ -1097,9 +1082,7 @@ func handleImportDashboard(st store.Driver) http.HandlerFunc {
 			Variables:     string(payload.Dashboard.Variables),
 		})
 		if err != nil {
-			_ = tx.Rollback()
-			writeInternalError(w, r, "create dashboard")
-			return
+			return rerr.Wrap(err, "create dashboard")
 		}
 		for _, snap := range payload.Widgets {
 			rawQuery := snap.RawQuery
@@ -1113,15 +1096,13 @@ func handleImportDashboard(st store.Driver) http.HandlerFunc {
 				LockedAdvanced: snap.LockedAdvanced,
 				Layout:         string(snap.Layout),
 			}); err != nil {
-				_ = tx.Rollback()
-				writeInternalError(w, r, "create widget")
-				return
+				return rerr.Wrap(err, "create widget")
 			}
 		}
 		if err := tx.Commit(); err != nil {
-			writeInternalError(w, r, "commit")
-			return
+			return rerr.Wrap(err, "commit")
 		}
-		writeJSON(w, http.StatusCreated, dashboardToResponse(created))
+		w.WriteHeader(http.StatusCreated)
+		return rerr.JSON(w, dashboardToResponse(created))
 	}
 }
