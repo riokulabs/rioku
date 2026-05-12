@@ -10,6 +10,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/riokulabs/rioku/internal/auth"
 	"github.com/riokulabs/rioku/internal/gateway/optionsutil"
+	"github.com/riokulabs/rioku/internal/rerr"
 	"github.com/riokulabs/rioku/internal/store"
 	"github.com/riokulabs/rioku/internal/store/audit"
 )
@@ -20,15 +21,15 @@ import (
 // storage's `tenant_id IS NULL OR tenant_id = ?` filter keeps built-in
 // roles visible from every tenant alongside tenant-scoped custom ones.
 func RegisterRBACRoutes(mux *http.ServeMux, st store.Driver) {
-	listRolesH := RequirePermission("roles:read")(http.HandlerFunc(handleListRoles(st)))
-	createRoleH := RequirePermission("roles:manage")(http.HandlerFunc(handleCreateRole(st)))
-	getRoleH := RequirePermission("roles:read")(http.HandlerFunc(handleGetRole(st)))
-	updateRoleH := RequirePermission("roles:manage")(http.HandlerFunc(handleUpdateRole(st)))
-	deleteRoleH := RequirePermission("roles:manage")(http.HandlerFunc(handleDeleteRole(st)))
-	listPermsH := RequirePermission("roles:read")(http.HandlerFunc(handleListPermissions(st)))
-	listUserRolesH := RequirePermission("users:read")(http.HandlerFunc(handleListUserRoles(st)))
-	assignRoleH := RequirePermission("users:manage")(http.HandlerFunc(handleAssignRole(st)))
-	revokeRoleH := RequirePermission("users:manage")(http.HandlerFunc(handleRevokeRole(st)))
+	listRolesH := RequirePermission("roles:read")(rerr.H(handleListRoles(st)))
+	createRoleH := RequirePermission("roles:manage")(rerr.H(handleCreateRole(st)))
+	getRoleH := RequirePermission("roles:read")(rerr.H(handleGetRole(st)))
+	updateRoleH := RequirePermission("roles:manage")(rerr.H(handleUpdateRole(st)))
+	deleteRoleH := RequirePermission("roles:manage")(rerr.H(handleDeleteRole(st)))
+	listPermsH := RequirePermission("roles:read")(rerr.H(handleListPermissions(st)))
+	listUserRolesH := RequirePermission("users:read")(rerr.H(handleListUserRoles(st)))
+	assignRoleH := RequirePermission("users:manage")(rerr.H(handleAssignRole(st)))
+	revokeRoleH := RequirePermission("users:manage")(rerr.H(handleRevokeRole(st)))
 
 	for _, base := range []string{"/api/v1", "/api/v1/t/{tenant}"} {
 		mux.Handle("GET "+base+"/roles", listRolesH)
@@ -79,21 +80,19 @@ func toRoleResponse(role *store.Role) roleResponse {
 	}
 }
 
-func handleListRoles(st store.Driver) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
+func handleListRoles(st store.Driver) rerr.Handler {
+	return func(w http.ResponseWriter, r *http.Request) error {
 		ctx := r.Context()
 
 		tx, err := st.Begin(ctx, store.TxOptions{ReadOnly: true})
 		if err != nil {
-			writeInternalError(w, r, "begin tx")
-			return
+			return rerr.Wrap(err, "begin tx")
 		}
 		defer func() { _ = tx.Rollback() }()
 
 		roles, err := tx.ListRoles(ctx)
 		if err != nil {
-			writeInternalError(w, r, "list roles")
-			return
+			return rerr.Wrap(err, "list roles")
 		}
 
 		result := make([]roleResponse, 0, len(roles))
@@ -108,8 +107,7 @@ func handleListRoles(st store.Driver) http.HandlerFunc {
 		// resolve to `undefined → []`, so the Roles page rendered
 		// "No roles" on every tenant. Pagination is not implemented yet
 		// — emit an empty `nextPageToken` placeholder.
-		w.Header().Set("Content-Type", "application/json")
-		_ = json.NewEncoder(w).Encode(map[string]any{
+		return rerr.JSON(w, map[string]any{
 			"roles":         result,
 			"nextPageToken": "",
 		})
@@ -122,30 +120,23 @@ type createRoleRequest struct {
 	Permissions []string `json:"permissions"`
 }
 
-func handleCreateRole(st store.Driver) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
+func handleCreateRole(st store.Driver) rerr.Handler {
+	return func(w http.ResponseWriter, r *http.Request) error {
 		r.Body = http.MaxBytesReader(w, r.Body, maxAuthBodySize)
 		ctx := r.Context()
 
 		var req createRoleRequest
 		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-			writeProblem(w, http.StatusBadRequest, errTypeValidation, "Invalid request body",
-				"Request body must be valid JSON", r.URL.Path, nil)
-			return
+			return rerr.Validation(map[string]string{"body": "invalid JSON body"})
 		}
 
 		if req.Name == "" {
-			writeProblem(w, http.StatusBadRequest, errTypeValidation, "Validation failed",
-				"Role name is required", r.URL.Path, []ValidationError{
-					{Field: "name", Reason: "must not be empty"},
-				})
-			return
+			return rerr.Validation(map[string]string{"name": "must not be empty"})
 		}
 
 		tx, err := st.Begin(ctx, store.TxOptions{})
 		if err != nil {
-			writeInternalError(w, r, "begin tx")
-			return
+			return rerr.Wrap(err, "begin tx")
 		}
 		defer func() { _ = tx.Rollback() }()
 
@@ -157,17 +148,12 @@ func handleCreateRole(st store.Driver) http.HandlerFunc {
 			actorID := resolveActorID(r)
 			offending := offendingPermission(err)
 			if auditErr := emitRoleEscalationAudit(ctx, tx, actorID, "", req.Name, offending, "create"); auditErr != nil {
-				writeInternalError(w, r, "audit role escalation")
-				return
+				return rerr.Wrap(auditErr, "audit role escalation")
 			}
 			if commitErr := tx.Commit(); commitErr != nil {
-				writeInternalError(w, r, "commit audit")
-				return
+				return rerr.Wrap(commitErr, "commit audit")
 			}
-			writeProblem(w, http.StatusForbidden, errTypeForbidden, "Role escalation rejected",
-				"Cannot grant permission '"+offending+"' that exceeds the actor's effective permission set",
-				r.URL.Path, nil)
-			return
+			return rerr.Forbidden("Cannot grant permission '" + offending + "' that exceeds the actor's effective permission set")
 		}
 
 		role, err := tx.CreateRole(ctx, store.CreateRoleParams{
@@ -177,57 +163,47 @@ func handleCreateRole(st store.Driver) http.HandlerFunc {
 			Permissions: req.Permissions,
 		})
 		if err != nil {
-			writeInternalError(w, r, "create role")
-			return
+			return rerr.Wrap(err, "create role")
 		}
 
 		if err := tx.Commit(); err != nil {
-			writeInternalError(w, r, "commit")
-			return
+			return rerr.Wrap(err, "commit")
 		}
 
-		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusCreated)
-		_ = json.NewEncoder(w).Encode(toRoleResponse(role))
+		return rerr.JSON(w, toRoleResponse(role))
 	}
 }
 
-func handleGetRole(st store.Driver) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
+func handleGetRole(st store.Driver) rerr.Handler {
+	return func(w http.ResponseWriter, r *http.Request) error {
 		ctx := r.Context()
 		id := r.PathValue("id")
 		if id == "" {
-			writeProblem(w, http.StatusBadRequest, errTypeValidation, "Validation failed",
-				"Role ID is required", r.URL.Path, nil)
-			return
+			return rerr.Validation(map[string]string{"id": "role ID is required"})
 		}
 
 		tx, err := st.Begin(ctx, store.TxOptions{ReadOnly: true})
 		if err != nil {
-			writeInternalError(w, r, "begin tx")
-			return
+			return rerr.Wrap(err, "begin tx")
 		}
 		defer func() { _ = tx.Rollback() }()
 
 		role, err := tx.GetRole(ctx, id)
 		if err != nil {
-			writeProblem(w, http.StatusNotFound, errTypeNotFound, "Role not found",
-				"No role exists with the given ID", r.URL.Path, nil)
-			return
+			return rerr.NotFound("role", id)
 		}
 
 		userIDs, err := tx.ListUsersWithRole(ctx, id)
 		if err != nil {
-			writeInternalError(w, r, "list users with role")
-			return
+			return rerr.Wrap(err, "list users with role")
 		}
 
 		resp := toRoleResponse(role)
 		count := len(userIDs)
 		resp.UserCount = &count
 
-		w.Header().Set("Content-Type", "application/json")
-		_ = json.NewEncoder(w).Encode(resp)
+		return rerr.JSON(w, resp)
 	}
 }
 
@@ -238,28 +214,23 @@ type updateRoleRequest struct {
 	RemovePerms []string `json:"removePermissions"`
 }
 
-func handleUpdateRole(st store.Driver) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
+func handleUpdateRole(st store.Driver) rerr.Handler {
+	return func(w http.ResponseWriter, r *http.Request) error {
 		r.Body = http.MaxBytesReader(w, r.Body, maxAuthBodySize)
 		ctx := r.Context()
 		id := r.PathValue("id")
 		if id == "" {
-			writeProblem(w, http.StatusBadRequest, errTypeValidation, "Validation failed",
-				"Role ID is required", r.URL.Path, nil)
-			return
+			return rerr.Validation(map[string]string{"id": "role ID is required"})
 		}
 
 		var req updateRoleRequest
 		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-			writeProblem(w, http.StatusBadRequest, errTypeValidation, "Invalid request body",
-				"Request body must be valid JSON", r.URL.Path, nil)
-			return
+			return rerr.Validation(map[string]string{"body": "invalid JSON body"})
 		}
 
 		tx, err := st.Begin(ctx, store.TxOptions{})
 		if err != nil {
-			writeInternalError(w, r, "begin tx")
-			return
+			return rerr.Wrap(err, "begin tx")
 		}
 		defer func() { _ = tx.Rollback() }()
 
@@ -275,17 +246,12 @@ func handleUpdateRole(st store.Driver) http.HandlerFunc {
 					targetName = *req.Name
 				}
 				if auditErr := emitRoleEscalationAudit(ctx, tx, actorID, id, targetName, offending, "update"); auditErr != nil {
-					writeInternalError(w, r, "audit role escalation")
-					return
+					return rerr.Wrap(auditErr, "audit role escalation")
 				}
 				if commitErr := tx.Commit(); commitErr != nil {
-					writeInternalError(w, r, "commit audit")
-					return
+					return rerr.Wrap(commitErr, "commit audit")
 				}
-				writeProblem(w, http.StatusForbidden, errTypeForbidden, "Role escalation rejected",
-					"Cannot grant permission '"+offending+"' that exceeds the actor's effective permission set",
-					r.URL.Path, nil)
-				return
+				return rerr.Forbidden("Cannot grant permission '" + offending + "' that exceeds the actor's effective permission set")
 			}
 		}
 
@@ -307,80 +273,60 @@ func handleUpdateRole(st store.Driver) http.HandlerFunc {
 					targetName = *req.Name
 				}
 				if auditErr := emitRoleEscalationAudit(ctx, tx, actorID, id, targetName, offending, "update"); auditErr != nil {
-					writeInternalError(w, r, "audit role escalation")
-					return
+					return rerr.Wrap(auditErr, "audit role escalation")
 				}
 				if commitErr := tx.Commit(); commitErr != nil {
-					writeInternalError(w, r, "commit audit")
-					return
+					return rerr.Wrap(commitErr, "commit audit")
 				}
-				writeProblem(w, http.StatusForbidden, errTypeForbidden, "Role escalation rejected",
-					"Cannot grant permission '"+offending+"' that exceeds the actor's effective permission set",
-					r.URL.Path, nil)
-				return
+				return rerr.Forbidden("Cannot grant permission '" + offending + "' that exceeds the actor's effective permission set")
 			}
 			if err == store.ErrRoleImmutable {
-				writeProblem(w, http.StatusForbidden, errTypeForbidden, "Role immutable",
-					"The superadmin role cannot be modified", r.URL.Path, nil)
-				return
+				return rerr.Forbidden("The superadmin role cannot be modified")
 			}
 			if err == store.ErrRoleNotFound {
-				writeProblem(w, http.StatusNotFound, errTypeNotFound, "Role not found",
-					"No role exists with the given ID", r.URL.Path, nil)
-				return
+				return rerr.NotFound("role", id)
 			}
-			writeInternalError(w, r, "update role")
-			return
+			return rerr.Wrap(err, "update role")
 		}
 
 		if err := tx.Commit(); err != nil {
-			writeInternalError(w, r, "commit")
-			return
+			return rerr.Wrap(err, "commit")
 		}
 
-		w.Header().Set("Content-Type", "application/json")
-		_ = json.NewEncoder(w).Encode(toRoleResponse(role))
+		return rerr.JSON(w, toRoleResponse(role))
 	}
 }
 
-func handleDeleteRole(st store.Driver) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
+func handleDeleteRole(st store.Driver) rerr.Handler {
+	return func(w http.ResponseWriter, r *http.Request) error {
 		ctx := r.Context()
 		id := r.PathValue("id")
 		if id == "" {
-			writeProblem(w, http.StatusBadRequest, errTypeValidation, "Validation failed",
-				"Role ID is required", r.URL.Path, nil)
-			return
+			return rerr.Validation(map[string]string{"id": "role ID is required"})
 		}
 
 		tx, err := st.Begin(ctx, store.TxOptions{})
 		if err != nil {
-			writeInternalError(w, r, "begin tx")
-			return
+			return rerr.Wrap(err, "begin tx")
 		}
 		defer func() { _ = tx.Rollback() }()
 
 		if err := tx.DeleteRole(ctx, id); err != nil {
 			if err == store.ErrRoleImmutable {
-				writeProblem(w, http.StatusForbidden, errTypeForbidden, "Role immutable",
-					"The superadmin role cannot be deleted", r.URL.Path, nil)
-				return
+				return rerr.Forbidden("The superadmin role cannot be deleted")
 			}
 			if err == store.ErrRoleNotFound {
-				writeProblem(w, http.StatusNotFound, errTypeNotFound, "Role not found",
-					"No role exists with the given ID", r.URL.Path, nil)
-				return
+				return rerr.NotFound("role", id)
 			}
-			writeInternalError(w, r, "delete role")
-			return
+			return rerr.Wrap(err, "delete role")
 		}
 
 		if err := tx.Commit(); err != nil {
-			writeInternalError(w, r, "commit")
-			return
+			return rerr.Wrap(err, "commit")
 		}
 
 		w.WriteHeader(http.StatusNoContent)
+		return nil
 	}
 }
 
@@ -404,21 +350,19 @@ type permissionResponse struct {
 	SourcePluginID string `json:"sourcePluginId,omitempty"`
 }
 
-func handleListPermissions(st store.Driver) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
+func handleListPermissions(st store.Driver) rerr.Handler {
+	return func(w http.ResponseWriter, r *http.Request) error {
 		ctx := r.Context()
 
 		tx, err := st.Begin(ctx, store.TxOptions{ReadOnly: true})
 		if err != nil {
-			writeInternalError(w, r, "begin tx")
-			return
+			return rerr.Wrap(err, "begin tx")
 		}
 		defer func() { _ = tx.Rollback() }()
 
 		perms, err := tx.ListPermissions(ctx)
 		if err != nil {
-			writeInternalError(w, r, "list permissions")
-			return
+			return rerr.Wrap(err, "list permissions")
 		}
 
 		result := make([]permissionResponse, 0, len(perms))
@@ -433,8 +377,7 @@ func handleListPermissions(st store.Driver) http.HandlerFunc {
 			})
 		}
 
-		w.Header().Set("Content-Type", "application/json")
-		_ = json.NewEncoder(w).Encode(result)
+		return rerr.JSON(w, result)
 	}
 }
 
@@ -449,27 +392,23 @@ type userRoleResponse struct {
 	GrantedAt string `json:"grantedAt"`
 }
 
-func handleListUserRoles(st store.Driver) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
+func handleListUserRoles(st store.Driver) rerr.Handler {
+	return func(w http.ResponseWriter, r *http.Request) error {
 		ctx := r.Context()
 		userID := r.PathValue("id")
 		if userID == "" {
-			writeProblem(w, http.StatusBadRequest, errTypeValidation, "Validation failed",
-				"User ID is required", r.URL.Path, nil)
-			return
+			return rerr.Validation(map[string]string{"id": "user ID is required"})
 		}
 
 		tx, err := st.Begin(ctx, store.TxOptions{ReadOnly: true})
 		if err != nil {
-			writeInternalError(w, r, "begin tx")
-			return
+			return rerr.Wrap(err, "begin tx")
 		}
 		defer func() { _ = tx.Rollback() }()
 
 		roles, err := tx.ListUserRoles(ctx, userID)
 		if err != nil {
-			writeInternalError(w, r, "list user roles")
-			return
+			return rerr.Wrap(err, "list user roles")
 		}
 
 		result := make([]userRoleResponse, 0, len(roles))
@@ -482,8 +421,7 @@ func handleListUserRoles(st store.Driver) http.HandlerFunc {
 			})
 		}
 
-		w.Header().Set("Content-Type", "application/json")
-		_ = json.NewEncoder(w).Encode(result)
+		return rerr.JSON(w, result)
 	}
 }
 
@@ -491,30 +429,22 @@ type assignRoleRequest struct {
 	RoleID string `json:"roleId"`
 }
 
-func handleAssignRole(st store.Driver) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
+func handleAssignRole(st store.Driver) rerr.Handler {
+	return func(w http.ResponseWriter, r *http.Request) error {
 		r.Body = http.MaxBytesReader(w, r.Body, maxAuthBodySize)
 		ctx := r.Context()
 		userID := r.PathValue("id")
 		if userID == "" {
-			writeProblem(w, http.StatusBadRequest, errTypeValidation, "Validation failed",
-				"User ID is required", r.URL.Path, nil)
-			return
+			return rerr.Validation(map[string]string{"id": "user ID is required"})
 		}
 
 		var req assignRoleRequest
 		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-			writeProblem(w, http.StatusBadRequest, errTypeValidation, "Invalid request body",
-				"Request body must be valid JSON with a 'role_id' field", r.URL.Path, nil)
-			return
+			return rerr.Validation(map[string]string{"body": "invalid JSON body"})
 		}
 
 		if req.RoleID == "" {
-			writeProblem(w, http.StatusBadRequest, errTypeValidation, "Validation failed",
-				"Role ID is required", r.URL.Path, []ValidationError{
-					{Field: "role_id", Reason: "must not be empty"},
-				})
-			return
+			return rerr.Validation(map[string]string{"roleId": "must not be empty"})
 		}
 
 		// Determine the actor (who is granting the role).
@@ -522,56 +452,48 @@ func handleAssignRole(st store.Driver) http.HandlerFunc {
 
 		tx, err := st.Begin(ctx, store.TxOptions{})
 		if err != nil {
-			writeInternalError(w, r, "begin tx")
-			return
+			return rerr.Wrap(err, "begin tx")
 		}
 		defer func() { _ = tx.Rollback() }()
 
 		if err := tx.AssignRole(ctx, userID, req.RoleID, grantedBy); err != nil {
-			writeInternalError(w, r, "assign role")
-			return
+			return rerr.Wrap(err, "assign role")
 		}
 
 		if err := tx.Commit(); err != nil {
-			writeInternalError(w, r, "commit")
-			return
+			return rerr.Wrap(err, "commit")
 		}
 
-		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusCreated)
-		_ = json.NewEncoder(w).Encode(map[string]bool{"ok": true})
+		return rerr.JSON(w, map[string]bool{"ok": true})
 	}
 }
 
-func handleRevokeRole(st store.Driver) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
+func handleRevokeRole(st store.Driver) rerr.Handler {
+	return func(w http.ResponseWriter, r *http.Request) error {
 		ctx := r.Context()
 		userID := r.PathValue("id")
 		roleID := r.PathValue("roleId")
 		if userID == "" || roleID == "" {
-			writeProblem(w, http.StatusBadRequest, errTypeValidation, "Validation failed",
-				"User ID and role ID are required", r.URL.Path, nil)
-			return
+			return rerr.Validation(map[string]string{"id": "user ID and role ID are required"})
 		}
 
 		tx, err := st.Begin(ctx, store.TxOptions{})
 		if err != nil {
-			writeInternalError(w, r, "begin tx")
-			return
+			return rerr.Wrap(err, "begin tx")
 		}
 		defer func() { _ = tx.Rollback() }()
 
 		if err := tx.RevokeRole(ctx, userID, roleID); err != nil {
-			writeInternalError(w, r, "revoke role")
-			return
+			return rerr.Wrap(err, "revoke role")
 		}
 
 		if err := tx.Commit(); err != nil {
-			writeInternalError(w, r, "commit")
-			return
+			return rerr.Wrap(err, "commit")
 		}
 
 		w.WriteHeader(http.StatusNoContent)
+		return nil
 	}
 }
 
