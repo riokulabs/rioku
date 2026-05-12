@@ -189,7 +189,7 @@ export function ImpersonationEntryForm() {
           disabled={tenantsQuery.isLoading}
           description="Tenants visible to your super-admin role. Switch from the directory at /admin/tenants if a tenant is missing here."
           {...form.getInputProps('tenant_id')}
-          onChange={(value) => {
+          onChange={(value: string | null) => {
             form.setFieldValue('tenant_id', value ?? '');
             form.setFieldValue('user_id', undefined);
           }}

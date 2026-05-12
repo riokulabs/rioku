@@ -26,7 +26,12 @@ export default defineConfig({
   fullyParallel: true,
   forbidOnly: !!process.env.CI,
   retries: process.env.CI ? 2 : 0,
-  workers: process.env.CI ? 1 : 2,
+  // CI runners on the standard GitHub Linux SKU have 4 vCPUs / 16 GB RAM.
+  // Running each shard with a single worker barely uses the box and
+  // pushes shard 1 (the biggest) toward 4 minutes. Two workers per
+  // shard puts the wall-clock around 2 minutes per shard without
+  // tripping the daemon's rate limiter or the in-memory store.
+  workers: process.env.CI ? 2 : 2,
   // Stage-2 transition: most existing e2e specs were authored against
   // the dev-server mock store (window.__RIOKU_STORE, seedStore), which
   // no longer exists at runtime now that the SPA is served by the

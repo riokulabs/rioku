@@ -535,7 +535,9 @@ export function useRetentionConfig(tenantId: string): AuditRetentionConfig | und
           { method: 'GET', signal },
         );
         const raw = wrapped.data;
-        // `autoExport` projects daemon's `on`/`off` to legacy cadence.
+        // `autoExport` is a cadence enum on the wire (daily/weekly/
+        // monthly/never) — surface it directly. Tolerate legacy on/off
+        // values for callers that haven't migrated yet.
         const cadence: AuditRetentionConfig['auto_export'] =
           raw.autoExport === 'on'
             ? 'daily'
@@ -568,18 +570,33 @@ export async function updateRetentionConfig(
   tenantId: string,
   input: UpdateRetentionConfigInput,
 ): Promise<AuditRetentionConfig> {
-  const wrapped = await customFetch<{ data: AuditRetentionConfig }>(
-    `/t/${tenantId}/audit/retention`,
-    {
-      method: 'PUT',
-      body: JSON.stringify({
-        retention_days: input.retention_days,
-        auto_export: input.auto_export,
-        auto_export_format: input.auto_export_format,
-      }),
-    },
-  );
-  return wrapped.data;
+  // The daemon's PUT /audit/retention expects the flat shape with
+  // `retentionDays<Tier>` / `autoExport` (cadence: `daily`/`weekly`/
+  // `monthly`/`never` — enforced as a CHECK constraint in the
+  // audit_retention_configs table) / `autoExportFormat`. The SPA's
+  // form already produces a matching cadence so we just translate the
+  // nested → flat shape.
+  await customFetch<{ data: unknown }>(`/t/${tenantId}/audit/retention`, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      retentionDaysRead: input.retention_days.read,
+      retentionDaysReadSensitive: input.retention_days['read-sensitive'],
+      retentionDaysWrite: input.retention_days.write,
+      retentionDaysDestructive: input.retention_days.destructive,
+      autoExport: input.auto_export,
+      autoExportFormat: input.auto_export_format,
+    }),
+  });
+  // Echo back the input shape — the form code only reads
+  // `next.auto_export`/`next.auto_export_format` for the toast.
+  return {
+    tenant_id: tenantId,
+    retention_days: input.retention_days,
+    auto_export: input.auto_export,
+    auto_export_format: input.auto_export_format,
+    updated_at: new Date().toISOString(),
+  };
 }
 
 // Re-export the matcher so list tests can assert fidelity.

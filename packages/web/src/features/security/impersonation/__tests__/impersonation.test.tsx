@@ -59,6 +59,22 @@ vi.mock('@/api/active-impersonation', () => ({
   getActiveImpersonationId: () => null,
 }));
 
+// ─── Admin-tenants list mock — populates the Target tenant Select ───────────
+
+vi.mock('@/api/generated/admin/admin', () => ({
+  useListAdminTenants: () => ({
+    data: {
+      data: {
+        items: [
+          { id: 'tenant-acme', slug: 'tenant-acme', name: 'Acme Corp' },
+          { id: 'tenant-beta', slug: 'tenant-beta', name: 'Beta Workspace' },
+        ],
+      },
+    },
+    isLoading: false,
+  }),
+}));
+
 // ─── Generated impersonation client mock ────────────────────────────────────
 
 const mockStartMutate = vi.fn().mockResolvedValue({
@@ -80,6 +96,24 @@ vi.mock('../realApi', () => ({
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
 const TENANT_ID = 'tenant-acme';
+
+/**
+ * Pick a tenant in the Mantine `<Select>` Target tenant field. Mantine's
+ * Combobox renders options as divs with `data-combobox-option` rather
+ * than `role="option"` (jsdom-flavoured query), so use the option's
+ * label text instead of getByRole. The Select opens on focus; type the
+ * tenant slug to filter, then commit with Enter.
+ */
+async function selectTenant(user: ReturnType<typeof userEvent.setup>) {
+  const [combobox] = screen.getAllByLabelText(/target tenant/i);
+  if (!combobox) throw new Error('target tenant combobox not found');
+  await user.click(combobox);
+  await user.keyboard('tenant-acme');
+  // Mock returns slug `tenant-acme` + name `Acme Corp` → label is
+  // `Acme Corp (tenant-acme)`. Filtering should leave one match.
+  const option = await screen.findByText(/Acme Corp \(tenant-acme\)/i);
+  await user.click(option);
+}
 
 /**
  * Stub the daemon `GET /api/v1/t/{tenant}/users` response so the user-picker
@@ -201,10 +235,7 @@ describe('ImpersonationEntryForm', () => {
     const user = userEvent.setup();
     renderWithProviders(<ImpersonationEntryForm />);
 
-    // Enter tenant id (free-form text input)
-    const [tenantInput] = screen.getAllByLabelText(/target tenant/i);
-    if (!tenantInput) throw new Error('tenant input not found');
-    await user.type(tenantInput, TENANT_ID);
+    await selectTenant(user);
 
     // Fill reason
     const [reasonInput] = screen.getAllByLabelText(/reason/i);
@@ -237,9 +268,7 @@ describe('ImpersonationEntryForm', () => {
     const user = userEvent.setup();
     renderWithProviders(<ImpersonationEntryForm />);
 
-    const [tenantInput] = screen.getAllByLabelText(/target tenant/i);
-    if (!tenantInput) throw new Error('tenant input not found');
-    await user.type(tenantInput, TENANT_ID);
+    await selectTenant(user);
 
     const [reasonInput] = screen.getAllByLabelText(/reason/i);
     if (!reasonInput) throw new Error('reason input not found');
@@ -264,9 +293,7 @@ describe('ImpersonationEntryForm', () => {
     const user = userEvent.setup();
     renderWithProviders(<ImpersonationEntryForm />);
 
-    const [tenantInput] = screen.getAllByLabelText(/target tenant/i);
-    if (!tenantInput) throw new Error('tenant input not found');
-    await user.type(tenantInput, TENANT_ID);
+    await selectTenant(user);
 
     const [reasonInput] = screen.getAllByLabelText(/reason/i);
     if (!reasonInput) throw new Error('reason input not found');

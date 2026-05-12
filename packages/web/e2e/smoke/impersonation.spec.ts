@@ -6,11 +6,47 @@
 import { test, expect } from '@playwright/test';
 import AxeBuilder from '@axe-core/playwright';
 
+// The impersonation banner is a global UI element on /admin and /t/{tenant}
+// surfaces — if one test starts a session and the daemon record doesn't end
+// when the test finishes, the banner persists and intercepts pointer events
+// on every later test that lands on those routes (the bell button, anything
+// in the top-bar). Configure the file to run serially within its worker so
+// the cleanup hook below sees a deterministic state, and reap any session
+// that leaks past the end of each test.
+test.describe.configure({ mode: 'serial' });
+
 test.beforeEach(async ({ context }) => {
-  // Clear localStorage so the mock store is freshly seeded for each test.
+  // Clear localStorage so any client-side impersonation state from a prior
+  // test is gone before the form mounts.
   await context.addInitScript(() => {
     localStorage.clear();
   });
+});
+
+test.afterEach(async ({ playwright, baseURL }) => {
+  // Reap any active impersonation sessions on the daemon so the banner
+  // doesn't bleed into the next file's tests (notifications, audit, …).
+  const base = baseURL ?? 'http://localhost:7778';
+  const api = await playwright.request.newContext({
+    baseURL: base,
+    storageState: 'e2e/.auth/root-state.json',
+  });
+  try {
+    const res = await api.get(`${base}/api/v1/admin/impersonation`, {
+      failOnStatusCode: false,
+    });
+    if (!res.ok()) return;
+    const body = (await res.json()) as { sessions?: { id?: string }[] };
+    const sessions = body.sessions ?? [];
+    for (const s of sessions) {
+      if (typeof s.id !== 'string' || s.id === '') continue;
+      await api.delete(`${base}/api/v1/admin/impersonation/${s.id}`, {
+        failOnStatusCode: false,
+      });
+    }
+  } finally {
+    await api.dispose();
+  }
 });
 
 test('impersonation: enter session and banner appears', async ({ page }) => {
@@ -21,10 +57,17 @@ test('impersonation: enter session and banner appears', async ({ page }) => {
   await expect(page.getByRole('heading', { name: /start impersonation session/i })).toBeVisible();
 
   // Select tenant — click the tenant select and pick the first option
+  // Wait for the Target tenant Select to populate before clicking — the
+  // Select is disabled while `useListAdminTenants` is in-flight, and on
+  // CI runners that initial fetch is occasionally slower than the
+  // Mantine paint, leaving us with a no-op click on a disabled button.
   const tenantSelect = page.getByRole('combobox', { name: /target tenant/i });
+  await expect(tenantSelect).toBeEnabled({ timeout: 15_000 });
   await tenantSelect.click();
-  // Wait for dropdown options — pick any tenant option
+  // Mantine Combobox renders options with role="option" inside a
+  // portal; pick the first non-empty option deterministically.
   const tenantOption = page.getByRole('option').first();
+  await expect(tenantOption).toBeVisible({ timeout: 10_000 });
   await tenantOption.click();
 
   // Fill reason (required, min 20 chars)
@@ -52,8 +95,11 @@ test('impersonation: exit session via banner button', async ({ page }) => {
   await expect(page.getByRole('heading', { name: /start impersonation session/i })).toBeVisible();
 
   const tenantSelect = page.getByRole('combobox', { name: /target tenant/i });
+  await expect(tenantSelect).toBeEnabled({ timeout: 15_000 });
   await tenantSelect.click();
-  await page.getByRole('option').first().click();
+  const opt = page.getByRole('option').first();
+  await expect(opt).toBeVisible({ timeout: 10_000 });
+  await opt.click();
 
   await page.getByLabel(/reason/i).fill('E2E test impersonation exit flow smoke test');
   await page.getByLabel(/totp code/i).fill('123456');
@@ -87,8 +133,11 @@ test('impersonation banner: no serious a11y violations during active session', a
   await expect(page.getByRole('heading', { name: /start impersonation session/i })).toBeVisible();
 
   const tenantSelect = page.getByRole('combobox', { name: /target tenant/i });
+  await expect(tenantSelect).toBeEnabled({ timeout: 15_000 });
   await tenantSelect.click();
-  await page.getByRole('option').first().click();
+  const opt = page.getByRole('option').first();
+  await expect(opt).toBeVisible({ timeout: 10_000 });
+  await opt.click();
 
   await page.getByLabel(/reason/i).fill('E2E accessibility test for impersonation banner');
   await page.getByLabel(/totp code/i).fill('123456');

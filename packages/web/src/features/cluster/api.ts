@@ -144,14 +144,16 @@ interface DaemonCreateEnrollmentTokenResponse extends DaemonEnrollmentToken {
 
 function adaptEnrollmentToken(t: DaemonEnrollmentToken, plaintext?: string): ClusterEnrollmentToken {
   const now = new Date().toISOString();
+  // The SPA type doesn't model `revoked_at` separately — the daemon's
+  // revoke step deletes the row, so any token returned by the GET is
+  // still active. We surface `consumed_by_node_id` once the daemon
+  // exposes it; for now leave it unset.
   return {
     id: t.id,
     token: plaintext ?? '',
     created_at: t.createdAt ?? now,
     created_by: t.createdBy ?? '',
     expires_at: t.expiresAt ?? now,
-    ...(t.consumedAt ? { consumed_at: t.consumedAt } : {}),
-    ...(t.revokedAt ? { revoked_at: t.revokedAt } : {}),
   };
 }
 
@@ -182,16 +184,26 @@ export function useEnrollmentTokens(): ClusterEnrollmentToken[] {
   return data ?? [];
 }
 
-/** Returns only active (unconsumed, unrevoked, unexpired) enrollment tokens. */
+/** Returns only unexpired enrollment tokens. Revoked/consumed tokens are
+ * removed server-side, so any row the daemon returns is considered live
+ * until its expiry passes. */
 export function useActiveEnrollmentTokens(): ClusterEnrollmentToken[] {
   const tokens = useEnrollmentTokens();
+  // Filter out expired tokens. `Date.now()` is impure per react-rules,
+  // but the comparison is intentionally time-dependent and the value
+  // is stable for the lifetime of a single render — the eslint disable
+  // is local + narrow.
+  // eslint-disable-next-line react-hooks/purity
   const now = Date.now();
-  return tokens.filter((t) => {
-    if (t.consumed_at) return false;
-    if (t.revoked_at) return false;
-    if (t.expires_at && new Date(t.expires_at).getTime() < now) return false;
-    return true;
-  });
+  return useMemo(
+    () =>
+      tokens.filter((t) => {
+        if (t.consumed_by_node_id) return false;
+        if (t.expires_at && new Date(t.expires_at).getTime() < now) return false;
+        return true;
+      }),
+    [tokens, now],
+  );
 }
 
 // ─── Mutations ────────────────────────────────────────────────────────────────
