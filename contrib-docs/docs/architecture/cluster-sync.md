@@ -13,7 +13,7 @@ flowchart TD
         RA["raft store"]
         MA["memberlist"]
         CA["caddy child"]
-        CRDTA["CRDT counters"]
+        CRDT_A["CRDT counters"]
     end
 
     subgraph node_b["Node B (voter)"]
@@ -21,7 +21,7 @@ flowchart TD
         RB["raft store"]
         MB["memberlist"]
         CB["caddy child"]
-        CRDTB["CRDT counters"]
+        CRDT_B["CRDT counters"]
     end
 
     subgraph node_c["Node C (voter)"]
@@ -29,7 +29,7 @@ flowchart TD
         RC["raft store"]
         MC["memberlist"]
         CC["caddy child"]
-        CRDTC["CRDT counters"]
+        CRDT_C["CRDT counters"]
     end
 
     %% Raft log replication
@@ -42,8 +42,8 @@ flowchart TD
     MA <-- "gossip (UDP)" --> MC
 
     %% CRDT merge via gossip
-    CRDTA -- "PNCounter merge via gossip" --> CRDTB
-    CRDTA -- "PNCounter merge via gossip" --> CRDTC
+    CRDT_A -- "PNCounter merge via gossip" --> CRDT_B
+    CRDT_A -- "PNCounter merge via gossip" --> CRDT_C
 
     %% Config compile + push to Caddy
     RA -- "compile + PushConfig" --> CA
