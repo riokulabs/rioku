@@ -12,7 +12,7 @@ import (
 
 // opResourcePattern restricts the characters allowed in an op:// resource
 // path. It defends against argument injection (a leading `-` would otherwise
-// be interpreted by `op` as a flag) and shell-metacharacter smuggling even
+// be interpreted by `op` as a flag) and shell-special character smuggling even
 // though exec.CommandContext bypasses the shell. The set covers the vault /
 // item / field / section identifiers `op` accepts in practice: alphanumerics,
 // `-`, `_`, `.`, `/`, `%`, and ` ` (encoded in real op paths but allowed here
