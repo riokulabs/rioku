@@ -147,6 +147,15 @@ func getOrCreateRequestID(r *http.Request, w http.ResponseWriter) string {
 //
 // Malformed traceparent headers are silently ignored — we never want a bad
 // header to break a request.
+//
+// Correlation with Caddy access logs: the middleware copies the request id
+// onto the inbound request as X-Caddy-Trace-Id so Caddy's access-log entry
+// (logged under request.headers["X-Caddy-Trace-Id"]) references the same id
+// that appears in the daemon's own structured log entries. This only has
+// effect when the request already carries X-Request-ID before reaching the
+// daemon (i.e. when Caddy forwards the header from the client); for
+// daemon-generated ids the X-Caddy-Trace-Id header is set on the mutable
+// request copy available to downstream handlers.
 func RequestIDMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		id := r.Header.Get("X-Request-ID")
@@ -154,6 +163,12 @@ func RequestIDMiddleware(next http.Handler) http.Handler {
 			id = "req_" + uuid.New().String()[:8]
 		}
 		w.Header().Set("X-Request-ID", id)
+
+		// Propagate the request id as X-Caddy-Trace-Id on the inbound request
+		// so it appears in Caddy's access-log request.headers map, enabling
+		// log correlation across the Caddy ↔ daemon boundary.
+		r = r.Clone(r.Context())
+		r.Header.Set("X-Caddy-Trace-Id", id)
 
 		ctx := logging.WithRequestID(r.Context(), id)
 		if tid := parseTraceparent(r.Header.Get("traceparent")); tid != "" {

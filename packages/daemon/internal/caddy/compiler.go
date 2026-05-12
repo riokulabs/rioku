@@ -300,8 +300,23 @@ func (c *Compiler) compile(snapshot *riokuv1.ConfigSnapshot, perRoute PerRoutePl
 						"output":  "net",
 						"address": "unix/" + c.traceSocketPath,
 					},
+					// filter encoder wraps json and renames the correlation
+					// header field to a top-level request_id key so log
+					// consumers can join Caddy access entries with daemon
+					// handler logs by a single field name. The header is set
+					// by RequestIDMiddleware (gateway/errors.go) before the
+					// request reaches any handler.
 					"encoder": map[string]any{
-						"format": "json",
+						"format": "filter",
+						"wrap": map[string]any{
+							"format": "json",
+						},
+						"fields": map[string]any{
+							"request>headers>X-Caddy-Trace-Id": map[string]any{
+								"filter": "rename",
+								"to":     "request_id",
+							},
+						},
 					},
 					"include": []string{"http.log.access.rioku"},
 				},
