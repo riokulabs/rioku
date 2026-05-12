@@ -1,0 +1,8 @@
+{
+  "label": "AI Development",
+  "position": 7,
+  "link": {
+    "type": "generated-index",
+    "description": "AI-assisted development workflows and agent integration."
+  }
+}
