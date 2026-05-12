@@ -58,7 +58,7 @@ export function requirePermissions(opts: RequirePermissionsOptions) {
     if (!me) {
       // eslint-disable-next-line @typescript-eslint/only-throw-error
       throw redirect({
-        to: '/login' as string,
+        to: '/login',
         search: {
           return:
             typeof window !== 'undefined' ? window.location.pathname + window.location.search : '/',
@@ -77,7 +77,7 @@ export function requirePermissions(opts: RequirePermissionsOptions) {
     if (!pass) {
       // eslint-disable-next-line @typescript-eslint/only-throw-error
       throw redirect({
-        to: '/access-denied' as string,
+        to: '/access-denied',
         search: {
           required: opts.required,
           requireAny: opts.requireAny ?? false,

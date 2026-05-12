@@ -85,7 +85,7 @@ function WidgetConfigPanelInner({ dashboardId, widget, onSave, onClose }: Widget
           onKeyDown={(e) => {
             if (e.key === 'Enter') {
               e.preventDefault();
-              (e.currentTarget as HTMLInputElement).blur();
+              (e.currentTarget).blur();
             }
           }}
           aria-label="Widget title"

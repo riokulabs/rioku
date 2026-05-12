@@ -34,7 +34,7 @@ function isKpiCardData(data: unknown): data is KpiCardData {
     typeof data === 'object' &&
     data !== null &&
     'value' in data &&
-    typeof (data as { value: unknown }).value === 'number'
+    typeof (data).value === 'number'
   );
 }
 

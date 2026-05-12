@@ -115,7 +115,7 @@ export function TlsRealSection({ tenant }: TlsRealSectionProps) {
       if (cur?.allowedCiphers) payload.allowedCiphers = cur.allowedCiphers;
       await put.mutateAsync({
         tenant,
-        data: payload as Parameters<typeof put.mutateAsync>[0]['data'],
+        data: payload,
       });
       notify.success('TLS configuration saved');
       setDirty(false);

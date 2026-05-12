@@ -103,7 +103,7 @@ async function listWidgetsRaw(tenant: string, dashboardId: string): Promise<Daem
   });
   let body: unknown = res;
   if (res !== null && typeof res === 'object' && 'data' in res) {
-    const r = res as { data: unknown };
+    const r = res;
     if (r.data !== undefined) body = r.data;
   }
   return (body as { items: DaemonWidget[] }).items;
@@ -281,7 +281,7 @@ function useTenantSlugForDashboard(dashboardId: string): string {
   });
   for (const [key, value] of cached) {
     if (!value || !Array.isArray((value as { items?: unknown[] }).items)) continue;
-    const list = (value as { items: DaemonDashboard[] }).items;
+    const list = (value).items;
     if (list.some((d) => d.id === dashboardId)) {
       const slug = key[1];
       if (typeof slug === 'string') return slug;
@@ -310,7 +310,7 @@ export function useDashboardDetail(id: string): Dashboard | undefined {
     });
     for (const [, value] of cached) {
       if (!value || !Array.isArray((value as { items?: unknown[] }).items)) continue;
-      const list = (value as { items: DaemonDashboard[] }).items;
+      const list = (value).items;
       const match = list.find((d) => d.id === id);
       if (match) return mapDaemonDashboard(match, daemonWidgets);
     }
@@ -357,7 +357,7 @@ export function useUserHomeDashboard(userId: string): string | undefined {
   });
   for (const [, value] of cached) {
     if (!value || !Array.isArray((value as { items?: unknown[] }).items)) continue;
-    const list = (value as { items: DaemonDashboard[] }).items;
+    const list = (value).items;
     for (const d of list) {
       if (d.homeForUsers.includes(userId)) return d.id;
     }
@@ -541,7 +541,7 @@ export async function importDashboardJson(
       ownerUserId: dash.owner_user_id ?? null,
       sharedRoleIds: dash.shared_role_ids,
       homeForUsers: [],
-      variables: dash.variables as unknown as Record<string, unknown>[],
+      variables: dash.variables,
       createdAt: dash.created_at,
       updatedAt: dash.updated_at,
     },
@@ -557,7 +557,7 @@ export async function importDashboardJson(
       layout: w.position,
       createdAt: w.created_at,
       updatedAt: w.updated_at,
-    })) as DaemonDashboardExport['widgets'],
+    })),
   };
   const created = await importDashboardViaDaemon(tenant, daemonExport);
   emitHostEvent('dashboard.imported', { dashboard_id: created.id, tenant_id: tenant });
@@ -577,7 +577,7 @@ function resolveCachedTenantSlug(dashboardId: string): string | undefined {
   const cached = qc.getQueriesData<{ items: DaemonDashboard[] }>({ queryKey: ['dashboards'] });
   for (const [key, value] of cached) {
     if (!value || !Array.isArray((value as { items?: unknown[] }).items)) continue;
-    const list = (value as { items: DaemonDashboard[] }).items;
+    const list = (value).items;
     if (list.some((d) => d.id === dashboardId)) {
       const slug = key[1];
       if (typeof slug === 'string') return slug;
@@ -591,7 +591,7 @@ function findCachedDashboard(id: string): DaemonDashboard | undefined {
   const cached = qc.getQueriesData<{ items: DaemonDashboard[] }>({ queryKey: ['dashboards'] });
   for (const [, value] of cached) {
     if (!value || !Array.isArray((value as { items?: unknown[] }).items)) continue;
-    const list = (value as { items: DaemonDashboard[] }).items;
+    const list = (value).items;
     const found = list.find((d) => d.id === id);
     if (found) return found;
   }
@@ -612,7 +612,7 @@ function findCachedVersion(versionId: string): { tenant: string; dashboardId: st
     if (!value || !Array.isArray((value as { items?: unknown[] }).items)) continue;
     const arr = key;
     if (arr[3] !== 'versions') continue;
-    const items = (value as { items: DaemonDashboardVersion[] }).items;
+    const items = (value).items;
     if (items.some((v) => v.id === versionId)) {
       const tenant = arr[1];
       const dashboardId = arr[2];

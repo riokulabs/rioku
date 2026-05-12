@@ -111,12 +111,6 @@ export function useApiKey(tenantId: string, id: string): ApiKeyWithMeta | null {
   }, [query.data, tenantId]);
 }
 
-interface CreateAPIKey201Body {
-  id?: string;
-  key?: string;
-  prefix?: string;
-}
-
 interface RotateAPIKey200Body {
   id?: string;
   key?: string;
@@ -167,7 +161,7 @@ export function useApiKeyMutations(tenantId: string) {
     await invalidateList();
     // Orval emits `data: void` for the create endpoint despite the daemon
     // returning a JSON body — cast through the actual 201 schema.
-    const body = resp.data as unknown as CreateAPIKey201Body;
+    const body = resp.data;
     const fullValue = body.key ?? '';
     const id = body.id ?? '';
     const synthetic: ApiKey = {

@@ -181,7 +181,7 @@ export function ShareDashboardModal({ opened, dashboard, onClose }: ShareDashboa
           <Radio.Group
             value={visibility}
             onChange={(v) => {
-              setVisibility(v as Visibility);
+              setVisibility(v);
             }}
           >
             <Stack gap="xs">
@@ -224,7 +224,7 @@ export function ShareDashboardModal({ opened, dashboard, onClose }: ShareDashboa
             <Radio.Group
               value={defaultPerm}
               onChange={(v) => {
-                setDefaultPerm(v as DashboardPermissionLevel);
+                setDefaultPerm(v);
               }}
             >
               <Group gap="lg">
@@ -274,7 +274,7 @@ export function ShareDashboardModal({ opened, dashboard, onClose }: ShareDashboa
                           value={level}
                           onChange={(v) => {
                             if (!v) return;
-                            handleSetRoleGrantLevel(rid, v as DashboardPermissionLevel);
+                            handleSetRoleGrantLevel(rid, v);
                           }}
                           data={[
                             { value: 'read', label: 'View only' },
@@ -329,7 +329,7 @@ export function ShareDashboardModal({ opened, dashboard, onClose }: ShareDashboa
                         value={g.level}
                         onChange={(v) => {
                           if (!v) return;
-                          handleSetUserGrantLevel(g.user_id, v as DashboardPermissionLevel);
+                          handleSetUserGrantLevel(g.user_id, v);
                         }}
                         data={[
                           { value: 'read', label: 'View only' },

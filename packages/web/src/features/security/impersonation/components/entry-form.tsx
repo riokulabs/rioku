@@ -256,7 +256,7 @@ export function ImpersonationEntryForm() {
           <Button
             variant="default"
             onClick={() => {
-              void navigate({ to: '/admin' as string });
+              void navigate({ to: '/admin' });
             }}
             disabled={saving}
           >

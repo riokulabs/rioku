@@ -68,7 +68,7 @@ function unwrapTenant(payload: unknown): SettingsTenantShape | undefined {
   if ('data' in payload) {
     return (payload as { data: SettingsTenantShape }).data;
   }
-  return payload as SettingsTenantShape;
+  return payload;
 }
 
 // ─── Component ────────────────────────────────────────────────────────────────

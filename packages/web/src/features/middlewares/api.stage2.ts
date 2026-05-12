@@ -81,7 +81,7 @@ export function useCreateMiddlewareMutation(tenantId: string) {
       const body = toProtoMiddlewareCreate(input);
       const res = (await orvalCreateMiddleware(
         tenantId,
-        body as unknown as Parameters<typeof orvalCreateMiddleware>[1],
+        body,
       )) as unknown as { data: ProtoMiddleware };
       return fromProtoMiddleware(res.data, tenantId);
     },
@@ -99,7 +99,7 @@ export function useUpdateMiddlewareMutation(tenantId: string) {
       const res = (await patchMiddleware(
         tenantId,
         args.id,
-        body as unknown as Parameters<typeof patchMiddleware>[2],
+        body,
       )) as unknown as { data: ProtoMiddleware };
       return fromProtoMiddleware(res.data, tenantId);
     },

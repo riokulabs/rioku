@@ -175,7 +175,7 @@ describe('<InstallProgressModal> (real daemon SSE)', () => {
     await waitFor(() => screen.getByRole('button', { name: /View build log/i }));
     const alerts = screen.getAllByRole('alert');
     const failedAlert = alerts.find((a) =>
-      /Install failed/i.test(a.textContent as unknown as string),
+      /Install failed/i.test(a.textContent),
     );
     expect(failedAlert).toBeTruthy();
   });

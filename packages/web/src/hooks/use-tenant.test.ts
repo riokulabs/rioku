@@ -4,7 +4,7 @@ import { detectTenantMode, useActiveTenantSlug, useTenant } from './use-tenant';
 // Helper to mock window.location with specific hostname + pathname
 function mockLocation(hostname: string, pathname: string) {
   Object.defineProperty(window, 'location', {
-    value: { hostname, pathname } as Location,
+    value: { hostname, pathname },
     writable: true,
     configurable: true,
   });

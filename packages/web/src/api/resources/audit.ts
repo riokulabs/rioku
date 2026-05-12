@@ -138,7 +138,7 @@ export async function verifyAdminAuditChain(
     // Recompute hash to verify content integrity — omit `hash` field
     // eslint-disable-next-line @typescript-eslint/no-unused-vars
     const { hash: _omitted, ...rest } = entry;
-    const recomputed = await hashEntry(rest as Omit<AdminAuditEntry, 'hash'>);
+    const recomputed = await hashEntry(rest);
     if (recomputed !== entry.hash) {
       return { ok: false, brokenAt: i };
     }

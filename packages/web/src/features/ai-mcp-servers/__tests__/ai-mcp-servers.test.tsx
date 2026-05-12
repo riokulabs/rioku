@@ -13,7 +13,7 @@ vi.mock('@tanstack/react-router', () => ({
   useNavigate: () => vi.fn(),
 }));
 
-const permissionMock = vi.hoisted(() => ({ value: true as boolean }));
+const permissionMock = vi.hoisted(() => ({ value: true }));
 vi.mock('@/hooks/use-permission', () => ({
   usePermission: () => permissionMock.value,
 }));

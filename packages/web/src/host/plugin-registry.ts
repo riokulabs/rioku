@@ -151,7 +151,7 @@ export const usePluginRegistry = create<PluginRegistryStore>()((set, get) => ({
     set((state) => {
       const plugin = state.plugins[name];
       if (!plugin) return state;
-      const existing = plugin.contributions[kind] as PluginContributions[K];
+      const existing = plugin.contributions[kind];
       return {
         plugins: {
           ...state.plugins,

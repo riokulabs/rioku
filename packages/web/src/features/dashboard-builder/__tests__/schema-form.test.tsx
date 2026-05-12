@@ -73,7 +73,7 @@ describe('<SchemaForm>', () => {
     const onChange = vi.fn();
     wrap(
       <SchemaForm
-        schema={schema as unknown as z.ZodObject<z.ZodRawShape>}
+        schema={schema}
         value={{ bigint_field: null }}
         onChange={onChange}
       />,

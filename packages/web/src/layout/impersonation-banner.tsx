@@ -53,7 +53,7 @@ export function ImpersonationBanner() {
           // useImpersonation.exit() handles the daemon DELETE,
           // active-id clear, and list-query invalidation in one shot.
           await exit();
-          void navigate({ to: '/admin' as string });
+          void navigate({ to: '/admin' });
         })();
       },
     });

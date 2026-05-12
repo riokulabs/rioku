@@ -77,7 +77,7 @@ export type {
 // eslint-disable-next-line @typescript-eslint/no-unnecessary-type-parameters
 function unwrap<T>(result: unknown): T {
   if (result !== null && typeof result === 'object' && 'data' in result) {
-    const r = result as { data: unknown };
+    const r = result;
     if (r.data !== undefined) return r.data as T;
   }
   return result as T;

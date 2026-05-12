@@ -82,7 +82,7 @@ export function PermissionsCatalogPage() {
           label="Source"
           value={sourceFilter}
           onChange={(v) => {
-            setSourceFilter((v as SourceFilter | null) ?? 'all');
+            setSourceFilter((v) ?? 'all');
           }}
           data={[
             { value: 'all', label: 'All sources' },

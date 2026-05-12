@@ -32,7 +32,7 @@ function isGaugeData(data: unknown): data is GaugeData {
     typeof data === 'object' &&
     data !== null &&
     'value' in data &&
-    typeof (data as { value: unknown }).value === 'number'
+    typeof (data).value === 'number'
   );
 }
 

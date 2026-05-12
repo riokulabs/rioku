@@ -24,11 +24,9 @@ import {
 } from '@/api/generated/access-policies/access-policies';
 import type {
   AccessPolicy as ProtoAccessPolicy,
-  CreateAccessPolicyBody,
   ListAccessPolicies200,
   TestCELBody,
   TestCELResult,
-  UpdateAccessPolicyBody,
 } from '@/api/generated/schemas';
 import type { AccessPolicy } from '@/api/resources';
 import type { AccessPolicyPayload } from './types';
@@ -77,7 +75,7 @@ export function useCreateAccessPolicyMutation(tenantId: string) {
       const body = toProtoAccessPolicyCreate(payload);
       const res = (await orvalCreateAccessPolicy(
         tenantId,
-        body as CreateAccessPolicyBody,
+        body,
       )) as unknown as { data: ProtoAccessPolicy };
       return fromProtoAccessPolicy(res.data, tenantId);
     },
@@ -95,7 +93,7 @@ export function useUpdateAccessPolicyMutation(tenantId: string) {
       payload: Partial<AccessPolicyPayload>;
     }): Promise<void> => {
       const body = toProtoAccessPolicyPatch(args.payload);
-      await patchAccessPolicy(tenantId, args.id, body as UpdateAccessPolicyBody);
+      await patchAccessPolicy(tenantId, args.id, body);
     },
     onSuccess: (_, vars) => {
       void qc.invalidateQueries({ queryKey: getListAccessPoliciesQueryKey(tenantId) });

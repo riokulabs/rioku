@@ -233,13 +233,13 @@ describe('plugin-registry ↔ plugin-loader roundtrip', () => {
     setMockPlugin((host) => {
       host.zones.register({
         zone: 'dashboard.header',
-        component: (() => null) as unknown as React.ComponentType,
+        component: () => null,
         source: 'plugin',
         pluginName: 'roundtrip-plugin',
       });
       host.routes.register({
         path: '/plugins/roundtrip/page',
-        component: (() => null) as unknown as React.ComponentType,
+        component: () => null,
         source: 'plugin',
         pluginName: 'roundtrip-plugin',
       });
@@ -261,10 +261,7 @@ describe('plugin-registry ↔ plugin-loader roundtrip', () => {
         type: 'com.roundtrip:widget',
         displayName: 'Roundtrip Widget',
         schema: { input: {}, config: {} },
-        component: (() => null) as unknown as React.ComponentType<{
-          data: unknown;
-          config: unknown;
-        }>,
+        component: () => null,
         source: 'plugin',
         pluginName: 'roundtrip-plugin',
       });
@@ -309,13 +306,13 @@ describe('plugin-registry ↔ plugin-loader roundtrip', () => {
     setMockPlugin((host) => {
       host.zones.register({
         zone: 'unload.zone',
-        component: (() => null) as unknown as React.ComponentType,
+        component: () => null,
         source: 'plugin',
         pluginName: 'roundtrip-plugin',
       });
       host.routes.register({
         path: '/plugins/roundtrip/bye',
-        component: (() => null) as unknown as React.ComponentType,
+        component: () => null,
         source: 'plugin',
         pluginName: 'roundtrip-plugin',
       });
@@ -337,10 +334,7 @@ describe('plugin-registry ↔ plugin-loader roundtrip', () => {
         type: 'com.roundtrip:bye-widget',
         displayName: 'Bye Widget',
         schema: { input: {}, config: {} },
-        component: (() => null) as unknown as React.ComponentType<{
-          data: unknown;
-          config: unknown;
-        }>,
+        component: () => null,
         source: 'plugin',
       });
       host.spotlight.registerCommand({
