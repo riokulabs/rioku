@@ -24,67 +24,69 @@ package gateway
 import (
 	"encoding/json"
 	"errors"
+	"fmt"
 	"net/http"
 
 	"github.com/riokulabs/rioku/internal/plugins"
+	"github.com/riokulabs/rioku/internal/rerr"
 	"github.com/riokulabs/rioku/internal/store"
 )
 
 func RegisterPluginRoutes(mux *http.ServeMux, st store.Driver) {
 	// Tenant-scoped plugins
 	mux.Handle("GET /api/v1/t/{tenant}/plugins",
-		RequirePermission("plugin:read")(http.HandlerFunc(handleListPlugins(st, false))))
+		RequirePermission("plugin:read")(rerr.H(handleListPlugins(st, false))))
 	mux.Handle("POST /api/v1/t/{tenant}/plugins/install",
-		RequirePermission("plugin:install")(http.HandlerFunc(handleInstallPlugin(st, false))))
+		RequirePermission("plugin:install")(rerr.H(handleInstallPlugin(st, false))))
 	// Manifest validator — no install permission required, read is sufficient.
 	mux.Handle("POST /api/v1/t/{tenant}/plugins/manifest/validate",
-		RequirePermission("plugin:read")(http.HandlerFunc(handlePluginManifestValidate)))
+		RequirePermission("plugin:read")(rerr.H(handlePluginManifestValidate)))
 	// Marketplace lives at a separate top-level path to avoid mux
 	// pattern conflicts with /plugins/{id}.
 	mux.Handle("GET /api/v1/t/{tenant}/plugin-marketplace",
-		RequirePermission("plugin:read")(http.HandlerFunc(handlePluginMarketplaceList)))
+		RequirePermission("plugin:read")(rerr.H(handlePluginMarketplaceList)))
 	mux.Handle("GET /api/v1/t/{tenant}/plugin-marketplace/{id}",
-		RequirePermission("plugin:read")(http.HandlerFunc(handlePluginMarketplaceGet)))
+		RequirePermission("plugin:read")(rerr.H(handlePluginMarketplaceGet)))
 	mux.Handle("GET /api/v1/t/{tenant}/plugins/{id}",
-		RequirePermission("plugin:read")(http.HandlerFunc(handleGetPlugin(st, false))))
+		RequirePermission("plugin:read")(rerr.H(handleGetPlugin(st, false))))
 	mux.Handle("DELETE /api/v1/t/{tenant}/plugins/{id}",
-		RequirePermission("plugin:uninstall")(http.HandlerFunc(handleUninstallPlugin(st, false))))
+		RequirePermission("plugin:uninstall")(rerr.H(handleUninstallPlugin(st, false))))
 	mux.Handle("POST /api/v1/t/{tenant}/plugins/{id}/enable",
-		RequirePermission("plugin:enable")(http.HandlerFunc(handleTogglePlugin(st, false, true))))
+		RequirePermission("plugin:enable")(rerr.H(handleTogglePlugin(st, false, true))))
 	mux.Handle("POST /api/v1/t/{tenant}/plugins/{id}/disable",
-		RequirePermission("plugin:enable")(http.HandlerFunc(handleTogglePlugin(st, false, false))))
+		RequirePermission("plugin:enable")(rerr.H(handleTogglePlugin(st, false, false))))
 	mux.Handle("GET /api/v1/t/{tenant}/plugins/{id}/build-log",
-		RequirePermission("plugin:read")(http.HandlerFunc(handlePluginBuildLog(st, false))))
+		RequirePermission("plugin:read")(rerr.H(handlePluginBuildLog(st, false))))
 
 	// Tenant-scoped signers
 	mux.Handle("GET /api/v1/t/{tenant}/plugin-signers",
-		RequirePermission("plugin-signer:read")(http.HandlerFunc(handleListPluginSigners(st, false))))
+		RequirePermission("plugin-signer:read")(rerr.H(handleListPluginSigners(st, false))))
 	mux.Handle("POST /api/v1/t/{tenant}/plugin-signers",
-		RequirePermission("plugin-signer:write")(http.HandlerFunc(handleCreatePluginSigner(st, false))))
+		RequirePermission("plugin-signer:write")(rerr.H(handleCreatePluginSigner(st, false))))
 	mux.Handle("GET /api/v1/t/{tenant}/plugin-signers/{id}",
-		RequirePermission("plugin-signer:read")(http.HandlerFunc(handleGetPluginSigner(st, false))))
+		RequirePermission("plugin-signer:read")(rerr.H(handleGetPluginSigner(st, false))))
 	mux.Handle("PUT /api/v1/t/{tenant}/plugin-signers/{id}",
-		RequirePermission("plugin-signer:write")(http.HandlerFunc(handleUpdatePluginSigner(st, false))))
+		RequirePermission("plugin-signer:write")(rerr.H(handleUpdatePluginSigner(st, false))))
 	mux.Handle("DELETE /api/v1/t/{tenant}/plugin-signers/{id}",
-		RequirePermission("plugin-signer:delete")(http.HandlerFunc(handleDeletePluginSigner(st, false))))
+		RequirePermission("plugin-signer:delete")(rerr.H(handleDeletePluginSigner(st, false))))
 	mux.Handle("POST /api/v1/t/{tenant}/plugin-signers/{id}/verify",
-		RequirePermission("plugin-signer:write")(http.HandlerFunc(handleSetSignerStatus(st, false, "verified"))))
+		RequirePermission("plugin-signer:write")(rerr.H(handleSetSignerStatus(st, false, "verified"))))
 	mux.Handle("POST /api/v1/t/{tenant}/plugin-signers/{id}/revoke",
-		RequirePermission("plugin-signer:write")(http.HandlerFunc(handleSetSignerStatus(st, false, "revoked"))))
+		RequirePermission("plugin-signer:write")(rerr.H(handleSetSignerStatus(st, false, "revoked"))))
 	mux.Handle("GET /api/v1/t/{tenant}/plugin-signers/{id}/plugins",
-		RequirePermission("plugin-signer:read")(http.HandlerFunc(handleListSignerPlugins(st, false))))
+		RequirePermission("plugin-signer:read")(rerr.H(handleListSignerPlugins(st, false))))
 
 	// Global (super-admin) signers + plugins
 	mux.Handle("GET /api/v1/admin/plugin-signers",
-		RequirePermission("plugin-signer:read")(http.HandlerFunc(handleListPluginSigners(st, true))))
+		RequirePermission("plugin-signer:read")(rerr.H(handleListPluginSigners(st, true))))
 	mux.Handle("POST /api/v1/admin/plugin-signers",
-		RequirePermission("plugin-signer:write")(http.HandlerFunc(handleCreatePluginSigner(st, true))))
+		RequirePermission("plugin-signer:write")(rerr.H(handleCreatePluginSigner(st, true))))
 	mux.Handle("GET /api/v1/admin/plugin-signers/{id}",
-		RequirePermission("plugin-signer:read")(http.HandlerFunc(handleGetPluginSigner(st, true))))
+		RequirePermission("plugin-signer:read")(rerr.H(handleGetPluginSigner(st, true))))
 	mux.Handle("PUT /api/v1/admin/plugin-signers/{id}",
-		RequirePermission("plugin-signer:write")(http.HandlerFunc(handleUpdatePluginSigner(st, true))))
+		RequirePermission("plugin-signer:write")(rerr.H(handleUpdatePluginSigner(st, true))))
 	mux.Handle("DELETE /api/v1/admin/plugin-signers/{id}",
-		RequirePermission("plugin-signer:delete")(http.HandlerFunc(handleDeletePluginSigner(st, true))))
+		RequirePermission("plugin-signer:delete")(rerr.H(handleDeletePluginSigner(st, true))))
 }
 
 // ─── DTOs ───────────────────────────────────────────────────────────────────
@@ -152,57 +154,51 @@ func scopeForRequest(r *http.Request, global bool) (string, bool) {
 
 // ─── Plugin handlers ────────────────────────────────────────────────────────
 
-func handleListPlugins(st store.Driver, global bool) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
+func handleListPlugins(st store.Driver, global bool) rerr.Handler {
+	return func(w http.ResponseWriter, r *http.Request) error {
 		scope, ok := scopeForRequest(r, global)
 		if !ok {
-			writeInternalError(w, r, "tenant resolution")
-			return
+			return rerr.Wrap(fmt.Errorf("tenant not in context"), "tenant resolution")
 		}
 		tx, _ := st.Begin(r.Context(), store.TxOptions{ReadOnly: true})
 		defer func() { _ = tx.Rollback() }()
 		items, err := tx.ListPluginsByScope(r.Context(), scope)
 		if err != nil {
-			writeInternalError(w, r, "list plugins")
-			return
+			return rerr.Wrap(err, "list plugins")
 		}
 		out := make([]pluginResponse, 0, len(items))
 		for _, p := range items {
 			out = append(out, pluginToResponse(p))
 		}
-		writeJSON(w, http.StatusOK, map[string]any{"items": out, "total": len(out)})
+		return rerr.JSON(w, map[string]any{"items": out, "total": len(out)})
 	}
 }
 
-func handleGetPlugin(st store.Driver, global bool) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
+func handleGetPlugin(st store.Driver, global bool) rerr.Handler {
+	return func(w http.ResponseWriter, r *http.Request) error {
 		scope, ok := scopeForRequest(r, global)
 		if !ok {
-			writeInternalError(w, r, "tenant resolution")
-			return
+			return rerr.Wrap(fmt.Errorf("tenant not in context"), "tenant resolution")
 		}
 		id := r.PathValue("id")
 		tx, _ := st.Begin(r.Context(), store.TxOptions{ReadOnly: true})
 		defer func() { _ = tx.Rollback() }()
 		p, err := tx.GetPlugin(r.Context(), scope, id)
 		if err != nil {
-			writeProblem(w, http.StatusNotFound, errTypeNotFound, "Plugin not found",
-				"No plugin with id "+id, r.URL.Path, nil)
-			return
+			return rerr.NotFound("plugin", id)
 		}
-		writeJSON(w, http.StatusOK, pluginToResponse(p))
+		return rerr.JSON(w, pluginToResponse(p))
 	}
 }
 
 // handleInstallPlugin is a stub: it inserts a placeholder `building` row
 // that real install orchestration (#142/#143/#146) will later fill in.
 // The admin panel calls this and then polls for build state transitions.
-func handleInstallPlugin(st store.Driver, global bool) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
+func handleInstallPlugin(st store.Driver, global bool) rerr.Handler {
+	return func(w http.ResponseWriter, r *http.Request) error {
 		scope, ok := scopeForRequest(r, global)
 		if !ok {
-			writeInternalError(w, r, "tenant resolution")
-			return
+			return rerr.Wrap(fmt.Errorf("tenant not in context"), "tenant resolution")
 		}
 		var req struct {
 			Slug    string `json:"slug"`
@@ -210,163 +206,153 @@ func handleInstallPlugin(st store.Driver, global bool) http.HandlerFunc {
 			Version string `json:"version"`
 		}
 		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-			writeBadRequest(w, r, "invalid JSON body")
-			return
+			return rerr.Validation(map[string]string{"body": "invalid JSON body"})
 		}
 		if req.Slug == "" || req.Name == "" || req.Version == "" {
-			writeBadRequest(w, r, "slug, name, version are required")
-			return
+			return rerr.Validation(map[string]string{"slug": "slug, name, version are required"})
 		}
 		var ts *string
 		if scope != "" {
 			ts = &scope
 		}
-		tx, _ := st.Begin(r.Context(), store.TxOptions{})
+		tx, err := st.Begin(r.Context(), store.TxOptions{})
+		if err != nil {
+			return rerr.Wrap(err, "begin tx")
+		}
+		defer func() { _ = tx.Rollback() }()
 		created, err := tx.CreatePlugin(r.Context(), &store.Plugin{
 			TenantScope: ts, Slug: req.Slug, Name: req.Name, Version: req.Version,
 			Enabled: false, BuildState: "building",
 		})
 		if err != nil {
-			_ = tx.Rollback()
 			if errors.Is(err, store.ErrPluginSlugTaken) {
-				writeProblem(w, http.StatusConflict, errTypeConflict, "Slug already in use",
-					"A plugin with that slug already exists in this scope", r.URL.Path, nil)
-				return
+				return rerr.Conflict("A plugin with that slug already exists in this scope", err)
 			}
-			writeInternalError(w, r, "install plugin")
-			return
+			return rerr.Wrap(err, "install plugin")
 		}
 		if err := tx.Commit(); err != nil {
-			writeInternalError(w, r, "commit")
-			return
+			return rerr.Wrap(err, "commit")
 		}
-		writeJSON(w, http.StatusAccepted, pluginToResponse(created))
+		w.WriteHeader(http.StatusAccepted)
+		return rerr.JSON(w, pluginToResponse(created))
 	}
 }
 
-func handleUninstallPlugin(st store.Driver, global bool) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
+func handleUninstallPlugin(st store.Driver, global bool) rerr.Handler {
+	return func(w http.ResponseWriter, r *http.Request) error {
 		scope, ok := scopeForRequest(r, global)
 		if !ok {
-			writeInternalError(w, r, "tenant resolution")
-			return
+			return rerr.Wrap(fmt.Errorf("tenant not in context"), "tenant resolution")
 		}
 		id := r.PathValue("id")
-		tx, _ := st.Begin(r.Context(), store.TxOptions{})
+		tx, err := st.Begin(r.Context(), store.TxOptions{})
+		if err != nil {
+			return rerr.Wrap(err, "begin tx")
+		}
+		defer func() { _ = tx.Rollback() }()
 		if err := tx.DeletePlugin(r.Context(), scope, id); err != nil {
-			_ = tx.Rollback()
 			if errors.Is(err, store.ErrPluginNotFound) {
-				writeProblem(w, http.StatusNotFound, errTypeNotFound, "Plugin not found",
-					"No plugin with id "+id, r.URL.Path, nil)
-				return
+				return rerr.NotFound("plugin", id)
 			}
-			writeInternalError(w, r, "uninstall")
-			return
+			return rerr.Wrap(err, "uninstall")
 		}
 		// Drop any catalog rows this plugin registered. Per migration
 		// 000049's source-handling rule, plugin-sourced rows are
 		// deleted outright (they were never built-in). Idempotent —
 		// returns 0 if the plugin never registered any.
 		if _, err := tx.UnregisterPluginPermissions(r.Context(), id); err != nil {
-			_ = tx.Rollback()
-			writeInternalError(w, r, "unregister plugin permissions")
-			return
+			return rerr.Wrap(err, "unregister plugin permissions")
 		}
 		if err := tx.Commit(); err != nil {
-			writeInternalError(w, r, "commit")
-			return
+			return rerr.Wrap(err, "commit")
 		}
 		w.WriteHeader(http.StatusNoContent)
+		return nil
 	}
 }
 
-func handleTogglePlugin(st store.Driver, global, enabled bool) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
+func handleTogglePlugin(st store.Driver, global, enabled bool) rerr.Handler {
+	return func(w http.ResponseWriter, r *http.Request) error {
 		scope, ok := scopeForRequest(r, global)
 		if !ok {
-			writeInternalError(w, r, "tenant resolution")
-			return
+			return rerr.Wrap(fmt.Errorf("tenant not in context"), "tenant resolution")
 		}
 		id := r.PathValue("id")
-		tx, _ := st.Begin(r.Context(), store.TxOptions{})
+		tx, err := st.Begin(r.Context(), store.TxOptions{})
+		if err != nil {
+			return rerr.Wrap(err, "begin tx")
+		}
+		defer func() { _ = tx.Rollback() }()
 		updated, err := tx.UpdatePlugin(r.Context(), scope, id, store.UpdatePluginParams{Enabled: &enabled})
 		if err != nil {
-			_ = tx.Rollback()
 			if errors.Is(err, store.ErrPluginNotFound) {
-				writeProblem(w, http.StatusNotFound, errTypeNotFound, "Plugin not found",
-					"No plugin with id "+id, r.URL.Path, nil)
-				return
+				return rerr.NotFound("plugin", id)
 			}
-			writeInternalError(w, r, "toggle plugin")
-			return
+			return rerr.Wrap(err, "toggle plugin")
 		}
 		if err := tx.Commit(); err != nil {
-			writeInternalError(w, r, "commit")
-			return
+			return rerr.Wrap(err, "commit")
 		}
-		writeJSON(w, http.StatusOK, pluginToResponse(updated))
+		return rerr.JSON(w, pluginToResponse(updated))
 	}
 }
 
-func handlePluginBuildLog(st store.Driver, global bool) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
+func handlePluginBuildLog(st store.Driver, global bool) rerr.Handler {
+	return func(w http.ResponseWriter, r *http.Request) error {
 		scope, ok := scopeForRequest(r, global)
 		if !ok {
-			writeInternalError(w, r, "tenant resolution")
-			return
+			return rerr.Wrap(fmt.Errorf("tenant not in context"), "tenant resolution")
 		}
 		id := r.PathValue("id")
-		tx, _ := st.Begin(r.Context(), store.TxOptions{ReadOnly: true})
+		tx, err := st.Begin(r.Context(), store.TxOptions{ReadOnly: true})
+		if err != nil {
+			return rerr.Wrap(err, "begin tx")
+		}
 		defer func() { _ = tx.Rollback() }()
 		p, err := tx.GetPlugin(r.Context(), scope, id)
 		if err != nil {
-			writeProblem(w, http.StatusNotFound, errTypeNotFound, "Plugin not found",
-				"No plugin with id "+id, r.URL.Path, nil)
-			return
+			return rerr.NotFound("plugin", id)
 		}
 		log := ""
 		if p.LastBuildLog != nil {
 			log = *p.LastBuildLog
 		}
-		writeJSON(w, http.StatusOK, map[string]any{"pluginId": p.ID, "buildState": p.BuildState, "log": log})
+		return rerr.JSON(w, map[string]any{"pluginId": p.ID, "buildState": p.BuildState, "log": log})
 	}
 }
 
 // handlePluginMarketplaceList serves the curated first-party plugin catalog
 // embedded at compile time from internal/plugins/marketplace.json.
-func handlePluginMarketplaceList(w http.ResponseWriter, _ *http.Request) {
+func handlePluginMarketplaceList(w http.ResponseWriter, _ *http.Request) error {
 	items := plugins.MarketplaceItems()
-	writeJSON(w, http.StatusOK, map[string]any{
+	return rerr.JSON(w, map[string]any{
 		"items": items,
 		"total": len(items),
 	})
 }
 
 // handlePluginMarketplaceGet returns a single curated marketplace entry by id.
-func handlePluginMarketplaceGet(w http.ResponseWriter, r *http.Request) {
+func handlePluginMarketplaceGet(w http.ResponseWriter, r *http.Request) error {
 	id := r.PathValue("id")
 	entry, ok := plugins.MarketplaceItem(id)
 	if !ok {
-		writeProblem(w, http.StatusNotFound, errTypeNotFound, "Marketplace entry not found",
-			"No marketplace entry with id "+id, r.URL.Path, nil)
-		return
+		return rerr.NotFound("marketplace entry", id)
 	}
-	writeJSON(w, http.StatusOK, entry)
+	return rerr.JSON(w, entry)
 }
 
 // handlePluginManifestValidate accepts a plugin manifest JSON body, validates
 // it against the required schema, and returns {valid, errors}.
-func handlePluginManifestValidate(w http.ResponseWriter, r *http.Request) {
+func handlePluginManifestValidate(w http.ResponseWriter, r *http.Request) error {
 	var raw map[string]json.RawMessage
 	if err := json.NewDecoder(r.Body).Decode(&raw); err != nil {
-		writeBadRequest(w, r, "invalid JSON body")
-		return
+		return rerr.Validation(map[string]string{"body": "invalid JSON body"})
 	}
 	valid, errs := plugins.ValidateManifest(raw)
 	if errs == nil {
 		errs = []plugins.ManifestValidationError{}
 	}
-	writeJSON(w, http.StatusOK, map[string]any{
+	return rerr.JSON(w, map[string]any{
 		"valid":  valid,
 		"errors": errs,
 	})
@@ -374,34 +360,34 @@ func handlePluginManifestValidate(w http.ResponseWriter, r *http.Request) {
 
 // ─── Signer handlers ────────────────────────────────────────────────────────
 
-func handleListPluginSigners(st store.Driver, global bool) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
+func handleListPluginSigners(st store.Driver, global bool) rerr.Handler {
+	return func(w http.ResponseWriter, r *http.Request) error {
 		scope, ok := scopeForRequest(r, global)
 		if !ok {
-			writeInternalError(w, r, "tenant resolution")
-			return
+			return rerr.Wrap(fmt.Errorf("tenant not in context"), "tenant resolution")
 		}
-		tx, _ := st.Begin(r.Context(), store.TxOptions{ReadOnly: true})
+		tx, err := st.Begin(r.Context(), store.TxOptions{ReadOnly: true})
+		if err != nil {
+			return rerr.Wrap(err, "begin tx")
+		}
 		defer func() { _ = tx.Rollback() }()
 		items, err := tx.ListPluginSignersByScope(r.Context(), scope)
 		if err != nil {
-			writeInternalError(w, r, "list signers")
-			return
+			return rerr.Wrap(err, "list signers")
 		}
 		out := make([]signerResponse, 0, len(items))
 		for _, s := range items {
 			out = append(out, signerToResponse(s))
 		}
-		writeJSON(w, http.StatusOK, map[string]any{"items": out, "total": len(out)})
+		return rerr.JSON(w, map[string]any{"items": out, "total": len(out)})
 	}
 }
 
-func handleCreatePluginSigner(st store.Driver, global bool) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
+func handleCreatePluginSigner(st store.Driver, global bool) rerr.Handler {
+	return func(w http.ResponseWriter, r *http.Request) error {
 		scope, ok := scopeForRequest(r, global)
 		if !ok {
-			writeInternalError(w, r, "tenant resolution")
-			return
+			return rerr.Wrap(fmt.Errorf("tenant not in context"), "tenant resolution")
 		}
 		var req struct {
 			Name        string `json:"name"`
@@ -409,65 +395,62 @@ func handleCreatePluginSigner(st store.Driver, global bool) http.HandlerFunc {
 			Notes       string `json:"notes,omitempty"`
 		}
 		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-			writeBadRequest(w, r, "invalid JSON body")
-			return
+			return rerr.Validation(map[string]string{"body": "invalid JSON body"})
 		}
 		if req.Name == "" || req.Fingerprint == "" {
-			writeBadRequest(w, r, "name and fingerprint are required")
-			return
+			return rerr.Validation(map[string]string{"name": "name and fingerprint are required"})
 		}
 		var ts *string
 		if scope != "" {
 			ts = &scope
 		}
-		tx, _ := st.Begin(r.Context(), store.TxOptions{})
+		tx, err := st.Begin(r.Context(), store.TxOptions{})
+		if err != nil {
+			return rerr.Wrap(err, "begin tx")
+		}
+		defer func() { _ = tx.Rollback() }()
 		created, err := tx.CreatePluginSigner(r.Context(), &store.PluginSigner{
 			TenantScope: ts, Name: req.Name, Fingerprint: req.Fingerprint, Notes: req.Notes,
 		})
 		if err != nil {
-			_ = tx.Rollback()
 			if errors.Is(err, store.ErrPluginSignerFPTaken) {
-				writeProblem(w, http.StatusConflict, errTypeConflict, "Fingerprint already in use",
-					"A signer with that fingerprint already exists in this scope", r.URL.Path, nil)
-				return
+				return rerr.Conflict("A signer with that fingerprint already exists in this scope", err)
 			}
-			writeInternalError(w, r, "create signer")
-			return
+			return rerr.Wrap(err, "create signer")
 		}
 		if err := tx.Commit(); err != nil {
-			writeInternalError(w, r, "commit")
-			return
+			return rerr.Wrap(err, "commit")
 		}
-		writeJSON(w, http.StatusCreated, signerToResponse(created))
+		w.WriteHeader(http.StatusCreated)
+		return rerr.JSON(w, signerToResponse(created))
 	}
 }
 
-func handleGetPluginSigner(st store.Driver, global bool) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
+func handleGetPluginSigner(st store.Driver, global bool) rerr.Handler {
+	return func(w http.ResponseWriter, r *http.Request) error {
 		scope, ok := scopeForRequest(r, global)
 		if !ok {
-			writeInternalError(w, r, "tenant resolution")
-			return
+			return rerr.Wrap(fmt.Errorf("tenant not in context"), "tenant resolution")
 		}
 		id := r.PathValue("id")
-		tx, _ := st.Begin(r.Context(), store.TxOptions{ReadOnly: true})
+		tx, err := st.Begin(r.Context(), store.TxOptions{ReadOnly: true})
+		if err != nil {
+			return rerr.Wrap(err, "begin tx")
+		}
 		defer func() { _ = tx.Rollback() }()
 		s, err := tx.GetPluginSigner(r.Context(), scope, id)
 		if err != nil {
-			writeProblem(w, http.StatusNotFound, errTypeNotFound, "Signer not found",
-				"No signer with id "+id, r.URL.Path, nil)
-			return
+			return rerr.NotFound("signer", id)
 		}
-		writeJSON(w, http.StatusOK, signerToResponse(s))
+		return rerr.JSON(w, signerToResponse(s))
 	}
 }
 
-func handleUpdatePluginSigner(st store.Driver, global bool) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
+func handleUpdatePluginSigner(st store.Driver, global bool) rerr.Handler {
+	return func(w http.ResponseWriter, r *http.Request) error {
 		scope, ok := scopeForRequest(r, global)
 		if !ok {
-			writeInternalError(w, r, "tenant resolution")
-			return
+			return rerr.Wrap(fmt.Errorf("tenant not in context"), "tenant resolution")
 		}
 		id := r.PathValue("id")
 		var req struct {
@@ -476,111 +459,105 @@ func handleUpdatePluginSigner(st store.Driver, global bool) http.HandlerFunc {
 			Notes       *string `json:"notes,omitempty"`
 		}
 		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-			writeBadRequest(w, r, "invalid JSON body")
-			return
+			return rerr.Validation(map[string]string{"body": "invalid JSON body"})
 		}
-		tx, _ := st.Begin(r.Context(), store.TxOptions{})
+		tx, err := st.Begin(r.Context(), store.TxOptions{})
+		if err != nil {
+			return rerr.Wrap(err, "begin tx")
+		}
+		defer func() { _ = tx.Rollback() }()
 		updated, err := tx.UpdatePluginSigner(r.Context(), scope, id, store.UpdatePluginSignerParams{
 			Name: req.Name, Fingerprint: req.Fingerprint, Notes: req.Notes,
 		})
 		if err != nil {
-			_ = tx.Rollback()
 			if errors.Is(err, store.ErrPluginSignerNotFound) {
-				writeProblem(w, http.StatusNotFound, errTypeNotFound, "Signer not found",
-					"No signer with id "+id, r.URL.Path, nil)
-				return
+				return rerr.NotFound("signer", id)
 			}
-			writeInternalError(w, r, "update signer")
-			return
+			return rerr.Wrap(err, "update signer")
 		}
 		if err := tx.Commit(); err != nil {
-			writeInternalError(w, r, "commit")
-			return
+			return rerr.Wrap(err, "commit")
 		}
-		writeJSON(w, http.StatusOK, signerToResponse(updated))
+		return rerr.JSON(w, signerToResponse(updated))
 	}
 }
 
-func handleDeletePluginSigner(st store.Driver, global bool) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
+func handleDeletePluginSigner(st store.Driver, global bool) rerr.Handler {
+	return func(w http.ResponseWriter, r *http.Request) error {
 		scope, ok := scopeForRequest(r, global)
 		if !ok {
-			writeInternalError(w, r, "tenant resolution")
-			return
+			return rerr.Wrap(fmt.Errorf("tenant not in context"), "tenant resolution")
 		}
 		id := r.PathValue("id")
-		tx, _ := st.Begin(r.Context(), store.TxOptions{})
+		tx, err := st.Begin(r.Context(), store.TxOptions{})
+		if err != nil {
+			return rerr.Wrap(err, "begin tx")
+		}
+		defer func() { _ = tx.Rollback() }()
 		if err := tx.DeletePluginSigner(r.Context(), scope, id); err != nil {
-			_ = tx.Rollback()
 			if errors.Is(err, store.ErrPluginSignerNotFound) {
-				writeProblem(w, http.StatusNotFound, errTypeNotFound, "Signer not found",
-					"No signer with id "+id, r.URL.Path, nil)
-				return
+				return rerr.NotFound("signer", id)
 			}
-			writeInternalError(w, r, "delete signer")
-			return
+			return rerr.Wrap(err, "delete signer")
 		}
 		if err := tx.Commit(); err != nil {
-			writeInternalError(w, r, "commit")
-			return
+			return rerr.Wrap(err, "commit")
 		}
 		w.WriteHeader(http.StatusNoContent)
+		return nil
 	}
 }
 
-func handleSetSignerStatus(st store.Driver, global bool, status string) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
+func handleSetSignerStatus(st store.Driver, global bool, status string) rerr.Handler {
+	return func(w http.ResponseWriter, r *http.Request) error {
 		scope, ok := scopeForRequest(r, global)
 		if !ok {
-			writeInternalError(w, r, "tenant resolution")
-			return
+			return rerr.Wrap(fmt.Errorf("tenant not in context"), "tenant resolution")
 		}
 		id := r.PathValue("id")
-		tx, _ := st.Begin(r.Context(), store.TxOptions{})
+		tx, err := st.Begin(r.Context(), store.TxOptions{})
+		if err != nil {
+			return rerr.Wrap(err, "begin tx")
+		}
+		defer func() { _ = tx.Rollback() }()
 		updated, err := tx.UpdatePluginSigner(r.Context(), scope, id, store.UpdatePluginSignerParams{Status: &status})
 		if err != nil {
-			_ = tx.Rollback()
 			if errors.Is(err, store.ErrPluginSignerNotFound) {
-				writeProblem(w, http.StatusNotFound, errTypeNotFound, "Signer not found",
-					"No signer with id "+id, r.URL.Path, nil)
-				return
+				return rerr.NotFound("signer", id)
 			}
-			writeInternalError(w, r, "set signer status")
-			return
+			return rerr.Wrap(err, "set signer status")
 		}
 		if err := tx.Commit(); err != nil {
-			writeInternalError(w, r, "commit")
-			return
+			return rerr.Wrap(err, "commit")
 		}
-		writeJSON(w, http.StatusOK, signerToResponse(updated))
+		return rerr.JSON(w, signerToResponse(updated))
 	}
 }
 
-func handleListSignerPlugins(st store.Driver, global bool) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
+func handleListSignerPlugins(st store.Driver, global bool) rerr.Handler {
+	return func(w http.ResponseWriter, r *http.Request) error {
 		scope, ok := scopeForRequest(r, global)
 		if !ok {
-			writeInternalError(w, r, "tenant resolution")
-			return
+			return rerr.Wrap(fmt.Errorf("tenant not in context"), "tenant resolution")
 		}
 		id := r.PathValue("id")
-		tx, _ := st.Begin(r.Context(), store.TxOptions{ReadOnly: true})
+		tx, err := st.Begin(r.Context(), store.TxOptions{ReadOnly: true})
+		if err != nil {
+			return rerr.Wrap(err, "begin tx")
+		}
 		defer func() { _ = tx.Rollback() }()
 		// Verify ownership.
 		if _, err := tx.GetPluginSigner(r.Context(), scope, id); err != nil {
-			writeProblem(w, http.StatusNotFound, errTypeNotFound, "Signer not found",
-				"No signer with id "+id, r.URL.Path, nil)
-			return
+			return rerr.NotFound("signer", id)
 		}
 		items, err := tx.ListPluginsBySigner(r.Context(), id)
 		if err != nil {
-			writeInternalError(w, r, "list plugins by signer")
-			return
+			return rerr.Wrap(err, "list plugins by signer")
 		}
 		out := make([]pluginResponse, 0, len(items))
 		for _, p := range items {
 			out = append(out, pluginToResponse(p))
 		}
-		writeJSON(w, http.StatusOK, map[string]any{"items": out, "total": len(out)})
+		return rerr.JSON(w, map[string]any{"items": out, "total": len(out)})
 	}
 }
