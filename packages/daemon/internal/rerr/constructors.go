@@ -84,6 +84,15 @@ func Gone(detail string) *Error {
 	return newError(CodeGone, "", detail, nil, 1)
 }
 
+// Locked returns a 423 Locked error for a temporarily or permanently
+// locked resource (e.g. an account locked after too many failed attempts).
+// retryAfter is the suggested retry delay in seconds (0 means omit the header).
+func Locked(detail string, retryAfter int) *Error {
+	e := newError(CodeLocked, "", detail, nil, 1)
+	e.RetryAfter = retryAfter
+	return e
+}
+
 // Wrap promotes any error to a 500 Internal Server Error with a custom detail.
 func Wrap(err error, detail string) *Error {
 	if detail == "" {

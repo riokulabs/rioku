@@ -237,16 +237,16 @@ func TestAuthRoutes_TokenExchange_EmptyToken(t *testing.T) {
 	})
 	defer func() { _ = resp.Body.Close() }()
 
-	if resp.StatusCode != http.StatusBadRequest {
-		t.Fatalf("expected 400, got %d", resp.StatusCode)
+	if resp.StatusCode != http.StatusUnprocessableEntity {
+		t.Fatalf("expected 422, got %d", resp.StatusCode)
 	}
 
 	var pd ProblemDetail
 	if err := json.NewDecoder(resp.Body).Decode(&pd); err != nil {
 		t.Fatalf("decode problem detail: %v", err)
 	}
-	if pd.Status != 400 {
-		t.Errorf("problem status = %d, want 400", pd.Status)
+	if pd.Status != 422 {
+		t.Errorf("problem status = %d, want 422", pd.Status)
 	}
 }
 
@@ -266,8 +266,8 @@ func TestAuthRoutes_TokenExchange_InvalidJSON(t *testing.T) {
 	}
 	defer func() { _ = resp.Body.Close() }()
 
-	if resp.StatusCode != http.StatusBadRequest {
-		t.Fatalf("expected 400, got %d", resp.StatusCode)
+	if resp.StatusCode != http.StatusUnprocessableEntity {
+		t.Fatalf("expected 422, got %d", resp.StatusCode)
 	}
 }
 
@@ -350,16 +350,16 @@ func TestAuthRoutes_TokenRefresh_EmptyToken(t *testing.T) {
 	})
 	defer func() { _ = resp.Body.Close() }()
 
-	if resp.StatusCode != http.StatusBadRequest {
-		t.Fatalf("expected 400, got %d", resp.StatusCode)
+	if resp.StatusCode != http.StatusUnprocessableEntity {
+		t.Fatalf("expected 422, got %d", resp.StatusCode)
 	}
 
 	var pd ProblemDetail
 	if err := json.NewDecoder(resp.Body).Decode(&pd); err != nil {
 		t.Fatalf("decode problem detail: %v", err)
 	}
-	if pd.Status != 400 {
-		t.Errorf("problem status = %d, want 400", pd.Status)
+	if pd.Status != 422 {
+		t.Errorf("problem status = %d, want 422", pd.Status)
 	}
 }
 
@@ -423,8 +423,8 @@ func TestAuthRoutes_Login_SuspendedAccount(t *testing.T) {
 	if err := json.NewDecoder(resp.Body).Decode(&pd); err != nil {
 		t.Fatalf("decode problem detail: %v", err)
 	}
-	if !strings.Contains(pd.Title, "suspended") {
-		t.Errorf("expected title to contain 'suspended', got %q", pd.Title)
+	if !strings.Contains(pd.Detail, "suspended") {
+		t.Errorf("expected detail to contain 'suspended', got %q", pd.Detail)
 	}
 }
 
@@ -439,8 +439,8 @@ func TestAuthRoutes_Login_EmptyFields(t *testing.T) {
 	})
 	defer func() { _ = resp.Body.Close() }()
 
-	if resp.StatusCode != http.StatusBadRequest {
-		t.Fatalf("expected 400, got %d", resp.StatusCode)
+	if resp.StatusCode != http.StatusUnprocessableEntity {
+		t.Fatalf("expected 422, got %d", resp.StatusCode)
 	}
 
 	var pd ProblemDetail
@@ -468,8 +468,8 @@ func TestAuthRoutes_Login_InvalidJSON(t *testing.T) {
 	}
 	defer func() { _ = resp.Body.Close() }()
 
-	if resp.StatusCode != http.StatusBadRequest {
-		t.Fatalf("expected 400, got %d", resp.StatusCode)
+	if resp.StatusCode != http.StatusUnprocessableEntity {
+		t.Fatalf("expected 422, got %d", resp.StatusCode)
 	}
 }
 
@@ -663,16 +663,16 @@ func TestAuthRoutes_PasswordChange_WeakNew(t *testing.T) {
 	})
 	defer func() { _ = resp.Body.Close() }()
 
-	if resp.StatusCode != http.StatusBadRequest {
-		t.Fatalf("expected 400, got %d", resp.StatusCode)
+	if resp.StatusCode != http.StatusUnprocessableEntity {
+		t.Fatalf("expected 422, got %d", resp.StatusCode)
 	}
 
 	var pd ProblemDetail
 	if err := json.NewDecoder(resp.Body).Decode(&pd); err != nil {
 		t.Fatalf("decode problem detail: %v", err)
 	}
-	if !strings.Contains(pd.Title, "policy") {
-		t.Errorf("expected title to contain 'policy', got %q", pd.Title)
+	if len(pd.Errors) == 0 {
+		t.Errorf("expected at least 1 validation error, got none")
 	}
 }
 
@@ -687,8 +687,8 @@ func TestAuthRoutes_PasswordChange_EmptyFields(t *testing.T) {
 	})
 	defer func() { _ = resp.Body.Close() }()
 
-	if resp.StatusCode != http.StatusBadRequest {
-		t.Fatalf("expected 400, got %d", resp.StatusCode)
+	if resp.StatusCode != http.StatusUnprocessableEntity {
+		t.Fatalf("expected 422, got %d", resp.StatusCode)
 	}
 
 	var pd ProblemDetail
@@ -755,8 +755,8 @@ func TestAuthRoutes_UpdateProfile_InvalidJSON(t *testing.T) {
 	}
 	defer func() { _ = resp.Body.Close() }()
 
-	if resp.StatusCode != http.StatusBadRequest {
-		t.Fatalf("expected 400, got %d", resp.StatusCode)
+	if resp.StatusCode != http.StatusUnprocessableEntity {
+		t.Fatalf("expected 422, got %d", resp.StatusCode)
 	}
 }
 

@@ -12,6 +12,7 @@ import (
 	"github.com/riokulabs/rioku/internal/auth"
 	"github.com/riokulabs/rioku/internal/config"
 	"github.com/riokulabs/rioku/internal/gateway/optionsutil"
+	"github.com/riokulabs/rioku/internal/rerr"
 	"github.com/riokulabs/rioku/internal/store"
 )
 
@@ -40,27 +41,27 @@ func getDummyPasswordHash() string {
 // during login when two-factor authentication is enabled.
 func RegisterAuthRoutes(mux *http.ServeMux, a *auth.Auth, sm *auth.SessionManager, st store.Driver, cfg *config.Config, enc *auth.Encryptor) {
 	// Token exchange endpoints (bearer/API-key path).
-	mux.HandleFunc("POST /api/v1/auth/token", handleTokenExchange(a))
-	mux.HandleFunc("POST /api/v1/auth/refresh", handleTokenRefresh(a))
+	mux.Handle("POST /api/v1/auth/token", rerr.H(handleTokenExchange(a)))
+	mux.Handle("POST /api/v1/auth/refresh", rerr.H(handleTokenRefresh(a)))
 
 	// Session-based endpoints.
-	mux.HandleFunc("POST /api/v1/auth/login", handleLogin(a, sm, st, cfg, enc))
-	mux.HandleFunc("POST /api/v1/auth/logout", handleLogout(sm))
-	mux.HandleFunc("GET /api/v1/auth/me", handleMe(st))
-	mux.HandleFunc("POST /api/v1/auth/password", handlePasswordChange(sm, st, cfg))
-	mux.HandleFunc("PATCH /api/v1/auth/me", handleUpdateProfile(sm, st))
+	mux.Handle("POST /api/v1/auth/login", rerr.H(handleLogin(a, sm, st, cfg, enc)))
+	mux.Handle("POST /api/v1/auth/logout", rerr.H(handleLogout(sm)))
+	mux.Handle("GET /api/v1/auth/me", rerr.H(handleMe(st)))
+	mux.Handle("POST /api/v1/auth/password", rerr.H(handlePasswordChange(sm, st, cfg)))
+	mux.Handle("PATCH /api/v1/auth/me", rerr.H(handleUpdateProfile(sm, st)))
 
 	// Session management endpoints. Tenant-scoped aliases let the
 	// admin panel render the per-tenant sessions list at the
 	// canonical path while keeping `/auth/sessions` working for
 	// session-cookie auth flows.
-	mux.HandleFunc("GET /api/v1/auth/sessions", handleListSessions(st))
-	mux.HandleFunc("DELETE /api/v1/auth/sessions/{id}", handleRevokeSessionByID(sm, st))
-	mux.HandleFunc("POST /api/v1/auth/sessions/revoke-others", handleRevokeOtherSessions(sm))
+	mux.Handle("GET /api/v1/auth/sessions", rerr.H(handleListSessions(st)))
+	mux.Handle("DELETE /api/v1/auth/sessions/{id}", rerr.H(handleRevokeSessionByID(sm, st)))
+	mux.Handle("POST /api/v1/auth/sessions/revoke-others", rerr.H(handleRevokeOtherSessions(sm)))
 
-	mux.HandleFunc("GET /api/v1/t/{tenant}/sessions", handleListSessions(st))
-	mux.HandleFunc("DELETE /api/v1/t/{tenant}/sessions/{id}", handleRevokeSessionByID(sm, st))
-	mux.HandleFunc("POST /api/v1/t/{tenant}/sessions/revoke-others", handleRevokeOtherSessions(sm))
+	mux.Handle("GET /api/v1/t/{tenant}/sessions", rerr.H(handleListSessions(st)))
+	mux.Handle("DELETE /api/v1/t/{tenant}/sessions/{id}", rerr.H(handleRevokeSessionByID(sm, st)))
+	mux.Handle("POST /api/v1/t/{tenant}/sessions/revoke-others", rerr.H(handleRevokeOtherSessions(sm)))
 
 	for _, base := range []string{"/api/v1/auth", "/api/v1/t/{tenant}"} {
 		optionsutil.Register(mux, base+"/sessions", []string{"GET"})
@@ -75,37 +76,15 @@ type tokenExchangeRequest struct {
 
 const maxAuthBodySize = 4096 // 4KB is plenty for token exchange
 
-func handleTokenExchange(a *auth.Auth) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
+func handleTokenExchange(a *auth.Auth) rerr.Handler {
+	return func(w http.ResponseWriter, r *http.Request) error {
 		r.Body = http.MaxBytesReader(w, r.Body, maxAuthBodySize)
 		var req tokenExchangeRequest
 		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-			w.Header().Set("Content-Type", "application/problem+json")
-			w.WriteHeader(http.StatusBadRequest)
-			_ = json.NewEncoder(w).Encode(ProblemDetail{
-				Type:     errTypeValidation,
-				Title:    "Invalid request body",
-				Status:   400,
-				Detail:   "Request body must be valid JSON with a 'token' field",
-				Instance: r.URL.Path,
-			})
-			return
+			return rerr.Validation(map[string]string{"body": "request body must be valid JSON with a 'token' field"})
 		}
-
 		if req.Token == "" {
-			w.Header().Set("Content-Type", "application/problem+json")
-			w.WriteHeader(http.StatusBadRequest)
-			_ = json.NewEncoder(w).Encode(ProblemDetail{
-				Type:     errTypeValidation,
-				Title:    "Validation failed",
-				Status:   400,
-				Detail:   "Token is required",
-				Instance: r.URL.Path,
-				Errors: []ValidationError{
-					{Field: "token", Reason: "must not be empty"},
-				},
-			})
-			return
+			return rerr.Validation(map[string]string{"token": "must not be empty"})
 		}
 
 		// Try as bootstrap token first, then as API key.
@@ -117,22 +96,13 @@ func handleTokenExchange(a *auth.Auth) http.HandlerFunc {
 			pair, err = a.ValidateAPIKey(r.Context(), req.Token)
 		}
 		if err != nil {
-			w.Header().Set("WWW-Authenticate", "Bearer")
-			w.Header().Set("Content-Type", "application/problem+json")
-			w.WriteHeader(http.StatusUnauthorized)
-			_ = json.NewEncoder(w).Encode(ProblemDetail{
-				Type:     errTypeUnauth,
-				Title:    "Authentication failed",
-				Status:   401,
-				Detail:   "The provided token is invalid, expired, or revoked",
-				Instance: r.URL.Path,
-			})
-			return
+			return rerr.Unauthenticated()
 		}
 
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusOK)
 		_ = json.NewEncoder(w).Encode(pair)
+		return nil
 	}
 }
 
@@ -140,57 +110,26 @@ type refreshRequest struct {
 	RefreshToken string `json:"refreshToken"`
 }
 
-func handleTokenRefresh(a *auth.Auth) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
+func handleTokenRefresh(a *auth.Auth) rerr.Handler {
+	return func(w http.ResponseWriter, r *http.Request) error {
 		r.Body = http.MaxBytesReader(w, r.Body, maxAuthBodySize)
 		var req refreshRequest
 		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-			w.Header().Set("Content-Type", "application/problem+json")
-			w.WriteHeader(http.StatusBadRequest)
-			_ = json.NewEncoder(w).Encode(ProblemDetail{
-				Type:     errTypeValidation,
-				Title:    "Invalid request body",
-				Status:   400,
-				Detail:   "Request body must be valid JSON with a 'refresh_token' field",
-				Instance: r.URL.Path,
-			})
-			return
+			return rerr.Validation(map[string]string{"body": "request body must be valid JSON with a 'refresh_token' field"})
 		}
-
 		if req.RefreshToken == "" {
-			w.Header().Set("Content-Type", "application/problem+json")
-			w.WriteHeader(http.StatusBadRequest)
-			_ = json.NewEncoder(w).Encode(ProblemDetail{
-				Type:     errTypeValidation,
-				Title:    "Validation failed",
-				Status:   400,
-				Detail:   "Refresh token is required",
-				Instance: r.URL.Path,
-				Errors: []ValidationError{
-					{Field: "refresh_token", Reason: "must not be empty"},
-				},
-			})
-			return
+			return rerr.Validation(map[string]string{"refresh_token": "must not be empty"})
 		}
 
 		pair, err := a.RefreshTokens(r.Context(), req.RefreshToken)
 		if err != nil {
-			w.Header().Set("WWW-Authenticate", "Bearer")
-			w.Header().Set("Content-Type", "application/problem+json")
-			w.WriteHeader(http.StatusUnauthorized)
-			_ = json.NewEncoder(w).Encode(ProblemDetail{
-				Type:     errTypeUnauth,
-				Title:    "Refresh failed",
-				Status:   401,
-				Detail:   "The refresh token is invalid, expired, or has already been used",
-				Instance: r.URL.Path,
-			})
-			return
+			return rerr.Unauthenticated()
 		}
 
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusOK)
 		_ = json.NewEncoder(w).Encode(pair)
+		return nil
 	}
 }
 
@@ -228,28 +167,24 @@ type totpRequiredResponse struct {
 	UserID       string `json:"userId"`
 }
 
-func handleLogin(a *auth.Auth, sm *auth.SessionManager, st store.Driver, cfg *config.Config, enc *auth.Encryptor) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
+func handleLogin(a *auth.Auth, sm *auth.SessionManager, st store.Driver, cfg *config.Config, enc *auth.Encryptor) rerr.Handler {
+	return func(w http.ResponseWriter, r *http.Request) error {
 		r.Body = http.MaxBytesReader(w, r.Body, maxAuthBodySize)
 
 		var req loginRequest
 		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-			writeProblem(w, http.StatusBadRequest, errTypeValidation, "Invalid request body",
-				"Request body must be valid JSON with 'username' and 'password' fields", r.URL.Path, nil)
-			return
+			return rerr.Validation(map[string]string{"body": "request body must be valid JSON with 'username' and 'password' fields"})
 		}
 
-		var errs []ValidationError
+		fields := map[string]string{}
 		if req.Username == "" {
-			errs = append(errs, ValidationError{Field: "username", Reason: "must not be empty"})
+			fields["username"] = "must not be empty"
 		}
 		if req.Password == "" {
-			errs = append(errs, ValidationError{Field: "password", Reason: "must not be empty"})
+			fields["password"] = "must not be empty"
 		}
-		if len(errs) > 0 {
-			writeProblem(w, http.StatusBadRequest, errTypeValidation, "Validation failed",
-				"Missing required fields", r.URL.Path, errs)
-			return
+		if len(fields) > 0 {
+			return rerr.Validation(fields)
 		}
 
 		ctx := r.Context()
@@ -257,9 +192,7 @@ func handleLogin(a *auth.Auth, sm *auth.SessionManager, st store.Driver, cfg *co
 		// Begin transaction.
 		tx, err := st.Begin(ctx, store.TxOptions{})
 		if err != nil {
-			writeProblem(w, http.StatusInternalServerError, errTypeInternal, "Internal error",
-				"Failed to process login request", r.URL.Path, nil)
-			return
+			return rerr.Wrap(err, "begin tx")
 		}
 		defer func() { _ = tx.Rollback() }()
 
@@ -272,9 +205,7 @@ func handleLogin(a *auth.Auth, sm *auth.SessionManager, st store.Driver, cfg *co
 			_, _ = auth.VerifyPassword(req.Password, getDummyPasswordHash())
 
 			// Generic 401 to avoid username enumeration.
-			writeProblem(w, http.StatusUnauthorized, errTypeUnauth, "Authentication failed",
-				"Invalid username or password", r.URL.Path, nil)
-			return
+			return rerr.Unauthenticated()
 		}
 
 		now := time.Now().UTC()
@@ -284,27 +215,22 @@ func handleLogin(a *auth.Auth, sm *auth.SessionManager, st store.Driver, cfg *co
 			if user.LockedUntil != nil && now.Before(*user.LockedUntil) {
 				retryAfter := int(time.Until(*user.LockedUntil).Seconds()) + 1
 				w.Header().Set("Retry-After", strconv.Itoa(retryAfter))
-				writeProblem(w, http.StatusLocked, errTypeLocked, "Account locked",
-					fmt.Sprintf("Account is temporarily locked. Try again in %d seconds", retryAfter), r.URL.Path, nil)
-			} else {
-				writeProblem(w, http.StatusLocked, errTypeLocked, "Account locked",
-					"Account is locked. Contact an administrator.", r.URL.Path, nil)
+				return rerr.Locked(
+					fmt.Sprintf("account is temporarily locked; try again in %d seconds", retryAfter),
+					retryAfter,
+				)
 			}
-			return
+			return rerr.Locked("account is locked; contact an administrator", 0)
 		}
 
 		// Check suspended status.
 		if user.Status == "suspended" {
-			writeProblem(w, http.StatusForbidden, errTypeForbidden, "Account suspended",
-				"This account has been suspended. Contact an administrator.", r.URL.Path, nil)
-			return
+			return rerr.Forbidden("account suspended; contact an administrator")
 		}
 
 		// Check deleted status.
 		if user.Status == "deleted" {
-			writeProblem(w, http.StatusForbidden, errTypeForbidden, "Account deleted",
-				"This account has been deleted. Contact an administrator.", r.URL.Path, nil)
-			return
+			return rerr.Forbidden("account deleted; contact an administrator")
 		}
 
 		// Verify password.
@@ -319,9 +245,7 @@ func handleLogin(a *auth.Auth, sm *auth.SessionManager, st store.Driver, cfg *co
 			_ = tx.IncrementFailedAttempts(ctx, user.ID, lockUntil)
 			_ = tx.Commit()
 
-			writeProblem(w, http.StatusUnauthorized, errTypeUnauth, "Authentication failed",
-				"Invalid username or password", r.URL.Path, nil)
-			return
+			return rerr.Unauthenticated()
 		}
 
 		// ---------------------------------------------------------------
@@ -338,15 +262,13 @@ func handleLogin(a *auth.Auth, sm *auth.SessionManager, st store.Driver, cfg *co
 					RequiresTOTP: true,
 					UserID:       user.ID,
 				})
-				return
+				return nil
 			}
 
 			// Decrypt the stored TOTP secret.
 			plainSecret, decErr := enc.Decrypt(*user.TOTPSecret)
 			if decErr != nil {
-				writeProblem(w, http.StatusInternalServerError, errTypeInternal, "Internal error",
-					"Failed to process login request", r.URL.Path, nil)
-				return
+				return rerr.Wrap(decErr, "decrypt totp secret")
 			}
 
 			totpValid := auth.ValidateTOTPCode(plainSecret, *req.TotpCode, now)
@@ -357,9 +279,7 @@ func handleLogin(a *auth.Auth, sm *auth.SessionManager, st store.Driver, cfg *co
 			}
 
 			if !totpValid {
-				writeProblem(w, http.StatusUnauthorized, errTypeUnauth, "Authentication failed",
-					"Invalid TOTP code or backup code", r.URL.Path, nil)
-				return
+				return rerr.Unauthenticated()
 			}
 		}
 
@@ -369,26 +289,20 @@ func handleLogin(a *auth.Auth, sm *auth.SessionManager, st store.Driver, cfg *co
 		// transaction and SQLite cannot nest concurrent write transactions
 		// on the same goroutine.
 		if err := tx.ResetFailedAttempts(ctx, user.ID); err != nil {
-			writeProblem(w, http.StatusInternalServerError, errTypeInternal, "Internal error",
-				"Failed to process login request", r.URL.Path, nil)
-			return
+			return rerr.Wrap(err, "reset failed attempts")
 		}
 		if err := tx.UpdateLastLogin(ctx, user.ID); err != nil {
 			// Non-fatal — best effort.
 			_ = err
 		}
 		if err := tx.Commit(); err != nil {
-			writeProblem(w, http.StatusInternalServerError, errTypeInternal, "Internal error",
-				"Failed to process login request", r.URL.Path, nil)
-			return
+			return rerr.Wrap(err, "commit")
 		}
 
 		// Create session (opens its own transaction internally).
 		session, err := sm.CreateSession(ctx, user.ID, r)
 		if err != nil {
-			writeProblem(w, http.StatusInternalServerError, errTypeInternal, "Internal error",
-				"Failed to create session", r.URL.Path, nil)
-			return
+			return rerr.Wrap(err, "create session")
 		}
 
 		// Set session cookie. No tenant context at the global login endpoint;
@@ -418,6 +332,7 @@ func handleLogin(a *auth.Auth, sm *auth.SessionManager, st store.Driver, cfg *co
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusOK)
 		_ = json.NewEncoder(w).Encode(resp)
+		return nil
 	}
 }
 
@@ -444,24 +359,19 @@ func tryBackupCode(ctx context.Context, tx store.Tx, userID, code string) bool {
 // Logout
 // ---------------------------------------------------------------------------
 
-func handleLogout(sm *auth.SessionManager) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
+func handleLogout(sm *auth.SessionManager) rerr.Handler {
+	return func(w http.ResponseWriter, r *http.Request) error {
 		cookie, err := r.Cookie(auth.SessionCookieName)
 		if err != nil {
 			// No cookie — idempotent success.
-			w.Header().Set("Content-Type", "application/json")
-			w.WriteHeader(http.StatusOK)
-			_ = json.NewEncoder(w).Encode(map[string]bool{"ok": true})
-			return
+			return rerr.JSON(w, map[string]bool{"ok": true})
 		}
 
 		// Revoke the session (ignore errors — idempotent).
 		_ = sm.RevokeSession(r.Context(), cookie.Value)
 		sm.ClearCookie(w, auth.CookieOptions{})
 
-		w.Header().Set("Content-Type", "application/json")
-		w.WriteHeader(http.StatusOK)
-		_ = json.NewEncoder(w).Encode(map[string]bool{"ok": true})
+		return rerr.JSON(w, map[string]bool{"ok": true})
 	}
 }
 
@@ -493,8 +403,8 @@ type meSessionInfo struct {
 	ExpiresAt time.Time `json:"expiresAt,omitempty"`
 }
 
-func handleMe(st store.Driver) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
+func handleMe(st store.Driver) rerr.Handler {
+	return func(w http.ResponseWriter, r *http.Request) error {
 		ctx := r.Context()
 
 		// Identify the caller — prefer session claims, fall back to bearer claims.
@@ -508,9 +418,7 @@ func handleMe(st store.Driver) http.HandlerFunc {
 		} else {
 			bc := auth.ClaimsFromContext(ctx)
 			if bc == nil {
-				writeProblem(w, http.StatusUnauthorized, errTypeUnauth, "Authentication required",
-					"No valid session or bearer token found", r.URL.Path, nil)
-				return
+				return rerr.Unauthenticated()
 			}
 			userID = bc.Subject
 		}
@@ -518,17 +426,13 @@ func handleMe(st store.Driver) http.HandlerFunc {
 		// Load user from store.
 		tx, err := st.Begin(ctx, store.TxOptions{ReadOnly: true})
 		if err != nil {
-			writeProblem(w, http.StatusInternalServerError, errTypeInternal, "Internal error",
-				"Failed to load user", r.URL.Path, nil)
-			return
+			return rerr.Wrap(err, "begin tx")
 		}
 		defer func() { _ = tx.Rollback() }()
 
 		user, err := tx.GetUser(ctx, userID)
 		if err != nil {
-			writeProblem(w, http.StatusNotFound, errTypeNotFound, "User not found",
-				"The authenticated user no longer exists", r.URL.Path, nil)
-			return
+			return rerr.NotFound("user", userID)
 		}
 
 		// If we have a session, enrich with expiry from the DB.
@@ -580,9 +484,7 @@ func handleMe(st store.Driver) http.HandlerFunc {
 			Session: sessionInfo,
 		}
 
-		w.Header().Set("Content-Type", "application/json")
-		w.WriteHeader(http.StatusOK)
-		_ = json.NewEncoder(w).Encode(resp)
+		return rerr.JSON(w, resp)
 	}
 }
 
@@ -595,29 +497,25 @@ type passwordChangeRequest struct {
 	NewPassword     string `json:"newPassword"`
 }
 
-func handlePasswordChange(sm *auth.SessionManager, st store.Driver, cfg *config.Config) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
+func handlePasswordChange(sm *auth.SessionManager, st store.Driver, cfg *config.Config) rerr.Handler {
+	return func(w http.ResponseWriter, r *http.Request) error {
 		r.Body = http.MaxBytesReader(w, r.Body, maxAuthBodySize)
 		ctx := r.Context()
 
 		var req passwordChangeRequest
 		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-			writeProblem(w, http.StatusBadRequest, errTypeValidation, "Invalid request body",
-				"Request body must be valid JSON with 'current_password' and 'new_password' fields", r.URL.Path, nil)
-			return
+			return rerr.Validation(map[string]string{"body": "request body must be valid JSON with 'current_password' and 'new_password' fields"})
 		}
 
-		var errs []ValidationError
+		fields := map[string]string{}
 		if req.CurrentPassword == "" {
-			errs = append(errs, ValidationError{Field: "current_password", Reason: "must not be empty"})
+			fields["current_password"] = "must not be empty"
 		}
 		if req.NewPassword == "" {
-			errs = append(errs, ValidationError{Field: "new_password", Reason: "must not be empty"})
+			fields["new_password"] = "must not be empty"
 		}
-		if len(errs) > 0 {
-			writeProblem(w, http.StatusBadRequest, errTypeValidation, "Validation failed",
-				"Missing required fields", r.URL.Path, errs)
-			return
+		if len(fields) > 0 {
+			return rerr.Validation(fields)
 		}
 
 		// Identify caller.
@@ -630,9 +528,7 @@ func handlePasswordChange(sm *auth.SessionManager, st store.Driver, cfg *config.
 		} else {
 			bc := auth.ClaimsFromContext(ctx)
 			if bc == nil {
-				writeProblem(w, http.StatusUnauthorized, errTypeUnauth, "Authentication required",
-					"No valid session or bearer token found", r.URL.Path, nil)
-				return
+				return rerr.Unauthenticated()
 			}
 			userID = bc.Subject
 		}
@@ -640,40 +536,30 @@ func handlePasswordChange(sm *auth.SessionManager, st store.Driver, cfg *config.
 		// Load user.
 		tx, err := st.Begin(ctx, store.TxOptions{})
 		if err != nil {
-			writeProblem(w, http.StatusInternalServerError, errTypeInternal, "Internal error",
-				"Failed to process password change", r.URL.Path, nil)
-			return
+			return rerr.Wrap(err, "begin tx")
 		}
 		defer func() { _ = tx.Rollback() }()
 
 		user, err := tx.GetUser(ctx, userID)
 		if err != nil {
-			writeProblem(w, http.StatusNotFound, errTypeNotFound, "User not found",
-				"The authenticated user no longer exists", r.URL.Path, nil)
-			return
+			return rerr.NotFound("user", userID)
 		}
 
 		// Verify current password.
 		match, err := auth.VerifyPassword(req.CurrentPassword, user.PasswordHash)
 		if err != nil || !match {
-			writeProblem(w, http.StatusUnauthorized, errTypeUnauth, "Authentication failed",
-				"Current password is incorrect", r.URL.Path, nil)
-			return
+			return rerr.Unauthenticated()
 		}
 
 		// Validate new password against policy.
 		if err := auth.ValidatePasswordPolicy(req.NewPassword, cfg.Auth.PasswordPolicy); err != nil {
-			writeProblem(w, http.StatusBadRequest, errTypeValidation, "Password policy violation",
-				err.Error(), r.URL.Path, nil)
-			return
+			return rerr.Validation(map[string]string{"new_password": err.Error()})
 		}
 
 		// Hash new password and update user.
 		newHash, err := auth.HashPassword(req.NewPassword)
 		if err != nil {
-			writeProblem(w, http.StatusInternalServerError, errTypeInternal, "Internal error",
-				"Failed to process password change", r.URL.Path, nil)
-			return
+			return rerr.Wrap(err, "hash password")
 		}
 
 		user.PasswordHash = newHash
@@ -681,15 +567,11 @@ func handlePasswordChange(sm *auth.SessionManager, st store.Driver, cfg *config.
 		user.ForcePasswordChange = false
 
 		if _, err := tx.UpdateUser(ctx, user); err != nil {
-			writeProblem(w, http.StatusInternalServerError, errTypeInternal, "Internal error",
-				"Failed to update password", r.URL.Path, nil)
-			return
+			return rerr.Wrap(err, "update user")
 		}
 
 		if err := tx.Commit(); err != nil {
-			writeProblem(w, http.StatusInternalServerError, errTypeInternal, "Internal error",
-				"Failed to process password change", r.URL.Path, nil)
-			return
+			return rerr.Wrap(err, "commit")
 		}
 
 		// Revoke other sessions for this user (keep current session).
@@ -697,9 +579,7 @@ func handlePasswordChange(sm *auth.SessionManager, st store.Driver, cfg *config.
 			_ = sm.RevokeOtherSessions(ctx, userID, sessionID)
 		}
 
-		w.Header().Set("Content-Type", "application/json")
-		w.WriteHeader(http.StatusOK)
-		_ = json.NewEncoder(w).Encode(map[string]bool{"ok": true})
+		return rerr.JSON(w, map[string]bool{"ok": true})
 	}
 }
 
@@ -719,16 +599,14 @@ type updateProfileResponse struct {
 	Email       string `json:"email,omitempty"`
 }
 
-func handleUpdateProfile(sm *auth.SessionManager, st store.Driver) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
+func handleUpdateProfile(sm *auth.SessionManager, st store.Driver) rerr.Handler {
+	return func(w http.ResponseWriter, r *http.Request) error {
 		r.Body = http.MaxBytesReader(w, r.Body, maxAuthBodySize)
 		ctx := r.Context()
 
 		var req updateProfileRequest
 		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-			writeProblem(w, http.StatusBadRequest, errTypeValidation, "Invalid request body",
-				"Request body must be valid JSON", r.URL.Path, nil)
-			return
+			return rerr.Validation(map[string]string{"body": "request body must be valid JSON"})
 		}
 
 		// Identify caller.
@@ -739,9 +617,7 @@ func handleUpdateProfile(sm *auth.SessionManager, st store.Driver) http.HandlerF
 		} else {
 			bc := auth.ClaimsFromContext(ctx)
 			if bc == nil {
-				writeProblem(w, http.StatusUnauthorized, errTypeUnauth, "Authentication required",
-					"No valid session or bearer token found", r.URL.Path, nil)
-				return
+				return rerr.Unauthenticated()
 			}
 			userID = bc.Subject
 		}
@@ -749,17 +625,13 @@ func handleUpdateProfile(sm *auth.SessionManager, st store.Driver) http.HandlerF
 		// Load user.
 		tx, err := st.Begin(ctx, store.TxOptions{})
 		if err != nil {
-			writeProblem(w, http.StatusInternalServerError, errTypeInternal, "Internal error",
-				"Failed to process profile update", r.URL.Path, nil)
-			return
+			return rerr.Wrap(err, "begin tx")
 		}
 		defer func() { _ = tx.Rollback() }()
 
 		user, err := tx.GetUser(ctx, userID)
 		if err != nil {
-			writeProblem(w, http.StatusNotFound, errTypeNotFound, "User not found",
-				"The authenticated user no longer exists", r.URL.Path, nil)
-			return
+			return rerr.NotFound("user", userID)
 		}
 
 		// Apply non-nil fields.
@@ -772,15 +644,11 @@ func handleUpdateProfile(sm *auth.SessionManager, st store.Driver) http.HandlerF
 
 		updated, err := tx.UpdateUser(ctx, user)
 		if err != nil {
-			writeProblem(w, http.StatusInternalServerError, errTypeInternal, "Internal error",
-				"Failed to update profile", r.URL.Path, nil)
-			return
+			return rerr.Wrap(err, "update user")
 		}
 
 		if err := tx.Commit(); err != nil {
-			writeProblem(w, http.StatusInternalServerError, errTypeInternal, "Internal error",
-				"Failed to process profile update", r.URL.Path, nil)
-			return
+			return rerr.Wrap(err, "commit")
 		}
 
 		displayName := ""
@@ -799,17 +667,20 @@ func handleUpdateProfile(sm *auth.SessionManager, st store.Driver) http.HandlerF
 			Email:       email,
 		}
 
-		w.Header().Set("Content-Type", "application/json")
-		w.WriteHeader(http.StatusOK)
-		_ = json.NewEncoder(w).Encode(resp)
+		// sm is unused in this handler path but kept in the signature for
+		// potential future session-refresh-on-profile-change behavior.
+		_ = sm
+
+		return rerr.JSON(w, resp)
 	}
 }
 
 // ---------------------------------------------------------------------------
-// Helpers
+// Helpers — retained for tenant_middleware.go callers.
 // ---------------------------------------------------------------------------
 
 // writeProblem writes a ProblemDetail response.
+// Retained: tenant_middleware.go still uses this directly.
 func writeProblem(w http.ResponseWriter, status int, errType, title, detail, instance string, errs []ValidationError) {
 	w.Header().Set("Content-Type", "application/problem+json")
 	if status == http.StatusUnauthorized {
@@ -839,8 +710,8 @@ type sessionResponse struct {
 	UserAgent  string `json:"userAgent,omitempty"`
 }
 
-func handleListSessions(st store.Driver) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
+func handleListSessions(st store.Driver) rerr.Handler {
+	return func(w http.ResponseWriter, r *http.Request) error {
 		ctx := r.Context()
 
 		// Identify caller.
@@ -851,22 +722,18 @@ func handleListSessions(st store.Driver) http.HandlerFunc {
 			userID = c.Subject
 		}
 		if userID == "" {
-			writeProblem(w, http.StatusUnauthorized, errTypeUnauth, "Authentication required",
-				"No valid session or bearer token found", r.URL.Path, nil)
-			return
+			return rerr.Unauthenticated()
 		}
 
 		tx, err := st.Begin(ctx, store.TxOptions{ReadOnly: true})
 		if err != nil {
-			writeInternalError(w, r, "begin tx")
-			return
+			return rerr.Wrap(err, "begin tx")
 		}
 		defer func() { _ = tx.Rollback() }()
 
 		sessions, err := tx.ListSessionsByUser(ctx, userID)
 		if err != nil {
-			writeInternalError(w, r, "list sessions")
-			return
+			return rerr.Wrap(err, "list sessions")
 		}
 
 		result := make([]sessionResponse, 0, len(sessions))
@@ -890,21 +757,18 @@ func handleListSessions(st store.Driver) http.HandlerFunc {
 		// `useSessionList` reads `data.data.sessions`; emitting a bare
 		// array gave `undefined → []` and rendered the Sessions page
 		// empty for every user.
-		w.Header().Set("Content-Type", "application/json")
-		_ = json.NewEncoder(w).Encode(map[string]any{
+		return rerr.JSON(w, map[string]any{
 			"sessions": result,
 		})
 	}
 }
 
-func handleRevokeSessionByID(sm *auth.SessionManager, st store.Driver) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
+func handleRevokeSessionByID(sm *auth.SessionManager, st store.Driver) rerr.Handler {
+	return func(w http.ResponseWriter, r *http.Request) error {
 		ctx := r.Context()
 		sessionID := r.PathValue("id")
 		if sessionID == "" {
-			writeProblem(w, http.StatusBadRequest, errTypeValidation, "Validation failed",
-				"Session ID is required", r.URL.Path, nil)
-			return
+			return rerr.Validation(map[string]string{"id": "session ID is required"})
 		}
 
 		// Identify caller.
@@ -917,24 +781,19 @@ func handleRevokeSessionByID(sm *auth.SessionManager, st store.Driver) http.Hand
 			callerUserID = c.Subject
 		}
 		if callerUserID == "" {
-			writeProblem(w, http.StatusUnauthorized, errTypeUnauth, "Authentication required",
-				"No valid session or bearer token found", r.URL.Path, nil)
-			return
+			return rerr.Unauthenticated()
 		}
 
 		// Load the target session to check ownership.
 		tx, err := st.Begin(ctx, store.TxOptions{ReadOnly: true})
 		if err != nil {
-			writeInternalError(w, r, "begin tx")
-			return
+			return rerr.Wrap(err, "begin tx")
 		}
 		defer func() { _ = tx.Rollback() }()
 
 		targetSession, err := tx.GetSession(ctx, sessionID)
 		if err != nil {
-			writeProblem(w, http.StatusNotFound, errTypeNotFound, "Session not found",
-				"No session exists with the given ID", r.URL.Path, nil)
-			return
+			return rerr.NotFound("session", sessionID)
 		}
 
 		// Allow if caller owns the session or has sessions:manage permission.
@@ -953,19 +812,14 @@ func handleRevokeSessionByID(sm *auth.SessionManager, st store.Driver) http.Hand
 		}
 
 		if !ownsSession && !hasManagePerm {
-			writeProblem(w, http.StatusForbidden, errTypeForbidden, "Forbidden",
-				"You can only revoke your own sessions unless you have sessions:manage permission", r.URL.Path, nil)
-			return
+			return rerr.Forbidden("sessions:manage")
 		}
 
 		if err := sm.RevokeSession(ctx, sessionID); err != nil {
-			writeInternalError(w, r, "revoke session")
-			return
+			return rerr.Wrap(err, "revoke session")
 		}
 
-		w.Header().Set("Content-Type", "application/json")
-		w.WriteHeader(http.StatusOK)
-		_ = json.NewEncoder(w).Encode(map[string]bool{"ok": true})
+		return rerr.JSON(w, map[string]bool{"ok": true})
 	}
 }
 
@@ -973,22 +827,18 @@ func handleRevokeSessionByID(sm *auth.SessionManager, st store.Driver) http.Hand
 // authenticated user except the caller's current one. The current
 // session id is sourced from the SessionClaims attached by
 // AuthMiddleware; bearer-token callers don't have a current
-// session and get a 400.
-func handleRevokeOtherSessions(sm *auth.SessionManager) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
+// session and get a 422.
+func handleRevokeOtherSessions(sm *auth.SessionManager) rerr.Handler {
+	return func(w http.ResponseWriter, r *http.Request) error {
 		ctx := r.Context()
 		sc := auth.SessionClaimsFromContext(ctx)
 		if sc == nil {
-			writeProblem(w, http.StatusBadRequest, errTypeValidation,
-				"Validation failed",
-				"revoke-others requires session-cookie auth (not bearer-token)",
-				r.URL.Path, nil)
-			return
+			return rerr.Validation(map[string]string{"auth": "revoke-others requires session-cookie auth (not bearer-token)"})
 		}
 		if err := sm.RevokeOtherSessions(ctx, sc.UserID, sc.SessionID); err != nil {
-			writeInternalError(w, r, "revoke other sessions")
-			return
+			return rerr.Wrap(err, "revoke other sessions")
 		}
 		w.WriteHeader(http.StatusNoContent)
+		return nil
 	}
 }
