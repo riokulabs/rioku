@@ -34,9 +34,7 @@ test('cluster page renders with heading and nodes', async ({ authedPage: page })
 // `primary` and one `replica` node. The default sandbox is single-host
 // so its only entry has role `bootstrap`. Re-enable once a multi-node
 // sandbox compose lands (or once we wire up a fake raft fixture).
-test.skip('node list shows role and status badges (multi-node)', async ({
-  authedPage: page,
-}) => {
+test.skip('node list shows role and status badges (multi-node)', async ({ authedPage: page }) => {
   await page.goto('/t/acme/cluster');
   await expect(page.getByRole('heading', { name: /^cluster$/i })).toBeVisible();
 
@@ -44,9 +42,7 @@ test.skip('node list shows role and status badges (multi-node)', async ({
   await expect(page.getByText(/primary/i).first()).toBeVisible({ timeout: 10_000 });
 });
 
-test('node list shows a role chip on the single-host sandbox', async ({
-  authedPage: page,
-}) => {
+test('node list shows a role chip on the single-host sandbox', async ({ authedPage: page }) => {
   await page.goto('/t/acme/cluster');
   await expect(page.getByRole('heading', { name: /^cluster$/i })).toBeVisible();
 
@@ -55,9 +51,7 @@ test('node list shows a role chip on the single-host sandbox', async ({
   // `bootstrap`, but the SPA's display adapter projects single-host
   // nodes as `replica` until a primary lease handshake completes).
   // Match either string so this stays green if the projection changes.
-  await expect(
-    page.getByText(/^(bootstrap|replica)$/i).first(),
-  ).toBeVisible({ timeout: 10_000 });
+  await expect(page.getByText(/^(bootstrap|replica)$/i).first()).toBeVisible({ timeout: 10_000 });
 });
 
 test('clicking a row opens the node detail drawer', async ({ authedPage: page }) => {

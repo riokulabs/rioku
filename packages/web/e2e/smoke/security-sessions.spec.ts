@@ -26,4 +26,3 @@ test('seeded sessions render in the list', async ({ authedPage: page }) => {
   const count = await rows.count();
   expect(count).toBeGreaterThanOrEqual(1);
 });
-

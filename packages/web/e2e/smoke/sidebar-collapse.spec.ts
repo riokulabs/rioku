@@ -13,9 +13,7 @@
 import { expect } from '@playwright/test';
 import { test } from '../fixtures/auth';
 
-test('sidebar collapse toggle — state attributes flip on click', async ({
-  authedPage: page,
-}) => {
+test('sidebar collapse toggle — state attributes flip on click', async ({ authedPage: page }) => {
   await page.goto('/t/acme/dashboard');
 
   const rail = page.getByTestId('sidebar-rail');

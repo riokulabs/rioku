@@ -70,4 +70,3 @@ for (const { label, to } of NAV_LINKS) {
     expect(url).not.toContain('/access-denied');
   });
 }
-

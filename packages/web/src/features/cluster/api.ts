@@ -142,7 +142,10 @@ interface DaemonCreateEnrollmentTokenResponse extends DaemonEnrollmentToken {
   token?: string;
 }
 
-function adaptEnrollmentToken(t: DaemonEnrollmentToken, plaintext?: string): ClusterEnrollmentToken {
+function adaptEnrollmentToken(
+  t: DaemonEnrollmentToken,
+  plaintext?: string,
+): ClusterEnrollmentToken {
   const now = new Date().toISOString();
   // The SPA type doesn't model `revoked_at` separately — the daemon's
   // revoke step deletes the row, so any token returned by the GET is
