@@ -1,4 +1,4 @@
-.PHONY: all build build-daemon build-daemon-fast build-daemon-lean build-service proto proto-lint test test-race test-security test-raft-cluster test-coverage coverage-baseline lint lint-commit lint-spell clean web web-build web-build-if-changed web-embed web-dev test-web test-web-coverage ui-storybook test-ui hooks setup sandbox sandbox-stop sandbox-seed sandbox-reset sandbox-restart-daemon sandbox-restart-daemon-fast sandbox-restart-daemon-only sandbox-dev-web sandbox-test-auth sandbox-test-smoke sandbox-test-primitives sandbox-status sandbox-seed-users test-e2e test-e2e-full bench bench-compare bench-baseline sandbox-load sandbox-load-monitor sandbox-load-compare sandbox-container sandbox-container-stop sandbox-container-logs sandbox-container-clean docs-install docs-dev docs-build contrib-docs-install contrib-docs-dev contrib-docs-build web-types web-types-incremental sandbox-seedgen-build sandbox-seedgen sandbox-snapshot sandbox-restore sandbox-baseline sandbox-prepull sandbox-doctor sandbox-certs sandbox-lean sandbox-rich sandbox-postgres openapi-embed help worktree-add worktree-rm worktree-rebase worktree-doctor pre-push-verify decisions-sync
+.PHONY: all build build-daemon build-daemon-fast build-daemon-lean build-service proto proto-lint test test-race test-security test-raft-cluster test-coverage coverage-baseline lint lint-commit lint-spell clean web web-build web-build-if-changed web-embed web-dev test-web test-web-coverage ui-storybook test-ui hooks setup sandbox sandbox-stop sandbox-seed sandbox-reset sandbox-restart-daemon sandbox-restart-daemon-fast sandbox-restart-daemon-only sandbox-dev-web sandbox-test-auth sandbox-test-smoke sandbox-test-primitives sandbox-status sandbox-seed-users test-e2e test-e2e-full bench bench-compare bench-baseline sandbox-load sandbox-load-monitor sandbox-load-compare sandbox-container sandbox-container-stop sandbox-container-logs sandbox-container-clean docs-install docs-dev docs-build contrib-docs-install contrib-docs-dev contrib-docs-build web-types web-types-incremental sandbox-seedgen-build sandbox-seedgen sandbox-snapshot sandbox-restore sandbox-baseline sandbox-prepull sandbox-doctor sandbox-certs sandbox-lean sandbox-rich sandbox-postgres openapi-embed help _help_print worktree-add worktree-rm worktree-rebase worktree-doctor pre-push-verify decisions-sync openapi test-fast test-integration restart-daemon restart-daemon-fast seed stop start
 
 # Variables
 VERSION ?= $(shell git describe --tags --always --dirty 2>/dev/null || echo "dev")
@@ -17,66 +17,86 @@ NVM_DIR  ?= $(HOME)/.nvm
 NODE22   = $(NVM_DIR)/versions/node/$(shell ls $(NVM_DIR)/versions/node/ 2>/dev/null | grep '^v22' | tail -1)
 WEB_PATH = $(if $(wildcard $(NODE22)/bin/node),PATH=$(NODE22)/bin:$(PATH),)
 
-## sandbox: Start sandbox environment (daemon + apps built in parallel inside start.sh)
+# Default target
+.DEFAULT_GOAL := help
+
+# ── help ─────────────────────────────────────────────────────────────────────
+
+## help: Show categorized list of all available targets
+help:
+	@$(MAKE) _help_print
+
+_help_print:
+	@. scripts/_progress.sh 2>/dev/null; \
+	awk ' \
+	  BEGIN { \
+	    bold  = ENVIRON["TERM"] != "dumb" ? "\033[1m"    : ""; \
+	    cyan  = ENVIRON["TERM"] != "dumb" ? "\033[0;36m" : ""; \
+	    reset = ENVIRON["TERM"] != "dumb" ? "\033[0m"    : ""; \
+	    dim   = ENVIRON["TERM"] != "dumb" ? "\033[2m"    : ""; \
+	  } \
+	  /^## [a-z]+ \| / { \
+	    split($$0, a, " \\| "); \
+	    cat = substr(a[1], 4); \
+	    rest = a[2]; \
+	    split(rest, b, ": "); \
+	    target = b[1]; \
+	    desc = substr(rest, length(b[1]) + 3); \
+	    categories[cat] = categories[cat] "\n  " cyan target reset "  " dim desc reset; \
+	    catorder[cat] = catorder[cat] + 0; \
+	    if (!(cat in seen)) { \
+	      order[++n] = cat; \
+	      seen[cat] = 1; \
+	    } \
+	  } \
+	  END { \
+	    print bold "Rioku Makefile targets" reset; \
+	    print ""; \
+	    for (i = 1; i <= n; i++) { \
+	      c = order[i]; \
+	      print bold "  " c reset ":" categories[c]; \
+	      print ""; \
+	    } \
+	  } \
+	' $(MAKEFILE_LIST)
+
+# ── sandbox ───────────────────────────────────────────────────────────────────
+
+## sandbox | sandbox: Start sandbox environment (daemon + apps built in parallel inside start.sh)
 .PHONY: sandbox sandbox-stop sandbox-seed sandbox-logs sandbox-clean
 sandbox:
-	@bash sandbox/scripts/start.sh
+	@. scripts/_progress.sh && progress_start "Starting sandbox" && \
+	  bash sandbox/scripts/start.sh; \
+	  _rc=$$?; progress_done; exit $$_rc
 
-## sandbox-stop: Stop sandbox environment
+## sandbox | sandbox-stop: Stop sandbox environment
 sandbox-stop:
 	@bash sandbox/scripts/stop.sh
 
-## sandbox-seed: Re-seed sandbox data from sandbox/seed/*.yaml (requires running sandbox)
+## sandbox | sandbox-seed: Re-seed sandbox data from sandbox/seed/*.yaml (requires running sandbox)
 sandbox-seed:
 	@bash sandbox/scripts/seed-config.sh "http://localhost:$${SANDBOX_PORT_REST:-7778}"
 
-## sandbox-reset: Stop sandbox, wipe all data, restart fresh
+## sandbox | sandbox-reset: Stop sandbox, wipe all data, restart fresh
 sandbox-reset: sandbox-stop
 	@echo "==> Wiping sandbox data..."
 	rm -rf sandbox/.data
 	@echo "==> Starting fresh sandbox..."
 	$(MAKE) sandbox
 
-## sandbox-restart-daemon: Rebuild daemon + restart without touching upstream apps (~5s)
+## sandbox | sandbox-restart-daemon: Rebuild daemon + restart without touching upstream apps (~5s)
 sandbox-restart-daemon: build-daemon
 	@bash sandbox/scripts/restart-daemon.sh
 
-## sandbox-restart-daemon-fast: Rebuild daemon (skip web) + restart (~3s)
+## sandbox | sandbox-restart-daemon-fast: Rebuild daemon (skip web) + restart (~3s)
 sandbox-restart-daemon-fast: build-daemon-fast
 	@bash sandbox/scripts/restart-daemon.sh
 
-## sandbox-test-auth: Run auth smoke tests against running sandbox
-sandbox-test-auth:
-	@bash sandbox/scripts/test-auth.sh
+## sandbox | sandbox-restart-daemon-only: Rebuild + restart daemon only (for use alongside sandbox-dev-web)
+sandbox-restart-daemon-only: build-daemon-fast
+	@bash sandbox/scripts/restart-daemon.sh
 
-## sandbox-test-smoke: Run full-stack smoke tests against running sandbox
-sandbox-test-smoke:
-	@bash sandbox/scripts/test-smoke.sh
-
-## sandbox-test-primitives: Run Caddy primitive smoke tests (Sprint 1 surface) against running sandbox
-sandbox-test-primitives:
-	@bash sandbox/scripts/test-primitives.sh
-
-## sandbox-logs: Stream all sandbox service logs (color-coded, Ctrl+C to stop)
-sandbox-logs:
-	@bash sandbox/scripts/logs.sh
-
-## sandbox-logs-%: Stream logs for a specific service (e.g., make sandbox-logs-daemon)
-sandbox-logs-%:
-	@bash sandbox/scripts/logs.sh $*
-
-## sandbox-status: Show status of all sandbox components
-sandbox-status:
-	@bash sandbox/scripts/status.sh
-
-## sandbox-clean: Stop sandbox and wipe all data (logs, PIDs, config, database)
-sandbox-clean: sandbox-stop
-	rm -rf sandbox/.data
-
-## sandbox-seed-users: Seed test users into a running sandbox (delegates to sandbox-seed)
-sandbox-seed-users: sandbox-seed
-
-## sandbox-dev-web: Start Vite dev server for live web admin editing (starts sandbox if not running)
+## sandbox | sandbox-dev-web: Start Vite dev server for live web admin editing (starts sandbox if not running)
 sandbox-dev-web:
 	@if ! curl -sf http://localhost:$${SANDBOX_PORT_REST:-7778}/api/v1/health >/dev/null 2>&1; then \
 		$(MAKE) sandbox; \
@@ -97,15 +117,270 @@ sandbox-dev-web:
 	@echo ""
 	@cd packages/web && $(WEB_PATH) pnpm dev
 
-## sandbox-restart-daemon-only: Rebuild + restart daemon only (for use alongside sandbox-dev-web)
-sandbox-restart-daemon-only: build-daemon-fast
-	@bash sandbox/scripts/restart-daemon.sh
+## sandbox | sandbox-test-auth: Run auth smoke tests against running sandbox
+sandbox-test-auth:
+	@bash sandbox/scripts/test-auth.sh
 
-## test-e2e: Run Playwright E2E tests (requires running sandbox)
+## sandbox | sandbox-test-smoke: Run full-stack smoke tests against running sandbox
+sandbox-test-smoke:
+	@bash sandbox/scripts/test-smoke.sh
+
+## sandbox | sandbox-test-primitives: Run Caddy primitive smoke tests (Sprint 1 surface) against running sandbox
+sandbox-test-primitives:
+	@bash sandbox/scripts/test-primitives.sh
+
+## sandbox | sandbox-logs: Stream all sandbox service logs (color-coded, Ctrl+C to stop)
+sandbox-logs:
+	@bash sandbox/scripts/logs.sh
+
+## sandbox | sandbox-logs-%: Stream logs for a specific service (e.g., make sandbox-logs-daemon)
+sandbox-logs-%:
+	@bash sandbox/scripts/logs.sh $*
+
+## sandbox | sandbox-status: Show status of all sandbox components
+sandbox-status:
+	@bash sandbox/scripts/status.sh
+
+## sandbox | sandbox-clean: Stop sandbox and wipe all data (logs, PIDs, config, database)
+sandbox-clean: sandbox-stop
+	rm -rf sandbox/.data
+
+## sandbox | sandbox-seed-users: Seed test users into a running sandbox (delegates to sandbox-seed)
+sandbox-seed-users: sandbox-seed
+
+## sandbox | sandbox-load: Run standard load profile (direct + proxied), requires running sandbox
+sandbox-load:
+	@echo "Building load tester..."
+	cd sandbox/loadtest && GOWORK=off $(GO) build -o ../../$(BIN_DIR)/rioku-loadtest .
+	@echo "Running standard load profile..."
+	./$(BIN_DIR)/rioku-loadtest \
+		--profile sandbox/loadtest/profiles/standard.json \
+		--mode both \
+		--output sandbox/loadtest/results.json
+	@echo "Results: sandbox/loadtest/results.json"
+
+## sandbox | sandbox-load-monitor: Run soak load profile with resource monitoring
+sandbox-load-monitor:
+	@echo "Building load tester..."
+	cd sandbox/loadtest && GOWORK=off $(GO) build -o ../../$(BIN_DIR)/rioku-loadtest .
+	@echo "Running soak profile with monitoring..."
+	./$(BIN_DIR)/rioku-loadtest \
+		--profile sandbox/loadtest/profiles/soak.json \
+		--mode proxied \
+		--monitor \
+		--pprof \
+		--output sandbox/loadtest/soak-results.json
+	@echo "Results: sandbox/loadtest/soak-results.json"
+	@echo "Profiles: sandbox/loadtest/heap-*.prof, goroutine-*.prof"
+
+## sandbox | sandbox-load-compare: Compare load results against baseline
+sandbox-load-compare: sandbox-load
+	@if [ ! -f sandbox/loadtest/baseline.json ]; then \
+		echo "No baseline found. Run: cp sandbox/loadtest/results.json sandbox/loadtest/baseline.json"; \
+		exit 1; \
+	fi
+	@echo "==> Load test comparison (baseline vs current):"
+	@echo "Baseline:"
+	@cat sandbox/loadtest/baseline.json | python3 -m json.tool 2>/dev/null || cat sandbox/loadtest/baseline.json
+	@echo ""
+	@echo "Current:"
+	@cat sandbox/loadtest/results.json | python3 -m json.tool 2>/dev/null || cat sandbox/loadtest/results.json
+
+## sandbox | sandbox-container: Start sandbox in containers (auto-detects Podman or Docker)
+# ── Container Sandbox ────────────────────────────────────────
+COMPOSE_CMD := $(shell if command -v podman-compose >/dev/null 2>&1; then echo "podman-compose"; elif command -v docker >/dev/null 2>&1 && docker compose version >/dev/null 2>&1; then echo "docker compose"; elif command -v docker-compose >/dev/null 2>&1; then echo "docker-compose"; fi)
+
+sandbox-container:
+	@if [ -z "$(COMPOSE_CMD)" ]; then \
+		echo "Error: No container compose tool found. Install podman-compose or docker compose."; exit 1; \
+	fi
+	@echo "Using: $(COMPOSE_CMD)"
+	@cd sandbox && $(COMPOSE_CMD) --env-file .env.example up --build -d
+	@echo ""
+	@echo "Container sandbox started. Waiting for daemon health..."
+	@for i in $$(seq 1 30); do \
+		curl -sf http://localhost:$${SANDBOX_PORT_REST:-7778}/api/v1/health >/dev/null 2>&1 && break; \
+		sleep 1; \
+	done
+	@echo "Sandbox ready at http://localhost:$${SANDBOX_PORT_REST:-7778}"
+
+## sandbox | sandbox-container-stop: Stop container sandbox
+sandbox-container-stop:
+	@cd sandbox && $(COMPOSE_CMD) down
+
+## sandbox | sandbox-container-logs: View container sandbox logs
+sandbox-container-logs:
+	@cd sandbox && $(COMPOSE_CMD) logs -f
+
+## sandbox | sandbox-container-clean: Remove container sandbox (volumes + images)
+sandbox-container-clean:
+	@cd sandbox && $(COMPOSE_CMD) down -v --rmi local
+
+## sandbox | sandbox-seedgen-build: Build the rich-seed generator binary
+sandbox-seedgen-build:
+	cd sandbox/tools/seedgen && go build -o ../../../bin/rioku-seedgen .
+
+## sandbox | sandbox-seedgen: Run rich-seed generator against running daemon
+sandbox-seedgen: sandbox-seedgen-build
+	./bin/rioku-seedgen --mode=rich --seed=42
+
+## sandbox | sandbox-snapshot: Capture current state to a named snapshot tarball
+.PHONY: sandbox-snapshot
+sandbox-snapshot:
+	./sandbox/scripts/snapshot.sh $(NAME)
+
+## sandbox | sandbox-restore: Restore from a named snapshot
+.PHONY: sandbox-restore
+sandbox-restore:
+	./sandbox/scripts/restore.sh $(SNAPSHOT)
+
+## sandbox | sandbox-baseline: Run rich seed then capture as 'baseline' for test isolation
+.PHONY: sandbox-baseline
+sandbox-baseline: sandbox sandbox-seedgen
+	./sandbox/scripts/snapshot.sh baseline
+
+## sandbox | sandbox-prepull: Pull all sandbox container images once
+.PHONY: sandbox-prepull
+sandbox-prepull:
+	cd sandbox && podman-compose --env-file .env.example pull || \
+	  cd sandbox && docker compose --env-file .env.example pull
+
+## sandbox | sandbox-doctor: Health-probe every container against shifted ports
+.PHONY: sandbox-doctor
+sandbox-doctor:
+	./sandbox/scripts/doctor.sh
+
+## sandbox | sandbox-certs: Regenerate self-signed CA + leaf certs
+.PHONY: sandbox-certs
+sandbox-certs:
+	cd sandbox/tools/cert-gen && go run . --out ../../.data/certs --force
+
+## sandbox | sandbox-lean: Minimum-viable seed (CI smoke + RBAC tests)
+.PHONY: sandbox-lean
+sandbox-lean: sandbox-stop sandbox-clean
+	$(MAKE) sandbox SANDBOX_MODE=lean
+
+## sandbox | sandbox-rich: Full demo seed (alias for default sandbox; explicit form)
+.PHONY: sandbox-rich
+sandbox-rich: sandbox sandbox-seedgen
+
+## sandbox | sandbox-postgres: Bring sandbox up using Postgres as the config store
+.PHONY: sandbox-postgres
+sandbox-postgres:
+	cd sandbox && podman-compose --profile postgres --env-file .env.example up -d
+
+# ── build ─────────────────────────────────────────────────────────────────────
+
+## build | all: Build everything (proto + daemon + web)
+all: proto build web-build
+
+## build | build: Build daemon and CLI (same binary)
+build: build-daemon build-caddy
+
+## build | build-caddy: Build the bundled rioku-caddy binary (Caddy + first-party plugins)
+build-caddy:
+	cd $(PKG)/plugins && $(GO) build -ldflags "$(LDFLAGS)" -o ../../$(BIN_DIR)/rioku-caddy ./cmd/rioku-caddy
+
+## build | build-daemon: Build the rioku daemon binary (embeds admin panel)
+build-daemon: web-embed openapi-embed
+	@. scripts/_progress.sh && progress_start "Building daemon" && \
+	  cd $(PKG)/daemon && $(GO) build -ldflags "$(LDFLAGS)" -o ../../$(BIN_DIR)/rioku ./cmd/rioku; \
+	  _rc=$$?; progress_done; exit $$_rc
+
+## build | build-daemon-fast: Build daemon binary, re-embed web SPA only when source drifts
+## from the embedded copy. The go:embed directive requires
+## packages/daemon/web/build/ to exist, so we fall back to a full build-daemon
+## when it's missing (fresh clone / first CI run) or when the embedded build's
+## source hash doesn't match the current web sources.
+build-daemon-fast:
+	@CURRENT_HASH=$$(find packages/web/src -type f -exec sha256sum {} + 2>/dev/null | sort | sha256sum | cut -d' ' -f1); \
+	for f in packages/web/vite.config.ts packages/web/tsconfig.json packages/web/package.json; do \
+		CURRENT_HASH="$${CURRENT_HASH}$$(sha256sum "$$f" 2>/dev/null | cut -d' ' -f1)"; \
+	done; \
+	CURRENT_HASH=$$(echo "$${CURRENT_HASH}" | sha256sum | cut -d' ' -f1); \
+	if [ ! -f $(PKG)/daemon/web/build/index.html ]; then \
+		echo "==> No embedded web assets yet — running full build-daemon..."; \
+		$(MAKE) build-daemon; \
+	elif [ ! -f "$(WEB_HASH_FILE)" ] || [ "$$(cat $(WEB_HASH_FILE) 2>/dev/null)" != "$${CURRENT_HASH}" ]; then \
+		echo "==> Web SPA source has drifted from embedded build — re-embedding..."; \
+		$(MAKE) build-daemon; \
+	else \
+		cd $(PKG)/daemon && $(GO) build -ldflags "$(LDFLAGS)" -o ../../$(BIN_DIR)/rioku ./cmd/rioku; \
+	fi
+
+## build | build-daemon-lean: Build daemon without admin panel (smaller binary for cluster members)
+build-daemon-lean:
+	cd $(PKG)/daemon && $(GO) build -tags noadmin -ldflags "$(LDFLAGS)" -o ../../$(BIN_DIR)/rioku ./cmd/rioku
+
+## build | build-service: Build the build service binary
+build-service:
+	cd $(PKG)/build-service && $(GO) build -ldflags "$(LDFLAGS)" -o ../../$(BIN_DIR)/rioku-build-service ./cmd/rioku-build-service
+
+## build | clean: Remove build artifacts
+clean:
+	rm -rf $(BIN_DIR) $(PKG)/proto/gen $(PKG)/web/dist $(PKG)/web/.build-hash $(PKG)/daemon/web/build
+
+## build | web-embed: Copy web build into daemon for go:embed
+web-embed: web-build-if-changed
+	@rm -rf $(PKG)/daemon/web/build
+	@mkdir -p $(PKG)/daemon/web/build
+	@cp -r $(PKG)/web/dist/. $(PKG)/daemon/web/build/
+
+## build | openapi-embed: Copy generated OpenAPI spec into gateway package for go:embed
+openapi-embed: openapi
+	cp $(PKG)/proto/gen/openapi/rioku/v1/api.full.json $(PKG)/daemon/internal/gateway/api.full.json
+
+# ── test ──────────────────────────────────────────────────────────────────────
+
+## test | test: Run all tests
+test:
+	cd $(PKG)/daemon && $(GO) test ./...
+	cd $(PKG)/build-service && $(GO) test ./...
+	cd $(PKG)/web && pnpm test
+
+## test | test-fast: Run tests with race detector, skip scale tests (for local iteration)
+test-fast:
+	cd $(PKG)/daemon && $(GO) test -race -short ./...
+	cd $(PKG)/build-service && $(GO) test -race -short ./...
+
+## test | test-race: Run all tests with race detector (CI — includes scale tests)
+test-race:
+	cd $(PKG)/daemon && $(GO) test -race ./...
+	cd $(PKG)/build-service && $(GO) test -race ./...
+
+## test | test-security: Run security test suite (injection, timing, fixation)
+test-security:
+	cd $(PKG)/daemon && $(GO) test -race -run 'TestTimingAttack|TestSessionFixation|TestCookieScope|TestSQLInjection|TestXSS|TestRequestSmuggling|TestPasswordPolicy' ./internal/gateway/ -v -timeout 120s
+
+## test | test-raft-cluster: Run raft 3-node cluster tests
+test-raft-cluster:
+	cd $(PKG)/daemon && $(GO) test -race -run 'TestCluster' ./internal/store/raft/ -v -timeout 120s
+
+## test | test-coverage: Run Go tests with coverage and check against baseline
+test-coverage:
+	cd $(PKG)/daemon && $(GO) test -race -coverprofile=coverage.out ./...
+	@cd $(PKG)/daemon && COVERAGE=$$($(GO) tool cover -func=coverage.out | grep total | awk '{print $$3}' | tr -d '%') && \
+		BASELINE=$$(cat bench/coverage-baseline.txt 2>/dev/null || echo "0") && \
+		echo "Coverage: $${COVERAGE}% (baseline: $${BASELINE}%)" && \
+		if [ "$$(echo "$${COVERAGE} < $${BASELINE} - 0.5" | bc)" = "1" ]; then \
+			echo "ERROR: Coverage dropped below baseline"; exit 1; \
+		fi
+
+## test | coverage-baseline: Update coverage baseline from current results
+coverage-baseline:
+	cd $(PKG)/daemon && $(GO) test -race -coverprofile=coverage.out ./...
+	@cd $(PKG)/daemon && $(GO) tool cover -func=coverage.out | grep total | awk '{print $$3}' | tr -d '%' > bench/coverage-baseline.txt
+	@echo "Coverage baseline updated to $$(cat $(PKG)/daemon/bench/coverage-baseline.txt)%"
+
+## test | test-integration: Run integration tests (requires databases)
+test-integration:
+	cd $(PKG)/daemon && $(GO) test -tags integration -race ./...
+
+## test | test-e2e: Run Playwright E2E tests (requires running sandbox)
 test-e2e:
 	cd $(PKG)/web && pnpm exec playwright test
 
-## test-e2e-full: Start sandbox, run E2E tests, stop sandbox
+## test | test-e2e-full: Start sandbox, run E2E tests, stop sandbox
 test-e2e-full: build-daemon
 	@echo "==> Starting sandbox for E2E tests..."
 	@bash sandbox/scripts/start.sh &
@@ -129,103 +404,72 @@ test-e2e-full: build-daemon
 	@echo "==> Stopping sandbox..."
 	@bash sandbox/scripts/stop.sh
 
-## docs-install: Install user docs dependencies
-docs-install:
-	cd docs && $(WEB_PATH) npm install
+## test | bench: Run all Go benchmarks (output to packages/daemon/bench/results.txt)
+bench:
+	cd $(PKG)/daemon && $(GO) test -bench=. -benchmem -count=5 -run=^$$ ./... 2>&1 | tee bench/results.txt
+	@echo "Results saved to packages/daemon/bench/results.txt"
 
-## docs-dev: Run user docs dev server (localhost:3000)
-docs-dev:
-	cd docs && $(WEB_PATH) npm start
+## test | bench-baseline: Save current benchmark results as the new baseline
+bench-baseline: bench
+	cp $(PKG)/daemon/bench/results.txt $(PKG)/daemon/bench/baseline.txt
+	@echo "Baseline updated: packages/daemon/bench/baseline.txt"
 
-## docs-build: Build user docs for production
-docs-build:
-	cd docs && $(WEB_PATH) npm run build
-
-## contrib-docs-install: Install contributor docs dependencies
-contrib-docs-install:
-	cd contrib-docs && $(WEB_PATH) npm install
-
-## contrib-docs-dev: Run contributor docs dev server (localhost:3001)
-contrib-docs-dev:
-	cd contrib-docs && $(WEB_PATH) npm start
-
-## contrib-docs-build: Build contributor docs for production
-contrib-docs-build:
-	cd contrib-docs && $(WEB_PATH) npm run build
-
-## help: Show this help message
-help:
-	@grep -E '^## ' $(MAKEFILE_LIST) | sed 's/## //' | column -t -s ':'
-
-## all: Build everything
-all: proto build web-build
-
-## build: Build daemon and CLI (same binary)
-build: build-daemon build-caddy
-
-## build-caddy: Build the bundled rioku-caddy binary (Caddy + first-party plugins)
-build-caddy:
-	cd $(PKG)/plugins && $(GO) build -ldflags "$(LDFLAGS)" -o ../../$(BIN_DIR)/rioku-caddy ./cmd/rioku-caddy
-
-## build-daemon: Build the rioku daemon binary (embeds admin panel)
-build-daemon: web-embed openapi-embed
-	cd $(PKG)/daemon && $(GO) build -ldflags "$(LDFLAGS)" -o ../../$(BIN_DIR)/rioku ./cmd/rioku
-
-## web-embed: Copy web build into daemon for go:embed
-web-embed: web-build-if-changed
-	@rm -rf $(PKG)/daemon/web/build
-	@mkdir -p $(PKG)/daemon/web/build
-	@cp -r $(PKG)/web/dist/. $(PKG)/daemon/web/build/
-
-## build-daemon-fast: Build daemon binary, re-embed web SPA only when source drifts
-## from the embedded copy. The go:embed directive requires
-## packages/daemon/web/build/ to exist, so we fall back to a full build-daemon
-## when it's missing (fresh clone / first CI run) or when the embedded build's
-## source hash doesn't match the current web sources — that drift was the root
-## cause of the "stale May 3 SPA served by today's daemon" footgun: start.sh
-## called build-daemon-fast, which previously skipped web-embed unconditionally
-## once the embed existed, so source changes never reached the running daemon.
-build-daemon-fast:
-	@CURRENT_HASH=$$(find packages/web/src -type f -exec sha256sum {} + 2>/dev/null | sort | sha256sum | cut -d' ' -f1); \
-	for f in packages/web/vite.config.ts packages/web/tsconfig.json packages/web/package.json; do \
-		CURRENT_HASH="$${CURRENT_HASH}$$(sha256sum "$$f" 2>/dev/null | cut -d' ' -f1)"; \
-	done; \
-	CURRENT_HASH=$$(echo "$${CURRENT_HASH}" | sha256sum | cut -d' ' -f1); \
-	if [ ! -f $(PKG)/daemon/web/build/index.html ]; then \
-		echo "==> No embedded web assets yet — running full build-daemon..."; \
-		$(MAKE) build-daemon; \
-	elif [ ! -f "$(WEB_HASH_FILE)" ] || [ "$$(cat $(WEB_HASH_FILE) 2>/dev/null)" != "$${CURRENT_HASH}" ]; then \
-		echo "==> Web SPA source has drifted from embedded build — re-embedding..."; \
-		$(MAKE) build-daemon; \
-	else \
-		cd $(PKG)/daemon && $(GO) build -ldflags "$(LDFLAGS)" -o ../../$(BIN_DIR)/rioku ./cmd/rioku; \
+## test | bench-compare: Compare current benchmarks against baseline (requires benchstat)
+bench-compare: bench
+	@if ! command -v benchstat >/dev/null 2>&1; then \
+		echo "Installing benchstat..."; \
+		$(GO) install golang.org/x/perf/cmd/benchstat@latest; \
 	fi
+	benchstat $(PKG)/daemon/bench/baseline.txt $(PKG)/daemon/bench/results.txt
 
-## build-daemon-lean: Build daemon without admin panel (smaller binary for cluster members)
-build-daemon-lean:
-	cd $(PKG)/daemon && $(GO) build -tags noadmin -ldflags "$(LDFLAGS)" -o ../../$(BIN_DIR)/rioku ./cmd/rioku
+## test | test-web: Run frontend Vitest tests
+test-web:
+	cd $(PKG)/web && $(WEB_PATH) pnpm test
 
-## build-service: Build the build service binary
-build-service:
-	cd $(PKG)/build-service && $(GO) build -ldflags "$(LDFLAGS)" -o ../../$(BIN_DIR)/rioku-build-service ./cmd/rioku-build-service
+## test | test-web-coverage: Run frontend Vitest tests with coverage
+test-web-coverage:
+	cd $(PKG)/web && $(WEB_PATH) pnpm test:coverage
 
-## proto: Generate Go code from proto definitions
+## test | test-ui: Run @rioku/ui Vitest tests
+test-ui:
+	cd $(PKG)/ui && $(WEB_PATH) npx vitest run
+
+# ── lint ──────────────────────────────────────────────────────────────────────
+
+## lint | lint: Run all linters (Go + web)
+lint:
+	cd $(PKG)/daemon && golangci-lint run ./...
+	cd $(PKG)/build-service && golangci-lint run ./...
+
+## lint | lint-commit: Validate a commit message (usage: make lint-commit MSG="feat: add thing")
+lint-commit:
+	@.githooks/lint-commit.sh "$(MSG)"
+
+## lint | lint-spell: Run spell checker
+lint-spell:
+	npx cspell "**/*.{go,md,proto,yaml,yml}" --no-progress
+
+# ── proto ─────────────────────────────────────────────────────────────────────
+
+## proto | proto: Generate Go code from proto definitions
 proto:
-	cd $(PKG)/proto && buf generate
+	@. scripts/_progress.sh && progress_start "Generating proto" && \
+	  cd $(PKG)/proto && buf generate; \
+	  _rc=$$?; progress_done; exit $$_rc
 
-## proto-lint: Lint proto definitions
+## proto | proto-lint: Lint proto definitions
 proto-lint:
 	cd $(PKG)/proto && buf lint
 
-## proto-breaking: Check for breaking proto changes
+## proto | proto-breaking: Check for breaking proto changes
 proto-breaking:
 	cd $(PKG)/proto && buf breaking --against '.git#branch=main'
 
-## openapi: Merge buf-generated swagger files with hand-written
-##          fragments into a single canonical document at
-##          packages/proto/gen/openapi/rioku/v1/api.full.json. Run
-##          after `make proto` whenever the proto definitions OR the
-##          hand-written fragments change.
+## proto | openapi: Merge buf-generated swagger files with hand-written fragments
+##         into a single canonical document at
+##         packages/proto/gen/openapi/rioku/v1/api.full.json. Run
+##         after `make proto` whenever the proto definitions OR the
+##         hand-written fragments change.
 openapi:
 	cd $(PKG)/daemon && $(GO) run ./cmd/openapi-merge \
 		-base ../../$(PKG)/proto/gen/openapi/rioku/v1/config.swagger.json \
@@ -234,134 +478,19 @@ openapi:
 		-out ../../$(PKG)/proto/gen/openapi/rioku/v1/api.full.json
 	node $(PKG)/proto/scripts/normalize-to-oas3.mjs $(PKG)/proto/gen/openapi/rioku/v1/api.full.json
 
-## openapi-embed: copy generated openapi spec into gateway package for go:embed
-openapi-embed: openapi
-	cp $(PKG)/proto/gen/openapi/rioku/v1/api.full.json $(PKG)/daemon/internal/gateway/api.full.json
+# ── web ───────────────────────────────────────────────────────────────────────
 
-## test: Run all tests
-test:
-	cd $(PKG)/daemon && $(GO) test ./...
-	cd $(PKG)/build-service && $(GO) test ./...
-	cd $(PKG)/web && pnpm test
-
-## test-fast: Run tests with race detector, skip scale tests (for local iteration)
-test-fast:
-	cd $(PKG)/daemon && $(GO) test -race -short ./...
-	cd $(PKG)/build-service && $(GO) test -race -short ./...
-
-## test-race: Run all tests with race detector (CI — includes scale tests)
-test-race:
-	cd $(PKG)/daemon && $(GO) test -race ./...
-	cd $(PKG)/build-service && $(GO) test -race ./...
-
-## test-security: Run security test suite (injection, timing, fixation)
-test-security:
-	cd $(PKG)/daemon && $(GO) test -race -run 'TestTimingAttack|TestSessionFixation|TestCookieScope|TestSQLInjection|TestXSS|TestRequestSmuggling|TestPasswordPolicy' ./internal/gateway/ -v -timeout 120s
-
-## test-raft-cluster: Run raft 3-node cluster tests
-test-raft-cluster:
-	cd $(PKG)/daemon && $(GO) test -race -run 'TestCluster' ./internal/store/raft/ -v -timeout 120s
-
-## test-coverage: Run Go tests with coverage and check against baseline
-test-coverage:
-	cd $(PKG)/daemon && $(GO) test -race -coverprofile=coverage.out ./...
-	@cd $(PKG)/daemon && COVERAGE=$$($(GO) tool cover -func=coverage.out | grep total | awk '{print $$3}' | tr -d '%') && \
-		BASELINE=$$(cat bench/coverage-baseline.txt 2>/dev/null || echo "0") && \
-		echo "Coverage: $${COVERAGE}% (baseline: $${BASELINE}%)" && \
-		if [ "$$(echo "$${COVERAGE} < $${BASELINE} - 0.5" | bc)" = "1" ]; then \
-			echo "ERROR: Coverage dropped below baseline"; exit 1; \
-		fi
-
-## coverage-baseline: Update coverage baseline from current results
-coverage-baseline:
-	cd $(PKG)/daemon && $(GO) test -race -coverprofile=coverage.out ./...
-	@cd $(PKG)/daemon && $(GO) tool cover -func=coverage.out | grep total | awk '{print $$3}' | tr -d '%' > bench/coverage-baseline.txt
-	@echo "Coverage baseline updated to $$(cat $(PKG)/daemon/bench/coverage-baseline.txt)%"
-
-## test-integration: Run integration tests (requires databases)
-test-integration:
-	cd $(PKG)/daemon && $(GO) test -tags integration -race ./...
-
-## bench: Run all Go benchmarks (output to packages/daemon/bench/results.txt)
-bench:
-	cd $(PKG)/daemon && $(GO) test -bench=. -benchmem -count=5 -run=^$$ ./... 2>&1 | tee bench/results.txt
-	@echo "Results saved to packages/daemon/bench/results.txt"
-
-## bench-baseline: Save current benchmark results as the new baseline
-bench-baseline: bench
-	cp $(PKG)/daemon/bench/results.txt $(PKG)/daemon/bench/baseline.txt
-	@echo "Baseline updated: packages/daemon/bench/baseline.txt"
-
-## bench-compare: Compare current benchmarks against baseline (requires benchstat)
-bench-compare: bench
-	@if ! command -v benchstat >/dev/null 2>&1; then \
-		echo "Installing benchstat..."; \
-		$(GO) install golang.org/x/perf/cmd/benchstat@latest; \
-	fi
-	benchstat $(PKG)/daemon/bench/baseline.txt $(PKG)/daemon/bench/results.txt
-
-## sandbox-load: Run standard load profile (direct + proxied), requires running sandbox
-sandbox-load:
-	@echo "Building load tester..."
-	cd sandbox/loadtest && GOWORK=off $(GO) build -o ../../$(BIN_DIR)/rioku-loadtest .
-	@echo "Running standard load profile..."
-	./$(BIN_DIR)/rioku-loadtest \
-		--profile sandbox/loadtest/profiles/standard.json \
-		--mode both \
-		--output sandbox/loadtest/results.json
-	@echo "Results: sandbox/loadtest/results.json"
-
-## sandbox-load-monitor: Run soak load profile with resource monitoring
-sandbox-load-monitor:
-	@echo "Building load tester..."
-	cd sandbox/loadtest && GOWORK=off $(GO) build -o ../../$(BIN_DIR)/rioku-loadtest .
-	@echo "Running soak profile with monitoring..."
-	./$(BIN_DIR)/rioku-loadtest \
-		--profile sandbox/loadtest/profiles/soak.json \
-		--mode proxied \
-		--monitor \
-		--pprof \
-		--output sandbox/loadtest/soak-results.json
-	@echo "Results: sandbox/loadtest/soak-results.json"
-	@echo "Profiles: sandbox/loadtest/heap-*.prof, goroutine-*.prof"
-
-## sandbox-load-compare: Compare load results against baseline
-sandbox-load-compare: sandbox-load
-	@if [ ! -f sandbox/loadtest/baseline.json ]; then \
-		echo "No baseline found. Run: cp sandbox/loadtest/results.json sandbox/loadtest/baseline.json"; \
-		exit 1; \
-	fi
-	@echo "==> Load test comparison (baseline vs current):"
-	@echo "Baseline:"
-	@cat sandbox/loadtest/baseline.json | python3 -m json.tool 2>/dev/null || cat sandbox/loadtest/baseline.json
-	@echo ""
-	@echo "Current:"
-	@cat sandbox/loadtest/results.json | python3 -m json.tool 2>/dev/null || cat sandbox/loadtest/results.json
-
-## lint: Run linters
-lint:
-	cd $(PKG)/daemon && golangci-lint run ./...
-	cd $(PKG)/build-service && golangci-lint run ./...
-
-## web: Install web dependencies
+## web | web: Install web dependencies
 web:
 	cd $(PKG)/web && $(WEB_PATH) pnpm install
 
-## web-build: Build the admin panel SPA
+## web | web-build: Build the admin panel SPA
 web-build:
-	cd $(PKG)/web && $(WEB_PATH) pnpm build
+	@. scripts/_progress.sh && progress_start "Building web SPA" && \
+	  cd $(PKG)/web && $(WEB_PATH) pnpm build; \
+	  _rc=$$?; progress_done; exit $$_rc
 
-## web-types: Generate the typed admin client + MSW + Zod from api.full.json
-.PHONY: web-types
-web-types:
-	cd $(PKG)/web && $(WEB_PATH) pnpm run types:gen
-
-## web-types-incremental: Same as web-types but reuses Orval cache (CI fast-path)
-.PHONY: web-types-incremental
-web-types-incremental:
-	cd $(PKG)/web && $(WEB_PATH) pnpm run types:gen:incremental
-
-## web-build-if-changed: Build web SPA only if source files changed (hash-based)
+## web | web-build-if-changed: Build web SPA only if source files changed (hash-based)
 WEB_HASH_FILE = packages/web/.build-hash
 
 web-build-if-changed:
@@ -379,156 +508,85 @@ web-build-if-changed:
 		echo "$${CURRENT_HASH}" > "$${REPO_ROOT}/$(WEB_HASH_FILE)"; \
 	fi
 
-## web-dev: Run admin panel dev server
+## web | web-dev: Run admin panel dev server
 web-dev:
 	cd $(PKG)/web && $(WEB_PATH) pnpm dev
 
-## test-web: Run frontend Vitest tests
-test-web:
-	cd $(PKG)/web && $(WEB_PATH) pnpm test
+## web | web-types: Generate the typed admin client + MSW + Zod from api.full.json
+.PHONY: web-types
+web-types:
+	cd $(PKG)/web && $(WEB_PATH) pnpm run types:gen
 
-## test-web-coverage: Run frontend Vitest tests with coverage
-test-web-coverage:
-	cd $(PKG)/web && $(WEB_PATH) pnpm test:coverage
+## web | web-types-incremental: Same as web-types but reuses Orval cache (CI fast-path)
+.PHONY: web-types-incremental
+web-types-incremental:
+	cd $(PKG)/web && $(WEB_PATH) pnpm run types:gen:incremental
 
-## ui-storybook: Run @rioku/ui Storybook at localhost:6006
+## web | ui-storybook: Run @rioku/ui Storybook at localhost:6006
 ui-storybook:
 	cd $(PKG)/ui && $(WEB_PATH) npx storybook dev -p 6006
 
-## test-ui: Run @rioku/ui Vitest tests
-test-ui:
-	cd $(PKG)/ui && $(WEB_PATH) npx vitest run
+## web | docs-install: Install user docs dependencies
+docs-install:
+	cd docs && $(WEB_PATH) npm install
 
-## clean: Remove build artifacts
-clean:
-	rm -rf $(BIN_DIR) $(PKG)/proto/gen $(PKG)/web/dist $(PKG)/web/.build-hash $(PKG)/daemon/web/build
+## web | docs-dev: Run user docs dev server (localhost:3000)
+docs-dev:
+	cd docs && $(WEB_PATH) npm start
 
-## lint-commit: Validate a commit message (usage: make lint-commit MSG="feat: add thing")
-lint-commit:
-	@.githooks/lint-commit.sh "$(MSG)"
+## web | docs-build: Build user docs for production
+docs-build:
+	cd docs && $(WEB_PATH) npm run build
 
-## lint-spell: Run spell checker
-lint-spell:
-	npx cspell "**/*.{go,md,proto,yaml,yml}" --no-progress
+## web | contrib-docs-install: Install contributor docs dependencies
+contrib-docs-install:
+	cd contrib-docs && $(WEB_PATH) npm install
 
-## setup: Set up development environment (installs tools, hooks, dependencies)
+## web | contrib-docs-dev: Run contributor docs dev server (localhost:3001)
+contrib-docs-dev:
+	cd contrib-docs && $(WEB_PATH) npm start
+
+## web | contrib-docs-build: Build contributor docs for production
+contrib-docs-build:
+	cd contrib-docs && $(WEB_PATH) npm run build
+
+# ── dev ───────────────────────────────────────────────────────────────────────
+
+## dev | dev: Build daemon and run in development mode
+dev: build-daemon
+	./$(BIN_DIR)/rioku daemon --dev
+
+## dev | setup: Set up development environment (installs tools, hooks, dependencies)
 setup:
 	@./scripts/setup.sh
 
-## hooks: Install git hooks
+## dev | hooks: Install git hooks
 hooks:
 	@echo "Installing git hooks..."
 	@git config core.hooksPath .githooks
 	@echo "Git hooks installed (.githooks/)"
 
-## dev: Run daemon in development mode
-dev: build-daemon
-	./$(BIN_DIR)/rioku daemon --dev
-
-# ── Container Sandbox ────────────────────────────────────────
-COMPOSE_CMD := $(shell if command -v podman-compose >/dev/null 2>&1; then echo "podman-compose"; elif command -v docker >/dev/null 2>&1 && docker compose version >/dev/null 2>&1; then echo "docker compose"; elif command -v docker-compose >/dev/null 2>&1; then echo "docker-compose"; fi)
-
-## sandbox-container: Start sandbox in containers (auto-detects Podman or Docker)
-sandbox-container:
-	@if [ -z "$(COMPOSE_CMD)" ]; then \
-		echo "Error: No container compose tool found. Install podman-compose or docker compose."; exit 1; \
-	fi
-	@echo "Using: $(COMPOSE_CMD)"
-	@cd sandbox && $(COMPOSE_CMD) --env-file .env.example up --build -d
-	@echo ""
-	@echo "Container sandbox started. Waiting for daemon health..."
-	@for i in $$(seq 1 30); do \
-		curl -sf http://localhost:$${SANDBOX_PORT_REST:-7778}/api/v1/health >/dev/null 2>&1 && break; \
-		sleep 1; \
-	done
-	@echo "Sandbox ready at http://localhost:$${SANDBOX_PORT_REST:-7778}"
-
-## sandbox-container-stop: Stop container sandbox
-sandbox-container-stop:
-	@cd sandbox && $(COMPOSE_CMD) down
-
-## sandbox-container-logs: View container sandbox logs
-sandbox-container-logs:
-	@cd sandbox && $(COMPOSE_CMD) logs -f
-
-## sandbox-container-clean: Remove container sandbox (volumes + images)
-sandbox-container-clean:
-	@cd sandbox && $(COMPOSE_CMD) down -v --rmi local
-
-## sandbox-seedgen-build: build the rich-seed generator binary
-sandbox-seedgen-build:
-	cd sandbox/tools/seedgen && go build -o ../../../bin/rioku-seedgen .
-
-## sandbox-seedgen: run rich-seed generator against running daemon
-sandbox-seedgen: sandbox-seedgen-build
-	./bin/rioku-seedgen --mode=rich --seed=42
-
-## sandbox-snapshot: capture current state to a named snapshot tarball
-.PHONY: sandbox-snapshot
-sandbox-snapshot:
-	./sandbox/scripts/snapshot.sh $(NAME)
-
-## sandbox-restore: restore from a named snapshot
-.PHONY: sandbox-restore
-sandbox-restore:
-	./sandbox/scripts/restore.sh $(SNAPSHOT)
-
-## sandbox-baseline: run rich seed then capture as 'baseline' for test isolation
-.PHONY: sandbox-baseline
-sandbox-baseline: sandbox sandbox-seedgen
-	./sandbox/scripts/snapshot.sh baseline
-
-## sandbox-prepull: pull all sandbox container images once
-.PHONY: sandbox-prepull
-sandbox-prepull:
-	cd sandbox && podman-compose --env-file .env.example pull || \
-	  cd sandbox && docker compose --env-file .env.example pull
-
-## sandbox-doctor: health-probe every container against shifted ports
-.PHONY: sandbox-doctor
-sandbox-doctor:
-	./sandbox/scripts/doctor.sh
-
-## sandbox-certs: regenerate self-signed CA + leaf certs
-.PHONY: sandbox-certs
-sandbox-certs:
-	cd sandbox/tools/cert-gen && go run . --out ../../.data/certs --force
-
-## sandbox-lean: minimum-viable seed (CI smoke + RBAC tests)
-.PHONY: sandbox-lean
-sandbox-lean: sandbox-stop sandbox-clean
-	$(MAKE) sandbox SANDBOX_MODE=lean
-
-## sandbox-rich: full demo seed (alias for default sandbox; explicit form)
-.PHONY: sandbox-rich
-sandbox-rich: sandbox sandbox-seedgen
-
-## sandbox-postgres: bring sandbox up using Postgres as the config store
-.PHONY: sandbox-postgres
-sandbox-postgres:
-	cd sandbox && podman-compose --profile postgres --env-file .env.example up -d
-
-## worktree-add: create a new stage-2 plan worktree off origin/stage2/main
+## dev | worktree-add: Create a new stage-2 plan worktree off origin/stage2/main
 .PHONY: worktree-add
 worktree-add:
 	./scripts/worktree-add.sh
 
-## worktree-rm: remove a worktree (archives decisions-needed.md to tmp/)
+## dev | worktree-rm: Remove a worktree (archives decisions-needed.md to tmp/)
 .PHONY: worktree-rm
 worktree-rm:
 	./scripts/worktree-rm.sh
 
-## worktree-rebase: rebase all open plan worktrees onto origin/stage2/main
+## dev | worktree-rebase: Rebase all open plan worktrees onto origin/stage2/main
 .PHONY: worktree-rebase
 worktree-rebase:
 	./scripts/worktree-rebase.sh
 
-## worktree-doctor: full health check for the current worktree
+## dev | worktree-doctor: Full health check for the current worktree
 .PHONY: worktree-doctor
 worktree-doctor:
 	./scripts/worktree-doctor.sh
 
-## pre-push-verify: scan unpushed commits for forbidden phrases / shape per §13.3
+## dev | pre-push-verify: Scan unpushed commits for forbidden phrases / shape per convention
 .PHONY: pre-push-verify
 pre-push-verify:
 	@if git log --format="%s" origin/stage2/main..HEAD 2>/dev/null | grep -ivE '^(feat|fix|chore|docs|test|refactor|perf|ci|build|revert|style)(\([a-z0-9_/-]+\))?!?: .+' | grep -v '^Merge\|^Revert\|^fixup!\|^squash!' >/dev/null 2>&1; then \
@@ -543,7 +601,44 @@ pre-push-verify:
 	fi
 	@echo "pre-push-verify OK"
 
-## decisions-sync: merge worktree decisions-needed.md into master + tmp mirror
+## dev | decisions-sync: Merge worktree decisions-needed.md into master + tmp mirror
 .PHONY: decisions-sync
 decisions-sync:
 	./scripts/decisions-sync.sh
+
+# ── release ───────────────────────────────────────────────────────────────────
+# (Release targets are managed by CI; reserved for future use)
+
+# ── deprecation shims ─────────────────────────────────────────────────────────
+# These targets existed under old names. They print a warning and delegate to
+# the canonical target. They will be removed in a future release.
+
+## dev | restart-daemon: Deprecated — use sandbox-restart-daemon
+.PHONY: restart-daemon
+restart-daemon:
+	@echo "make: 'restart-daemon' is deprecated, use 'sandbox-restart-daemon'" >&2
+	$(MAKE) sandbox-restart-daemon
+
+## dev | restart-daemon-fast: Deprecated — use sandbox-restart-daemon-fast
+.PHONY: restart-daemon-fast
+restart-daemon-fast:
+	@echo "make: 'restart-daemon-fast' is deprecated, use 'sandbox-restart-daemon-fast'" >&2
+	$(MAKE) sandbox-restart-daemon-fast
+
+## dev | seed: Deprecated — use sandbox-seed
+.PHONY: seed
+seed:
+	@echo "make: 'seed' is deprecated, use 'sandbox-seed'" >&2
+	$(MAKE) sandbox-seed
+
+## dev | stop: Deprecated — use sandbox-stop
+.PHONY: stop
+stop:
+	@echo "make: 'stop' is deprecated, use 'sandbox-stop'" >&2
+	$(MAKE) sandbox-stop
+
+## dev | start: Deprecated — use sandbox
+.PHONY: start
+start:
+	@echo "make: 'start' is deprecated, use 'sandbox'" >&2
+	$(MAKE) sandbox
