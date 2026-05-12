@@ -11,25 +11,26 @@ import (
 	"net/http"
 
 	"github.com/riokulabs/rioku/internal/gateway/optionsutil"
+	"github.com/riokulabs/rioku/internal/rerr"
 	"github.com/riokulabs/rioku/internal/store"
 )
 
 func RegisterMiddlewareRoutes(mux *http.ServeMux, st store.Driver) {
 	mux.Handle("GET /api/v1/t/{tenant}/middlewares",
-		RequirePermission("middleware:read")(http.HandlerFunc(handleListMiddlewares(st))))
+		RequirePermission("middleware:read")(rerr.H(handleListMiddlewares(st))))
 	mux.Handle("POST /api/v1/t/{tenant}/middlewares",
-		RequirePermission("middleware:write")(http.HandlerFunc(handleCreateMiddleware(st))))
+		RequirePermission("middleware:write")(rerr.H(handleCreateMiddleware(st))))
 	mux.Handle("GET /api/v1/t/{tenant}/middlewares/{id}",
-		RequirePermission("middleware:read")(http.HandlerFunc(handleGetMiddleware(st))))
+		RequirePermission("middleware:read")(rerr.H(handleGetMiddleware(st))))
 	// PUT and PATCH share the underlying handler — both accept the
 	// pointer-field updateMiddlewareRequest where omitted fields are
 	// unchanged. See sites_routes for the rationale.
 	mux.Handle("PUT /api/v1/t/{tenant}/middlewares/{id}",
-		RequirePermission("middleware:write")(http.HandlerFunc(handleUpdateMiddleware(st))))
+		RequirePermission("middleware:write")(rerr.H(handleUpdateMiddleware(st))))
 	mux.Handle("PATCH /api/v1/t/{tenant}/middlewares/{id}",
-		RequirePermission("middleware:write")(http.HandlerFunc(handleUpdateMiddleware(st))))
+		RequirePermission("middleware:write")(rerr.H(handleUpdateMiddleware(st))))
 	mux.Handle("DELETE /api/v1/t/{tenant}/middlewares/{id}",
-		RequirePermission("middleware:delete")(http.HandlerFunc(handleDeleteMiddleware(st))))
+		RequirePermission("middleware:delete")(rerr.H(handleDeleteMiddleware(st))))
 
 	optionsutil.Register(mux, "/api/v1/t/{tenant}/middlewares",
 		[]string{"GET", "POST"})
@@ -83,45 +84,41 @@ type updateMiddlewareRequest struct {
 	OrderHint *int32           `json:"orderHint,omitempty"`
 }
 
-func handleListMiddlewares(st store.Driver) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
+func handleListMiddlewares(st store.Driver) rerr.Handler {
+	return func(w http.ResponseWriter, r *http.Request) error {
 		tenant, ok := tenantOrError(w, r)
 		if !ok {
-			return
+			return nil
 		}
 		tx, err := st.Begin(r.Context(), store.TxOptions{ReadOnly: true})
 		if err != nil {
-			writeInternalError(w, r, "begin tx")
-			return
+			return rerr.Wrap(err, "begin tx")
 		}
 		defer func() { _ = tx.Rollback() }()
 		mws, err := tx.ListMiddlewaresByTenant(r.Context(), tenant.ID)
 		if err != nil {
-			writeInternalError(w, r, "list middlewares")
-			return
+			return rerr.Wrap(err, "list middlewares")
 		}
 		out := make([]middlewareResponse, 0, len(mws))
 		for _, m := range mws {
 			out = append(out, middlewareToResponse(m))
 		}
-		writeJSON(w, http.StatusOK, map[string]any{"items": out, "total": len(out)})
+		return rerr.JSON(w, map[string]any{"items": out, "total": len(out)})
 	}
 }
 
-func handleCreateMiddleware(st store.Driver) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
+func handleCreateMiddleware(st store.Driver) rerr.Handler {
+	return func(w http.ResponseWriter, r *http.Request) error {
 		tenant, ok := tenantOrError(w, r)
 		if !ok {
-			return
+			return nil
 		}
 		var req createMiddlewareRequest
 		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-			writeBadRequest(w, r, "invalid JSON body")
-			return
+			return rerr.Validation(map[string]string{"body": "invalid JSON body"})
 		}
 		if req.Name == "" || req.Kind == "" {
-			writeBadRequest(w, r, "name and kind are required")
-			return
+			return rerr.Validation(map[string]string{"body": "name and kind are required"})
 		}
 		cfg := string(req.Config)
 		if cfg == "" {
@@ -129,8 +126,7 @@ func handleCreateMiddleware(st store.Driver) http.HandlerFunc {
 		}
 		tx, err := st.Begin(r.Context(), store.TxOptions{})
 		if err != nil {
-			writeInternalError(w, r, "begin tx")
-			return
+			return rerr.Wrap(err, "begin tx")
 		}
 		created, err := tx.CreateMiddleware(r.Context(), &store.Middleware{
 			TenantID:  tenant.ID,
@@ -143,61 +139,52 @@ func handleCreateMiddleware(st store.Driver) http.HandlerFunc {
 		if err != nil {
 			_ = tx.Rollback()
 			if errors.Is(err, store.ErrMiddlewareNameTaken) {
-				writeProblem(w, http.StatusConflict, errTypeConflict,
-					"Name already in use",
-					"A middleware with that name already exists in this tenant", r.URL.Path, nil)
-				return
+				return rerr.Conflict("a middleware with that name already exists in this tenant", err)
 			}
-			writeInternalError(w, r, "create middleware")
-			return
+			return rerr.Wrap(err, "create middleware")
 		}
 		if err := tx.Commit(); err != nil {
-			writeInternalError(w, r, "commit")
-			return
+			return rerr.Wrap(err, "commit")
 		}
 		_ = triggerCaddyReload(r.Context(), "middleware.create")
-		writeJSON(w, http.StatusCreated, middlewareToResponse(created))
+		w.WriteHeader(http.StatusCreated)
+		return rerr.JSON(w, middlewareToResponse(created))
 	}
 }
 
-func handleGetMiddleware(st store.Driver) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
+func handleGetMiddleware(st store.Driver) rerr.Handler {
+	return func(w http.ResponseWriter, r *http.Request) error {
 		tenant, ok := tenantOrError(w, r)
 		if !ok {
-			return
+			return nil
 		}
 		id := r.PathValue("id")
 		tx, err := st.Begin(r.Context(), store.TxOptions{ReadOnly: true})
 		if err != nil {
-			writeInternalError(w, r, "begin tx")
-			return
+			return rerr.Wrap(err, "begin tx")
 		}
 		defer func() { _ = tx.Rollback() }()
 		m, err := tx.GetMiddleware(r.Context(), tenant.ID, id)
 		if err != nil {
 			if errors.Is(err, store.ErrMiddlewareNotFound) {
-				writeProblem(w, http.StatusNotFound, errTypeNotFound,
-					"Middleware not found", "No middleware with id "+id, r.URL.Path, nil)
-				return
+				return rerr.NotFound("middleware", id)
 			}
-			writeInternalError(w, r, "get middleware")
-			return
+			return rerr.Wrap(err, "get middleware")
 		}
-		writeJSON(w, http.StatusOK, middlewareToResponse(m))
+		return rerr.JSON(w, middlewareToResponse(m))
 	}
 }
 
-func handleUpdateMiddleware(st store.Driver) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
+func handleUpdateMiddleware(st store.Driver) rerr.Handler {
+	return func(w http.ResponseWriter, r *http.Request) error {
 		tenant, ok := tenantOrError(w, r)
 		if !ok {
-			return
+			return nil
 		}
 		id := r.PathValue("id")
 		var req updateMiddlewareRequest
 		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-			writeBadRequest(w, r, "invalid JSON body")
-			return
+			return rerr.Validation(map[string]string{"body": "invalid JSON body"})
 		}
 		var cfgPtr *string
 		if req.Config != nil {
@@ -206,8 +193,7 @@ func handleUpdateMiddleware(st store.Driver) http.HandlerFunc {
 		}
 		tx, err := st.Begin(r.Context(), store.TxOptions{})
 		if err != nil {
-			writeInternalError(w, r, "begin tx")
-			return
+			return rerr.Wrap(err, "begin tx")
 		}
 		updated, err := tx.UpdateMiddleware(r.Context(), tenant.ID, id, store.UpdateMiddlewareParams{
 			Name:      req.Name,
@@ -220,53 +206,44 @@ func handleUpdateMiddleware(st store.Driver) http.HandlerFunc {
 			_ = tx.Rollback()
 			switch {
 			case errors.Is(err, store.ErrMiddlewareNotFound):
-				writeProblem(w, http.StatusNotFound, errTypeNotFound,
-					"Middleware not found", "No middleware with id "+id, r.URL.Path, nil)
+				return rerr.NotFound("middleware", id)
 			case errors.Is(err, store.ErrMiddlewareNameTaken):
-				writeProblem(w, http.StatusConflict, errTypeConflict,
-					"Name already in use",
-					"Another middleware already uses that name", r.URL.Path, nil)
+				return rerr.Conflict("another middleware already uses that name", err)
 			default:
-				writeInternalError(w, r, "update middleware")
+				return rerr.Wrap(err, "update middleware")
 			}
-			return
 		}
 		if err := tx.Commit(); err != nil {
-			writeInternalError(w, r, "commit")
-			return
+			return rerr.Wrap(err, "commit")
 		}
 		_ = triggerCaddyReload(r.Context(), "middleware.update")
-		writeJSON(w, http.StatusOK, middlewareToResponse(updated))
+		return rerr.JSON(w, middlewareToResponse(updated))
 	}
 }
 
-func handleDeleteMiddleware(st store.Driver) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
+func handleDeleteMiddleware(st store.Driver) rerr.Handler {
+	return func(w http.ResponseWriter, r *http.Request) error {
 		tenant, ok := tenantOrError(w, r)
 		if !ok {
-			return
+			return nil
 		}
 		id := r.PathValue("id")
 		tx, err := st.Begin(r.Context(), store.TxOptions{})
 		if err != nil {
-			writeInternalError(w, r, "begin tx")
-			return
+			return rerr.Wrap(err, "begin tx")
 		}
 		if err := tx.DeleteMiddleware(r.Context(), tenant.ID, id); err != nil {
 			_ = tx.Rollback()
 			if errors.Is(err, store.ErrMiddlewareNotFound) {
-				writeProblem(w, http.StatusNotFound, errTypeNotFound,
-					"Middleware not found", "No middleware with id "+id, r.URL.Path, nil)
-				return
+				return rerr.NotFound("middleware", id)
 			}
-			writeInternalError(w, r, "delete middleware")
-			return
+			return rerr.Wrap(err, "delete middleware")
 		}
 		if err := tx.Commit(); err != nil {
-			writeInternalError(w, r, "commit")
-			return
+			return rerr.Wrap(err, "commit")
 		}
 		_ = triggerCaddyReload(r.Context(), "middleware.delete")
 		w.WriteHeader(http.StatusNoContent)
+		return nil
 	}
 }

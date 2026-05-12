@@ -23,6 +23,7 @@ import (
 
 	"github.com/riokulabs/rioku/internal/gateway/links"
 	"github.com/riokulabs/rioku/internal/gateway/optionsutil"
+	"github.com/riokulabs/rioku/internal/rerr"
 	"github.com/riokulabs/rioku/internal/store"
 	riokuv1 "github.com/riokulabs/rioku/proto/gen/go/rioku/v1"
 	"google.golang.org/protobuf/proto"
@@ -30,14 +31,14 @@ import (
 
 // RegisterRoutesRoutes wires the tenant-scoped routes REST surface.
 func RegisterRoutesRoutes(mux *http.ServeMux, st store.Driver) {
-	list := RequirePermission("route:read")(http.HandlerFunc(handleListRoutes(st)))
-	create := RequirePermission("route:write")(http.HandlerFunc(handleCreateRoute(st)))
-	get := RequirePermission("route:read")(http.HandlerFunc(handleGetRoute(st)))
-	update := RequirePermission("route:write")(http.HandlerFunc(handleUpdateRouteREST(st)))
-	del := RequirePermission("route:delete")(http.HandlerFunc(handleDeleteRouteREST(st)))
-	listPolicies := RequirePermission("route:read")(http.HandlerFunc(handleListPoliciesByRoute(st)))
-	attachPolicy := RequirePermission("policy:attach")(http.HandlerFunc(handleAttachPolicyToRoute(st)))
-	detachPolicy := RequirePermission("policy:attach")(http.HandlerFunc(handleDetachPolicyFromRoute(st)))
+	list := RequirePermission("route:read")(rerr.H(handleListRoutes(st)))
+	create := RequirePermission("route:write")(rerr.H(handleCreateRoute(st)))
+	get := RequirePermission("route:read")(rerr.H(handleGetRoute(st)))
+	update := RequirePermission("route:write")(rerr.H(handleUpdateRouteREST(st)))
+	del := RequirePermission("route:delete")(rerr.H(handleDeleteRouteREST(st)))
+	listPolicies := RequirePermission("route:read")(rerr.H(handleListPoliciesByRoute(st)))
+	attachPolicy := RequirePermission("policy:attach")(rerr.H(handleAttachPolicyToRoute(st)))
+	detachPolicy := RequirePermission("policy:attach")(rerr.H(handleDetachPolicyFromRoute(st)))
 
 	mux.Handle("GET /api/v1/t/{tenant}/routes", list)
 	mux.Handle("POST /api/v1/t/{tenant}/routes", create)
@@ -75,29 +76,27 @@ func routeToDTO(rt *riokuv1.Route, b *links.Builder) routeDTO {
 	return dto
 }
 
-func handleListRoutes(st store.Driver) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
+func handleListRoutes(st store.Driver) rerr.Handler {
+	return func(w http.ResponseWriter, r *http.Request) error {
 		tenant, ok := tenantOrError(w, r)
 		if !ok {
-			return
+			return nil
 		}
 		tx, err := st.Begin(r.Context(), store.TxOptions{ReadOnly: true})
 		if err != nil {
-			writeInternalError(w, r, "begin tx")
-			return
+			return rerr.Wrap(err, "begin tx")
 		}
 		defer func() { _ = tx.Rollback() }()
 		all, err := tx.ListRoutes(r.Context())
 		if err != nil {
-			writeInternalError(w, r, "list routes")
-			return
+			return rerr.Wrap(err, "list routes")
 		}
 		b := links.NewTenantBuilder(tenant.Slug)
 		out := make([]routeDTO, 0, len(all))
 		for _, rt := range all {
 			out = append(out, routeToDTO(rt, b))
 		}
-		writeJSON(w, http.StatusOK, map[string]any{
+		return rerr.JSON(w, map[string]any{
 			"items":  out,
 			"total":  len(out),
 			"_links": links.Set{"self": b.Collection("routes")},
@@ -105,84 +104,74 @@ func handleListRoutes(st store.Driver) http.HandlerFunc {
 	}
 }
 
-func handleCreateRoute(st store.Driver) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
+func handleCreateRoute(st store.Driver) rerr.Handler {
+	return func(w http.ResponseWriter, r *http.Request) error {
 		tenant, ok := tenantOrError(w, r)
 		if !ok {
-			return
+			return nil
 		}
 		var rt riokuv1.Route
 		if err := unmarshalProtoJSON(r.Body, &rt); err != nil {
-			writeBadRequest(w, r, "invalid JSON body: "+err.Error())
-			return
+			return rerr.Validation(map[string]string{"body": "invalid JSON body: " + err.Error()})
 		}
 		if strings.TrimSpace(rt.GetName()) == "" {
-			writeBadRequest(w, r, "name is required")
-			return
+			return rerr.Validation(map[string]string{"name": "name is required"})
 		}
 		tx, err := st.Begin(r.Context(), store.TxOptions{})
 		if err != nil {
-			writeInternalError(w, r, "begin tx")
-			return
+			return rerr.Wrap(err, "begin tx")
 		}
 		created, err := tx.CreateRoute(r.Context(), &rt)
 		if err != nil {
 			_ = tx.Rollback()
-			writeInternalError(w, r, "create route")
-			return
+			return rerr.Wrap(err, "create route")
 		}
 		if err := tx.Commit(); err != nil {
-			writeInternalError(w, r, "commit")
-			return
+			return rerr.Wrap(err, "commit")
 		}
-		writeJSON(w, http.StatusCreated, routeToDTO(created, links.NewTenantBuilder(tenant.Slug)))
+		w.WriteHeader(http.StatusCreated)
+		return rerr.JSON(w, routeToDTO(created, links.NewTenantBuilder(tenant.Slug)))
 	}
 }
 
-func handleGetRoute(st store.Driver) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
+func handleGetRoute(st store.Driver) rerr.Handler {
+	return func(w http.ResponseWriter, r *http.Request) error {
 		tenant, ok := tenantOrError(w, r)
 		if !ok {
-			return
+			return nil
 		}
 		id := r.PathValue("id")
 		tx, err := st.Begin(r.Context(), store.TxOptions{ReadOnly: true})
 		if err != nil {
-			writeInternalError(w, r, "begin tx")
-			return
+			return rerr.Wrap(err, "begin tx")
 		}
 		defer func() { _ = tx.Rollback() }()
 		rt, err := tx.GetRoute(r.Context(), id)
 		if err != nil {
-			writeProblem(w, http.StatusNotFound, errTypeNotFound, "Route not found",
-				"No route with id "+id, r.URL.Path, nil)
-			return
+			return rerr.NotFound("route", id)
 		}
-		writeJSON(w, http.StatusOK, routeToDTO(rt, links.NewTenantBuilder(tenant.Slug)))
+		return rerr.JSON(w, routeToDTO(rt, links.NewTenantBuilder(tenant.Slug)))
 	}
 }
 
-func handleUpdateRouteREST(st store.Driver) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
+func handleUpdateRouteREST(st store.Driver) rerr.Handler {
+	return func(w http.ResponseWriter, r *http.Request) error {
 		tenant, ok := tenantOrError(w, r)
 		if !ok {
-			return
+			return nil
 		}
 		id := r.PathValue("id")
 
 		tx, err := st.Begin(r.Context(), store.TxOptions{})
 		if err != nil {
-			writeInternalError(w, r, "begin tx")
-			return
+			return rerr.Wrap(err, "begin tx")
 		}
 		var rt *riokuv1.Route
 		if r.Method == http.MethodPatch {
 			existing, err := tx.GetRoute(r.Context(), id)
 			if err != nil {
 				_ = tx.Rollback()
-				writeProblem(w, http.StatusNotFound, errTypeNotFound, "Route not found",
-					"No route with id "+id, r.URL.Path, nil)
-				return
+				return rerr.NotFound("route", id)
 			}
 			// protojson.Unmarshal clears its destination, so decode the
 			// patch into a fresh message and proto.Merge onto existing.
@@ -191,8 +180,7 @@ func handleUpdateRouteREST(st store.Driver) http.HandlerFunc {
 			patch := &riokuv1.Route{}
 			if err := unmarshalProtoJSON(r.Body, patch); err != nil {
 				_ = tx.Rollback()
-				writeBadRequest(w, r, "invalid JSON body: "+err.Error())
-				return
+				return rerr.Validation(map[string]string{"body": "invalid JSON body: " + err.Error()})
 			}
 			proto.Merge(existing, patch)
 			rt = existing
@@ -200,8 +188,7 @@ func handleUpdateRouteREST(st store.Driver) http.HandlerFunc {
 			rt = &riokuv1.Route{}
 			if err := unmarshalProtoJSON(r.Body, rt); err != nil {
 				_ = tx.Rollback()
-				writeBadRequest(w, r, "invalid JSON body: "+err.Error())
-				return
+				return rerr.Validation(map[string]string{"body": "invalid JSON body: " + err.Error()})
 			}
 		}
 		rt.Id = id
@@ -210,73 +197,62 @@ func handleUpdateRouteREST(st store.Driver) http.HandlerFunc {
 		if err != nil {
 			_ = tx.Rollback()
 			if strings.Contains(err.Error(), "not found") {
-				writeProblem(w, http.StatusNotFound, errTypeNotFound, "Route not found",
-					"No route with id "+id, r.URL.Path, nil)
-				return
+				return rerr.NotFound("route", id)
 			}
 			// Surface the underlying detail so the admin panel /
 			// CLI can see WHY the update failed (invalid matchers,
 			// dangling target, etc.). The error class is unprocessable
 			// rather than internal because the caller's payload is at
 			// fault.
-			writeProblem(w, http.StatusUnprocessableEntity, errTypeUnprocess,
-				"Update failed", err.Error(), r.URL.Path, nil)
-			return
+			return rerr.Validation(map[string]string{"body": err.Error()})
 		}
 		if err := tx.Commit(); err != nil {
-			writeInternalError(w, r, "commit")
-			return
+			return rerr.Wrap(err, "commit")
 		}
-		writeJSON(w, http.StatusOK, routeToDTO(updated, links.NewTenantBuilder(tenant.Slug)))
+		return rerr.JSON(w, routeToDTO(updated, links.NewTenantBuilder(tenant.Slug)))
 	}
 }
 
-func handleDeleteRouteREST(st store.Driver) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
+func handleDeleteRouteREST(st store.Driver) rerr.Handler {
+	return func(w http.ResponseWriter, r *http.Request) error {
 		_ = TenantFromContext(r.Context())
 		id := r.PathValue("id")
 		tx, err := st.Begin(r.Context(), store.TxOptions{})
 		if err != nil {
-			writeInternalError(w, r, "begin tx")
-			return
+			return rerr.Wrap(err, "begin tx")
 		}
 		if err := tx.DeleteRoute(r.Context(), id); err != nil {
 			_ = tx.Rollback()
 			if strings.Contains(err.Error(), "not found") {
-				writeProblem(w, http.StatusNotFound, errTypeNotFound, "Route not found",
-					"No route with id "+id, r.URL.Path, nil)
-				return
+				return rerr.NotFound("route", id)
 			}
-			writeInternalError(w, r, "delete route")
-			return
+			return rerr.Wrap(err, "delete route")
 		}
 		if err := tx.Commit(); err != nil {
-			writeInternalError(w, r, "commit")
-			return
+			return rerr.Wrap(err, "commit")
 		}
 		w.WriteHeader(http.StatusNoContent)
+		return nil
 	}
 }
 
 // handleListPoliciesByRoute returns the access-policy IDs bound to a
 // route via the policy_bindings table.
-func handleListPoliciesByRoute(st store.Driver) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
+func handleListPoliciesByRoute(st store.Driver) rerr.Handler {
+	return func(w http.ResponseWriter, r *http.Request) error {
 		tenant, ok := tenantOrError(w, r)
 		if !ok {
-			return
+			return nil
 		}
 		routeID := r.PathValue("id")
 		tx, err := st.Begin(r.Context(), store.TxOptions{ReadOnly: true})
 		if err != nil {
-			writeInternalError(w, r, "begin tx")
-			return
+			return rerr.Wrap(err, "begin tx")
 		}
 		defer func() { _ = tx.Rollback() }()
 		ids, err := tx.ListPoliciesByTarget(r.Context(), "route", routeID)
 		if err != nil {
-			writeInternalError(w, r, "list policies by target")
-			return
+			return rerr.Wrap(err, "list policies by target")
 		}
 		b := links.NewTenantBuilder(tenant.Slug)
 		items := make([]map[string]any, 0, len(ids))
@@ -288,7 +264,7 @@ func handleListPoliciesByRoute(st store.Driver) http.HandlerFunc {
 				},
 			})
 		}
-		writeJSON(w, http.StatusOK, map[string]any{
+		return rerr.JSON(w, map[string]any{
 			"items": items,
 			"total": len(items),
 			"_links": links.Set{
@@ -299,30 +275,28 @@ func handleListPoliciesByRoute(st store.Driver) http.HandlerFunc {
 	}
 }
 
-func handleAttachPolicyToRoute(st store.Driver) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
+func handleAttachPolicyToRoute(st store.Driver) rerr.Handler {
+	return func(w http.ResponseWriter, r *http.Request) error {
 		tenant, ok := tenantOrError(w, r)
 		if !ok {
-			return
+			return nil
 		}
 		routeID := r.PathValue("id")
 		policyID := r.PathValue("policyId")
 		tx, err := st.Begin(r.Context(), store.TxOptions{})
 		if err != nil {
-			writeInternalError(w, r, "begin tx")
-			return
+			return rerr.Wrap(err, "begin tx")
 		}
 		if err := tx.AttachPolicy(r.Context(), policyID, "route", routeID); err != nil {
 			_ = tx.Rollback()
-			writeInternalError(w, r, "attach policy")
-			return
+			return rerr.Wrap(err, "attach policy")
 		}
 		if err := tx.Commit(); err != nil {
-			writeInternalError(w, r, "commit")
-			return
+			return rerr.Wrap(err, "commit")
 		}
 		b := links.NewTenantBuilder(tenant.Slug)
-		writeJSON(w, http.StatusCreated, map[string]any{
+		w.WriteHeader(http.StatusCreated)
+		return rerr.JSON(w, map[string]any{
 			"routeId":  routeID,
 			"policyId": policyID,
 			"_links": links.Set{
@@ -333,30 +307,26 @@ func handleAttachPolicyToRoute(st store.Driver) http.HandlerFunc {
 	}
 }
 
-func handleDetachPolicyFromRoute(st store.Driver) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
+func handleDetachPolicyFromRoute(st store.Driver) rerr.Handler {
+	return func(w http.ResponseWriter, r *http.Request) error {
 		_ = TenantFromContext(r.Context())
 		routeID := r.PathValue("id")
 		policyID := r.PathValue("policyId")
 		tx, err := st.Begin(r.Context(), store.TxOptions{})
 		if err != nil {
-			writeInternalError(w, r, "begin tx")
-			return
+			return rerr.Wrap(err, "begin tx")
 		}
 		if err := tx.DetachPolicy(r.Context(), policyID, "route", routeID); err != nil {
 			_ = tx.Rollback()
 			if strings.Contains(err.Error(), "not found") {
-				writeProblem(w, http.StatusNotFound, errTypeNotFound, "Binding not found",
-					"No binding between route "+routeID+" and policy "+policyID, r.URL.Path, nil)
-				return
+				return rerr.NotFound("policy_binding", policyID)
 			}
-			writeInternalError(w, r, "detach policy")
-			return
+			return rerr.Wrap(err, "detach policy")
 		}
 		if err := tx.Commit(); err != nil {
-			writeInternalError(w, r, "commit")
-			return
+			return rerr.Wrap(err, "commit")
 		}
 		w.WriteHeader(http.StatusNoContent)
+		return nil
 	}
 }
