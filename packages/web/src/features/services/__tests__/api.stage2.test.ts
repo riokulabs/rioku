@@ -251,7 +251,9 @@ describe('useDeleteServiceMutation', () => {
       await result.current.mutateAsync('svc-del-1');
     });
 
-    expect(result.current.isSuccess).toBe(true);
+    await waitFor(() => {
+      expect(result.current.isSuccess).toBe(true);
+    });
   });
 });
 
@@ -301,6 +303,8 @@ describe('useForceReloadServiceMutation', () => {
       await result.current.mutateAsync('svc-fr-1');
     });
 
-    expect(result.current.isSuccess).toBe(true);
+    await waitFor(() => {
+      expect(result.current.isSuccess).toBe(true);
+    });
   });
 });

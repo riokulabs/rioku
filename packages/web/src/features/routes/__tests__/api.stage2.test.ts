@@ -336,7 +336,9 @@ describe('useDeleteRouteMutation', () => {
       await result.current.mutateAsync('rt-del-1');
     });
 
-    expect(result.current.isSuccess).toBe(true);
+    await waitFor(() => {
+      expect(result.current.isSuccess).toBe(true);
+    });
   });
 });
 
@@ -394,7 +396,9 @@ describe('useAttachPolicyMutation', () => {
       await result.current.mutateAsync({ routeId: 'rt-1', policyId: 'pol-1' });
     });
 
-    expect(result.current.isSuccess).toBe(true);
+    await waitFor(() => {
+      expect(result.current.isSuccess).toBe(true);
+    });
   });
 });
 
@@ -416,7 +420,9 @@ describe('useDetachPolicyMutation', () => {
       await result.current.mutateAsync({ routeId: 'rt-1', policyId: 'pol-1' });
     });
 
-    expect(result.current.isSuccess).toBe(true);
+    await waitFor(() => {
+      expect(result.current.isSuccess).toBe(true);
+    });
   });
 });
 
