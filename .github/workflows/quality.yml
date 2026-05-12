@@ -144,3 +144,18 @@ jobs:
             git diff packages/web/src/api/generated packages/proto/gen/openapi/rioku/v1/api.full.json | head -200
             exit 1
           fi
+
+  contrib-docs-build:
+    name: Contrib Docs Build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: contrib-docs/package-lock.json
+      - name: Install contrib-docs deps
+        run: cd contrib-docs && npm install --include=dev
+      - name: Build contrib-docs
+        run: cd contrib-docs && npm run build
