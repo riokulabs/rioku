@@ -175,9 +175,17 @@ func TestCompile_AccessLogPreserved(t *testing.T) {
 		t.Errorf("writer.output = %v, want net", writer["output"])
 	}
 
+	// Encoder is now a filter wrapping json (for request_id field rename).
 	encoder := traceLog["encoder"].(map[string]any)
-	if encoder["format"].(string) != "json" {
-		t.Errorf("encoder.format = %v, want json", encoder["format"])
+	if encoder["format"].(string) != "filter" {
+		t.Errorf("encoder.format = %v, want filter", encoder["format"])
+	}
+	wrap, ok := encoder["wrap"].(map[string]any)
+	if !ok {
+		t.Fatal("encoder.wrap missing or not a map")
+	}
+	if wrap["format"].(string) != "json" {
+		t.Errorf("encoder.wrap.format = %v, want json", wrap["format"])
 	}
 
 	include := traceLog["include"].([]any)
@@ -193,5 +201,70 @@ func TestCompile_AccessLogPreserved(t *testing.T) {
 	}
 	if logs["default_logger_name"].(string) != "rioku" {
 		t.Errorf("default_logger_name = %v, want rioku", logs["default_logger_name"])
+	}
+}
+
+func TestCompile_AccessLog_RequestIDCorrelationField(t *testing.T) {
+	// Verify the rioku_trace encoder includes the request_id rename rule for
+	// the X-Caddy-Trace-Id header, enabling correlation between Caddy access
+	// log entries and daemon handler log entries.
+	socketPath := "/tmp/test.sock"
+	c := NewCompiler([]string{":443"}, AdminConfig{}, socketPath, nil, SecurityHeadersConfig{})
+
+	snapshot := &riokuv1.ConfigSnapshot{
+		Routes: []*riokuv1.Route{
+			{
+				Id:      "r1",
+				Enabled: true,
+				Matchers: []*riokuv1.Matcher{
+					{Hosts: []string{"api.example.com"}},
+				},
+				Target: &riokuv1.Route_ServiceId{ServiceId: "svc-1"},
+			},
+		},
+		Services: []*riokuv1.Service{
+			{
+				Id:        "svc-1",
+				Upstreams: []*riokuv1.Upstream{{Address: "10.0.0.1:8080"}},
+			},
+		},
+	}
+
+	data, err := c.Compile(snapshot)
+	if err != nil {
+		t.Fatalf("Compile: %v", err)
+	}
+
+	var cfg map[string]any
+	if err := json.Unmarshal(data, &cfg); err != nil {
+		t.Fatalf("unmarshal: %v", err)
+	}
+
+	traceLog := dig(t, cfg, "logging", "logs", "rioku_trace")
+
+	encoder, ok := traceLog["encoder"].(map[string]any)
+	if !ok {
+		t.Fatal("rioku_trace encoder missing or not a map")
+	}
+	if encoder["format"].(string) != "filter" {
+		t.Fatalf("encoder.format = %v, want filter", encoder["format"])
+	}
+
+	fields, ok := encoder["fields"].(map[string]any)
+	if !ok {
+		t.Fatal("encoder.fields missing or not a map")
+	}
+
+	const headerPath = "request>headers>X-Caddy-Trace-Id"
+	rule, ok := fields[headerPath].(map[string]any)
+	if !ok {
+		t.Fatalf("fields[%q] missing or not a map; fields = %v", headerPath, fields)
+	}
+
+	if rule["filter"].(string) != "rename" {
+		t.Errorf("fields[%q].filter = %v, want rename", headerPath, rule["filter"])
+	}
+	if rule["to"].(string) != "request_id" {
+		t.Errorf("fields[%q].to = %v, want request_id", headerPath, rule["to"])
 	}
 }

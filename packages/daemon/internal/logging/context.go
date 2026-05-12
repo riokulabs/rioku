@@ -13,6 +13,28 @@
 //     gets `request_id` / `trace_id` attributes pulled from the active
 //     context. Callers should use `slog.InfoContext(ctx, ...)` (and the
 //     other `*Context` variants) so the handler sees the request context.
+//
+// # Correlation header contract
+//
+// The gateway's RequestIDMiddleware (gateway/errors.go) is responsible for
+// setting the correlation headers that tie daemon log entries to Caddy access
+// log entries:
+//
+//   - X-Request-ID (response header): echoed to the client so callers can
+//     correlate their own traces with daemon logs.
+//
+//   - X-Caddy-Trace-Id (request header, set on the cloned *http.Request):
+//     copied from the resolved request_id before any handler runs. Caddy's
+//     access-log encoder (caddy/compiler.go) renames the nested
+//     request.headers["X-Caddy-Trace-Id"] field to a top-level "request_id"
+//     key, making the join trivial:
+//
+//     grep '"request_id":"req_abc"' daemon.log  →  both Caddy access entry
+//     and Rioku handler entries for the same request.
+//
+// When request_id is absent from ctx (i.e. the middleware did not run),
+// neither header is fabricated — callers must not invent IDs outside of
+// RequestIDMiddleware.
 package logging
 
 import (

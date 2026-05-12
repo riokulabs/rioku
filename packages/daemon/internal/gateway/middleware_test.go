@@ -243,6 +243,74 @@ func TestRequestIDMiddleware_Passthrough(t *testing.T) {
 	}
 }
 
+func TestRequestIDMiddleware_CaddyTraceHeader_Generated(t *testing.T) {
+	// When no X-Request-ID is supplied the middleware generates one and must
+	// also set X-Caddy-Trace-Id on the cloned request so Caddy's access log
+	// can carry the same id.
+	var gotTraceHeader string
+	handler := RequestIDMiddleware(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		gotTraceHeader = r.Header.Get("X-Caddy-Trace-Id")
+		w.WriteHeader(http.StatusOK)
+	}))
+
+	req := httptest.NewRequest(http.MethodGet, "/api/v1/test", nil)
+	rec := httptest.NewRecorder()
+	handler.ServeHTTP(rec, req)
+
+	responseID := rec.Header().Get("X-Request-ID")
+	if responseID == "" {
+		t.Fatal("expected X-Request-ID on response, got empty")
+	}
+	if gotTraceHeader == "" {
+		t.Fatal("expected X-Caddy-Trace-Id on request, got empty")
+	}
+	if gotTraceHeader != responseID {
+		t.Errorf("X-Caddy-Trace-Id %q != X-Request-ID %q; must be equal", gotTraceHeader, responseID)
+	}
+}
+
+func TestRequestIDMiddleware_CaddyTraceHeader_ClientSupplied(t *testing.T) {
+	// When the client supplies X-Request-ID, the same id must appear on both
+	// the X-Request-ID response header and the X-Caddy-Trace-Id request header.
+	const clientID = "client-supplied-id"
+	var gotTraceHeader string
+	handler := RequestIDMiddleware(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		gotTraceHeader = r.Header.Get("X-Caddy-Trace-Id")
+		w.WriteHeader(http.StatusOK)
+	}))
+
+	req := httptest.NewRequest(http.MethodGet, "/api/v1/test", nil)
+	req.Header.Set("X-Request-ID", clientID)
+	rec := httptest.NewRecorder()
+	handler.ServeHTTP(rec, req)
+
+	if got := rec.Header().Get("X-Request-ID"); got != clientID {
+		t.Errorf("X-Request-ID: got %q, want %q", got, clientID)
+	}
+	if gotTraceHeader != clientID {
+		t.Errorf("X-Caddy-Trace-Id: got %q, want %q", gotTraceHeader, clientID)
+	}
+}
+
+func TestRequestIDMiddleware_OriginalRequestUnmodified(t *testing.T) {
+	// The middleware must clone the request before setting X-Caddy-Trace-Id,
+	// ensuring the original *http.Request header map is not mutated.
+	orig := httptest.NewRequest(http.MethodGet, "/api/v1/test", nil)
+	origHeaders := orig.Header.Clone()
+
+	handler := RequestIDMiddleware(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusOK)
+	}))
+
+	rec := httptest.NewRecorder()
+	handler.ServeHTTP(rec, orig)
+
+	// The original request's header map must not have gained X-Caddy-Trace-Id.
+	if orig.Header.Get("X-Caddy-Trace-Id") != origHeaders.Get("X-Caddy-Trace-Id") {
+		t.Error("original request header map was mutated by middleware")
+	}
+}
+
 // ---------------------------------------------------------------------------
 // Error Handler
 // ---------------------------------------------------------------------------
