@@ -138,7 +138,7 @@ describe('fetchWidgetData dispatcher', () => {
     const w: DaemonWidget = {
       ...baseWidget,
       dataSource: '',
-      config: { dataSource: 'promql' } as unknown as DaemonWidget['config'],
+      config: { dataSource: 'promql' },
     };
     expect(dataSourceFor(w)).toBe('promql');
   });

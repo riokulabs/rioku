@@ -216,7 +216,7 @@ export function DataTable<TData, TValue = unknown>({
           }}
         />
       ),
-    } as ColumnDef<TData, TValue>;
+    };
     return [selCol, ...columnDefs];
   }, [columnDefs, selectionEnabled, multiSelect]);
 

@@ -269,7 +269,7 @@ export function SchemaForm<T extends Record<string, unknown>>({
         return (
           <div key={key}>
             {renderField(key, info, value[key], label, (next) => {
-              onChange({ ...value, [key]: next } as T);
+              onChange({ ...value, [key]: next });
             })}
           </div>
         );

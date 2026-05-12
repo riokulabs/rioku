@@ -33,10 +33,7 @@ export async function createMiddleware(
   input: MiddlewareInput,
 ): Promise<Middleware> {
   const body = toProtoMiddlewareCreate(input);
-  const res = (await orvalCreateMiddleware(
-    tenantId,
-    body as unknown as Parameters<typeof orvalCreateMiddleware>[1],
-  )) as unknown as { data: ProtoMiddleware };
+  const res = (await orvalCreateMiddleware(tenantId, body)) as unknown as { data: ProtoMiddleware };
   return fromProtoMiddleware(res.data, tenantId);
 }
 
@@ -46,11 +43,9 @@ export async function updateMiddleware(
   input: MiddlewareUpdateInput,
 ): Promise<Middleware> {
   const body = toProtoMiddlewarePatch(input);
-  const res = (await orvalPatchMiddleware(
-    tenantId,
-    id,
-    body as unknown as Parameters<typeof orvalPatchMiddleware>[2],
-  )) as unknown as { data: ProtoMiddleware };
+  const res = (await orvalPatchMiddleware(tenantId, id, body)) as unknown as {
+    data: ProtoMiddleware;
+  };
   return fromProtoMiddleware(res.data, tenantId);
 }
 

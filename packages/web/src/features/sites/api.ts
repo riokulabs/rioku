@@ -5,7 +5,7 @@ import {
   deleteSite as orvalDeleteSite,
   toggleSite as orvalToggleSite,
 } from '@/api/generated/sites/sites';
-import type { CreateSiteBody, Site as ProtoSite, UpdateSiteBody } from '@/api/generated/schemas';
+import type { Site as ProtoSite } from '@/api/generated/schemas';
 import type { Service, Site } from '@/api/resources';
 import { fromProtoSite, toProtoSiteCreate, toProtoSitePatch } from './adapter';
 import { useSiteListReal, useSiteDetailReal } from './api.stage2';
@@ -48,7 +48,7 @@ export async function createSite(
   const upstreamId =
     input.upstream_mode === 'existing_service' ? input.upstream_service_id : undefined;
   const body = toProtoSiteCreate(input, upstreamId);
-  const res = (await orvalCreateSite(tenantId, body as CreateSiteBody)) as unknown as {
+  const res = (await orvalCreateSite(tenantId, body)) as unknown as {
     data: ProtoSite;
   };
   return { site: fromProtoSite(res.data, tenantId) };
@@ -60,7 +60,7 @@ export async function updateSite(
   input: SiteUpdateInput,
 ): Promise<Site> {
   const body = toProtoSitePatch(input);
-  const res = (await orvalPatchSite(tenantId, id, body as UpdateSiteBody)) as unknown as {
+  const res = (await orvalPatchSite(tenantId, id, body)) as unknown as {
     data: ProtoSite;
   };
   return fromProtoSite(res.data, tenantId);

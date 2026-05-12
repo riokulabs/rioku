@@ -257,7 +257,7 @@ export async function addWidget(dashboardId: string, input: AddWidgetInput): Pro
     ...(input.position ? { layout: input.position } : {}),
   };
   const res = await orvalCreateWidget(tenant, dashboardId, body);
-  const created = fromDaemonWidget(res.data as DaemonWidget);
+  const created = fromDaemonWidget(res.data);
   emitHostEvent('widget.created', { widget_id: created.id, dashboard_id: dashboardId });
   return created;
 }
@@ -273,7 +273,7 @@ export async function updateWidget(widgetId: string, input: UpdateWidgetInput): 
   if (input.locked_advanced !== undefined) body.lockedAdvanced = input.locked_advanced;
 
   const res = await orvalUpdateWidget(tenant, widgetId, body);
-  const updated = fromDaemonWidget(res.data as DaemonWidget);
+  const updated = fromDaemonWidget(res.data);
   emitHostEvent('widget.updated', { widget_id: widgetId, dashboard_id: updated.dashboard_id });
   return updated;
 }
@@ -311,7 +311,7 @@ export async function updateLayout(
 export async function flipWidgetToAdvanced(widgetId: string): Promise<Widget> {
   const tenant = resolveTenant();
   const res = await orvalFlipAdvanced(tenant, widgetId);
-  const updated = fromDaemonWidget(res.data as DaemonWidget);
+  const updated = fromDaemonWidget(res.data);
   emitHostEvent('widget.flip-to-advanced', { widget_id: widgetId });
   return updated;
 }
@@ -333,7 +333,7 @@ export async function flipWidgetToWizard(widgetId: string): Promise<Widget> {
   // round-trip mode before invoking. For paranoia we still re-check here
   // when we have access to the kind via the registry.
   const res = await orvalFlipWizard(tenant, widgetId);
-  const updated = fromDaemonWidget(res.data as DaemonWidget);
+  const updated = fromDaemonWidget(res.data);
 
   const definition = BUILT_IN_WIDGETS[updated.kind];
   if (definition && definition.roundTripMode !== 'clean') {

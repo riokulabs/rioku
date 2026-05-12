@@ -103,7 +103,7 @@ export const aiAgentHandlers = [
       ...existing,
       ...body,
       updatedAt: new Date().toISOString(),
-    } as DaemonAgent;
+    };
     agentStore[id] = next;
     return HttpResponse.json(next);
   }),
@@ -117,7 +117,7 @@ export const aiAgentHandlers = [
       ...body,
       id,
       updatedAt: new Date().toISOString(),
-    } as DaemonAgent;
+    };
     agentStore[id] = next;
     return HttpResponse.json(next);
   }),

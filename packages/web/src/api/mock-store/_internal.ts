@@ -733,7 +733,7 @@ export const useMockStore = IS_VITEST
             state.dashboardVersions = {};
             state.userHomeDashboards = {};
           }
-          return state as unknown as MockStore;
+          return state;
         },
       }),
     );

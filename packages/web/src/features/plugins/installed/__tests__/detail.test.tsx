@@ -11,9 +11,7 @@ vi.mock('@tanstack/react-router', () => ({
   useSearch: () => ({}),
   useNavigate: () => vi.fn(),
   useRouter: () => ({ navigate: vi.fn() }),
-  Link: ({ children, ...props }: { children?: React.ReactNode }) => (
-    <a {...(props as Record<string, unknown>)}>{children}</a>
-  ),
+  Link: ({ children, ...props }: { children?: React.ReactNode }) => <a {...props}>{children}</a>,
 }));
 
 import { render, screen, waitFor } from '@testing-library/react';

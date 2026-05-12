@@ -20,12 +20,7 @@ import {
   getListSitesQueryKey,
   getGetSiteQueryKey,
 } from '@/api/generated/sites/sites';
-import type {
-  CreateSiteBody,
-  ListSites200,
-  Site as ProtoSite,
-  UpdateSiteBody,
-} from '@/api/generated/schemas';
+import type { ListSites200, Site as ProtoSite } from '@/api/generated/schemas';
 import type { Site } from '@/api/resources';
 import type { SiteFilter, SiteUpdateInput, SiteWizardInput } from './types';
 import { fromProtoSite, toProtoSiteCreate, toProtoSitePatch } from './adapter';
@@ -103,7 +98,7 @@ export function useCreateSiteMutation(tenantId: string) {
       upstreamServiceId?: string;
     }): Promise<Site> => {
       const body = toProtoSiteCreate(args.input, args.upstreamServiceId);
-      const res = (await orvalCreateSite(tenantId, body as CreateSiteBody)) as unknown as {
+      const res = (await orvalCreateSite(tenantId, body)) as unknown as {
         data: ProtoSite;
       };
       return fromProtoSite(res.data, tenantId);
@@ -119,7 +114,7 @@ export function useUpdateSiteMutation(tenantId: string) {
   return useMutation({
     mutationFn: async (args: { id: string; input: SiteUpdateInput }): Promise<Site> => {
       const body = toProtoSitePatch(args.input);
-      const res = (await patchSite(tenantId, args.id, body as UpdateSiteBody)) as unknown as {
+      const res = (await patchSite(tenantId, args.id, body)) as unknown as {
         data: ProtoSite;
       };
       return fromProtoSite(res.data, tenantId);

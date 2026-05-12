@@ -83,5 +83,5 @@ export function parseChannelConfig(
   config: unknown,
 ): Record<string, unknown> {
   const schema = channelConfigSchemas[kind];
-  return schema.parse(config) as Record<string, unknown>;
+  return schema.parse(config);
 }

@@ -82,7 +82,7 @@ afterEach(() => fetchMock.mockReset());
 
 describe('dashboards daemon-api — reads', () => {
   it('listDashboardsViaDaemon GETs the tenant-scoped collection', async () => {
-    fetchMock.mockResolvedValueOnce({ items: [sampleDashboard], total: 1 } as DashboardList);
+    fetchMock.mockResolvedValueOnce({ items: [sampleDashboard], total: 1 });
 
     const out = await listDashboardsViaDaemon('acme');
 

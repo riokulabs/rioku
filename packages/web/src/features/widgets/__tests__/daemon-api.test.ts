@@ -21,7 +21,7 @@ import {
   updateLayoutViaDaemon,
   updateWidgetViaDaemon,
 } from '../daemon-api';
-import type { DaemonWidget, WidgetList } from '../daemon-api';
+import type { DaemonWidget } from '../daemon-api';
 
 const fetchMock = customFetch as unknown as ReturnType<typeof vi.fn>;
 
@@ -65,7 +65,7 @@ afterEach(() => fetchMock.mockReset());
 
 describe('widgets daemon-api — CRUD', () => {
   it('listWidgetsViaDaemon GETs widgets under a dashboard', async () => {
-    fetchMock.mockResolvedValueOnce({ items: [sampleWidget], total: 1 } as WidgetList);
+    fetchMock.mockResolvedValueOnce({ items: [sampleWidget], total: 1 });
     const out = await listWidgetsViaDaemon('acme', 'd1');
     const c = capturedCall();
     expect(c.url).toBe('/api/v1/t/acme/dashboards/d1/widgets');
