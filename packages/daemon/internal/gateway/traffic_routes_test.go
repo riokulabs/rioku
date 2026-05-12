@@ -457,8 +457,8 @@ func TestTrafficDashboard_InvalidRange(t *testing.T) {
 	resp := doJSON(t, client, http.MethodGet, server.URL+"/api/v1/traffic/dashboard?range=2h", nil)
 	defer func() { _ = resp.Body.Close() }()
 
-	if resp.StatusCode != http.StatusBadRequest {
-		t.Fatalf("expected 400, got %d", resp.StatusCode)
+	if resp.StatusCode != http.StatusUnprocessableEntity {
+		t.Fatalf("expected 422, got %d", resp.StatusCode)
 	}
 }
 
@@ -557,8 +557,8 @@ func TestTrafficRoute_InvalidRange(t *testing.T) {
 	resp := doJSON(t, client, http.MethodGet, server.URL+"/api/v1/traffic/routes/some-route?range=2h", nil)
 	defer func() { _ = resp.Body.Close() }()
 
-	if resp.StatusCode != http.StatusBadRequest {
-		t.Fatalf("expected 400, got %d", resp.StatusCode)
+	if resp.StatusCode != http.StatusUnprocessableEntity {
+		t.Fatalf("expected 422, got %d", resp.StatusCode)
 	}
 }
 
@@ -630,8 +630,8 @@ func TestTrafficService_InvalidRange(t *testing.T) {
 	resp := doJSON(t, client, http.MethodGet, server.URL+"/api/v1/traffic/services/some-service?range=2h", nil)
 	defer func() { _ = resp.Body.Close() }()
 
-	if resp.StatusCode != http.StatusBadRequest {
-		t.Fatalf("expected 400, got %d", resp.StatusCode)
+	if resp.StatusCode != http.StatusUnprocessableEntity {
+		t.Fatalf("expected 422, got %d", resp.StatusCode)
 	}
 }
 

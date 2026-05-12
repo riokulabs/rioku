@@ -1,13 +1,13 @@
 package gateway
 
 import (
-	"encoding/json"
 	"fmt"
 	"net/http"
 	"sort"
 	"time"
 
 	"github.com/riokulabs/rioku/internal/config"
+	"github.com/riokulabs/rioku/internal/rerr"
 	"github.com/riokulabs/rioku/internal/tracestore"
 	riokuv1 "github.com/riokulabs/rioku/proto/gen/go/rioku/v1"
 )
@@ -21,11 +21,11 @@ func RegisterTrafficRoutes(mux *http.ServeMux, engine *config.Engine, traceStore
 	}
 
 	mux.Handle("GET /api/v1/traffic/dashboard",
-		RequirePermission("traffic:read")(http.HandlerFunc(handleTrafficDashboard(traceStore))))
+		RequirePermission("traffic:read")(rerr.H(handleTrafficDashboard(traceStore))))
 	mux.Handle("GET /api/v1/traffic/routes/{id}",
-		RequirePermission("traffic:read")(http.HandlerFunc(handleTrafficRoute(traceStore))))
+		RequirePermission("traffic:read")(rerr.H(handleTrafficRoute(traceStore))))
 	mux.Handle("GET /api/v1/traffic/services/{id}",
-		RequirePermission("traffic:read")(http.HandlerFunc(handleTrafficService(traceStore, engine))))
+		RequirePermission("traffic:read")(rerr.H(handleTrafficService(traceStore, engine))))
 }
 
 // ---------------------------------------------------------------------------
@@ -177,12 +177,11 @@ func reaggregateRouteBuckets(buckets []tracestore.RouteBucket, interval time.Dur
 // Dashboard endpoint: GET /api/v1/traffic/dashboard
 // ---------------------------------------------------------------------------
 
-func handleTrafficDashboard(ts tracestore.Driver) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
+func handleTrafficDashboard(ts tracestore.Driver) rerr.Handler {
+	return func(w http.ResponseWriter, r *http.Request) error {
 		duration, interval, err := parseTrafficRange(r.URL.Query().Get("range"))
 		if err != nil {
-			writeProblem(w, http.StatusBadRequest, errTypeValidation, "Invalid range", err.Error(), r.URL.Path, nil)
-			return
+			return rerr.Validation(map[string]string{"range": err.Error()})
 		}
 
 		now := time.Now().UTC()
@@ -192,18 +191,15 @@ func handleTrafficDashboard(ts tracestore.Driver) http.HandlerFunc {
 
 		statsBuckets, err := ts.GetStatsBuckets(ctx, since, now)
 		if err != nil {
-			writeInternalError(w, r, "get stats buckets")
-			return
+			return rerr.Wrap(err, "get stats buckets")
 		}
 		routeBuckets, err := ts.GetRouteBuckets(ctx, since, now)
 		if err != nil {
-			writeInternalError(w, r, "get route buckets")
-			return
+			return rerr.Wrap(err, "get route buckets")
 		}
 		statusBuckets, err := ts.GetStatusBuckets(ctx, since, now)
 		if err != nil {
-			writeInternalError(w, r, "get status buckets")
-			return
+			return rerr.Wrap(err, "get status buckets")
 		}
 
 		// Re-aggregate stats buckets for time series.
@@ -313,8 +309,7 @@ func handleTrafficDashboard(ts tracestore.Driver) http.HandlerFunc {
 			resp["range"] = "24h"
 		}
 
-		w.Header().Set("Content-Type", "application/json")
-		_ = json.NewEncoder(w).Encode(resp)
+		return rerr.JSON(w, resp)
 	}
 }
 
@@ -322,18 +317,16 @@ func handleTrafficDashboard(ts tracestore.Driver) http.HandlerFunc {
 // Per-route endpoint: GET /api/v1/traffic/routes/{id}
 // ---------------------------------------------------------------------------
 
-func handleTrafficRoute(ts tracestore.Driver) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
+func handleTrafficRoute(ts tracestore.Driver) rerr.Handler {
+	return func(w http.ResponseWriter, r *http.Request) error {
 		routeID := r.PathValue("id")
 		if routeID == "" {
-			writeProblem(w, http.StatusBadRequest, errTypeValidation, "Missing route ID", "route ID is required", r.URL.Path, nil)
-			return
+			return rerr.Validation(map[string]string{"id": "route ID is required"})
 		}
 
 		duration, interval, err := parseTrafficRange(r.URL.Query().Get("range"))
 		if err != nil {
-			writeProblem(w, http.StatusBadRequest, errTypeValidation, "Invalid range", err.Error(), r.URL.Path, nil)
-			return
+			return rerr.Validation(map[string]string{"range": err.Error()})
 		}
 
 		now := time.Now().UTC()
@@ -342,8 +335,7 @@ func handleTrafficRoute(ts tracestore.Driver) http.HandlerFunc {
 
 		routeBuckets, err := ts.GetRouteBuckets(ctx, since, now)
 		if err != nil {
-			writeInternalError(w, r, "get route buckets")
-			return
+			return rerr.Wrap(err, "get route buckets")
 		}
 
 		// Filter to this route.
@@ -401,16 +393,13 @@ func handleTrafficRoute(ts tracestore.Driver) http.HandlerFunc {
 			rangeStr = "24h"
 		}
 
-		resp := map[string]interface{}{
+		return rerr.JSON(w, map[string]interface{}{
 			"routeId":            routeID,
 			"statCards":          statCards,
 			"timeSeries":         timeSeries,
 			"statusDistribution": statusDist,
 			"range":              rangeStr,
-		}
-
-		w.Header().Set("Content-Type", "application/json")
-		_ = json.NewEncoder(w).Encode(resp)
+		})
 	}
 }
 
@@ -418,18 +407,16 @@ func handleTrafficRoute(ts tracestore.Driver) http.HandlerFunc {
 // Per-service endpoint: GET /api/v1/traffic/services/{id}
 // ---------------------------------------------------------------------------
 
-func handleTrafficService(ts tracestore.Driver, engine *config.Engine) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
+func handleTrafficService(ts tracestore.Driver, engine *config.Engine) rerr.Handler {
+	return func(w http.ResponseWriter, r *http.Request) error {
 		serviceID := r.PathValue("id")
 		if serviceID == "" {
-			writeProblem(w, http.StatusBadRequest, errTypeValidation, "Missing service ID", "service ID is required", r.URL.Path, nil)
-			return
+			return rerr.Validation(map[string]string{"id": "service ID is required"})
 		}
 
 		duration, interval, err := parseTrafficRange(r.URL.Query().Get("range"))
 		if err != nil {
-			writeProblem(w, http.StatusBadRequest, errTypeValidation, "Invalid range", err.Error(), r.URL.Path, nil)
-			return
+			return rerr.Validation(map[string]string{"range": err.Error()})
 		}
 
 		now := time.Now().UTC()
@@ -439,8 +426,7 @@ func handleTrafficService(ts tracestore.Driver, engine *config.Engine) http.Hand
 		// Find routes targeting this service.
 		snap, err := engine.GetConfig(ctx)
 		if err != nil {
-			writeInternalError(w, r, "get config snapshot")
-			return
+			return rerr.Wrap(err, "get config snapshot")
 		}
 
 		routeIDSet := make(map[string]struct{})
@@ -455,8 +441,7 @@ func handleTrafficService(ts tracestore.Driver, engine *config.Engine) http.Hand
 		// Fetch and filter route buckets.
 		routeBuckets, err := ts.GetRouteBuckets(ctx, since, now)
 		if err != nil {
-			writeInternalError(w, r, "get route buckets")
-			return
+			return rerr.Wrap(err, "get route buckets")
 		}
 
 		filtered := make([]tracestore.RouteBucket, 0, len(routeBuckets))
@@ -493,14 +478,14 @@ func handleTrafficService(ts tracestore.Driver, engine *config.Engine) http.Hand
 		})
 
 		timeSeries := make([]map[string]interface{}, 0, len(tsOrder))
-		for _, ts := range tsOrder {
-			g := tsMap[ts]
+		for _, t := range tsOrder {
+			g := tsMap[t]
 			var avgLat float64
 			if g.reqCount > 0 {
 				avgLat = float64(g.weightedLat) / float64(g.reqCount)
 			}
 			timeSeries = append(timeSeries, map[string]interface{}{
-				"timestamp":    ts.Format(time.RFC3339),
+				"timestamp":    t.Format(time.RFC3339),
 				"requests":     g.reqCount,
 				"errorCount":   g.errCount,
 				"avgLatencyMs": avgLat,
@@ -533,15 +518,12 @@ func handleTrafficService(ts tracestore.Driver, engine *config.Engine) http.Hand
 			rangeStr = "24h"
 		}
 
-		resp := map[string]interface{}{
+		return rerr.JSON(w, map[string]interface{}{
 			"serviceId":  serviceID,
 			"routeIds":   routeIDs,
 			"statCards":  statCards,
 			"timeSeries": timeSeries,
 			"range":      rangeStr,
-		}
-
-		w.Header().Set("Content-Type", "application/json")
-		_ = json.NewEncoder(w).Encode(resp)
+		})
 	}
 }
