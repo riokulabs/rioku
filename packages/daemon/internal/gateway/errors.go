@@ -12,24 +12,13 @@ import (
 	"google.golang.org/grpc/status"
 
 	"github.com/riokulabs/rioku/internal/logging"
+	"github.com/riokulabs/rioku/internal/rerr"
 )
 
-// ProblemDetail implements RFC 7807 Problem Details for HTTP APIs.
-type ProblemDetail struct {
-	Type     string            `json:"type"`
-	Title    string            `json:"title"`
-	Status   int               `json:"status"`
-	Detail   string            `json:"detail"`
-	Instance string            `json:"instance"`
-	Errors   []ValidationError `json:"errors,omitempty"`
-}
-
-// ValidationError represents a single field-level validation error.
-type ValidationError struct {
-	Field  string `json:"field"`
-	Reason string `json:"reason"`
-	Value  any    `json:"value,omitempty"`
-}
+// ProblemDetail and ValidationError are defined in the rerr package.
+// These aliases keep existing gateway-internal call sites compiling without change.
+type ProblemDetail = rerr.ProblemDetail
+type ValidationError = rerr.ValidationError
 
 // Error type URIs.
 const (
