@@ -305,6 +305,13 @@ func (c *Compiler) compile(snapshot *riokuv1.ConfigSnapshot, perRoute PerRoutePl
 					},
 					"include": []string{"http.log.access.rioku"},
 				},
+				"admin": map[string]any{
+					"include": []string{"admin.api"},
+					"writer": map[string]any{
+						"output": "discard",
+					},
+					"level": "ERROR",
+				},
 			},
 		}
 	}
