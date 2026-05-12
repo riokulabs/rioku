@@ -39,6 +39,14 @@ function isImpersonationManagementUrl(url: string): boolean {
   return /\/admin\/impersonation(?:[/?#]|$)/.test(url);
 }
 
+// Probe endpoints whose 401 is informational, not a session expiry.
+// useCurrentUser catches the AuthFailureError and returns null; firing the
+// global redirect handler here would clear the query cache and trigger an
+// infinite refetch loop on unauthenticated pages (e.g. /login).
+function isAuthProbeUrl(url: string): boolean {
+  return /\/auth\/me(?:[/?#]|$)/.test(url);
+}
+
 function applyImpersonationHeader(headers: Record<string, string>, url: string): void {
   if (_activeImpersonationIdAccessor === null) return;
   if (isImpersonationManagementUrl(url)) return;
@@ -176,7 +184,7 @@ async function runLegacyFetch<T>(args: CustomFetchArgs): Promise<T> {
 
   if (!res.ok) {
     const err = await parseError(res);
-    if (err instanceof AuthFailureError) {
+    if (err instanceof AuthFailureError && !isAuthProbeUrl(fullUrl)) {
       _authFailureHandler?.(window.location.pathname + window.location.search);
     }
     throw err;
@@ -238,7 +246,7 @@ async function runOrvalFetch<T>(url: string, init?: RequestInit): Promise<T> {
 
   if (!res.ok) {
     const err = await parseError(res);
-    if (err instanceof AuthFailureError) {
+    if (err instanceof AuthFailureError && !isAuthProbeUrl(fullUrl)) {
       _authFailureHandler?.(window.location.pathname + window.location.search);
     }
     throw err;
