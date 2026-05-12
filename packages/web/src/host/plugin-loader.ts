@@ -77,9 +77,22 @@ export async function loadPluginFromUrl(
   options?: { enabled?: boolean },
 ): Promise<LoadResult> {
   // ── Step 1: Fetch manifest ─────────────────────────────────────────────────
+  // Reject non-http(s) schemes (javascript:, data:, file:, etc.) and
+  // malformed URLs before reaching out — `manifestUrl` is operator-supplied
+  // sideload input, but constraining the scheme bounds the request surface
+  // (no SSRF into local file:// or javascript: contexts).
+  let parsed: URL;
+  try {
+    parsed = new URL(manifestUrl, window.location.origin);
+  } catch {
+    return { ok: false, errors: ['invalid manifest URL'] };
+  }
+  if (parsed.protocol !== 'http:' && parsed.protocol !== 'https:') {
+    return { ok: false, errors: [`unsupported manifest URL scheme: ${parsed.protocol}`] };
+  }
   let raw: unknown;
   try {
-    const res = await fetch(manifestUrl);
+    const res = await fetch(parsed.toString());
     if (!res.ok) {
       return {
         ok: false,

@@ -144,8 +144,11 @@ func writePEMCert(path string, der []byte) error {
 	if err != nil {
 		return err
 	}
-	defer f.Close()
-	return pem.Encode(f, &pem.Block{Type: "CERTIFICATE", Bytes: der})
+	if encErr := pem.Encode(f, &pem.Block{Type: "CERTIFICATE", Bytes: der}); encErr != nil {
+		_ = f.Close()
+		return encErr
+	}
+	return f.Close()
 }
 
 func writePEMECKey(path string, key *ecdsa.PrivateKey) error {
@@ -157,6 +160,9 @@ func writePEMECKey(path string, key *ecdsa.PrivateKey) error {
 	if err != nil {
 		return err
 	}
-	defer f.Close()
-	return pem.Encode(f, &pem.Block{Type: "EC PRIVATE KEY", Bytes: der})
+	if encErr := pem.Encode(f, &pem.Block{Type: "EC PRIVATE KEY", Bytes: der}); encErr != nil {
+		_ = f.Close()
+		return encErr
+	}
+	return f.Close()
 }
