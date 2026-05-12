@@ -105,7 +105,7 @@ func (s Stream[T]) Handler() http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		flusher, ok := w.(http.Flusher)
 		if !ok {
-			http.Error(w, "streaming not supported", http.StatusInternalServerError)
+			http.Error(w, "streaming not supported", http.StatusInternalServerError) //nolint:forbidigo // SSE fallback path
 			return
 		}
 
