@@ -550,6 +550,9 @@ contrib-docs-dev:
 contrib-docs-build:
 	cd contrib-docs && $(WEB_PATH) npm run build
 
+## web | docs: Regenerate OpenAPI bundle then build the contributor docs site
+docs: openapi contrib-docs-install contrib-docs-build
+
 # ── dev ───────────────────────────────────────────────────────────────────────
 
 ## dev | dev: Build daemon and run in development mode
