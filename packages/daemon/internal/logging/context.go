@@ -91,6 +91,34 @@ func ComponentFromContext(ctx context.Context) string {
 	return c
 }
 
+// ─── From ────────────────────────────────────────────────────────────────────
+
+// From returns the default slog.Logger pre-bound with the request_id,
+// trace_id, and component values found on ctx. If ctx is nil or any value is
+// absent, the corresponding attribute is simply omitted. The returned logger
+// is always non-nil.
+//
+// Usage in handlers:
+//
+//	log := logging.From(r.Context())
+//	log.Info("processing request", "widget_id", id)
+func From(ctx context.Context) *slog.Logger {
+	log := slog.Default()
+	if ctx == nil {
+		return log
+	}
+	if rid := RequestIDFromContext(ctx); rid != "" {
+		log = log.With("request_id", rid)
+	}
+	if tid := TraceIDFromContext(ctx); tid != "" {
+		log = log.With("trace_id", tid)
+	}
+	if comp := ComponentFromContext(ctx); comp != "" {
+		log = log.With("component", comp)
+	}
+	return log
+}
+
 // ─── ContextHandler ─────────────────────────────────────────────────────────
 
 // ContextHandler wraps a slog.Handler so that every log record automatically
