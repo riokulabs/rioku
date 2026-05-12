@@ -19,6 +19,7 @@ import (
 	"github.com/riokulabs/rioku/internal/auth"
 	"github.com/riokulabs/rioku/internal/config"
 	"github.com/riokulabs/rioku/internal/gateway/optionsutil"
+	"github.com/riokulabs/rioku/internal/rerr"
 	"github.com/riokulabs/rioku/internal/store"
 )
 
@@ -26,9 +27,9 @@ const passwordResetTokenTTL = 1 * time.Hour
 
 // RegisterPasswordResetRoutes wires the three password-reset endpoints.
 func RegisterPasswordResetRoutes(mux *http.ServeMux, st store.Driver, mailer auth.Mailer, cfg *config.Config, baseURL string) {
-	mux.HandleFunc("POST /api/v1/auth/password-reset/request", handlePasswordResetRequest(st, mailer, baseURL))
-	mux.HandleFunc("GET /api/v1/auth/password-reset/validate", handlePasswordResetValidate(st))
-	mux.HandleFunc("POST /api/v1/auth/password-reset/apply", handlePasswordResetApply(st, cfg))
+	mux.Handle("POST /api/v1/auth/password-reset/request", handlePasswordResetRequest(st, mailer, baseURL)) // rerr-skip: anti-enum defer pattern
+	mux.Handle("GET /api/v1/auth/password-reset/validate", rerr.H(handlePasswordResetValidate(st)))
+	mux.Handle("POST /api/v1/auth/password-reset/apply", rerr.H(handlePasswordResetApply(st, cfg)))
 
 	optionsutil.Register(mux, "/api/v1/auth/password-reset/request", []string{"POST"})
 	optionsutil.Register(mux, "/api/v1/auth/password-reset/validate", []string{"GET"})
@@ -111,13 +112,11 @@ func handlePasswordResetRequest(st store.Driver, mailer auth.Mailer, baseURL str
 
 // ─── GET /auth/password-reset/validate ──────────────────────────────────────
 
-func handlePasswordResetValidate(st store.Driver) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
+func handlePasswordResetValidate(st store.Driver) rerr.Handler {
+	return func(w http.ResponseWriter, r *http.Request) error {
 		rawToken := r.URL.Query().Get("token")
 		if rawToken == "" {
-			writeProblem(w, http.StatusBadRequest, errTypeValidation, "Missing token",
-				"?token= query parameter is required", r.URL.Path, nil)
-			return
+			return rerr.Validation(map[string]string{"token": "?token= query parameter is required"})
 		}
 
 		ctx := r.Context()
@@ -125,41 +124,33 @@ func handlePasswordResetValidate(st store.Driver) http.HandlerFunc {
 
 		tx, err := st.Begin(ctx, store.TxOptions{ReadOnly: true})
 		if err != nil {
-			writeInternalError(w, r, "begin tx")
-			return
+			return rerr.Wrap(err, "begin tx")
 		}
 		defer func() { _ = tx.Rollback() }()
 
 		tok, err := tx.GetPasswordResetToken(ctx, tokenHash)
 		if err != nil {
 			if errors.Is(err, sql.ErrNoRows) {
-				writeProblem(w, http.StatusGone, "https://rioku.dev/errors/token-invalid",
-					"Token invalid", "The reset token is invalid or does not exist.", r.URL.Path, nil)
-				return
+				return rerr.Gone("The reset token is invalid or does not exist.")
 			}
-			writeInternalError(w, r, "get token")
-			return
+			return rerr.Wrap(err, "get token")
 		}
 
 		if tok.ConsumedAt != nil {
-			writeProblem(w, http.StatusGone, "https://rioku.dev/errors/token-consumed",
-				"Token already used", "This reset token has already been used.", r.URL.Path, nil)
-			return
+			return rerr.Gone("This reset token has already been used.")
 		}
 		if time.Now().UTC().After(tok.ExpiresAt) {
-			writeProblem(w, http.StatusGone, "https://rioku.dev/errors/token-expired",
-				"Token expired", "The reset token has expired. Please request a new one.", r.URL.Path, nil)
-			return
+			return rerr.Gone("The reset token has expired. Please request a new one.")
 		}
 
-		writeJSON(w, http.StatusOK, map[string]bool{"valid": true})
+		return rerr.JSON(w, map[string]bool{"valid": true})
 	}
 }
 
 // ─── POST /auth/password-reset/apply ────────────────────────────────────────
 
-func handlePasswordResetApply(st store.Driver, cfg *config.Config) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
+func handlePasswordResetApply(st store.Driver, cfg *config.Config) rerr.Handler {
+	return func(w http.ResponseWriter, r *http.Request) error {
 		r.Body = http.MaxBytesReader(w, r.Body, maxAuthBodySize)
 		ctx := r.Context()
 
@@ -168,94 +159,75 @@ func handlePasswordResetApply(st store.Driver, cfg *config.Config) http.HandlerF
 			Password string `json:"password"`
 		}
 		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-			writeProblem(w, http.StatusBadRequest, errTypeValidation, "Invalid request body",
-				"Request body must be valid JSON with 'token' and 'password' fields", r.URL.Path, nil)
-			return
+			return rerr.Validation(map[string]string{"body": "invalid JSON body"})
 		}
 
-		var errs []ValidationError
+		fields := map[string]string{}
 		if req.Token == "" {
-			errs = append(errs, ValidationError{Field: "token", Reason: "must not be empty"})
+			fields["token"] = "must not be empty"
 		}
 		if req.Password == "" {
-			errs = append(errs, ValidationError{Field: "password", Reason: "must not be empty"})
+			fields["password"] = "must not be empty"
 		}
-		if len(errs) > 0 {
-			writeProblem(w, http.StatusBadRequest, errTypeValidation, "Validation failed",
-				"Missing required fields", r.URL.Path, errs)
-			return
+		if len(fields) > 0 {
+			return rerr.Validation(fields)
 		}
 
 		// Validate password policy.
 		if err := auth.ValidatePasswordPolicy(req.Password, cfg.Auth.PasswordPolicy); err != nil {
-			writeProblem(w, http.StatusBadRequest, errTypeValidation, "Password policy violation",
-				err.Error(), r.URL.Path, nil)
-			return
+			return rerr.Validation(map[string]string{"password": err.Error()})
 		}
 
 		tokenHash := auth.HashToken(req.Token)
 
 		tx, err := st.Begin(ctx, store.TxOptions{})
 		if err != nil {
-			writeInternalError(w, r, "begin tx")
-			return
+			return rerr.Wrap(err, "begin tx")
 		}
 		defer func() { _ = tx.Rollback() }()
 
 		tok, err := tx.GetPasswordResetToken(ctx, tokenHash)
 		if err != nil {
 			if errors.Is(err, sql.ErrNoRows) {
-				writeProblem(w, http.StatusGone, "https://rioku.dev/errors/token-invalid",
-					"Token invalid", "The reset token is invalid.", r.URL.Path, nil)
-				return
+				return rerr.Gone("The reset token is invalid.")
 			}
-			writeInternalError(w, r, "get token")
-			return
+			return rerr.Wrap(err, "get token")
 		}
 
 		if tok.ConsumedAt != nil {
-			writeProblem(w, http.StatusGone, "https://rioku.dev/errors/token-consumed",
-				"Token already used", "This reset token has already been used.", r.URL.Path, nil)
-			return
+			return rerr.Gone("This reset token has already been used.")
 		}
 		if time.Now().UTC().After(tok.ExpiresAt) {
-			writeProblem(w, http.StatusGone, "https://rioku.dev/errors/token-expired",
-				"Token expired", "The reset token has expired.", r.URL.Path, nil)
-			return
+			return rerr.Gone("The reset token has expired.")
 		}
 
 		// Hash the new password.
 		newHash, err := auth.HashPassword(req.Password)
 		if err != nil {
-			writeInternalError(w, r, "hash password")
-			return
+			return rerr.Wrap(err, "hash password")
 		}
 
 		// Load the user and update password.
 		user, err := tx.GetUser(ctx, tok.UserID)
 		if err != nil {
-			writeInternalError(w, r, "get user")
-			return
+			return rerr.Wrap(err, "get user")
 		}
 		user.PasswordHash = newHash
 		user.PasswordChangedAt = time.Now().UTC()
 		user.ForcePasswordChange = false
 		if _, err := tx.UpdateUser(ctx, user); err != nil {
-			writeInternalError(w, r, "update user")
-			return
+			return rerr.Wrap(err, "update user")
 		}
 
 		// Consume the token.
 		if err := tx.ConsumePasswordResetToken(ctx, tokenHash); err != nil {
-			writeInternalError(w, r, "consume token")
-			return
+			return rerr.Wrap(err, "consume token")
 		}
 
 		if err := tx.Commit(); err != nil {
-			writeInternalError(w, r, "commit")
-			return
+			return rerr.Wrap(err, "commit")
 		}
 
-		writeJSON(w, http.StatusOK, map[string]string{"status": "ok"})
+		return rerr.JSON(w, map[string]string{"status": "ok"})
 	}
 }
