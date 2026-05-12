@@ -286,19 +286,24 @@ func TestKeyRoutes_CreateKey_InvalidExpires(t *testing.T) {
 	})
 	defer func() { _ = resp.Body.Close() }()
 
-	if resp.StatusCode != http.StatusBadRequest {
-		t.Fatalf("expected 400, got %d", resp.StatusCode)
+	if resp.StatusCode != http.StatusUnprocessableEntity {
+		t.Fatalf("expected 422, got %d", resp.StatusCode)
 	}
 
 	var pd ProblemDetail
 	if err := json.NewDecoder(resp.Body).Decode(&pd); err != nil {
 		t.Fatalf("decode problem detail: %v", err)
 	}
-	if pd.Status != 400 {
-		t.Errorf("problem status = %d, want 400", pd.Status)
+	if pd.Status != 422 {
+		t.Errorf("problem status = %d, want 422", pd.Status)
 	}
-	if !strings.Contains(pd.Detail, "Invalid expiration duration") {
-		t.Errorf("detail = %q, want it to contain 'Invalid expiration duration'", pd.Detail)
+	if len(pd.Errors) == 0 || !strings.Contains(pd.Errors[0].Reason, "duration") {
+		t.Errorf("errors[0].reason = %q, want it to contain 'duration'", func() string {
+			if len(pd.Errors) > 0 {
+				return pd.Errors[0].Reason
+			}
+			return ""
+		}())
 	}
 }
 
@@ -310,19 +315,19 @@ func TestKeyRoutes_CreateKey_MissingName(t *testing.T) {
 	})
 	defer func() { _ = resp.Body.Close() }()
 
-	if resp.StatusCode != http.StatusBadRequest {
-		t.Fatalf("expected 400, got %d", resp.StatusCode)
+	if resp.StatusCode != http.StatusUnprocessableEntity {
+		t.Fatalf("expected 422, got %d", resp.StatusCode)
 	}
 
 	var pd ProblemDetail
 	if err := json.NewDecoder(resp.Body).Decode(&pd); err != nil {
 		t.Fatalf("decode problem detail: %v", err)
 	}
-	if pd.Status != 400 {
-		t.Errorf("problem status = %d, want 400", pd.Status)
+	if pd.Status != 422 {
+		t.Errorf("problem status = %d, want 422", pd.Status)
 	}
-	if !strings.Contains(pd.Detail, "Key name is required") {
-		t.Errorf("detail = %q, want it to contain 'Key name is required'", pd.Detail)
+	if len(pd.Errors) == 0 || pd.Errors[0].Field != "name" {
+		t.Errorf("expected validation error on field 'name', got errors=%v", pd.Errors)
 	}
 }
 
@@ -341,16 +346,16 @@ func TestKeyRoutes_CreateKey_InvalidJSON(t *testing.T) {
 	}
 	defer func() { _ = resp.Body.Close() }()
 
-	if resp.StatusCode != http.StatusBadRequest {
-		t.Fatalf("expected 400, got %d", resp.StatusCode)
+	if resp.StatusCode != http.StatusUnprocessableEntity {
+		t.Fatalf("expected 422, got %d", resp.StatusCode)
 	}
 
 	var pd ProblemDetail
 	if err := json.NewDecoder(resp.Body).Decode(&pd); err != nil {
 		t.Fatalf("decode problem detail: %v", err)
 	}
-	if pd.Status != 400 {
-		t.Errorf("problem status = %d, want 400", pd.Status)
+	if pd.Status != 422 {
+		t.Errorf("problem status = %d, want 422", pd.Status)
 	}
 }
 
@@ -474,19 +479,19 @@ func TestKeyRoutes_RevokeKey_EmptyID(t *testing.T) {
 	resp := doJSON(t, client, http.MethodDelete, server.URL+"/api/v1/keys/", nil)
 	defer func() { _ = resp.Body.Close() }()
 
-	if resp.StatusCode != http.StatusBadRequest {
-		t.Fatalf("expected 400, got %d", resp.StatusCode)
+	if resp.StatusCode != http.StatusUnprocessableEntity {
+		t.Fatalf("expected 422, got %d", resp.StatusCode)
 	}
 
 	var pd ProblemDetail
 	if err := json.NewDecoder(resp.Body).Decode(&pd); err != nil {
 		t.Fatalf("decode problem detail: %v", err)
 	}
-	if pd.Status != 400 {
-		t.Errorf("problem status = %d, want 400", pd.Status)
+	if pd.Status != 422 {
+		t.Errorf("problem status = %d, want 422", pd.Status)
 	}
-	if !strings.Contains(pd.Detail, "Key ID is required") {
-		t.Errorf("detail = %q, want it to contain 'Key ID is required'", pd.Detail)
+	if len(pd.Errors) == 0 || pd.Errors[0].Field != "id" {
+		t.Errorf("expected validation error on field 'id', got errors=%v", pd.Errors)
 	}
 }
 
