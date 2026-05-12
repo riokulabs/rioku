@@ -29,6 +29,7 @@ import (
 
 	"github.com/riokulabs/rioku/internal/auth"
 	"github.com/riokulabs/rioku/internal/notifications"
+	"github.com/riokulabs/rioku/internal/rerr"
 	"github.com/riokulabs/rioku/internal/store"
 )
 
@@ -81,68 +82,68 @@ func getChannelDispatcher(st store.Driver) *notifications.ChannelDispatcher {
 func RegisterNotificationsRoutes(mux *http.ServeMux, st store.Driver) {
 	// Inbox
 	mux.Handle("GET /api/v1/t/{tenant}/notifications",
-		RequirePermission("notification:read")(http.HandlerFunc(handleListNotifications(st))))
+		RequirePermission("notification:read")(rerr.H(handleListNotifications(st))))
 	mux.Handle("GET /api/v1/t/{tenant}/notifications/unread-count",
-		RequirePermission("notification:read")(http.HandlerFunc(handleUnreadCount(st))))
+		RequirePermission("notification:read")(rerr.H(handleUnreadCount(st))))
 	mux.Handle("GET /api/v1/t/{tenant}/notifications/{id}",
-		RequirePermission("notification:read")(http.HandlerFunc(handleGetNotification(st))))
+		RequirePermission("notification:read")(rerr.H(handleGetNotification(st))))
 	mux.Handle("POST /api/v1/t/{tenant}/notifications/{id}/read",
-		RequirePermission("notification:manage-own")(http.HandlerFunc(handleMarkNotificationRead(st))))
+		RequirePermission("notification:manage-own")(rerr.H(handleMarkNotificationRead(st))))
 	mux.Handle("POST /api/v1/t/{tenant}/notifications/{id}/unread",
-		RequirePermission("notification:manage-own")(http.HandlerFunc(handleMarkNotificationUnread(st))))
+		RequirePermission("notification:manage-own")(rerr.H(handleMarkNotificationUnread(st))))
 	mux.Handle("POST /api/v1/t/{tenant}/notifications/read-all",
-		RequirePermission("notification:manage-own")(http.HandlerFunc(handleMarkAllRead(st))))
+		RequirePermission("notification:manage-own")(rerr.H(handleMarkAllRead(st))))
 	mux.Handle("POST /api/v1/t/{tenant}/notifications/{id}/archive",
-		RequirePermission("notification:manage-own")(http.HandlerFunc(handleArchiveNotification(st, true))))
+		RequirePermission("notification:manage-own")(rerr.H(handleArchiveNotification(st, true))))
 	mux.Handle("POST /api/v1/t/{tenant}/notifications/{id}/unarchive",
-		RequirePermission("notification:manage-own")(http.HandlerFunc(handleArchiveNotification(st, false))))
+		RequirePermission("notification:manage-own")(rerr.H(handleArchiveNotification(st, false))))
 
 	// Channels
 	mux.Handle("GET /api/v1/t/{tenant}/notification-channels",
-		RequirePermission("notification-channel:read")(http.HandlerFunc(handleListChannels(st))))
+		RequirePermission("notification-channel:read")(rerr.H(handleListChannels(st))))
 	mux.Handle("POST /api/v1/t/{tenant}/notification-channels",
-		RequirePermission("notification-channel:write")(http.HandlerFunc(handleCreateChannel(st))))
+		RequirePermission("notification-channel:write")(rerr.H(handleCreateChannel(st))))
 	mux.Handle("GET /api/v1/t/{tenant}/notification-channels/{id}",
-		RequirePermission("notification-channel:read")(http.HandlerFunc(handleGetChannel(st))))
+		RequirePermission("notification-channel:read")(rerr.H(handleGetChannel(st))))
 	mux.Handle("PUT /api/v1/t/{tenant}/notification-channels/{id}",
-		RequirePermission("notification-channel:write")(http.HandlerFunc(handleUpdateChannel(st))))
+		RequirePermission("notification-channel:write")(rerr.H(handleUpdateChannel(st))))
 	mux.Handle("DELETE /api/v1/t/{tenant}/notification-channels/{id}",
-		RequirePermission("notification-channel:write")(http.HandlerFunc(handleDeleteChannel(st))))
+		RequirePermission("notification-channel:write")(rerr.H(handleDeleteChannel(st))))
 	mux.Handle("POST /api/v1/t/{tenant}/notification-channels/{id}/test",
-		RequirePermission("notification-channel:test")(http.HandlerFunc(handleTestChannel(st))))
+		RequirePermission("notification-channel:test")(rerr.H(handleTestChannel(st))))
 
 	// Routing rules
 	mux.Handle("GET /api/v1/t/{tenant}/notification-routing",
-		RequirePermission("notification-routing:read")(http.HandlerFunc(handleListRules(st))))
+		RequirePermission("notification-routing:read")(rerr.H(handleListRules(st))))
 	mux.Handle("POST /api/v1/t/{tenant}/notification-routing",
-		RequirePermission("notification-routing:write")(http.HandlerFunc(handleCreateRule(st))))
+		RequirePermission("notification-routing:write")(rerr.H(handleCreateRule(st))))
 	mux.Handle("PUT /api/v1/t/{tenant}/notification-routing/order",
-		RequirePermission("notification-routing:write")(http.HandlerFunc(handleReorderRules(st))))
+		RequirePermission("notification-routing:write")(rerr.H(handleReorderRules(st))))
 	mux.Handle("GET /api/v1/t/{tenant}/notification-routing/{id}",
-		RequirePermission("notification-routing:read")(http.HandlerFunc(handleGetRule(st))))
+		RequirePermission("notification-routing:read")(rerr.H(handleGetRule(st))))
 	mux.Handle("PUT /api/v1/t/{tenant}/notification-routing/{id}",
-		RequirePermission("notification-routing:write")(http.HandlerFunc(handleUpdateRule(st))))
+		RequirePermission("notification-routing:write")(rerr.H(handleUpdateRule(st))))
 	mux.Handle("DELETE /api/v1/t/{tenant}/notification-routing/{id}",
-		RequirePermission("notification-routing:write")(http.HandlerFunc(handleDeleteRule(st))))
+		RequirePermission("notification-routing:write")(rerr.H(handleDeleteRule(st))))
 
 	// Delivery log
 	mux.Handle("GET /api/v1/t/{tenant}/notification-log",
-		RequirePermission("notification-log:read")(http.HandlerFunc(handleListDeliveryLog(st))))
+		RequirePermission("notification-log:read")(rerr.H(handleListDeliveryLog(st))))
 	mux.Handle("GET /api/v1/t/{tenant}/notification-log/{id}",
-		RequirePermission("notification-log:read")(http.HandlerFunc(handleGetDeliveryLog(st))))
+		RequirePermission("notification-log:read")(rerr.H(handleGetDeliveryLog(st))))
 
 	// Sandbox / admin: bulk-seed inbox notifications. Restricted to
 	// notification:admin so only operators can seed; the sandbox seeder
 	// uses this to populate demo data without depending on an upstream
 	// event source.
 	mux.Handle("POST /api/v1/t/{tenant}/notifications/seed",
-		RequirePermission("notification:admin")(http.HandlerFunc(handleSeedNotifications(st))))
+		RequirePermission("notification:admin")(rerr.H(handleSeedNotifications(st))))
 
 	// Tenant notification config (singleton-per-tenant)
 	mux.Handle("GET /api/v1/t/{tenant}/settings/notifications",
-		RequirePermission("notification:admin")(http.HandlerFunc(handleGetTenantNotifConfig(st))))
+		RequirePermission("notification:admin")(rerr.H(handleGetTenantNotifConfig(st))))
 	mux.Handle("PUT /api/v1/t/{tenant}/settings/notifications",
-		RequirePermission("notification:admin")(http.HandlerFunc(handleUpdateTenantNotifConfig(st))))
+		RequirePermission("notification:admin")(rerr.H(handleUpdateTenantNotifConfig(st))))
 }
 
 // ─── DTOs ───────────────────────────────────────────────────────────────────
@@ -305,11 +306,11 @@ func notificationQueryFromRequest(r *http.Request) store.NotificationItemQuery {
 // and inserts each into the per-user inbox. Used by the sandbox seeder
 // to populate demo data; restricted to notification:admin so only
 // operators can call it.
-func handleSeedNotifications(st store.Driver) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
+func handleSeedNotifications(st store.Driver) rerr.Handler {
+	return func(w http.ResponseWriter, r *http.Request) error {
 		tenant, ok := tenantOrError(w, r)
 		if !ok {
-			return
+			return nil
 		}
 		var req struct {
 			Items []struct {
@@ -326,13 +327,11 @@ func handleSeedNotifications(st store.Driver) http.HandlerFunc {
 			} `json:"items"`
 		}
 		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-			writeBadRequest(w, r, "invalid JSON body")
-			return
+			return rerr.Validation(map[string]string{"body": "invalid JSON body"})
 		}
 		tx, err := st.Begin(r.Context(), store.TxOptions{})
 		if err != nil {
-			writeInternalError(w, r, "begin tx")
-			return
+			return rerr.Wrap(err, "begin tx")
 		}
 		defer func() { _ = tx.Rollback() }()
 
@@ -382,131 +381,123 @@ func handleSeedNotifications(st store.Driver) http.HandlerFunc {
 				n.ArchivedAt = &at
 			}
 			if _, appendErr := tx.AppendNotificationItem(r.Context(), n); appendErr != nil {
-				writeInternalError(w, r, "append")
-				return
+				return rerr.Wrap(appendErr, "append")
 			}
 			inserted++
 		}
 		if err := tx.Commit(); err != nil {
-			writeInternalError(w, r, "commit")
-			return
+			return rerr.Wrap(err, "commit")
 		}
-		writeJSON(w, http.StatusOK, map[string]any{"inserted": inserted})
+		return rerr.JSON(w, map[string]any{"inserted": inserted})
 	}
 }
 
-func handleListNotifications(st store.Driver) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
+func handleListNotifications(st store.Driver) rerr.Handler {
+	return func(w http.ResponseWriter, r *http.Request) error {
 		tenant, ok := tenantOrError(w, r)
 		if !ok {
-			return
+			return nil
 		}
 		sc := auth.SessionClaimsFromContext(r.Context())
 		if sc == nil || sc.UserID == "" {
-			writeProblem(w, http.StatusUnauthorized, errTypeUnauth, "Authentication required",
-				"Session required to list notifications", r.URL.Path, nil)
-			return
+			return rerr.Unauthenticated()
 		}
-		tx, _ := st.Begin(r.Context(), store.TxOptions{ReadOnly: true})
+		tx, err := st.Begin(r.Context(), store.TxOptions{ReadOnly: true})
+		if err != nil {
+			return rerr.Wrap(err, "begin tx")
+		}
 		defer func() { _ = tx.Rollback() }()
 		items, err := tx.ListNotificationItemsByUser(r.Context(), tenant.ID, sc.UserID, notificationQueryFromRequest(r))
 		if err != nil {
-			writeInternalError(w, r, "list notifications")
-			return
+			return rerr.Wrap(err, "list notifications")
 		}
 		out := make([]notificationItemResponse, 0, len(items))
 		for _, n := range items {
 			out = append(out, notificationItemToResponse(n))
 		}
-		writeJSON(w, http.StatusOK, map[string]any{"items": out, "total": len(out)})
+		return rerr.JSON(w, map[string]any{"items": out, "total": len(out)})
 	}
 }
 
-func handleUnreadCount(st store.Driver) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
+func handleUnreadCount(st store.Driver) rerr.Handler {
+	return func(w http.ResponseWriter, r *http.Request) error {
 		tenant, ok := tenantOrError(w, r)
 		if !ok {
-			return
+			return nil
 		}
 		sc := auth.SessionClaimsFromContext(r.Context())
 		if sc == nil || sc.UserID == "" {
-			writeProblem(w, http.StatusUnauthorized, errTypeUnauth, "Authentication required", "", r.URL.Path, nil)
-			return
+			return rerr.Unauthenticated()
 		}
-		tx, _ := st.Begin(r.Context(), store.TxOptions{ReadOnly: true})
+		tx, err := st.Begin(r.Context(), store.TxOptions{ReadOnly: true})
+		if err != nil {
+			return rerr.Wrap(err, "begin tx")
+		}
 		defer func() { _ = tx.Rollback() }()
 		count, err := tx.CountUnreadNotifications(r.Context(), tenant.ID, sc.UserID)
 		if err != nil {
-			writeInternalError(w, r, "count unread")
-			return
+			return rerr.Wrap(err, "count unread")
 		}
-		writeJSON(w, http.StatusOK, map[string]any{"unreadCount": count})
+		return rerr.JSON(w, map[string]any{"unreadCount": count})
 	}
 }
 
-func handleGetNotification(st store.Driver) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
+func handleGetNotification(st store.Driver) rerr.Handler {
+	return func(w http.ResponseWriter, r *http.Request) error {
 		tenant, ok := tenantOrError(w, r)
 		if !ok {
-			return
+			return nil
 		}
 		sc := auth.SessionClaimsFromContext(r.Context())
 		id := r.PathValue("id")
-		tx, _ := st.Begin(r.Context(), store.TxOptions{ReadOnly: true})
+		tx, err := st.Begin(r.Context(), store.TxOptions{ReadOnly: true})
+		if err != nil {
+			return rerr.Wrap(err, "begin tx")
+		}
 		defer func() { _ = tx.Rollback() }()
 		n, err := tx.GetNotificationItem(r.Context(), id)
 		if err != nil {
-			writeProblem(w, http.StatusNotFound, errTypeNotFound, "Notification not found",
-				"No notification with id "+id, r.URL.Path, nil)
-			return
+			return rerr.NotFound("notification", id)
 		}
 		// Cross-user/tenant guard.
 		if sc != nil && sc.UserID != "" && n.UserID != sc.UserID {
-			writeProblem(w, http.StatusNotFound, errTypeNotFound, "Notification not found",
-				"No notification with id "+id, r.URL.Path, nil)
-			return
+			return rerr.NotFound("notification", id)
 		}
 		if n.TenantID != nil && *n.TenantID != tenant.ID {
-			writeProblem(w, http.StatusNotFound, errTypeNotFound, "Notification not found",
-				"No notification with id "+id, r.URL.Path, nil)
-			return
+			return rerr.NotFound("notification", id)
 		}
-		writeJSON(w, http.StatusOK, notificationItemToResponse(n))
+		return rerr.JSON(w, notificationItemToResponse(n))
 	}
 }
 
-func handleMarkNotificationRead(st store.Driver) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
+func handleMarkNotificationRead(st store.Driver) rerr.Handler {
+	return func(w http.ResponseWriter, r *http.Request) error {
 		if _, ok := tenantOrError(w, r); !ok {
-			return
+			return nil
 		}
 		sc := auth.SessionClaimsFromContext(r.Context())
 		id := r.PathValue("id")
-		tx, _ := st.Begin(r.Context(), store.TxOptions{})
+		tx, err := st.Begin(r.Context(), store.TxOptions{})
+		if err != nil {
+			return rerr.Wrap(err, "begin tx")
+		}
+		defer func() { _ = tx.Rollback() }()
 		// Ownership guard.
 		n, err := tx.GetNotificationItem(r.Context(), id)
 		if err != nil {
-			_ = tx.Rollback()
-			writeProblem(w, http.StatusNotFound, errTypeNotFound, "Notification not found",
-				"No notification with id "+id, r.URL.Path, nil)
-			return
+			return rerr.NotFound("notification", id)
 		}
 		if sc != nil && sc.UserID != "" && n.UserID != sc.UserID {
-			_ = tx.Rollback()
-			writeProblem(w, http.StatusNotFound, errTypeNotFound, "Notification not found",
-				"No notification with id "+id, r.URL.Path, nil)
-			return
+			return rerr.NotFound("notification", id)
 		}
 		if err := tx.MarkNotificationRead(r.Context(), id); err != nil {
-			_ = tx.Rollback()
-			writeInternalError(w, r, "mark read")
-			return
+			return rerr.Wrap(err, "mark read")
 		}
 		if err := tx.Commit(); err != nil {
-			writeInternalError(w, r, "commit")
-			return
+			return rerr.Wrap(err, "commit")
 		}
 		w.WriteHeader(http.StatusNoContent)
+		return nil
 	}
 }
 
@@ -514,128 +505,123 @@ func handleMarkNotificationRead(st store.Driver) http.HandlerFunc {
 // clears the read_at timestamp on a notification owned by the calling user.
 // Idempotent — a no-op on already-unread notifications. Same RBAC as /read
 // (notification:manage-own) and the same ownership/tenant guards.
-func handleMarkNotificationUnread(st store.Driver) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
+func handleMarkNotificationUnread(st store.Driver) rerr.Handler {
+	return func(w http.ResponseWriter, r *http.Request) error {
 		if _, ok := tenantOrError(w, r); !ok {
-			return
+			return nil
 		}
 		sc := auth.SessionClaimsFromContext(r.Context())
 		id := r.PathValue("id")
-		tx, _ := st.Begin(r.Context(), store.TxOptions{})
+		tx, err := st.Begin(r.Context(), store.TxOptions{})
+		if err != nil {
+			return rerr.Wrap(err, "begin tx")
+		}
+		defer func() { _ = tx.Rollback() }()
 		// Ownership guard.
 		n, err := tx.GetNotificationItem(r.Context(), id)
 		if err != nil {
-			_ = tx.Rollback()
-			writeProblem(w, http.StatusNotFound, errTypeNotFound, "Notification not found",
-				"No notification with id "+id, r.URL.Path, nil)
-			return
+			return rerr.NotFound("notification", id)
 		}
 		if sc != nil && sc.UserID != "" && n.UserID != sc.UserID {
-			_ = tx.Rollback()
-			writeProblem(w, http.StatusNotFound, errTypeNotFound, "Notification not found",
-				"No notification with id "+id, r.URL.Path, nil)
-			return
+			return rerr.NotFound("notification", id)
 		}
 		if err := tx.MarkNotificationUnread(r.Context(), id); err != nil {
-			_ = tx.Rollback()
-			writeInternalError(w, r, "mark unread")
-			return
+			return rerr.Wrap(err, "mark unread")
 		}
 		if err := tx.Commit(); err != nil {
-			writeInternalError(w, r, "commit")
-			return
+			return rerr.Wrap(err, "commit")
 		}
 		w.WriteHeader(http.StatusNoContent)
+		return nil
 	}
 }
 
-func handleMarkAllRead(st store.Driver) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
+func handleMarkAllRead(st store.Driver) rerr.Handler {
+	return func(w http.ResponseWriter, r *http.Request) error {
 		tenant, ok := tenantOrError(w, r)
 		if !ok {
-			return
+			return nil
 		}
 		sc := auth.SessionClaimsFromContext(r.Context())
 		if sc == nil || sc.UserID == "" {
-			writeProblem(w, http.StatusUnauthorized, errTypeUnauth, "Authentication required", "", r.URL.Path, nil)
-			return
+			return rerr.Unauthenticated()
 		}
-		tx, _ := st.Begin(r.Context(), store.TxOptions{})
+		tx, err := st.Begin(r.Context(), store.TxOptions{})
+		if err != nil {
+			return rerr.Wrap(err, "begin tx")
+		}
+		defer func() { _ = tx.Rollback() }()
 		if err := tx.MarkAllNotificationsRead(r.Context(), tenant.ID, sc.UserID); err != nil {
-			_ = tx.Rollback()
-			writeInternalError(w, r, "mark all read")
-			return
+			return rerr.Wrap(err, "mark all read")
 		}
 		if err := tx.Commit(); err != nil {
-			writeInternalError(w, r, "commit")
-			return
+			return rerr.Wrap(err, "commit")
 		}
 		w.WriteHeader(http.StatusNoContent)
+		return nil
 	}
 }
 
-func handleArchiveNotification(st store.Driver, archive bool) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
+func handleArchiveNotification(st store.Driver, archive bool) rerr.Handler {
+	return func(w http.ResponseWriter, r *http.Request) error {
 		if _, ok := tenantOrError(w, r); !ok {
-			return
+			return nil
 		}
 		sc := auth.SessionClaimsFromContext(r.Context())
 		id := r.PathValue("id")
-		tx, _ := st.Begin(r.Context(), store.TxOptions{})
+		tx, err := st.Begin(r.Context(), store.TxOptions{})
+		if err != nil {
+			return rerr.Wrap(err, "begin tx")
+		}
+		defer func() { _ = tx.Rollback() }()
 		n, err := tx.GetNotificationItem(r.Context(), id)
 		if err != nil {
-			_ = tx.Rollback()
-			writeProblem(w, http.StatusNotFound, errTypeNotFound, "Notification not found",
-				"No notification with id "+id, r.URL.Path, nil)
-			return
+			return rerr.NotFound("notification", id)
 		}
 		if sc != nil && sc.UserID != "" && n.UserID != sc.UserID {
-			_ = tx.Rollback()
-			writeProblem(w, http.StatusNotFound, errTypeNotFound, "Notification not found",
-				"No notification with id "+id, r.URL.Path, nil)
-			return
+			return rerr.NotFound("notification", id)
 		}
 		if err := tx.ArchiveNotification(r.Context(), id, archive); err != nil {
-			_ = tx.Rollback()
-			writeInternalError(w, r, "archive")
-			return
+			return rerr.Wrap(err, "archive")
 		}
 		if err := tx.Commit(); err != nil {
-			writeInternalError(w, r, "commit")
-			return
+			return rerr.Wrap(err, "commit")
 		}
 		w.WriteHeader(http.StatusNoContent)
+		return nil
 	}
 }
 
 // ─── Channel handlers ───────────────────────────────────────────────────────
 
-func handleListChannels(st store.Driver) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
+func handleListChannels(st store.Driver) rerr.Handler {
+	return func(w http.ResponseWriter, r *http.Request) error {
 		tenant, ok := tenantOrError(w, r)
 		if !ok {
-			return
+			return nil
 		}
-		tx, _ := st.Begin(r.Context(), store.TxOptions{ReadOnly: true})
+		tx, err := st.Begin(r.Context(), store.TxOptions{ReadOnly: true})
+		if err != nil {
+			return rerr.Wrap(err, "begin tx")
+		}
 		defer func() { _ = tx.Rollback() }()
 		items, err := tx.ListNotificationChannelsByTenant(r.Context(), tenant.ID)
 		if err != nil {
-			writeInternalError(w, r, "list channels")
-			return
+			return rerr.Wrap(err, "list channels")
 		}
 		out := make([]channelResponse, 0, len(items))
 		for _, c := range items {
 			out = append(out, channelToResponse(c))
 		}
-		writeJSON(w, http.StatusOK, map[string]any{"items": out, "total": len(out)})
+		return rerr.JSON(w, map[string]any{"items": out, "total": len(out)})
 	}
 }
 
-func handleCreateChannel(st store.Driver) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
+func handleCreateChannel(st store.Driver) rerr.Handler {
+	return func(w http.ResponseWriter, r *http.Request) error {
 		tenant, ok := tenantOrError(w, r)
 		if !ok {
-			return
+			return nil
 		}
 		var req struct {
 			Name   string          `json:"name"`
@@ -643,59 +629,65 @@ func handleCreateChannel(st store.Driver) http.HandlerFunc {
 			Config json.RawMessage `json:"config,omitempty"`
 		}
 		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-			writeBadRequest(w, r, "invalid JSON body")
-			return
+			return rerr.Validation(map[string]string{"body": "invalid JSON body"})
 		}
-		if req.Name == "" || req.Kind == "" {
-			writeBadRequest(w, r, "name and kind are required")
-			return
+		fields := map[string]string{}
+		if req.Name == "" {
+			fields["name"] = "name is required"
 		}
-		tx, _ := st.Begin(r.Context(), store.TxOptions{})
+		if req.Kind == "" {
+			fields["kind"] = "kind is required"
+		}
+		if len(fields) > 0 {
+			return rerr.Validation(fields)
+		}
+		tx, err := st.Begin(r.Context(), store.TxOptions{})
+		if err != nil {
+			return rerr.Wrap(err, "begin tx")
+		}
+		defer func() { _ = tx.Rollback() }()
 		created, err := tx.CreateNotificationChannel(r.Context(), &store.NotificationChannel{
 			TenantID: tenant.ID, Name: req.Name, Kind: req.Kind, Config: string(req.Config), Enabled: true,
 		})
 		if err != nil {
-			_ = tx.Rollback()
 			if errors.Is(err, store.ErrNotificationChannelTaken) {
-				writeProblem(w, http.StatusConflict, errTypeConflict, "Name already in use",
-					"A channel with that name already exists in this tenant", r.URL.Path, nil)
-				return
+				return rerr.Conflict("a channel with that name already exists in this tenant", err)
 			}
-			writeInternalError(w, r, "create channel")
-			return
+			return rerr.Wrap(err, "create channel")
 		}
 		if err := tx.Commit(); err != nil {
-			writeInternalError(w, r, "commit")
-			return
+			return rerr.Wrap(err, "commit")
 		}
-		writeJSON(w, http.StatusCreated, channelToResponse(created))
+		w.WriteHeader(http.StatusCreated)
+		return rerr.JSON(w, channelToResponse(created))
 	}
 }
 
-func handleGetChannel(st store.Driver) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
+func handleGetChannel(st store.Driver) rerr.Handler {
+	return func(w http.ResponseWriter, r *http.Request) error {
 		tenant, ok := tenantOrError(w, r)
 		if !ok {
-			return
+			return nil
 		}
 		id := r.PathValue("id")
-		tx, _ := st.Begin(r.Context(), store.TxOptions{ReadOnly: true})
+		tx, err := st.Begin(r.Context(), store.TxOptions{ReadOnly: true})
+		if err != nil {
+			return rerr.Wrap(err, "begin tx")
+		}
 		defer func() { _ = tx.Rollback() }()
 		c, err := tx.GetNotificationChannel(r.Context(), tenant.ID, id)
 		if err != nil {
-			writeProblem(w, http.StatusNotFound, errTypeNotFound, "Channel not found",
-				"No channel with id "+id, r.URL.Path, nil)
-			return
+			return rerr.NotFound("notification channel", id)
 		}
-		writeJSON(w, http.StatusOK, channelToResponse(c))
+		return rerr.JSON(w, channelToResponse(c))
 	}
 }
 
-func handleUpdateChannel(st store.Driver) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
+func handleUpdateChannel(st store.Driver) rerr.Handler {
+	return func(w http.ResponseWriter, r *http.Request) error {
 		tenant, ok := tenantOrError(w, r)
 		if !ok {
-			return
+			return nil
 		}
 		id := r.PathValue("id")
 		var req struct {
@@ -705,8 +697,7 @@ func handleUpdateChannel(st store.Driver) http.HandlerFunc {
 			Enabled *bool            `json:"enabled,omitempty"`
 		}
 		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-			writeBadRequest(w, r, "invalid JSON body")
-			return
+			return rerr.Validation(map[string]string{"body": "invalid JSON body"})
 		}
 		params := store.UpdateNotificationChannelParams{
 			Name: req.Name, Kind: req.Kind, Enabled: req.Enabled,
@@ -715,78 +706,73 @@ func handleUpdateChannel(st store.Driver) http.HandlerFunc {
 			s := string(*req.Config)
 			params.Config = &s
 		}
-		tx, _ := st.Begin(r.Context(), store.TxOptions{})
+		tx, err := st.Begin(r.Context(), store.TxOptions{})
+		if err != nil {
+			return rerr.Wrap(err, "begin tx")
+		}
+		defer func() { _ = tx.Rollback() }()
 		updated, err := tx.UpdateNotificationChannel(r.Context(), tenant.ID, id, params)
 		if err != nil {
-			_ = tx.Rollback()
 			if errors.Is(err, store.ErrNotificationChannelNotFound) {
-				writeProblem(w, http.StatusNotFound, errTypeNotFound, "Channel not found",
-					"No channel with id "+id, r.URL.Path, nil)
-				return
+				return rerr.NotFound("notification channel", id)
 			}
-			writeInternalError(w, r, "update channel")
-			return
+			return rerr.Wrap(err, "update channel")
 		}
 		if err := tx.Commit(); err != nil {
-			writeInternalError(w, r, "commit")
-			return
+			return rerr.Wrap(err, "commit")
 		}
-		writeJSON(w, http.StatusOK, channelToResponse(updated))
+		return rerr.JSON(w, channelToResponse(updated))
 	}
 }
 
-func handleDeleteChannel(st store.Driver) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
+func handleDeleteChannel(st store.Driver) rerr.Handler {
+	return func(w http.ResponseWriter, r *http.Request) error {
 		tenant, ok := tenantOrError(w, r)
 		if !ok {
-			return
+			return nil
 		}
 		id := r.PathValue("id")
-		tx, _ := st.Begin(r.Context(), store.TxOptions{})
+		tx, err := st.Begin(r.Context(), store.TxOptions{})
+		if err != nil {
+			return rerr.Wrap(err, "begin tx")
+		}
+		defer func() { _ = tx.Rollback() }()
 		if err := tx.DeleteNotificationChannel(r.Context(), tenant.ID, id); err != nil {
-			_ = tx.Rollback()
 			if errors.Is(err, store.ErrNotificationChannelNotFound) {
-				writeProblem(w, http.StatusNotFound, errTypeNotFound, "Channel not found",
-					"No channel with id "+id, r.URL.Path, nil)
-				return
+				return rerr.NotFound("notification channel", id)
 			}
-			writeInternalError(w, r, "delete channel")
-			return
+			return rerr.Wrap(err, "delete channel")
 		}
 		if err := tx.Commit(); err != nil {
-			writeInternalError(w, r, "commit")
-			return
+			return rerr.Wrap(err, "commit")
 		}
 		w.WriteHeader(http.StatusNoContent)
+		return nil
 	}
 }
 
-func handleTestChannel(st store.Driver) http.HandlerFunc {
+func handleTestChannel(st store.Driver) rerr.Handler {
 	// Resolves the stored channel, runs a single dispatch through the
 	// channel-send dispatcher (with retry + delivery-log writes), and
 	// returns the result. Used by the admin panel "Send test" button.
-	return func(w http.ResponseWriter, r *http.Request) {
+	return func(w http.ResponseWriter, r *http.Request) error {
 		tenant, ok := tenantOrError(w, r)
 		if !ok {
-			return
+			return nil
 		}
 		id := r.PathValue("id")
 
 		tx, err := st.Begin(r.Context(), store.TxOptions{ReadOnly: true})
 		if err != nil {
-			writeInternalError(w, r, "begin tx")
-			return
+			return rerr.Wrap(err, "begin tx")
 		}
 		ch, err := tx.GetNotificationChannel(r.Context(), tenant.ID, id)
 		_ = tx.Rollback()
 		if err != nil {
 			if errors.Is(err, store.ErrNotificationChannelNotFound) {
-				writeProblem(w, http.StatusNotFound, errTypeNotFound, "Channel not found",
-					"No notification channel with id "+id, r.URL.Path, nil)
-				return
+				return rerr.NotFound("notification channel", id)
 			}
-			writeInternalError(w, r, "get channel")
-			return
+			return rerr.Wrap(err, "get channel")
 		}
 
 		msg := notifications.Message{
@@ -805,11 +791,9 @@ func handleTestChannel(st store.Driver) http.HandlerFunc {
 		sendErr := disp.SendToChannel(r.Context(), ch, msg, nil)
 		now := nowFormatted()
 		if sendErr != nil {
-			writeProblem(w, http.StatusBadGateway, errTypeBadGateway, "Channel test delivery failed",
-				sendErr.Error(), r.URL.Path, nil)
-			return
+			return rerr.BadGateway(sendErr)
 		}
-		writeJSON(w, http.StatusOK, map[string]any{
+		return rerr.JSON(w, map[string]any{
 			"channelId":   ch.ID,
 			"ok":          true,
 			"deliveredAt": now,
@@ -826,32 +810,34 @@ var timeNowFn = func() time.Time { return time.Now() }
 
 // ─── Routing rule handlers ──────────────────────────────────────────────────
 
-func handleListRules(st store.Driver) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
+func handleListRules(st store.Driver) rerr.Handler {
+	return func(w http.ResponseWriter, r *http.Request) error {
 		tenant, ok := tenantOrError(w, r)
 		if !ok {
-			return
+			return nil
 		}
-		tx, _ := st.Begin(r.Context(), store.TxOptions{ReadOnly: true})
+		tx, err := st.Begin(r.Context(), store.TxOptions{ReadOnly: true})
+		if err != nil {
+			return rerr.Wrap(err, "begin tx")
+		}
 		defer func() { _ = tx.Rollback() }()
 		items, err := tx.ListRoutingRulesByTenant(r.Context(), tenant.ID)
 		if err != nil {
-			writeInternalError(w, r, "list rules")
-			return
+			return rerr.Wrap(err, "list rules")
 		}
 		out := make([]routingRuleResponse, 0, len(items))
 		for _, rl := range items {
 			out = append(out, routingRuleToResponse(rl))
 		}
-		writeJSON(w, http.StatusOK, map[string]any{"items": out, "total": len(out)})
+		return rerr.JSON(w, map[string]any{"items": out, "total": len(out)})
 	}
 }
 
-func handleCreateRule(st store.Driver) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
+func handleCreateRule(st store.Driver) rerr.Handler {
+	return func(w http.ResponseWriter, r *http.Request) error {
 		tenant, ok := tenantOrError(w, r)
 		if !ok {
-			return
+			return nil
 		}
 		var req struct {
 			Name        string          `json:"name"`
@@ -860,60 +846,59 @@ func handleCreateRule(st store.Driver) http.HandlerFunc {
 			OrderHint   int32           `json:"orderHint,omitempty"`
 		}
 		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-			writeBadRequest(w, r, "invalid JSON body")
-			return
+			return rerr.Validation(map[string]string{"body": "invalid JSON body"})
 		}
 		if req.Name == "" {
-			writeBadRequest(w, r, "name is required")
-			return
+			return rerr.Validation(map[string]string{"name": "name is required"})
 		}
-		tx, _ := st.Begin(r.Context(), store.TxOptions{})
+		tx, err := st.Begin(r.Context(), store.TxOptions{})
+		if err != nil {
+			return rerr.Wrap(err, "begin tx")
+		}
+		defer func() { _ = tx.Rollback() }()
 		created, err := tx.CreateRoutingRule(r.Context(), &store.NotificationRoutingRule{
 			TenantID: tenant.ID, Name: req.Name, EventFilter: string(req.EventFilter),
 			ChannelIDs: string(req.ChannelIDs), Enabled: true, OrderHint: req.OrderHint,
 		})
 		if err != nil {
-			_ = tx.Rollback()
 			if errors.Is(err, store.ErrRoutingRuleNameTaken) {
-				writeProblem(w, http.StatusConflict, errTypeConflict, "Name already in use",
-					"A routing rule with that name already exists in this tenant", r.URL.Path, nil)
-				return
+				return rerr.Conflict("a routing rule with that name already exists in this tenant", err)
 			}
-			writeInternalError(w, r, "create rule")
-			return
+			return rerr.Wrap(err, "create rule")
 		}
 		if err := tx.Commit(); err != nil {
-			writeInternalError(w, r, "commit")
-			return
+			return rerr.Wrap(err, "commit")
 		}
-		writeJSON(w, http.StatusCreated, routingRuleToResponse(created))
+		w.WriteHeader(http.StatusCreated)
+		return rerr.JSON(w, routingRuleToResponse(created))
 	}
 }
 
-func handleGetRule(st store.Driver) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
+func handleGetRule(st store.Driver) rerr.Handler {
+	return func(w http.ResponseWriter, r *http.Request) error {
 		tenant, ok := tenantOrError(w, r)
 		if !ok {
-			return
+			return nil
 		}
 		id := r.PathValue("id")
-		tx, _ := st.Begin(r.Context(), store.TxOptions{ReadOnly: true})
+		tx, err := st.Begin(r.Context(), store.TxOptions{ReadOnly: true})
+		if err != nil {
+			return rerr.Wrap(err, "begin tx")
+		}
 		defer func() { _ = tx.Rollback() }()
 		rule, err := tx.GetRoutingRule(r.Context(), tenant.ID, id)
 		if err != nil {
-			writeProblem(w, http.StatusNotFound, errTypeNotFound, "Routing rule not found",
-				"No rule with id "+id, r.URL.Path, nil)
-			return
+			return rerr.NotFound("notification routing rule", id)
 		}
-		writeJSON(w, http.StatusOK, routingRuleToResponse(rule))
+		return rerr.JSON(w, routingRuleToResponse(rule))
 	}
 }
 
-func handleUpdateRule(st store.Driver) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
+func handleUpdateRule(st store.Driver) rerr.Handler {
+	return func(w http.ResponseWriter, r *http.Request) error {
 		tenant, ok := tenantOrError(w, r)
 		if !ok {
-			return
+			return nil
 		}
 		id := r.PathValue("id")
 		var req struct {
@@ -924,8 +909,7 @@ func handleUpdateRule(st store.Driver) http.HandlerFunc {
 			OrderHint   *int32           `json:"orderHint,omitempty"`
 		}
 		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-			writeBadRequest(w, r, "invalid JSON body")
-			return
+			return rerr.Validation(map[string]string{"body": "invalid JSON body"})
 		}
 		params := store.UpdateRoutingRuleParams{
 			Name: req.Name, Enabled: req.Enabled, OrderHint: req.OrderHint,
@@ -938,86 +922,86 @@ func handleUpdateRule(st store.Driver) http.HandlerFunc {
 			s := string(*req.ChannelIDs)
 			params.ChannelIDs = &s
 		}
-		tx, _ := st.Begin(r.Context(), store.TxOptions{})
+		tx, err := st.Begin(r.Context(), store.TxOptions{})
+		if err != nil {
+			return rerr.Wrap(err, "begin tx")
+		}
+		defer func() { _ = tx.Rollback() }()
 		updated, err := tx.UpdateRoutingRule(r.Context(), tenant.ID, id, params)
 		if err != nil {
-			_ = tx.Rollback()
 			if errors.Is(err, store.ErrRoutingRuleNotFound) {
-				writeProblem(w, http.StatusNotFound, errTypeNotFound, "Routing rule not found",
-					"No rule with id "+id, r.URL.Path, nil)
-				return
+				return rerr.NotFound("notification routing rule", id)
 			}
-			writeInternalError(w, r, "update rule")
-			return
+			return rerr.Wrap(err, "update rule")
 		}
 		if err := tx.Commit(); err != nil {
-			writeInternalError(w, r, "commit")
-			return
+			return rerr.Wrap(err, "commit")
 		}
-		writeJSON(w, http.StatusOK, routingRuleToResponse(updated))
+		return rerr.JSON(w, routingRuleToResponse(updated))
 	}
 }
 
-func handleDeleteRule(st store.Driver) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
+func handleDeleteRule(st store.Driver) rerr.Handler {
+	return func(w http.ResponseWriter, r *http.Request) error {
 		tenant, ok := tenantOrError(w, r)
 		if !ok {
-			return
+			return nil
 		}
 		id := r.PathValue("id")
-		tx, _ := st.Begin(r.Context(), store.TxOptions{})
+		tx, err := st.Begin(r.Context(), store.TxOptions{})
+		if err != nil {
+			return rerr.Wrap(err, "begin tx")
+		}
+		defer func() { _ = tx.Rollback() }()
 		if err := tx.DeleteRoutingRule(r.Context(), tenant.ID, id); err != nil {
-			_ = tx.Rollback()
 			if errors.Is(err, store.ErrRoutingRuleNotFound) {
-				writeProblem(w, http.StatusNotFound, errTypeNotFound, "Routing rule not found",
-					"No rule with id "+id, r.URL.Path, nil)
-				return
+				return rerr.NotFound("notification routing rule", id)
 			}
-			writeInternalError(w, r, "delete rule")
-			return
+			return rerr.Wrap(err, "delete rule")
 		}
 		if err := tx.Commit(); err != nil {
-			writeInternalError(w, r, "commit")
-			return
+			return rerr.Wrap(err, "commit")
 		}
 		w.WriteHeader(http.StatusNoContent)
+		return nil
 	}
 }
 
-func handleReorderRules(st store.Driver) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
+func handleReorderRules(st store.Driver) rerr.Handler {
+	return func(w http.ResponseWriter, r *http.Request) error {
 		tenant, ok := tenantOrError(w, r)
 		if !ok {
-			return
+			return nil
 		}
 		var req struct {
 			OrderedIDs []string `json:"orderedIds"`
 		}
 		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-			writeBadRequest(w, r, "invalid JSON body")
-			return
+			return rerr.Validation(map[string]string{"body": "invalid JSON body"})
 		}
-		tx, _ := st.Begin(r.Context(), store.TxOptions{})
+		tx, err := st.Begin(r.Context(), store.TxOptions{})
+		if err != nil {
+			return rerr.Wrap(err, "begin tx")
+		}
+		defer func() { _ = tx.Rollback() }()
 		if err := tx.ReorderRoutingRules(r.Context(), tenant.ID, req.OrderedIDs); err != nil {
-			_ = tx.Rollback()
-			writeInternalError(w, r, "reorder")
-			return
+			return rerr.Wrap(err, "reorder")
 		}
 		if err := tx.Commit(); err != nil {
-			writeInternalError(w, r, "commit")
-			return
+			return rerr.Wrap(err, "commit")
 		}
 		w.WriteHeader(http.StatusNoContent)
+		return nil
 	}
 }
 
 // ─── Delivery log handlers ──────────────────────────────────────────────────
 
-func handleListDeliveryLog(st store.Driver) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
+func handleListDeliveryLog(st store.Driver) rerr.Handler {
+	return func(w http.ResponseWriter, r *http.Request) error {
 		tenant, ok := tenantOrError(w, r)
 		if !ok {
-			return
+			return nil
 		}
 		q := store.DeliveryLogQuery{Status: r.URL.Query().Get("status")}
 		if v := r.URL.Query().Get("limit"); v != "" {
@@ -1030,45 +1014,48 @@ func handleListDeliveryLog(st store.Driver) http.HandlerFunc {
 				q.Offset = n
 			}
 		}
-		tx, _ := st.Begin(r.Context(), store.TxOptions{ReadOnly: true})
+		tx, err := st.Begin(r.Context(), store.TxOptions{ReadOnly: true})
+		if err != nil {
+			return rerr.Wrap(err, "begin tx")
+		}
 		defer func() { _ = tx.Rollback() }()
 		items, err := tx.ListDeliveryLogByTenant(r.Context(), tenant.ID, q)
 		if err != nil {
-			writeInternalError(w, r, "list log")
-			return
+			return rerr.Wrap(err, "list log")
 		}
 		out := make([]deliveryLogResponse, 0, len(items))
 		for _, e := range items {
 			out = append(out, deliveryLogToResponse(e))
 		}
-		writeJSON(w, http.StatusOK, map[string]any{"items": out, "total": len(out)})
+		return rerr.JSON(w, map[string]any{"items": out, "total": len(out)})
 	}
 }
 
-func handleGetDeliveryLog(st store.Driver) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
+func handleGetDeliveryLog(st store.Driver) rerr.Handler {
+	return func(w http.ResponseWriter, r *http.Request) error {
 		tenant, ok := tenantOrError(w, r)
 		if !ok {
-			return
+			return nil
 		}
 		id := r.PathValue("id")
-		tx, _ := st.Begin(r.Context(), store.TxOptions{ReadOnly: true})
+		tx, err := st.Begin(r.Context(), store.TxOptions{ReadOnly: true})
+		if err != nil {
+			return rerr.Wrap(err, "begin tx")
+		}
 		defer func() { _ = tx.Rollback() }()
 		e, err := tx.GetDeliveryLogEntry(r.Context(), tenant.ID, id)
 		if err != nil {
-			writeProblem(w, http.StatusNotFound, errTypeNotFound, "Delivery log entry not found",
-				"No entry with id "+id, r.URL.Path, nil)
-			return
+			return rerr.NotFound("notification delivery log entry", id)
 		}
-		writeJSON(w, http.StatusOK, deliveryLogToResponse(e))
+		return rerr.JSON(w, deliveryLogToResponse(e))
 	}
 }
 
 // ─── Tenant config handlers ─────────────────────────────────────────────────
 
-func handleGetTenantNotifConfig(st store.Driver) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
-		handleReadConfig(w, r, st, "get config",
+func handleGetTenantNotifConfig(st store.Driver) rerr.Handler {
+	return func(w http.ResponseWriter, r *http.Request) error {
+		return handleReadConfig(w, r, st, "get config",
 			func(ctx context.Context, tx store.Tx, tenantID string) (any, error) {
 				c, err := tx.GetTenantNotificationConfig(ctx, tenantID)
 				if err != nil {
@@ -1079,11 +1066,11 @@ func handleGetTenantNotifConfig(st store.Driver) http.HandlerFunc {
 	}
 }
 
-func handleUpdateTenantNotifConfig(st store.Driver) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
+func handleUpdateTenantNotifConfig(st store.Driver) rerr.Handler {
+	return func(w http.ResponseWriter, r *http.Request) error {
 		tenant, ok := tenantOrError(w, r)
 		if !ok {
-			return
+			return nil
 		}
 		var req struct {
 			Enabled             bool            `json:"enabled"`
@@ -1093,27 +1080,27 @@ func handleUpdateTenantNotifConfig(st store.Driver) http.HandlerFunc {
 			ChannelPriority     json.RawMessage `json:"channelPriority,omitempty"`
 		}
 		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-			writeBadRequest(w, r, "invalid JSON body")
-			return
+			return rerr.Validation(map[string]string{"body": "invalid JSON body"})
 		}
 		if req.OptInMode == "" {
 			req.OptInMode = "opt-in"
 		}
-		tx, _ := st.Begin(r.Context(), store.TxOptions{})
+		tx, err := st.Begin(r.Context(), store.TxOptions{})
+		if err != nil {
+			return rerr.Wrap(err, "begin tx")
+		}
+		defer func() { _ = tx.Rollback() }()
 		updated, err := tx.UpsertTenantNotificationConfig(r.Context(), &store.TenantNotificationConfig{
 			TenantID: tenant.ID, Enabled: req.Enabled, OptInMode: req.OptInMode,
 			MaxRetries: req.MaxRetries, RetryBackoffSeconds: req.RetryBackoffSeconds,
 			ChannelPriority: string(req.ChannelPriority),
 		})
 		if err != nil {
-			_ = tx.Rollback()
-			writeInternalError(w, r, "upsert config")
-			return
+			return rerr.Wrap(err, "upsert config")
 		}
 		if err := tx.Commit(); err != nil {
-			writeInternalError(w, r, "commit")
-			return
+			return rerr.Wrap(err, "commit")
 		}
-		writeJSON(w, http.StatusOK, tenantNotifConfigToResponse(updated))
+		return rerr.JSON(w, tenantNotifConfigToResponse(updated))
 	}
 }
