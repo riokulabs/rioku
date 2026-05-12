@@ -201,10 +201,12 @@ googlecloud
 googleclouddns
 goos
 gorillamux
+gorm
 goroutine
 goroutines
 goruntime
 gosec
+gpgsign
 Gravitee
 greenpau
 groupcache
@@ -491,6 +493,7 @@ someinvaliddata
 Sparkline
 Sparklines
 sprintf
+sqlboiler
 sqlite
 SQLSTATE
 sqlx
