@@ -32,7 +32,6 @@ const config: Config = {
 
   plugins: [
     'docusaurus-plugin-sass',
-    'docusaurus-plugin-llms-txt',
   ],
 
   presets: [
