@@ -21,6 +21,7 @@ import (
 	"github.com/google/uuid"
 
 	"github.com/riokulabs/rioku/internal/gateway/optionsutil"
+	"github.com/riokulabs/rioku/internal/rerr"
 	"github.com/riokulabs/rioku/internal/store"
 )
 
@@ -30,11 +31,11 @@ import (
 // tenant_id from the request context, so the legacy form operates on
 // the default tenant while the tenant-scoped form follows the URL slug.
 func RegisterAccessPolicyRoutes(mux *http.ServeMux, st store.Driver) {
-	list := RequirePermission("access-policies:read")(http.HandlerFunc(handleListAccessPolicies(st)))
-	create := RequirePermission("access-policies:write")(http.HandlerFunc(handleCreateAccessPolicy(st)))
-	get := RequirePermission("access-policies:read")(http.HandlerFunc(handleGetAccessPolicy(st)))
-	update := RequirePermission("access-policies:write")(http.HandlerFunc(handleUpdateAccessPolicy(st)))
-	del := RequirePermission("access-policies:write")(http.HandlerFunc(handleDeleteAccessPolicy(st)))
+	list := RequirePermission("access-policies:read")(rerr.H(handleListAccessPolicies(st)))
+	create := RequirePermission("access-policies:write")(rerr.H(handleCreateAccessPolicy(st)))
+	get := RequirePermission("access-policies:read")(rerr.H(handleGetAccessPolicy(st)))
+	update := RequirePermission("access-policies:write")(rerr.H(handleUpdateAccessPolicy(st)))
+	del := RequirePermission("access-policies:write")(rerr.H(handleDeleteAccessPolicy(st)))
 
 	mux.Handle("GET /api/v1/auth/access-policies", list)
 	mux.Handle("POST /api/v1/auth/access-policies", create)
@@ -53,7 +54,7 @@ func RegisterAccessPolicyRoutes(mux *http.ServeMux, st store.Driver) {
 	// Test-CEL endpoint: compiles and evaluates a CEL expression against a
 	// sample event using `github.com/google/cel-go`. Returns
 	// `{ matched, error?, durationMs }`.
-	testCEL := RequirePermission("access-policies:read")(http.HandlerFunc(handleTestAccessPolicyCEL()))
+	testCEL := RequirePermission("access-policies:read")(rerr.H(handleTestAccessPolicyCEL()))
 	mux.Handle("POST /api/v1/t/{tenant}/access-policies/test-cel", testCEL)
 	optionsutil.Register(mux, "/api/v1/t/{tenant}/access-policies/test-cel",
 		[]string{"POST"})
@@ -172,15 +173,14 @@ func conditionsFromDTO(in []accessPolicyConditionDTO) []store.AccessPolicyCondit
 
 // ─── Handlers ───────────────────────────────────────────────────────────────
 
-func handleListAccessPolicies(st store.Driver) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
+func handleListAccessPolicies(st store.Driver) rerr.Handler {
+	return func(w http.ResponseWriter, r *http.Request) error {
 		ctx := r.Context()
 		policies, err := withReadTx(ctx, st, func(tx store.Tx) ([]*store.AccessPolicy, error) {
 			return tx.ListAccessPolicies(ctx)
 		})
 		if err != nil {
-			writeInternalError(w, r, "list access policies")
-			return
+			return rerr.Wrap(err, "list access policies")
 		}
 		dtos := make([]accessPolicyDTO, len(policies))
 		for i, p := range policies {
@@ -190,31 +190,27 @@ func handleListAccessPolicies(st store.Driver) http.HandlerFunc {
 		// The legacy `{items, total}` shape made the SPA's
 		// `useAccessPolicyList` read `data.data.accessPolicies → undefined → []`
 		// so the page rendered empty across every tenant.
-		writeJSON(w, http.StatusOK, map[string]any{
+		return rerr.JSON(w, map[string]any{
 			"accessPolicies": dtos,
 			"nextPageToken":  "",
 		})
 	}
 }
 
-func handleCreateAccessPolicy(st store.Driver) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
+func handleCreateAccessPolicy(st store.Driver) rerr.Handler {
+	return func(w http.ResponseWriter, r *http.Request) error {
 		var body createPolicyRequest
 		if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
-			writeBadRequest(w, r, "invalid JSON body")
-			return
+			return rerr.Validation(map[string]string{"body": "invalid JSON body"})
 		}
 		if body.Name == "" {
-			writeBadRequest(w, r, "name is required")
-			return
+			return rerr.Validation(map[string]string{"name": "name is required"})
 		}
 		if err := validateEffect(body.Effect); err != nil {
-			writeBadRequest(w, r, err.Error())
-			return
+			return rerr.Validation(map[string]string{"effect": err.Error()})
 		}
 		if err := validateTargetType(body.TargetType); err != nil {
-			writeBadRequest(w, r, err.Error())
-			return
+			return rerr.Validation(map[string]string{"targetType": err.Error()})
 		}
 		priority := 100
 		if body.Priority != nil {
@@ -252,19 +248,17 @@ func handleCreateAccessPolicy(st store.Driver) http.HandlerFunc {
 			return nil
 		}); err != nil {
 			if errors.Is(err, store.ErrAccessPolicyDuplicate) {
-				writeProblem(w, http.StatusConflict, errTypeValidation, "Conflict",
-					"An access policy with that name already exists.", r.URL.Path, nil)
-				return
+				return rerr.Conflict("an access policy with that name already exists", err)
 			}
-			writeInternalError(w, r, "create access policy")
-			return
+			return rerr.Wrap(err, "create access policy")
 		}
-		writeJSON(w, http.StatusCreated, toDTO(created))
+		w.WriteHeader(http.StatusCreated)
+		return rerr.JSON(w, toDTO(created))
 	}
 }
 
-func handleGetAccessPolicy(st store.Driver) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
+func handleGetAccessPolicy(st store.Driver) rerr.Handler {
+	return func(w http.ResponseWriter, r *http.Request) error {
 		id := r.PathValue("id")
 		ctx := r.Context()
 		policy, err := withReadTx(ctx, st, func(tx store.Tx) (*store.AccessPolicy, error) {
@@ -272,35 +266,29 @@ func handleGetAccessPolicy(st store.Driver) http.HandlerFunc {
 		})
 		if err != nil {
 			if errors.Is(err, store.ErrAccessPolicyNotFound) {
-				writeProblem(w, http.StatusNotFound, errTypeValidation, "Not found",
-					"Access policy not found.", r.URL.Path, nil)
-				return
+				return rerr.NotFound("access_policy", id)
 			}
-			writeInternalError(w, r, "get access policy")
-			return
+			return rerr.Wrap(err, "get access policy")
 		}
-		writeJSON(w, http.StatusOK, toDTO(policy))
+		return rerr.JSON(w, toDTO(policy))
 	}
 }
 
-func handleUpdateAccessPolicy(st store.Driver) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
+func handleUpdateAccessPolicy(st store.Driver) rerr.Handler {
+	return func(w http.ResponseWriter, r *http.Request) error {
 		id := r.PathValue("id")
 		var body updatePolicyRequest
 		if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
-			writeBadRequest(w, r, "invalid JSON body")
-			return
+			return rerr.Validation(map[string]string{"body": "invalid JSON body"})
 		}
 		if body.Effect != nil {
 			if err := validateEffect(*body.Effect); err != nil {
-				writeBadRequest(w, r, err.Error())
-				return
+				return rerr.Validation(map[string]string{"effect": err.Error()})
 			}
 		}
 		if body.TargetType != nil {
 			if err := validateTargetType(*body.TargetType); err != nil {
-				writeBadRequest(w, r, err.Error())
-				return
+				return rerr.Validation(map[string]string{"targetType": err.Error()})
 			}
 		}
 
@@ -341,38 +329,31 @@ func handleUpdateAccessPolicy(st store.Driver) http.HandlerFunc {
 			return nil
 		}); err != nil {
 			if errors.Is(err, store.ErrAccessPolicyNotFound) {
-				writeProblem(w, http.StatusNotFound, errTypeValidation, "Not found",
-					"Access policy not found.", r.URL.Path, nil)
-				return
+				return rerr.NotFound("access_policy", id)
 			}
 			if errors.Is(err, store.ErrAccessPolicyDuplicate) {
-				writeProblem(w, http.StatusConflict, errTypeValidation, "Conflict",
-					"An access policy with that name already exists.", r.URL.Path, nil)
-				return
+				return rerr.Conflict("an access policy with that name already exists", err)
 			}
-			writeInternalError(w, r, "update access policy")
-			return
+			return rerr.Wrap(err, "update access policy")
 		}
-		writeJSON(w, http.StatusOK, toDTO(updated))
+		return rerr.JSON(w, toDTO(updated))
 	}
 }
 
-func handleDeleteAccessPolicy(st store.Driver) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
+func handleDeleteAccessPolicy(st store.Driver) rerr.Handler {
+	return func(w http.ResponseWriter, r *http.Request) error {
 		id := r.PathValue("id")
 		ctx := r.Context()
 		if err := withWriteTx(ctx, st, func(tx store.Tx) error {
 			return tx.DeleteAccessPolicy(ctx, id)
 		}); err != nil {
 			if errors.Is(err, store.ErrAccessPolicyNotFound) {
-				writeProblem(w, http.StatusNotFound, errTypeValidation, "Not found",
-					"Access policy not found.", r.URL.Path, nil)
-				return
+				return rerr.NotFound("access_policy", id)
 			}
-			writeInternalError(w, r, "delete access policy")
-			return
+			return rerr.Wrap(err, "delete access policy")
 		}
 		w.WriteHeader(http.StatusNoContent)
+		return nil
 	}
 }
 

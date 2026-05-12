@@ -15,6 +15,7 @@ import (
 	"github.com/riokulabs/rioku/internal/auth"
 	"github.com/riokulabs/rioku/internal/config"
 	"github.com/riokulabs/rioku/internal/gateway/optionsutil"
+	"github.com/riokulabs/rioku/internal/rerr"
 	"github.com/riokulabs/rioku/internal/store"
 )
 
@@ -26,9 +27,9 @@ func RegisterInviteRoutes(mux *http.ServeMux, st store.Driver, sm *auth.SessionM
 	}
 
 	mux.Handle("POST /api/v1/t/{tenant}/users/invite",
-		RequirePermission("user:invite")(http.HandlerFunc(handleCreateInvite(st, mailer, baseURL))))
+		RequirePermission("user:invite")(rerr.H(handleCreateInvite(st, mailer, baseURL))))
 
-	mux.HandleFunc("POST /api/v1/auth/invite/accept", handleInviteAccept(st, sm, cfg))
+	mux.Handle("POST /api/v1/auth/invite/accept", rerr.H(handleInviteAccept(st, sm, cfg)))
 
 	optionsutil.Register(mux, "/api/v1/t/{tenant}/users/invite", []string{"POST"})
 	optionsutil.Register(mux, "/api/v1/auth/invite/accept", []string{"POST"})
@@ -41,30 +42,27 @@ type createInviteRequest struct {
 	RoleIDs []string `json:"roleIds"`
 }
 
-func handleCreateInvite(st store.Driver, mailer auth.Mailer, baseURL string) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
+func handleCreateInvite(st store.Driver, mailer auth.Mailer, baseURL string) rerr.Handler {
+	return func(w http.ResponseWriter, r *http.Request) error {
 		tenant, ok := tenantOrError(w, r)
 		if !ok {
-			return
+			return nil
 		}
 		ctx := r.Context()
 
 		var req createInviteRequest
 		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-			writeBadRequest(w, r, "invalid JSON body")
-			return
+			return rerr.Validation(map[string]string{"body": "invalid JSON body"})
 		}
 		req.Email = strings.TrimSpace(strings.ToLower(req.Email))
 		if req.Email == "" {
-			writeBadRequest(w, r, "email is required")
-			return
+			return rerr.Validation(map[string]string{"email": "email is required"})
 		}
 
 		// Generate invite token.
 		rawToken, err := auth.GenerateInviteToken()
 		if err != nil {
-			writeInternalError(w, r, "generate invite token")
-			return
+			return rerr.Wrap(err, "generate invite token")
 		}
 		tokenHash := auth.HashToken(rawToken)
 
@@ -80,8 +78,7 @@ func handleCreateInvite(st store.Driver, mailer auth.Mailer, baseURL string) htt
 
 		tx, err := st.Begin(ctx, store.TxOptions{})
 		if err != nil {
-			writeInternalError(w, r, "begin tx")
-			return
+			return rerr.Wrap(err, "begin tx")
 		}
 		defer func() { _ = tx.Rollback() }()
 
@@ -100,18 +97,13 @@ func handleCreateInvite(st store.Driver, mailer auth.Mailer, baseURL string) htt
 		})
 		if err != nil {
 			if errors.Is(err, store.ErrMembershipExists) {
-				writeProblem(w, http.StatusConflict, errTypeConflict,
-					"Invite already exists",
-					"A membership for this placeholder already exists", r.URL.Path, nil)
-				return
+				return rerr.Conflict("a membership for this placeholder already exists", err)
 			}
-			writeInternalError(w, r, "create membership")
-			return
+			return rerr.Wrap(err, "create membership")
 		}
 
 		if err := tx.Commit(); err != nil {
-			writeInternalError(w, r, "commit")
-			return
+			return rerr.Wrap(err, "commit")
 		}
 
 		// Send invite email (best effort).
@@ -127,7 +119,8 @@ func handleCreateInvite(st store.Driver, mailer auth.Mailer, baseURL string) htt
 			),
 		})
 
-		writeJSON(w, http.StatusCreated, map[string]string{
+		w.WriteHeader(http.StatusCreated)
+		return rerr.JSON(w, map[string]string{
 			"membershipId": m.ID,
 			"status":       "pending",
 		})
@@ -142,47 +135,40 @@ type inviteAcceptRequest struct {
 	Password string `json:"password"`
 }
 
-func handleInviteAccept(st store.Driver, sm *auth.SessionManager, cfg *config.Config) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
+func handleInviteAccept(st store.Driver, sm *auth.SessionManager, cfg *config.Config) rerr.Handler {
+	return func(w http.ResponseWriter, r *http.Request) error {
 		r.Body = http.MaxBytesReader(w, r.Body, maxAuthBodySize)
 		ctx := r.Context()
 
 		var req inviteAcceptRequest
 		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-			writeProblem(w, http.StatusBadRequest, errTypeValidation, "Invalid request body",
-				"Request body must be valid JSON with 'token', 'name', and 'password' fields", r.URL.Path, nil)
-			return
+			return rerr.Validation(map[string]string{"body": "request body must be valid JSON with 'token', 'name', and 'password' fields"})
 		}
 
-		var errs []ValidationError
+		fieldErrs := map[string]string{}
 		if req.Token == "" {
-			errs = append(errs, ValidationError{Field: "token", Reason: "must not be empty"})
+			fieldErrs["token"] = "must not be empty"
 		}
 		if req.Name == "" {
-			errs = append(errs, ValidationError{Field: "name", Reason: "must not be empty"})
+			fieldErrs["name"] = "must not be empty"
 		}
 		if req.Password == "" {
-			errs = append(errs, ValidationError{Field: "password", Reason: "must not be empty"})
+			fieldErrs["password"] = "must not be empty"
 		}
-		if len(errs) > 0 {
-			writeProblem(w, http.StatusBadRequest, errTypeValidation, "Validation failed",
-				"Missing required fields", r.URL.Path, errs)
-			return
+		if len(fieldErrs) > 0 {
+			return rerr.Validation(fieldErrs)
 		}
 
 		// Validate password policy.
 		if err := auth.ValidatePasswordPolicy(req.Password, cfg.Auth.PasswordPolicy); err != nil {
-			writeProblem(w, http.StatusBadRequest, errTypeValidation, "Password policy violation",
-				err.Error(), r.URL.Path, nil)
-			return
+			return rerr.Validation(map[string]string{"password": err.Error()})
 		}
 
 		tokenHash := auth.HashToken(req.Token)
 
 		tx, err := st.Begin(ctx, store.TxOptions{})
 		if err != nil {
-			writeInternalError(w, r, "begin tx")
-			return
+			return rerr.Wrap(err, "begin tx")
 		}
 		defer func() { _ = tx.Rollback() }()
 
@@ -190,26 +176,20 @@ func handleInviteAccept(st store.Driver, sm *auth.SessionManager, cfg *config.Co
 		m, err := tx.GetMembershipByInviteToken(ctx, tokenHash)
 		if err != nil {
 			if errors.Is(err, store.ErrMembershipNotFound) {
-				writeProblem(w, http.StatusGone, "https://rioku.dev/errors/token-invalid",
-					"Invite invalid", "The invite token is invalid or has already been used.", r.URL.Path, nil)
-				return
+				return rerr.Gone("the invite token is invalid or has already been used")
 			}
-			writeInternalError(w, r, "get membership by token")
-			return
+			return rerr.Wrap(err, "get membership by token")
 		}
 
 		// Only pending memberships can be accepted.
 		if m.State != "pending" {
-			writeProblem(w, http.StatusGone, "https://rioku.dev/errors/token-consumed",
-				"Invite already accepted", "This invite has already been accepted.", r.URL.Path, nil)
-			return
+			return rerr.Gone("this invite has already been accepted")
 		}
 
 		// Hash password.
 		passwordHash, err := auth.HashPassword(req.Password)
 		if err != nil {
-			writeInternalError(w, r, "hash password")
-			return
+			return rerr.Wrap(err, "hash password")
 		}
 
 		// Derive username from display name (lower, spaces→dashes).
@@ -229,34 +209,32 @@ func handleInviteAccept(st store.Driver, sm *auth.SessionManager, cfg *config.Co
 			PasswordChangedAt: now,
 		})
 		if err != nil {
-			writeInternalError(w, r, "create user")
-			return
+			return rerr.Wrap(err, "create user")
 		}
 
 		// Activate the membership for the real user.
 		if err := tx.AcceptInvite(ctx, m.ID, user.ID); err != nil {
-			writeInternalError(w, r, "accept invite")
-			return
+			return rerr.Wrap(err, "accept invite")
 		}
 
 		if err := tx.Commit(); err != nil {
-			writeInternalError(w, r, "commit")
-			return
+			return rerr.Wrap(err, "commit")
 		}
 
 		// Create a session so the user is immediately logged in.
 		session, err := sm.CreateSession(ctx, user.ID, r)
 		if err != nil {
 			// Non-fatal: user created, just can't auto-login.
-			writeJSON(w, http.StatusCreated, map[string]string{
+			w.WriteHeader(http.StatusCreated)
+			return rerr.JSON(w, map[string]string{
 				"userId": user.ID,
 				"status": "created",
 			})
-			return
 		}
 		sm.SetCookie(w, session.ID, auth.CookieOptions{})
 
-		writeJSON(w, http.StatusCreated, map[string]string{
+		w.WriteHeader(http.StatusCreated)
+		return rerr.JSON(w, map[string]string{
 			"userId":    user.ID,
 			"sessionId": session.ID,
 			"status":    "created",

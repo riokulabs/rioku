@@ -119,6 +119,8 @@ func codeToHTTP(c Code) (status int, typ, title string) {
 		return http.StatusLocked, "https://rioku.dev/errors/account-locked", "Resource locked"
 	case CodeTimeout:
 		return http.StatusGatewayTimeout, "https://rioku.dev/errors/gateway-timeout", "Gateway timeout"
+	case CodeGone:
+		return http.StatusGone, "https://rioku.dev/errors/gone", "Resource gone"
 	default: // CodeInternal and anything unknown
 		return http.StatusInternalServerError, "https://rioku.dev/errors/internal", "Internal server error"
 	}

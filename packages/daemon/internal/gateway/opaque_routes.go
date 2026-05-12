@@ -9,6 +9,7 @@ import (
 	"net/http"
 	"time"
 
+	"github.com/riokulabs/rioku/internal/rerr"
 	"github.com/riokulabs/rioku/internal/store"
 )
 
@@ -18,9 +19,9 @@ import (
 //	GET  /api/v1/t/{tenant}/opaque-handles/{handle}
 func RegisterOpaqueRoutes(mux *http.ServeMux, st store.Driver) {
 	mux.Handle("POST /api/v1/t/{tenant}/opaque-handles",
-		RequirePermission("opaque:write")(http.HandlerFunc(handleRegisterOpaque(st))))
+		RequirePermission("opaque:write")(rerr.H(handleRegisterOpaque(st))))
 	mux.Handle("GET /api/v1/t/{tenant}/opaque-handles/{handle}",
-		RequirePermission("opaque:read")(http.HandlerFunc(handleResolveOpaque(st))))
+		RequirePermission("opaque:read")(rerr.H(handleResolveOpaque(st))))
 }
 
 type registerOpaqueReq struct {
@@ -31,14 +32,12 @@ type opaqueResponse struct {
 	Handle string `json:"handle"`
 }
 
-func handleRegisterOpaque(st store.Driver) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
+func handleRegisterOpaque(st store.Driver) rerr.Handler {
+	return func(w http.ResponseWriter, r *http.Request) error {
 		tenantID := r.PathValue("tenant")
 		var req registerOpaqueReq
 		if err := json.NewDecoder(r.Body).Decode(&req); err != nil || req.Value == "" {
-			writeProblem(w, 400, "https://rioku.dev/errors/validation-failed",
-				"Validation failed", "value is required", r.URL.Path, nil)
-			return
+			return rerr.Validation(map[string]string{"value": "value is required"})
 		}
 
 		hash := sha256.Sum256([]byte(req.Value))
@@ -47,27 +46,21 @@ func handleRegisterOpaque(st store.Driver) http.HandlerFunc {
 		ctx := r.Context()
 		tx, err := st.Begin(ctx, store.TxOptions{})
 		if err != nil {
-			writeProblem(w, 500, "https://rioku.dev/errors/internal",
-				"Internal server error", "begin tx", r.URL.Path, nil)
-			return
+			return rerr.Wrap(err, "begin tx")
 		}
 		defer func() { _ = tx.Rollback() }()
 
 		// Idempotent: same (tenant, value_hash) → same handle.
 		if existing, err := tx.GetOpaqueHandleByValueHash(ctx, tenantID, valueHash); err == nil && existing != nil {
 			_ = tx.Commit()
-			w.Header().Set("Content-Type", "application/json")
 			w.WriteHeader(http.StatusCreated)
-			_ = json.NewEncoder(w).Encode(opaqueResponse{Handle: existing.Handle})
-			return
+			return rerr.JSON(w, opaqueResponse{Handle: existing.Handle})
 		}
 
 		// New handle: "oh_" + base64url of 10 random bytes (80 bits entropy).
 		var rb [10]byte
 		if _, err := rand.Read(rb[:]); err != nil {
-			writeProblem(w, 500, "https://rioku.dev/errors/internal",
-				"Internal server error", "random", r.URL.Path, nil)
-			return
+			return rerr.Wrap(err, "random")
 		}
 		handle := "oh_" + base64.RawURLEncoding.EncodeToString(rb[:])
 
@@ -77,47 +70,36 @@ func handleRegisterOpaque(st store.Driver) http.HandlerFunc {
 			ValueHash: valueHash,
 			CreatedAt: time.Now().UTC(),
 		}); err != nil {
-			writeProblem(w, 500, "https://rioku.dev/errors/internal",
-				"Internal server error", "upsert", r.URL.Path, nil)
-			return
+			return rerr.Wrap(err, "upsert")
 		}
 		if err := tx.Commit(); err != nil {
-			writeProblem(w, 500, "https://rioku.dev/errors/internal",
-				"Internal server error", "commit", r.URL.Path, nil)
-			return
+			return rerr.Wrap(err, "commit")
 		}
 
-		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusCreated)
-		_ = json.NewEncoder(w).Encode(opaqueResponse{Handle: handle})
+		return rerr.JSON(w, opaqueResponse{Handle: handle})
 	}
 }
 
-func handleResolveOpaque(st store.Driver) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
+func handleResolveOpaque(st store.Driver) rerr.Handler {
+	return func(w http.ResponseWriter, r *http.Request) error {
 		tenantID := r.PathValue("tenant")
 		handle := r.PathValue("handle")
 
 		ctx := r.Context()
 		tx, err := st.Begin(ctx, store.TxOptions{ReadOnly: true})
 		if err != nil {
-			writeProblem(w, 500, "https://rioku.dev/errors/internal",
-				"Internal server error", "begin tx", r.URL.Path, nil)
-			return
+			return rerr.Wrap(err, "begin tx")
 		}
 		defer func() { _ = tx.Rollback() }()
 
 		got, err := tx.GetOpaqueHandle(ctx, tenantID, handle)
 		if err != nil || got == nil {
-			writeProblem(w, 404, "https://rioku.dev/errors/not-found",
-				"Handle not found", "no opaque handle for this tenant", r.URL.Path, nil)
-			return
+			return rerr.NotFound("opaque_handle", handle)
 		}
 		_ = tx.Commit()
 
-		w.Header().Set("Content-Type", "application/json")
-		w.WriteHeader(http.StatusOK)
-		_ = json.NewEncoder(w).Encode(map[string]any{
+		return rerr.JSON(w, map[string]any{
 			"handle":    got.Handle,
 			"tenantId":  got.TenantID,
 			"createdAt": got.CreatedAt.UTC().Format(time.RFC3339),

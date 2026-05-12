@@ -13,6 +13,7 @@ import (
 	"net/http"
 
 	"github.com/riokulabs/rioku/internal/auth"
+	"github.com/riokulabs/rioku/internal/rerr"
 	"github.com/riokulabs/rioku/internal/store"
 )
 
@@ -26,7 +27,7 @@ import (
 // session. This avoids the chicken-and-egg of needing tenant:read
 // just to render the slug next to a tenant id everywhere.
 func RegisterTenantIdentityRoutes(mux *http.ServeMux, _ store.Driver) {
-	mux.HandleFunc("GET /api/v1/t/{tenant}/identity", handleTenantIdentity)
+	mux.Handle("GET /api/v1/t/{tenant}/identity", rerr.H(handleTenantIdentity))
 }
 
 // tenantIdentityResponse is the lean DTO returned by the resolver.
@@ -40,7 +41,7 @@ type tenantIdentityResponse struct {
 	ParentDomain string `json:"parentDomain,omitempty"`
 }
 
-func handleTenantIdentity(w http.ResponseWriter, r *http.Request) {
+func handleTenantIdentity(w http.ResponseWriter, r *http.Request) error {
 	// AuthMiddleware ran before this handler; if the caller wasn't
 	// authenticated they would have been rejected at /api/v1/* already.
 	// Belt-and-braces: re-check claims so the resolver can never leak
@@ -49,18 +50,14 @@ func handleTenantIdentity(w http.ResponseWriter, r *http.Request) {
 	sc := auth.SessionClaimsFromContext(r.Context())
 	bc := auth.ClaimsFromContext(r.Context())
 	if sc == nil && bc == nil {
-		writeProblem(w, http.StatusUnauthorized, errTypeUnauth,
-			"Authentication required",
-			"Tenant identity is only resolvable inside an authenticated session",
-			r.URL.Path, nil)
-		return
+		return rerr.Unauthenticated()
 	}
 
 	tenant, ok := tenantOrError(w, r)
 	if !ok {
-		return
+		return nil
 	}
-	writeJSON(w, http.StatusOK, tenantIdentityResponse{
+	return rerr.JSON(w, tenantIdentityResponse{
 		ID:           tenant.ID,
 		Slug:         tenant.Slug,
 		Name:         tenant.Name,

@@ -24,6 +24,7 @@ const (
 	CodeUnprocessable               // 422
 	CodeLocked                      // 423
 	CodeTimeout                     // 504
+	CodeGone                        // 410
 )
 
 // Error is a typed request error that carries enough metadata to produce a

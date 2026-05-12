@@ -78,6 +78,12 @@ func Unavailable(cause error) *Error {
 	return e
 }
 
+// Gone returns a 410 error for a resource that is no longer available
+// (e.g. an already-consumed invite token).
+func Gone(detail string) *Error {
+	return newError(CodeGone, "", detail, nil, 1)
+}
+
 // Wrap promotes any error to a 500 Internal Server Error with a custom detail.
 func Wrap(err error, detail string) *Error {
 	if detail == "" {

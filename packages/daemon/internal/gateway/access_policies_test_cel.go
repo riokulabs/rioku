@@ -22,6 +22,8 @@ import (
 	"time"
 
 	"github.com/google/cel-go/cel"
+
+	"github.com/riokulabs/rioku/internal/rerr"
 )
 
 type testCELBody struct {
@@ -35,12 +37,11 @@ type testCELResult struct {
 	DurationMs float64 `json:"durationMs"`
 }
 
-func handleTestAccessPolicyCEL() http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
+func handleTestAccessPolicyCEL() rerr.Handler {
+	return func(w http.ResponseWriter, r *http.Request) error {
 		var body testCELBody
 		if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
-			writeBadRequest(w, r, "invalid JSON body")
-			return
+			return rerr.Validation(map[string]string{"body": "invalid JSON body"})
 		}
 		matched, durationMs, err := evaluateCEL(r.Context(), body.Expr, body.Sample)
 		result := testCELResult{
@@ -50,7 +51,7 @@ func handleTestAccessPolicyCEL() http.HandlerFunc {
 		if err != nil {
 			result.Error = err.Error()
 		}
-		writeJSON(w, http.StatusOK, result)
+		return rerr.JSON(w, result)
 	}
 }
 
