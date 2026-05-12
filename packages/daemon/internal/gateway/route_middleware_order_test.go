@@ -165,8 +165,8 @@ func TestRouteMiddlewareOrder_RejectsDuplicates(t *testing.T) {
 		map[string]any{"order": []string{"mw-a", "mw-a"}})
 	rec := httptest.NewRecorder()
 	mux.ServeHTTP(rec, req)
-	if rec.Code != http.StatusBadRequest {
-		t.Fatalf("expected 400 on duplicate, got %d %s", rec.Code, rec.Body.String())
+	if rec.Code != http.StatusUnprocessableEntity {
+		t.Fatalf("expected 422 on duplicate, got %d %s", rec.Code, rec.Body.String())
 	}
 }
 

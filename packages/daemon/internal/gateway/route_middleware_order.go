@@ -25,6 +25,7 @@ import (
 
 	"github.com/riokulabs/rioku/internal/gateway/links"
 	"github.com/riokulabs/rioku/internal/gateway/optionsutil"
+	"github.com/riokulabs/rioku/internal/rerr"
 	"github.com/riokulabs/rioku/internal/store"
 	riokuv1 "github.com/riokulabs/rioku/proto/gen/go/rioku/v1"
 )
@@ -37,7 +38,7 @@ const LabelMiddlewareIDs = "rioku.admin/middleware-ids"
 // RegisterRouteMiddlewareOrderRoutes wires the dedicated reorder endpoint.
 // Call this alongside RegisterRoutesRoutes.
 func RegisterRouteMiddlewareOrderRoutes(mux *http.ServeMux, st store.Driver) {
-	reorder := RequirePermission("route:write")(http.HandlerFunc(handleReorderRouteMiddlewares(st)))
+	reorder := RequirePermission("route:write")(rerr.H(handleReorderRouteMiddlewares(st)))
 	mux.Handle("PUT /api/v1/t/{tenant}/routes/{id}/middlewares/order", reorder)
 
 	optionsutil.Register(mux, "/api/v1/t/{tenant}/routes/{id}/middlewares/order",
@@ -48,24 +49,22 @@ type reorderMiddlewaresRequest struct {
 	Order []string `json:"order"`
 }
 
-func handleReorderRouteMiddlewares(st store.Driver) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
+func handleReorderRouteMiddlewares(st store.Driver) rerr.Handler {
+	return func(w http.ResponseWriter, r *http.Request) error {
 		tenant, ok := tenantOrError(w, r)
 		if !ok {
-			return
+			return nil
 		}
 		id := r.PathValue("id")
 		if id == "" {
-			writeBadRequest(w, r, "route id required")
-			return
+			return rerr.Validation(map[string]string{"id": "route id required"})
 		}
 
 		var body reorderMiddlewaresRequest
 		dec := json.NewDecoder(r.Body)
 		dec.DisallowUnknownFields()
 		if err := dec.Decode(&body); err != nil {
-			writeBadRequest(w, r, "invalid JSON body: "+err.Error())
-			return
+			return rerr.Validation(map[string]string{"body": "invalid JSON body: " + err.Error()})
 		}
 
 		// Reject duplicates — they would break the linear reorder
@@ -79,8 +78,7 @@ func handleReorderRouteMiddlewares(st store.Driver) http.HandlerFunc {
 				continue
 			}
 			if _, dup := seen[mw]; dup {
-				writeBadRequest(w, r, "duplicate middleware id: "+mw)
-				return
+				return rerr.Validation(map[string]string{"order": "duplicate middleware id: " + mw})
 			}
 			seen[mw] = struct{}{}
 			clean = append(clean, mw)
@@ -88,16 +86,13 @@ func handleReorderRouteMiddlewares(st store.Driver) http.HandlerFunc {
 
 		tx, err := st.Begin(r.Context(), store.TxOptions{})
 		if err != nil {
-			writeInternalError(w, r, "begin tx")
-			return
+			return rerr.Wrap(err, "begin tx")
 		}
+		defer func() { _ = tx.Rollback() }()
 
 		existing, err := tx.GetRoute(r.Context(), id)
 		if err != nil {
-			_ = tx.Rollback()
-			writeProblem(w, http.StatusNotFound, errTypeNotFound, "Route not found",
-				"No route with id "+id, r.URL.Path, nil)
-			return
+			return rerr.NotFound("route", id)
 		}
 
 		if existing.GetLabels() == nil {
@@ -114,19 +109,16 @@ func handleReorderRouteMiddlewares(st store.Driver) http.HandlerFunc {
 
 		updated, err := tx.UpdateRoute(r.Context(), existing)
 		if err != nil {
-			_ = tx.Rollback()
-			writeInternalError(w, r, "update route")
-			return
+			return rerr.Wrap(err, "update route")
 		}
 		if err := tx.Commit(); err != nil {
-			writeInternalError(w, r, "commit")
-			return
+			return rerr.Wrap(err, "commit")
 		}
 
 		_ = triggerCaddyReload(r.Context(), "route.middlewares.reorder")
 
 		b := links.NewTenantBuilder(tenant.Slug)
-		writeJSON(w, http.StatusOK, map[string]any{
+		return rerr.JSON(w, map[string]any{
 			"id":            updated.GetId(),
 			"order":         clean,
 			"middlewareIds": clean,
