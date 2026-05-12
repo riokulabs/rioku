@@ -9,6 +9,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/riokulabs/rioku/internal/rerr"
 	"github.com/riokulabs/rioku/internal/store"
 )
 
@@ -47,8 +48,8 @@ func TestWidgetQuery_invalid_json_returns_400(t *testing.T) {
 
 	rec := httptest.NewRecorder()
 	mux.ServeHTTP(rec, req)
-	if rec.Code != http.StatusBadRequest {
-		t.Errorf("status = %d, want 400", rec.Code)
+	if rec.Code != http.StatusUnprocessableEntity {
+		t.Errorf("status = %d, want 422", rec.Code)
 	}
 }
 
@@ -62,8 +63,8 @@ func TestWidgetQuery_unknown_type_returns_400(t *testing.T) {
 		map[string]any{"type": "wat", "expr": "up"})
 	rec := httptest.NewRecorder()
 	mux.ServeHTTP(rec, req)
-	if rec.Code != http.StatusBadRequest {
-		t.Errorf("status = %d, want 400 for unknown query type", rec.Code)
+	if rec.Code != http.StatusUnprocessableEntity {
+		t.Errorf("status = %d, want 422 for unknown query type", rec.Code)
 	}
 }
 
@@ -77,8 +78,8 @@ func TestWidgetQuery_instant_empty_expr_returns_400(t *testing.T) {
 		map[string]any{"type": "instant", "expr": ""})
 	rec := httptest.NewRecorder()
 	mux.ServeHTTP(rec, req)
-	if rec.Code != http.StatusBadRequest {
-		t.Errorf("status = %d, want 400", rec.Code)
+	if rec.Code != http.StatusUnprocessableEntity {
+		t.Errorf("status = %d, want 422", rec.Code)
 	}
 }
 
@@ -92,8 +93,8 @@ func TestWidgetQuery_series_empty_match_returns_400(t *testing.T) {
 		map[string]any{"type": "series", "match": []string{}})
 	rec := httptest.NewRecorder()
 	mux.ServeHTTP(rec, req)
-	if rec.Code != http.StatusBadRequest {
-		t.Errorf("status = %d, want 400", rec.Code)
+	if rec.Code != http.StatusUnprocessableEntity {
+		t.Errorf("status = %d, want 422", rec.Code)
 	}
 }
 
@@ -208,8 +209,8 @@ func TestWidgetQuery_rejects_bypass_attempts(t *testing.T) {
 			req := authedTenantRequest(t, drv, http.MethodPost, "/api/v1/t/default/widgets/query", "default", tc.body)
 			rec := httptest.NewRecorder()
 			mux.ServeHTTP(rec, req)
-			if rec.Code != http.StatusBadRequest {
-				t.Errorf("status = %d, want 400 (body=%v)", rec.Code, rec.Body.String())
+			if rec.Code != http.StatusUnprocessableEntity {
+				t.Errorf("status = %d, want 422 (body=%v)", rec.Code, rec.Body.String())
 			}
 			ct := rec.Header().Get("Content-Type")
 			if !strings.Contains(ct, "problem+json") {
@@ -362,7 +363,7 @@ func TestWidgetQuery_rate_limit(t *testing.T) {
 	}
 	mux := http.NewServeMux()
 	mux.Handle("POST /api/v1/t/{tenant}/widgets/query",
-		RequirePermission("dashboard:read")(http.HandlerFunc(handleWidgetQuery(drv, limiter))))
+		RequirePermission("dashboard:read")(rerr.H(handleWidgetQuery(drv, limiter))))
 
 	statuses := make([]int, 0, 3)
 	for i := 0; i < 3; i++ {

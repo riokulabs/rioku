@@ -86,8 +86,8 @@ func TestOpaqueHandles_validation_400_on_empty_value(t *testing.T) {
 		map[string]string{"value": ""})
 	rec := httptest.NewRecorder()
 	mux.ServeHTTP(rec, req)
-	if rec.Code != http.StatusBadRequest {
-		t.Errorf("status = %d, want 400", rec.Code)
+	if rec.Code != http.StatusUnprocessableEntity {
+		t.Errorf("status = %d, want 422", rec.Code)
 	}
 }
 

@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/riokulabs/rioku/internal/observability"
+	"github.com/riokulabs/rioku/internal/rerr"
 )
 
 // TestObservabilityRoutes_RequiresAuth confirms RegisterObservability
@@ -38,7 +39,7 @@ func TestObservabilityRoutes_NilRegistry(t *testing.T) {
 	// this test exercises the nil-registry path; the auth wiring is
 	// covered by TestObservabilityRoutes_RequiresAuth above.
 	mux.Handle("GET /api/v1/observability/jwks",
-		http.HandlerFunc(handleJWKSObservability(nil)))
+		rerr.H(handleJWKSObservability(nil)))
 	srv := httptest.NewServer(mux)
 	defer srv.Close()
 
@@ -74,7 +75,7 @@ func TestObservabilityRoutes_ReadsRegistry(t *testing.T) {
 
 	mux := http.NewServeMux()
 	mux.Handle("GET /api/v1/observability/jwks",
-		http.HandlerFunc(handleJWKSObservability(reg)))
+		rerr.H(handleJWKSObservability(reg)))
 	srv := httptest.NewServer(mux)
 	defer srv.Close()
 

@@ -121,7 +121,7 @@ func TestSettingsTLS_ManualUploadMalformedPEM(t *testing.T) {
 		"/api/v1/t/default/settings/tls/manual", "default",
 		map[string]any{"cert_pem": "not a pem", "key_pem": "also not pem"}))
 
-	if rec.Code != http.StatusBadRequest {
+	if rec.Code != http.StatusUnprocessableEntity {
 		t.Errorf("status = %d, want 400", rec.Code)
 	}
 }
@@ -141,7 +141,7 @@ func TestSettingsTLS_ManualUploadMismatchedKey(t *testing.T) {
 		"/api/v1/t/default/settings/tls/manual", "default",
 		map[string]any{"cert_pem": certPEM, "key_pem": otherKey}))
 
-	if rec.Code != http.StatusBadRequest {
+	if rec.Code != http.StatusUnprocessableEntity {
 		t.Errorf("status = %d, want 400", rec.Code)
 	}
 }

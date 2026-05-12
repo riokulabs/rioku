@@ -185,8 +185,8 @@ func TestPromQLQuery_rejects_bypass(t *testing.T) {
 	rec := httptest.NewRecorder()
 	mux.ServeHTTP(rec, req)
 
-	if rec.Code != http.StatusBadRequest {
-		t.Errorf("status = %d, want 400 for bypass query", rec.Code)
+	if rec.Code != http.StatusUnprocessableEntity {
+		t.Errorf("status = %d, want 422 for bypass query", rec.Code)
 	}
 }
 
@@ -310,7 +310,7 @@ func TestPromQLQuery_rejects_empty_query(t *testing.T) {
 	rec := httptest.NewRecorder()
 	mux.ServeHTTP(rec, req)
 
-	if rec.Code != http.StatusBadRequest {
-		t.Errorf("status = %d, want 400 for empty query", rec.Code)
+	if rec.Code != http.StatusUnprocessableEntity {
+		t.Errorf("status = %d, want 422 for empty query", rec.Code)
 	}
 }

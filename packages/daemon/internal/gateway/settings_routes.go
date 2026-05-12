@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/riokulabs/rioku/internal/config"
+	"github.com/riokulabs/rioku/internal/rerr"
 	"github.com/riokulabs/rioku/internal/store"
 	"github.com/riokulabs/rioku/internal/version"
 )
@@ -18,23 +19,23 @@ import (
 // adopted the runtime-settings wrapper yet — in that case PATCH endpoints
 // are not registered and only the GETs are exposed.
 func RegisterSettingsRoutes(mux *http.ServeMux, cfg *config.Config, st store.Driver, startedAt time.Time, rs *RuntimeSettings) {
-	mux.Handle("GET /api/v1/settings/general", RequirePermission("settings:read")(http.HandlerFunc(handleSettingsGeneral(cfg, startedAt))))
-	mux.Handle("GET /api/v1/settings/network", RequirePermission("settings:read")(http.HandlerFunc(handleSettingsNetwork(cfg))))
-	mux.Handle("GET /api/v1/settings/store", RequirePermission("settings:read")(http.HandlerFunc(handleSettingsStore(cfg, st))))
-	mux.Handle("GET /api/v1/settings/auth", RequirePermission("settings:read")(http.HandlerFunc(handleSettingsAuth(cfg))))
-	mux.Handle("GET /api/v1/settings/traces", RequirePermission("settings:read")(http.HandlerFunc(handleSettingsTraces(cfg))))
-	mux.Handle("GET /api/v1/settings/pki", RequirePermission("settings:read")(http.HandlerFunc(handleSettingsPKI(cfg))))
-	mux.Handle("GET /api/v1/settings/caddy", RequirePermission("settings:read")(http.HandlerFunc(handleSettingsCaddy(cfg))))
+	mux.Handle("GET /api/v1/settings/general", RequirePermission("settings:read")(rerr.H(handleSettingsGeneral(cfg, startedAt))))
+	mux.Handle("GET /api/v1/settings/network", RequirePermission("settings:read")(rerr.H(handleSettingsNetwork(cfg))))
+	mux.Handle("GET /api/v1/settings/store", RequirePermission("settings:read")(rerr.H(handleSettingsStore(cfg, st))))
+	mux.Handle("GET /api/v1/settings/auth", RequirePermission("settings:read")(rerr.H(handleSettingsAuth(cfg))))
+	mux.Handle("GET /api/v1/settings/traces", RequirePermission("settings:read")(rerr.H(handleSettingsTraces(cfg))))
+	mux.Handle("GET /api/v1/settings/pki", RequirePermission("settings:read")(rerr.H(handleSettingsPKI(cfg))))
+	mux.Handle("GET /api/v1/settings/caddy", RequirePermission("settings:read")(rerr.H(handleSettingsCaddy(cfg))))
 
 	if rs != nil {
-		mux.Handle("PATCH /api/v1/settings/general", RequirePermission("settings:write")(http.HandlerFunc(handlePatchGeneral(rs))))
-		mux.Handle("PATCH /api/v1/settings/auth", RequirePermission("settings:write")(http.HandlerFunc(handlePatchAuth(rs))))
-		mux.Handle("PATCH /api/v1/settings/traces", RequirePermission("settings:write")(http.HandlerFunc(handlePatchTraces(rs))))
+		mux.Handle("PATCH /api/v1/settings/general", RequirePermission("settings:write")(rerr.H(handlePatchGeneral(rs))))
+		mux.Handle("PATCH /api/v1/settings/auth", RequirePermission("settings:write")(rerr.H(handlePatchAuth(rs))))
+		mux.Handle("PATCH /api/v1/settings/traces", RequirePermission("settings:write")(rerr.H(handlePatchTraces(rs))))
 	}
 }
 
-func handleSettingsGeneral(cfg *config.Config, startedAt time.Time) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
+func handleSettingsGeneral(cfg *config.Config, startedAt time.Time) rerr.Handler {
+	return func(w http.ResponseWriter, r *http.Request) error {
 		resp := map[string]interface{}{
 			"logLevel":      cfg.LogLevel,
 			"dataDir":       cfg.DataDir,
@@ -42,31 +43,28 @@ func handleSettingsGeneral(cfg *config.Config, startedAt time.Time) http.Handler
 			"goVersion":     runtime.Version(),
 			"uptimeSeconds": int(time.Since(startedAt).Seconds()),
 		}
-		w.Header().Set("Content-Type", "application/json")
-		_ = json.NewEncoder(w).Encode(resp)
+		return rerr.JSON(w, resp)
 	}
 }
 
-func handleSettingsNetwork(cfg *config.Config) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
+func handleSettingsNetwork(cfg *config.Config) rerr.Handler {
+	return func(w http.ResponseWriter, r *http.Request) error {
 		resp := map[string]interface{}{
 			"grpcAddress": cfg.Listen.GRPC,
 			"restAddress": cfg.Listen.REST,
 			"adminDomain": cfg.Listen.AdminDomain,
 		}
-		w.Header().Set("Content-Type", "application/json")
-		_ = json.NewEncoder(w).Encode(resp)
+		return rerr.JSON(w, resp)
 	}
 }
 
-func handleSettingsStore(cfg *config.Config, st store.Driver) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
+func handleSettingsStore(cfg *config.Config, st store.Driver) rerr.Handler {
+	return func(w http.ResponseWriter, r *http.Request) error {
 		ctx := r.Context()
 		health := st.Health(ctx)
 		migVer, err := st.CurrentVersion(ctx)
 		if err != nil {
-			writeInternalError(w, r, "store current version")
-			return
+			return rerr.Wrap(err, "store current version")
 		}
 
 		resp := map[string]interface{}{
@@ -75,13 +73,12 @@ func handleSettingsStore(cfg *config.Config, st store.Driver) http.HandlerFunc {
 			"healthy":          health.OK,
 			"migrationVersion": migVer,
 		}
-		w.Header().Set("Content-Type", "application/json")
-		_ = json.NewEncoder(w).Encode(resp)
+		return rerr.JSON(w, resp)
 	}
 }
 
-func handleSettingsAuth(cfg *config.Config) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
+func handleSettingsAuth(cfg *config.Config) rerr.Handler {
+	return func(w http.ResponseWriter, r *http.Request) error {
 		resp := map[string]interface{}{
 			"passwordPolicy": map[string]interface{}{
 				"minLength":        cfg.Auth.PasswordPolicy.MinLength,
@@ -101,13 +98,12 @@ func handleSettingsAuth(cfg *config.Config) http.HandlerFunc {
 				"burstSize":         cfg.Auth.RateLimit.BurstSize,
 			},
 		}
-		w.Header().Set("Content-Type", "application/json")
-		_ = json.NewEncoder(w).Encode(resp)
+		return rerr.JSON(w, resp)
 	}
 }
 
-func handleSettingsTraces(cfg *config.Config) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
+func handleSettingsTraces(cfg *config.Config) rerr.Handler {
+	return func(w http.ResponseWriter, r *http.Request) error {
 		resp := map[string]interface{}{
 			"store": cfg.Traces.Store,
 			"retention": map[string]interface{}{
@@ -119,13 +115,12 @@ func handleSettingsTraces(cfg *config.Config) http.HandlerFunc {
 		if cfg.Traces.Sampling.Rate != nil {
 			resp["samplingRate"] = *cfg.Traces.Sampling.Rate
 		}
-		w.Header().Set("Content-Type", "application/json")
-		_ = json.NewEncoder(w).Encode(resp)
+		return rerr.JSON(w, resp)
 	}
 }
 
-func handleSettingsPKI(cfg *config.Config) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
+func handleSettingsPKI(cfg *config.Config) rerr.Handler {
+	return func(w http.ResponseWriter, r *http.Request) error {
 		resp := map[string]interface{}{
 			"keyAlgorithm":      cfg.PKI.CA.KeyAlgorithm,
 			"passphraseSource":  cfg.PKI.CA.KeyPassphraseSource,
@@ -133,20 +128,18 @@ func handleSettingsPKI(cfg *config.Config) http.HandlerFunc {
 			"nodeValidity":      cfg.PKI.Node.Validity.String(),
 			"rotationThreshold": cfg.PKI.Node.RotationThreshold.String(),
 		}
-		w.Header().Set("Content-Type", "application/json")
-		_ = json.NewEncoder(w).Encode(resp)
+		return rerr.JSON(w, resp)
 	}
 }
 
-func handleSettingsCaddy(cfg *config.Config) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
+func handleSettingsCaddy(cfg *config.Config) rerr.Handler {
+	return func(w http.ResponseWriter, r *http.Request) error {
 		resp := map[string]interface{}{
 			"binary":       cfg.Caddy.Binary,
 			"adminAddr":    cfg.Caddy.AdminAddr,
 			"trafficAddrs": cfg.Caddy.TrafficAddrs,
 		}
-		w.Header().Set("Content-Type", "application/json")
-		_ = json.NewEncoder(w).Encode(resp)
+		return rerr.JSON(w, resp)
 	}
 }
 
@@ -166,20 +159,18 @@ type generalPatch struct {
 	LogLevel *string `json:"logLevel,omitempty"`
 }
 
-func handlePatchGeneral(rs *RuntimeSettings) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
+func handlePatchGeneral(rs *RuntimeSettings) rerr.Handler {
+	return func(w http.ResponseWriter, r *http.Request) error {
 		var p generalPatch
 		if err := json.NewDecoder(r.Body).Decode(&p); err != nil {
-			writeBadRequest(w, r, "invalid JSON body")
-			return
+			return rerr.Validation(map[string]string{"body": "invalid JSON body"})
 		}
 		if p.LogLevel != nil {
 			if err := rs.SetLogLevel(*p.LogLevel); err != nil {
-				writeBadRequest(w, r, err.Error())
-				return
+				return rerr.Validation(map[string]string{"logLevel": err.Error()})
 			}
 		}
-		writeJSON(w, http.StatusOK, map[string]any{"logLevel": rs.GetLogLevel()})
+		return rerr.JSON(w, map[string]any{"logLevel": rs.GetLogLevel()})
 	}
 }
 
@@ -191,33 +182,29 @@ type authPatch struct {
 	RateLimit      *RateLimitPatch      `json:"rateLimit,omitempty"`
 }
 
-func handlePatchAuth(rs *RuntimeSettings) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
+func handlePatchAuth(rs *RuntimeSettings) rerr.Handler {
+	return func(w http.ResponseWriter, r *http.Request) error {
 		var p authPatch
 		if err := json.NewDecoder(r.Body).Decode(&p); err != nil {
-			writeBadRequest(w, r, "invalid JSON body")
-			return
+			return rerr.Validation(map[string]string{"body": "invalid JSON body"})
 		}
 		if p.PasswordPolicy != nil {
 			if err := rs.ApplyPasswordPolicyPatch(*p.PasswordPolicy); err != nil {
-				writeBadRequest(w, r, err.Error())
-				return
+				return rerr.Validation(map[string]string{"passwordPolicy": err.Error()})
 			}
 		}
 		if p.Lockout != nil {
 			if err := rs.ApplyLockoutPatch(*p.Lockout); err != nil {
-				writeBadRequest(w, r, err.Error())
-				return
+				return rerr.Validation(map[string]string{"lockout": err.Error()})
 			}
 		}
 		if p.RateLimit != nil {
 			if err := rs.ApplyRateLimitPatch(*p.RateLimit); err != nil {
-				writeBadRequest(w, r, err.Error())
-				return
+				return rerr.Validation(map[string]string{"rateLimit": err.Error()})
 			}
 		}
 		// Echo the updated auth block.
-		handleSettingsAuth(rs.Config())(w, r)
+		return handleSettingsAuth(rs.Config())(w, r)
 	}
 }
 
@@ -226,21 +213,19 @@ type tracesPatch struct {
 	SamplingRate *float64 `json:"samplingRate,omitempty"`
 }
 
-func handlePatchTraces(rs *RuntimeSettings) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
+func handlePatchTraces(rs *RuntimeSettings) rerr.Handler {
+	return func(w http.ResponseWriter, r *http.Request) error {
 		var p tracesPatch
 		if err := json.NewDecoder(r.Body).Decode(&p); err != nil {
-			writeBadRequest(w, r, "invalid JSON body")
-			return
+			return rerr.Validation(map[string]string{"body": "invalid JSON body"})
 		}
 		if p.SamplingRate != nil {
 			if err := rs.ApplyTracesSamplingPatch(TracesSamplingPatch{Rate: p.SamplingRate}); err != nil {
-				writeBadRequest(w, r, err.Error())
-				return
+				return rerr.Validation(map[string]string{"samplingRate": err.Error()})
 			}
 		}
 		// Echo the updated traces block.
-		handleSettingsTraces(rs.Config())(w, r)
+		return handleSettingsTraces(rs.Config())(w, r)
 	}
 }
 

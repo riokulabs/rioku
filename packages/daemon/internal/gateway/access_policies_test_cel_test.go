@@ -182,8 +182,8 @@ func TestHandleTestAccessPolicyCEL_BadRequest(t *testing.T) {
 		[]byte("not json at all"))
 	rec := httptest.NewRecorder()
 	mux.ServeHTTP(rec, req)
-	if rec.Code != http.StatusBadRequest {
-		t.Fatalf("expected 400, got %d body=%s", rec.Code, rec.Body.String())
+	if rec.Code != http.StatusUnprocessableEntity {
+		t.Fatalf("expected 422, got %d body=%s", rec.Code, rec.Body.String())
 	}
 }
 

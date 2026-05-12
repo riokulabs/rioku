@@ -90,8 +90,8 @@ func TestSettingsPKI_RevocationCreateValidation(t *testing.T) {
 		rec := httptest.NewRecorder()
 		mux.ServeHTTP(rec, authedTenantRequest(t, drv, http.MethodPost,
 			"/api/v1/t/default/settings/pki/revocations", "default", body))
-		if rec.Code != http.StatusBadRequest {
-			t.Errorf("case %d (%v): status = %d, want 400", i, body, rec.Code)
+		if rec.Code != http.StatusUnprocessableEntity {
+			t.Errorf("case %d (%v): status = %d, want 422", i, body, rec.Code)
 		}
 	}
 }
