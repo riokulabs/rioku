@@ -153,6 +153,11 @@ contrib-docs-dev:
 contrib-docs-build:
 	cd contrib-docs && $(WEB_PATH) npm run build
 
+## docs: Regenerate OpenAPI bundle then build the contributor docs site
+docs: openapi
+	cd contrib-docs && $(WEB_PATH) npm install --include=dev
+	cd contrib-docs && $(WEB_PATH) npm run build
+
 ## help: Show this help message
 help:
 	@grep -E '^## ' $(MAKEFILE_LIST) | sed 's/## //' | column -t -s ':'

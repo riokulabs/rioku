@@ -1,6 +1,7 @@
 import {themes as prismThemes} from 'prism-react-renderer';
 import type {Config} from '@docusaurus/types';
 import type * as Preset from '@docusaurus/preset-classic';
+import type * as Redocusaurus from 'redocusaurus';
 
 const config: Config = {
   title: 'Rioku Contributors',
@@ -48,6 +49,25 @@ const config: Config = {
           customCss: './src/css/custom.scss',
         },
       } satisfies Preset.Options,
+    ],
+    [
+      'redocusaurus',
+      {
+        specs: [
+          {
+            id: 'rioku-api',
+            spec: '../packages/proto/gen/openapi/rioku/v1/api.full.json',
+            route: '/docs/apis/reference',
+          },
+        ],
+        theme: {
+          primaryColor: '#6366f1',
+          options: {
+            disableSearch: false,
+            hideDownloadButton: false,
+          },
+        },
+      } satisfies Redocusaurus.PresetEntry,
     ],
   ],
 
