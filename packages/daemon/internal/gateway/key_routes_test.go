@@ -14,6 +14,7 @@ import (
 
 	"github.com/riokulabs/rioku/internal/auth"
 	"github.com/riokulabs/rioku/internal/config"
+	"github.com/riokulabs/rioku/internal/rerr"
 	"github.com/riokulabs/rioku/internal/store"
 	_ "github.com/riokulabs/rioku/internal/store/sqlite"
 )
@@ -604,13 +605,12 @@ func TestKeyRoutes_Unauthenticated(t *testing.T) {
 	}
 }
 
-func TestKeyRoutes_WriteInternalError(t *testing.T) {
-	// Test writeInternalError directly to cover that utility function.
+func TestKeyRoutes_WriteRerr(t *testing.T) {
+	// Test writeRerr (the successor to writeInternalError) directly.
 	rec := httptest.NewRecorder()
 	req := httptest.NewRequest(http.MethodGet, "/api/v1/test", nil)
-	req.Header.Set("X-Request-ID", "test-req-123")
 
-	writeInternalError(rec, req, "test context")
+	writeRerr(rec, req, rerr.Wrap(nil, "test context"))
 
 	if rec.Code != http.StatusInternalServerError {
 		t.Fatalf("expected 500, got %d", rec.Code)
@@ -627,9 +627,6 @@ func TestKeyRoutes_WriteInternalError(t *testing.T) {
 	}
 	if pd.Status != 500 {
 		t.Errorf("problem status = %d, want 500", pd.Status)
-	}
-	if !strings.Contains(pd.Detail, "test-req-123") {
-		t.Errorf("detail = %q, want it to contain request ID 'test-req-123'", pd.Detail)
 	}
 	if pd.Instance != "/api/v1/test" {
 		t.Errorf("instance = %q, want /api/v1/test", pd.Instance)

@@ -8,6 +8,7 @@ import (
 	"net/http/cookiejar"
 	"net/http/httptest"
 	"path/filepath"
+	"strings"
 	"testing"
 	"time"
 
@@ -780,8 +781,8 @@ func TestDeleteUser_CannotLogin(t *testing.T) {
 	if err := json.NewDecoder(loginResp.Body).Decode(&pd); err != nil {
 		t.Fatalf("decode problem detail: %v", err)
 	}
-	if pd.Title != "Account deleted" {
-		t.Errorf("problem title = %q, want %q", pd.Title, "Account deleted")
+	if !strings.Contains(pd.Detail, "deleted") {
+		t.Errorf("problem detail = %q, want it to contain 'deleted'", pd.Detail)
 	}
 }
 

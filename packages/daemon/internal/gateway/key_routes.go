@@ -2,7 +2,6 @@ package gateway
 
 import (
 	"encoding/json"
-	"fmt"
 	"net/http"
 	"strings"
 	"time"
@@ -356,22 +355,6 @@ func handleKeyUsage(st store.Driver) rerr.Handler {
 	}
 }
 
-// writeInternalError writes a 500 ProblemDetail. Retained for callers in
-// tenant_middleware.go that cannot use the rerr.Handler pattern.
-func writeInternalError(w http.ResponseWriter, r *http.Request, context string) {
-	requestID := r.Header.Get("X-Request-ID")
-	w.Header().Set("Content-Type", "application/problem+json")
-	w.WriteHeader(http.StatusInternalServerError)
-	_ = json.NewEncoder(w).Encode(ProblemDetail{
-		Type:     errTypeInternal,
-		Title:    "Internal server error",
-		Status:   500,
-		Detail:   "An unexpected error occurred. Reference: " + requestID,
-		Instance: r.URL.Path,
-	})
-	_ = context // informational; not exposed in response
-}
-
 // keyDetailDTO is the wire shape returned for an API key. Includes
 // usage telemetry so the admin panel's keys page can render the row
 // without a follow-up /usage call.
@@ -604,11 +587,3 @@ func tenantBuilderOrRoot(tenant *store.Tenant) *links.Builder {
 	return links.NewRootBuilder()
 }
 
-// writeBadRequest is retained for callers in tenant_middleware.go.
-// New handlers must use rerr.Validation instead.
-func writeBadRequest(w http.ResponseWriter, r *http.Request, detail string) {
-	writeProblem(w, http.StatusBadRequest, errTypeValidation, "Bad request", detail, r.URL.Path, nil)
-}
-
-// fmt is used by some inline error format strings; keep import satisfied.
-var _ = fmt.Sprintf

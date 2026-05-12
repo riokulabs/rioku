@@ -94,6 +94,13 @@ func renderError(w http.ResponseWriter, r *http.Request, re *Error) {
 	_ = json.NewEncoder(w).Encode(problem)
 }
 
+// CodeHTTP maps a Code to an HTTP status, RFC 7807 type URI, and title.
+// Exported so middleware that cannot use H() can still render consistent
+// problem details.
+func CodeHTTP(c Code) (status int, typ, title string) {
+	return codeToHTTP(c)
+}
+
 // codeToHTTP maps a Code to an HTTP status, RFC 7807 type URI, and title.
 func codeToHTTP(c Code) (status int, typ, title string) {
 	switch c {

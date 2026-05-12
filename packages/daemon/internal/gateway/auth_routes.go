@@ -676,28 +676,6 @@ func handleUpdateProfile(sm *auth.SessionManager, st store.Driver) rerr.Handler 
 }
 
 // ---------------------------------------------------------------------------
-// Helpers — retained for tenant_middleware.go callers.
-// ---------------------------------------------------------------------------
-
-// writeProblem writes a ProblemDetail response.
-// Retained: tenant_middleware.go still uses this directly.
-func writeProblem(w http.ResponseWriter, status int, errType, title, detail, instance string, errs []ValidationError) {
-	w.Header().Set("Content-Type", "application/problem+json")
-	if status == http.StatusUnauthorized {
-		w.Header().Set("WWW-Authenticate", "Bearer")
-	}
-	w.WriteHeader(status)
-	_ = json.NewEncoder(w).Encode(ProblemDetail{
-		Type:     errType,
-		Title:    title,
-		Status:   status,
-		Detail:   detail,
-		Instance: instance,
-		Errors:   errs,
-	})
-}
-
-// ---------------------------------------------------------------------------
 // Session listing and revocation
 // ---------------------------------------------------------------------------
 

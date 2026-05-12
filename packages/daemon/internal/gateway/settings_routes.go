@@ -229,9 +229,3 @@ func handlePatchTraces(rs *RuntimeSettings) rerr.Handler {
 	}
 }
 
-// writeJSON is a tiny helper to write a JSON response with a status code.
-func writeJSON(w http.ResponseWriter, status int, payload any) {
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(status)
-	_ = json.NewEncoder(w).Encode(payload)
-}
