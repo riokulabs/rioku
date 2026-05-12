@@ -512,11 +512,48 @@ export function useRetentionConfig(tenantId: string): AuditRetentionConfig | und
     {
       queryKey: ['audit-retention', tenantId] as const,
       queryFn: async ({ signal }) => {
-        const wrapped = await customFetch<{ data: AuditRetentionConfig }>(
+        // The daemon's GET /audit/retention emits a flat shape
+        // (`retentionDaysRead`, `retentionDaysWrite`, …, `autoExport`,
+        // `autoExportFormat`, `updatedAt`) per the OpenAPI contract,
+        // but the SPA's `AuditRetentionConfig` is the legacy nested
+        // shape (`retention_days.read`, `auto_export`, …). Adapt
+        // here so consumers see the legacy shape and the retention
+        // form doesn't crash on `cfg.retention_days.read` when the
+        // daemon doesn't ship a `retention_days` object.
+        interface DaemonRetentionConfig {
+          tenantId?: string;
+          retentionDaysRead?: number;
+          retentionDaysReadSensitive?: number;
+          retentionDaysWrite?: number;
+          retentionDaysDestructive?: number;
+          autoExport?: AuditRetentionConfig['auto_export'] | 'on' | 'off';
+          autoExportFormat?: AuditRetentionConfig['auto_export_format'];
+          updatedAt?: string;
+        }
+        const wrapped = await customFetch<{ data: DaemonRetentionConfig }>(
           `/t/${tenantId}/audit/retention`,
           { method: 'GET', signal },
         );
-        return wrapped.data;
+        const raw = wrapped.data;
+        // `autoExport` projects daemon's `on`/`off` to legacy cadence.
+        const cadence: AuditRetentionConfig['auto_export'] =
+          raw.autoExport === 'on'
+            ? 'daily'
+            : raw.autoExport === 'off'
+              ? 'never'
+              : (raw.autoExport ?? 'never');
+        return {
+          tenant_id: raw.tenantId ?? tenantId,
+          retention_days: {
+            read: raw.retentionDaysRead ?? 30,
+            'read-sensitive': raw.retentionDaysReadSensitive ?? 30,
+            write: raw.retentionDaysWrite ?? 90,
+            destructive: raw.retentionDaysDestructive ?? 365,
+          },
+          auto_export: cadence,
+          auto_export_format: raw.autoExportFormat ?? 'jsonl',
+          updated_at: raw.updatedAt ?? '',
+        };
       },
       enabled: networkEnabled && tenantId.length > 0,
       staleTime: 30_000,

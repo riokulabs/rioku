@@ -46,9 +46,14 @@ test.describe('@isolated stage-2 settings sub-routes', () => {
       timeout: 10_000,
     });
 
-    // Open the hard-reset modal.
+    // Open the hard-reset modal. The Mantine Modal root has the
+    // `danger-real-reset-modal` testid but Mantine wraps it in a
+    // positioned overlay container with `display: contents` semantics
+    // that Playwright's visibility heuristic reads as hidden — assert
+    // on the step-1 alert (which IS in the visible flow) as the
+    // proxy "modal mounted" signal.
     await authedPage.getByTestId('danger-real-reset-open').click();
-    await expect(authedPage.getByTestId('danger-real-reset-modal')).toBeVisible();
+    await expect(authedPage.getByTestId('danger-real-reset-step-1')).toBeVisible();
 
     const submit = authedPage.getByTestId('danger-real-reset-submit');
     await expect(submit).toBeDisabled();
@@ -63,6 +68,6 @@ test.describe('@isolated stage-2 settings sub-routes', () => {
 
     // Cancel without submitting — destructive action NOT performed.
     await authedPage.getByTestId('danger-real-reset-cancel').click();
-    await expect(authedPage.getByTestId('danger-real-reset-modal')).toBeHidden();
+    await expect(authedPage.getByTestId('danger-real-reset-step-1')).toBeHidden();
   });
 });

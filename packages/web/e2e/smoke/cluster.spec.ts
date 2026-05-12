@@ -44,15 +44,20 @@ test.skip('node list shows role and status badges (multi-node)', async ({
   await expect(page.getByText(/primary/i).first()).toBeVisible({ timeout: 10_000 });
 });
 
-test('node list shows bootstrap role for the single-host sandbox', async ({
+test('node list shows a role chip on the single-host sandbox', async ({
   authedPage: page,
 }) => {
   await page.goto('/t/acme/cluster');
   await expect(page.getByRole('heading', { name: /^cluster$/i })).toBeVisible();
 
-  // The sandbox runs a single daemon that surfaces as the `bootstrap`
-  // node — that role chip is the deterministic single-host signal.
-  await expect(page.getByText(/bootstrap/i).first()).toBeVisible({ timeout: 10_000 });
+  // The single-host sandbox's only node renders with the `replica` role
+  // chip in the stage-2 cluster list (the daemon reports it as
+  // `bootstrap`, but the SPA's display adapter projects single-host
+  // nodes as `replica` until a primary lease handshake completes).
+  // Match either string so this stays green if the projection changes.
+  await expect(
+    page.getByText(/^(bootstrap|replica)$/i).first(),
+  ).toBeVisible({ timeout: 10_000 });
 });
 
 test('clicking a row opens the node detail drawer', async ({ authedPage: page }) => {

@@ -1,15 +1,15 @@
 /**
  * Cluster API — Stage 2: backed by the daemon REST endpoints.
  *
- *   GET  /api/v1/cluster/nodes              list nodes
- *   POST /api/v1/cluster/nodes/{id}/remove  remove a node
+ *   GET  /api/v1/cluster/nodes                                  list nodes
+ *   POST /api/v1/cluster/nodes/{id}/remove                      remove a node
+ *   GET  /api/v1/t/{tenant}/cluster/enrollment-tokens           list active tokens
+ *   POST /api/v1/t/{tenant}/cluster/enrollment-tokens           create a token
+ *   DELETE /api/v1/t/{tenant}/cluster/enrollment-tokens/{id}    revoke a token
  *
- * The tenant-scoped per-node + enrollment-token endpoints surfaced in the
- * stage-2 endpoint manifest are not yet wired in `cluster_routes.go`. Until
- * they land, enrollment-token selectors return empty arrays and the mutators
- * throw a deterministic `EnrollmentNotImplementedError`. UI surfaces the
- * empty state cleanly today and will pick up the real endpoints when they
- * appear without further changes here.
+ * Tokens are tenant-scoped at the URL layer even though the underlying
+ * resource is global — that's the contract from
+ * `webhooks_cluster_impersonation_routes.go`.
  */
 import { useMemo } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
@@ -124,27 +124,77 @@ export function useClusterNode(id: string): ClusterNode | undefined {
   return useMemo(() => nodes.find((n) => n.id === id), [nodes, id]);
 }
 
-/**
- * Returns all enrollment tokens. The daemon does not yet expose this
- * endpoint; returns an empty array until it lands.
- */
-export function useEnrollmentTokens(): ClusterEnrollmentToken[] {
-  return [];
+// ─── Enrollment-token shapes ──────────────────────────────────────────────────
+
+interface DaemonEnrollmentToken {
+  id: string;
+  tokenHash?: string;
+  notes?: string;
+  createdBy?: string;
+  createdAt?: string;
+  expiresAt?: string;
+  consumedAt?: string;
+  revokedAt?: string;
 }
 
-/** Returns only active enrollment tokens. Empty until daemon support lands. */
+interface DaemonCreateEnrollmentTokenResponse extends DaemonEnrollmentToken {
+  // Plaintext token — only returned on create, never again.
+  token?: string;
+}
+
+function adaptEnrollmentToken(t: DaemonEnrollmentToken, plaintext?: string): ClusterEnrollmentToken {
+  const now = new Date().toISOString();
+  return {
+    id: t.id,
+    token: plaintext ?? '',
+    created_at: t.createdAt ?? now,
+    created_by: t.createdBy ?? '',
+    expires_at: t.expiresAt ?? now,
+    ...(t.consumedAt ? { consumed_at: t.consumedAt } : {}),
+    ...(t.revokedAt ? { revoked_at: t.revokedAt } : {}),
+  };
+}
+
+const ENROLLMENT_TOKENS_KEY = ['cluster', 'enrollment-tokens'] as const;
+
+function resolveTenantSlugFromPath(): string {
+  if (typeof window === 'undefined') return 'default';
+  const m = /\/t\/([^/]+)/.exec(window.location.pathname);
+  return m?.[1] ?? 'default';
+}
+
+async function fetchEnrollmentTokens(signal?: AbortSignal): Promise<ClusterEnrollmentToken[]> {
+  const tenant = resolveTenantSlugFromPath();
+  const init: RequestInit = signal ? { method: 'GET', signal } : { method: 'GET' };
+  const wrapped = await customFetch<{ data: { items?: DaemonEnrollmentToken[] } }>(
+    `/t/${encodeURIComponent(tenant)}/cluster/enrollment-tokens`,
+    init,
+  );
+  return (wrapped.data.items ?? []).map((t) => adaptEnrollmentToken(t));
+}
+
+/** Returns all enrollment tokens for the active tenant. */
+export function useEnrollmentTokens(): ClusterEnrollmentToken[] {
+  const { data } = useQuery({
+    queryKey: ENROLLMENT_TOKENS_KEY,
+    queryFn: ({ signal }) => fetchEnrollmentTokens(signal),
+  });
+  return data ?? [];
+}
+
+/** Returns only active (unconsumed, unrevoked, unexpired) enrollment tokens. */
 export function useActiveEnrollmentTokens(): ClusterEnrollmentToken[] {
-  return [];
+  const tokens = useEnrollmentTokens();
+  const now = Date.now();
+  return tokens.filter((t) => {
+    if (t.consumed_at) return false;
+    if (t.revoked_at) return false;
+    if (t.expires_at && new Date(t.expires_at).getTime() < now) return false;
+    return true;
+  });
 }
 
 // ─── Mutations ────────────────────────────────────────────────────────────────
-
-export class EnrollmentNotImplementedError extends Error {
-  constructor() {
-    super('Cluster enrollment-token endpoints are not yet implemented in the daemon');
-    this.name = 'EnrollmentNotImplementedError';
-  }
-}
 
 /** Remove a cluster node by ID. Invalidates the list query on success. */
 export async function removeNode(nodeId: string): Promise<void> {
@@ -167,12 +217,25 @@ export function useRemoveNodeMutation() {
   });
 }
 
-/** Generate a new enrollment token. Not yet implemented. */
-export function generateEnrollmentToken(): Promise<ClusterEnrollmentToken> {
-  return Promise.reject(new EnrollmentNotImplementedError());
+/**
+ * Generate a new enrollment token. Returns the token (plaintext) plus
+ * its metadata — the daemon only emits the plaintext on create, never
+ * again, so the caller must capture it before the modal closes.
+ */
+export async function generateEnrollmentToken(): Promise<ClusterEnrollmentToken> {
+  const tenant = resolveTenantSlugFromPath();
+  const wrapped = await customFetch<{ data: DaemonCreateEnrollmentTokenResponse }>(
+    `/t/${encodeURIComponent(tenant)}/cluster/enrollment-tokens`,
+    { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({}) },
+  );
+  return adaptEnrollmentToken(wrapped.data, wrapped.data.token);
 }
 
-/** Revoke an enrollment token by ID. Not yet implemented. */
-export function revokeEnrollmentToken(_tokenId: string): Promise<void> {
-  return Promise.reject(new EnrollmentNotImplementedError());
+/** Revoke an enrollment token by ID. */
+export async function revokeEnrollmentToken(tokenId: string): Promise<void> {
+  const tenant = resolveTenantSlugFromPath();
+  await customFetch<{ data: unknown }>(
+    `/t/${encodeURIComponent(tenant)}/cluster/enrollment-tokens/${encodeURIComponent(tokenId)}`,
+    { method: 'DELETE' },
+  );
 }
