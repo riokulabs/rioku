@@ -1045,9 +1045,20 @@ func TestCompile_ConfiguresTraceLogger(t *testing.T) {
 		t.Errorf("writer.address = %v, want %v", writer["address"], expectedAddr)
 	}
 
+	// PR4 wraps the original json encoder with a "filter" encoder that
+	// renames the trace-id header into a flat "request_id" field, so the
+	// outermost encoder.format is now "filter" with the json encoder
+	// nested under .wrap.
 	encoder := logging["encoder"].(map[string]any)
-	if encoder["format"].(string) != "json" {
-		t.Errorf("encoder.format = %v, want json", encoder["format"])
+	if encoder["format"].(string) != "filter" {
+		t.Errorf("encoder.format = %v, want filter", encoder["format"])
+	}
+	wrap, ok := encoder["wrap"].(map[string]any)
+	if !ok {
+		t.Fatalf("encoder.wrap missing")
+	}
+	if wrap["format"].(string) != "json" {
+		t.Errorf("encoder.wrap.format = %v, want json", wrap["format"])
 	}
 
 	include := logging["include"].([]any)
