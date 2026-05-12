@@ -10,14 +10,14 @@ The plugin host is the TypeScript runtime inside the admin SPA that allows third
 flowchart TD
     subgraph spa["Admin SPA (browser)"]
         subgraph host["Plugin host (packages/web/src/host/)"]
-            Loader["plugin-loader.ts\n(loadPluginFromUrl / loadDevPluginSideload)"]
-            Validator["manifest-validator.ts\n(schema + ABI check)"]
-            Registry["plugin-registry.ts\n(Zustand store)"]
-            Perms["permissions.ts\n(permission registry + role resolver)"]
-            Surfaces["Surface registries\n(zones / routes / sidebar /\nthemes / spotlight / widgets /\nsettings / api-endpoints)"]
+            Loader["plugin-loader.ts<br/>(loadPluginFromUrl / loadDevPluginSideload)"]
+            Validator["manifest-validator.ts<br/>(schema + ABI check)"]
+            Registry["plugin-registry.ts<br/>(Zustand store)"]
+            Perms["permissions.ts<br/>(permission registry + role resolver)"]
+            Surfaces["Surface registries<br/>(zones / routes / sidebar /<br/>themes / spotlight / widgets /<br/>settings / api-endpoints)"]
         end
 
-        Router["TanStack Router\n(routeTree.gen.ts)"]
+        Router["TanStack Router<br/>(routeTree.gen.ts)"]
         UI["Mantine components"]
     end
 
@@ -62,31 +62,32 @@ flowchart TD
 **Load paths:**
 
 | Path | Function | When used |
-|---|---|---|
+| --- | --- | --- |
 | Production | `loadPluginFromUrl(manifestUrl)` | Installed plugins fetched from their hosted manifest URLs |
 | Dev sideload | `loadDevPluginSideload(...)` | Localhost plugins injected via the sideload API; requires dev-mode gate to be active |
-| Sandboxed (stub) | `loadSandboxedPlugin(manifestUrl)` | iframe isolation mode — creates the iframe and logs a postMessage handshake; actual sandbox RPC is not yet implemented |
+| Sandboxed (stub) | `loadSandboxedPlugin(manifestUrl)` | iframe isolation mode; creates the iframe and logs a postMessage handshake. Actual sandbox RPC is not yet implemented. |
 
 **Contribution surfaces a plugin can register:**
 
-- `zones` — named render zones in the SPA shell
-- `routes` — additional TanStack Router routes
-- `sidebar` — sidebar navigation entries
-- `themes` — Mantine theme overrides
-- `spotlight` — command palette entries
-- `widgets` — dashboard widget types
-- `settings` — settings panel pages
-- `apiEndpoints` — additional REST endpoint declarations
-- `permissions` — new permission strings added to the permission registry
+- `zones`: named render zones in the SPA shell
+- `routes`: additional TanStack Router routes
+- `sidebar`: sidebar navigation entries
+- `themes`: Mantine theme overrides
+- `spotlight`: command palette entries
+- `widgets`: dashboard widget types
+- `settings`: settings panel pages
+- `apiEndpoints`: additional REST endpoint declarations
+- `permissions`: new permission strings added to the permission registry
 
 **Unload** calls the unregister function for every tracked contribution, then removes the plugin from the registry. The surface registries are the authoritative rendering stores; the plugin registry is purely accounting.
 
-**Dev-mode gate** — the sideload API is only reachable when the daemon is running with the dev-mode capability enabled. Production deployments reject sideload requests at the REST layer.
+**Dev-mode gate:** the sideload API is only reachable when the daemon is running with the dev-mode capability enabled. Production deployments reject sideload requests at the REST layer.
 
 **Source files:**
-- `packages/web/src/host/plugin-loader.ts` — load, validate, contribute, unload
-- `packages/web/src/host/manifest-validator.ts` — JSON schema + ABI compatibility check
-- `packages/web/src/host/plugin-registry.ts` — Zustand store tracking installed plugins
-- `packages/web/src/host/permissions.ts` — permission registry + role-based resolution
-- `packages/web/src/host/sidebar.ts`, `routes.ts`, `themes.ts`, `spotlight.ts`, `widgets.ts`, `zones.ts` — per-surface registries
-- `packages/daemon/internal/gateway/plugins_routes.go` — daemon-side plugin REST API
+
+- `packages/web/src/host/plugin-loader.ts`: load, validate, contribute, unload
+- `packages/web/src/host/manifest-validator.ts`: JSON schema + ABI compatibility check
+- `packages/web/src/host/plugin-registry.ts`: Zustand store tracking installed plugins
+- `packages/web/src/host/permissions.ts`: permission registry + role-based resolution
+- `packages/web/src/host/sidebar.ts`, `routes.ts`, `themes.ts`, `spotlight.ts`, `widgets.ts`, `zones.ts`: per-surface registries
+- `packages/daemon/internal/gateway/plugins_routes.go`: daemon-side plugin REST API

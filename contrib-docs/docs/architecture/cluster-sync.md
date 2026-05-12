@@ -67,16 +67,18 @@ flowchart TD
 
 **Single-node deployments** use `LocalOnlyService` (`internal/cluster/service.go`), which reports only the running daemon and routes `ForceSync` directly to a local Caddy reload. No raft or gossip is involved.
 
-**CRDT usage:** `internal/cluster/crdt/counter.go` implements a `PNCounter` — a conflict-free replicated counter where each node increments its own partition locally (zero coordination latency) and counter state converges via periodic gossip merges. The primary use case is distributed rate-limit counters.
+**CRDT usage:** `internal/cluster/crdt/counter.go` implements a `PNCounter`, a conflict-free replicated counter where each node increments its own partition locally (zero coordination latency) and counter state converges via periodic gossip merges. The primary use case is distributed rate-limit counters.
 
 **Node roles:**
-- `bootstrap` — founding node of a single-node or new cluster
-- `voter` — full raft participant with a vote in leader elections
-- `nonvoter` — replicates state but does not vote (read replicas, observer nodes)
+
+- `bootstrap`: founding node of a single-node or new cluster
+- `voter`: full raft participant with a vote in leader elections
+- `nonvoter`: replicates state but does not vote (read replicas, observer nodes)
 
 **Source files:**
-- `packages/daemon/internal/cluster/discovery.go` — memberlist-based gossip, `VoterManager` interface
-- `packages/daemon/internal/cluster/service.go` — `Service` interface + `LocalOnlyService` (single-node default)
-- `packages/daemon/internal/cluster/crdt/counter.go` — `PNCounter` CRDT
-- `packages/daemon/internal/store/raft/` — raft store driver
-- `packages/daemon/internal/sync/` — config recompile + Caddy push agent
+
+- `packages/daemon/internal/cluster/discovery.go`: memberlist-based gossip, `VoterManager` interface
+- `packages/daemon/internal/cluster/service.go`: `Service` interface + `LocalOnlyService` (single-node default)
+- `packages/daemon/internal/cluster/crdt/counter.go`: `PNCounter` CRDT
+- `packages/daemon/internal/store/raft/`: raft store driver
+- `packages/daemon/internal/sync/`: config recompile + Caddy push agent
