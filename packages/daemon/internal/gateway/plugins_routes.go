@@ -1,16 +1,17 @@
-// Package gateway: Plugins + PluginSigners REST endpoints (stage-2).
+// Package gateway: Plugins + PluginSigners REST endpoints.
 //
 // Tenant-scoped routes:
 //
-//	GET    /api/v1/t/{tenant}/plugins                  list installed
-//	GET    /api/v1/t/{tenant}/plugins/{id}             detail
-//	POST   /api/v1/t/{tenant}/plugins/install          install (stub)
-//	DELETE /api/v1/t/{tenant}/plugins/{id}             uninstall
-//	POST   /api/v1/t/{tenant}/plugins/{id}/enable      enable
-//	POST   /api/v1/t/{tenant}/plugins/{id}/disable     disable
-//	GET    /api/v1/t/{tenant}/plugins/{id}/build-log   build log tail
-//	GET    /api/v1/t/{tenant}/plugins/marketplace      stub
-//	GET    /api/v1/t/{tenant}/plugins/marketplace/{id} stub
+//	GET    /api/v1/t/{tenant}/plugins                         list installed
+//	GET    /api/v1/t/{tenant}/plugins/{id}                    detail
+//	POST   /api/v1/t/{tenant}/plugins/install                 install (no-op)
+//	DELETE /api/v1/t/{tenant}/plugins/{id}                    uninstall
+//	POST   /api/v1/t/{tenant}/plugins/{id}/enable             enable
+//	POST   /api/v1/t/{tenant}/plugins/{id}/disable            disable
+//	GET    /api/v1/t/{tenant}/plugins/{id}/build-log          build log tail
+//	GET    /api/v1/t/{tenant}/plugin-marketplace              curated list
+//	GET    /api/v1/t/{tenant}/plugin-marketplace/{id}         curated entry
+//	POST   /api/v1/t/{tenant}/plugins/manifest/validate       manifest validator
 //
 //	/api/v1/t/{tenant}/plugin-signers       (CRUD + /verify + /revoke)
 //
@@ -25,6 +26,7 @@ import (
 	"errors"
 	"net/http"
 
+	"github.com/riokulabs/rioku/internal/plugins"
 	"github.com/riokulabs/rioku/internal/store"
 )
 
@@ -34,6 +36,9 @@ func RegisterPluginRoutes(mux *http.ServeMux, st store.Driver) {
 		RequirePermission("plugin:read")(http.HandlerFunc(handleListPlugins(st, false))))
 	mux.Handle("POST /api/v1/t/{tenant}/plugins/install",
 		RequirePermission("plugin:install")(http.HandlerFunc(handleInstallPlugin(st, false))))
+	// Manifest validator — no install permission required, read is sufficient.
+	mux.Handle("POST /api/v1/t/{tenant}/plugins/manifest/validate",
+		RequirePermission("plugin:read")(http.HandlerFunc(handlePluginManifestValidate)))
 	// Marketplace lives at a separate top-level path to avoid mux
 	// pattern conflicts with /plugins/{id}.
 	mux.Handle("GET /api/v1/t/{tenant}/plugin-marketplace",
@@ -189,10 +194,9 @@ func handleGetPlugin(st store.Driver, global bool) http.HandlerFunc {
 	}
 }
 
-// handleInstallPlugin is a stage-2 stub: it inserts a placeholder
-// `building` row that real install orchestration (#142/#143/#146) will
-// later fill in. The admin panel calls this and then polls for build
-// state transitions.
+// handleInstallPlugin is a stub: it inserts a placeholder `building` row
+// that real install orchestration (#142/#143/#146) will later fill in.
+// The admin panel calls this and then polls for build state transitions.
 func handleInstallPlugin(st store.Driver, global bool) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		scope, ok := scopeForRequest(r, global)
@@ -259,6 +263,15 @@ func handleUninstallPlugin(st store.Driver, global bool) http.HandlerFunc {
 			writeInternalError(w, r, "uninstall")
 			return
 		}
+		// Drop any catalog rows this plugin registered. Per migration
+		// 000049's source-handling rule, plugin-sourced rows are
+		// deleted outright (they were never built-in). Idempotent —
+		// returns 0 if the plugin never registered any.
+		if _, err := tx.UnregisterPluginPermissions(r.Context(), id); err != nil {
+			_ = tx.Rollback()
+			writeInternalError(w, r, "unregister plugin permissions")
+			return
+		}
 		if err := tx.Commit(); err != nil {
 			writeInternalError(w, r, "commit")
 			return
@@ -319,18 +332,44 @@ func handlePluginBuildLog(st store.Driver, global bool) http.HandlerFunc {
 	}
 }
 
-// Marketplace endpoints — stage-2 stubs returning empty lists. Real
-// marketplace lands with #142 (manifest format).
-func handlePluginMarketplaceList(w http.ResponseWriter, r *http.Request) {
+// handlePluginMarketplaceList serves the curated first-party plugin catalog
+// embedded at compile time from internal/plugins/marketplace.json.
+func handlePluginMarketplaceList(w http.ResponseWriter, _ *http.Request) {
+	items := plugins.MarketplaceItems()
 	writeJSON(w, http.StatusOK, map[string]any{
-		"items": []any{}, "total": 0,
-		"note": "marketplace stub — listings land with #142 manifest format",
+		"items": items,
+		"total": len(items),
 	})
 }
 
+// handlePluginMarketplaceGet returns a single curated marketplace entry by id.
 func handlePluginMarketplaceGet(w http.ResponseWriter, r *http.Request) {
-	writeProblem(w, http.StatusNotFound, errTypeNotFound, "Marketplace listing not found",
-		"Marketplace integration is stubbed in stage-2 (#142)", r.URL.Path, nil)
+	id := r.PathValue("id")
+	entry, ok := plugins.MarketplaceItem(id)
+	if !ok {
+		writeProblem(w, http.StatusNotFound, errTypeNotFound, "Marketplace entry not found",
+			"No marketplace entry with id "+id, r.URL.Path, nil)
+		return
+	}
+	writeJSON(w, http.StatusOK, entry)
+}
+
+// handlePluginManifestValidate accepts a plugin manifest JSON body, validates
+// it against the required schema, and returns {valid, errors}.
+func handlePluginManifestValidate(w http.ResponseWriter, r *http.Request) {
+	var raw map[string]json.RawMessage
+	if err := json.NewDecoder(r.Body).Decode(&raw); err != nil {
+		writeBadRequest(w, r, "invalid JSON body")
+		return
+	}
+	valid, errs := plugins.ValidateManifest(raw)
+	if errs == nil {
+		errs = []plugins.ManifestValidationError{}
+	}
+	writeJSON(w, http.StatusOK, map[string]any{
+		"valid":  valid,
+		"errors": errs,
+	})
 }
 
 // ─── Signer handlers ────────────────────────────────────────────────────────

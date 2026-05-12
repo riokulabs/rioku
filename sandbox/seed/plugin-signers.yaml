@@ -1,0 +1,17 @@
+# Owned by Plan 09 (plugins) — plugin-signers seed data. See sandbox/scripts/seed-config.sh for loader.
+
+# Plugin signers (registered trust anchors)
+# Plan 9 requirement: 2 tenant signers + 1 global signer.
+plugin_signers:
+  - name: rioku-team
+    fingerprint: "fp:rioku:0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"
+    notes: "Official Rioku Labs signing key (default tenant)"
+
+  - name: acme-internal
+    fingerprint: "fp:acme:abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789"
+    notes: "Acme Corp internal signing key (default tenant)"
+
+  - global: true
+    name: rioku-global-marketplace
+    fingerprint: "fp:marketplace:fedcba9876543210fedcba9876543210fedcba9876543210fedcba9876543210"
+    notes: "Global marketplace trust anchor (super-admin scope)"

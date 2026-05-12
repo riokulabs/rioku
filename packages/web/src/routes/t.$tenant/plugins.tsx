@@ -16,7 +16,6 @@ import { useDisclosure } from '@mantine/hooks';
 import { IconLink, IconPlug, IconShieldCheck, IconShoppingBag } from '@tabler/icons-react';
 import { Link } from '@tanstack/react-router';
 import { usePermission } from '@/hooks/use-permission';
-import { useMockStore } from '@/api/mock-store';
 import { requirePermissions } from '@/hooks/use-before-load';
 import {
   InstalledPluginList,
@@ -78,9 +77,8 @@ function PluginsPage() {
   const navigate = useNavigate();
   const search = Route.useSearch();
 
-  const tenantRecord = useMockStore((s) => Object.values(s.tenants).find((t) => t.slug === tenant));
-  const tenantId = tenantRecord?.id ?? '';
-  const tenantSlug = tenantRecord?.slug ?? tenant;
+  const tenantId = tenant;
+  const tenantSlug = tenant;
 
   const canReadSigners = usePermission('plugin-signer:read');
 
@@ -225,7 +223,7 @@ function PluginsPage() {
         </Tabs.Panel>
 
         <Tabs.Panel value="marketplace" pt="md">
-          <MarketplaceGrid onInstall={handleMarketplaceInstall} />
+          <MarketplaceGrid onInstall={handleMarketplaceInstall} tenantSlug={tenantId} />
         </Tabs.Panel>
 
         <Tabs.Panel value="install-by-reference" pt="md">
@@ -261,6 +259,7 @@ function PluginsPage() {
       <UninstallPluginModal
         plugin={uninstallTarget}
         opened={uninstallOpened}
+        tenantId={tenantId}
         onClose={() => {
           closeUninstall();
           setUninstallTarget(null);
@@ -269,6 +268,7 @@ function PluginsPage() {
       />
 
       <InstallApprovalModal
+        tenantId={tenantId}
         candidate={approvalCandidate}
         opened={approvalOpened}
         streaming
@@ -279,6 +279,7 @@ function PluginsPage() {
       <InstallProgressModal
         candidate={progressCandidate}
         opened={progressOpened}
+        tenantSlug={tenantId}
         onComplete={handleProgressComplete}
         onClose={handleProgressClose}
       />
@@ -299,7 +300,7 @@ export const Route = createFileRoute('/t/$tenant/plugins')({
           ? search.tags.filter((t): t is string => typeof t === 'string')
           : undefined,
     f: typeof search.f === 'string' ? search.f : undefined,
-    // Marketplace polish (Plan 6): category sidebar + sort + verified toggle.
+    // Marketplace polish: category sidebar + sort + verified toggle.
     verified: search.verified === 'true' || search.verified === true ? 'true' : undefined,
     sort: typeof search.sort === 'string' ? search.sort : undefined,
   }),

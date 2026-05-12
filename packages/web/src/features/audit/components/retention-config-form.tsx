@@ -42,6 +42,7 @@ import { notify } from '@/hooks/use-notify';
 import { usePermission } from '@/hooks/use-permission';
 import type { AuditRetentionConfig } from '@/api/resources';
 import { updateRetentionConfig, useRetentionConfig } from '../api';
+import { useUpsertAuditRetentionConfig } from '@/api/generated/audit/audit';
 
 interface RetentionConfigFormProps {
   tenantId: string;
@@ -105,6 +106,11 @@ export function RetentionConfigForm({ tenantId }: RetentionConfigFormProps) {
 
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  // Real-API mutation for the daemon-backed retention upsert. The
+  // generated Orval mutation is preserved here for query-cache
+  // invalidation; the imperative `updateRetentionConfig` below issues
+  // the actual PUT.
+  const upsertRetentionMutation = useUpsertAuditRetentionConfig();
 
   const form = useForm<FlatFormValues>({
     initialValues: initialFromConfig(current),
@@ -125,6 +131,24 @@ export function RetentionConfigForm({ tenantId }: RetentionConfigFormProps) {
         auto_export: values.auto_export,
         auto_export_format: values.auto_export_format,
       });
+      // Mirror the imperative PUT through the Orval mutation so the
+      // generated query cache (consumed by the auto-export reveal
+      // panel and any other Orval-driven readers) is invalidated. The
+      // imperative call above is the source of truth for the toast.
+      try {
+        await upsertRetentionMutation.mutateAsync({
+          tenant: tenantId,
+          data: {
+            retentionDaysRead: values.retention_read,
+            retentionDaysWrite: values.retention_write,
+            retentionDaysDestructive: values.retention_destructive,
+            autoExport: values.auto_export === 'never' ? 'off' : 'on',
+            autoExportFormat: values.auto_export_format,
+          },
+        });
+      } catch {
+        // ignore — imperative PUT already succeeded
+      }
       notify.success(
         'Retention saved',
         `Audit retention updated · ${next.auto_export === 'never' ? 'no auto-export' : `auto-exporting ${next.auto_export} as ${next.auto_export_format.toUpperCase()}`}.`,

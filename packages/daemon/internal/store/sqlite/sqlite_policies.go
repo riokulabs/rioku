@@ -353,7 +353,7 @@ func (t *tx) DeleteAccessPolicy(ctx context.Context, id string) error {
 }
 
 // ---------------------------------------------------------------------------
-// RBAC policies (stage-2 admin completion chunk 7b)
+// RBAC policies
 // ---------------------------------------------------------------------------
 
 func (t *tx) CreateRbacPolicy(ctx context.Context, p *store.RbacPolicy) (*store.RbacPolicy, error) {

@@ -8,8 +8,6 @@
  *   - Supports full-text search (Mantine MultiSelect searchable prop)
  *   - Renders selected values as removable pills
  *   - Excludes permissions listed in the excludePermissions prop
- *
- * spec §7.1 / Task 1d.66
  */
 
 import { useMemo } from 'react';

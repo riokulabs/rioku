@@ -1,17 +1,15 @@
 /**
- * <MarketplaceGrid> — browsable catalog of marketplace listings (Plan 6).
+ * <MarketplaceGrid> — browsable catalog of marketplace listings.
  *
- * Plan 1 shipped: text search + tag MultiSelect.
- * Plan 6 (Task 6b.7) adds:
- *   - Left category sidebar (derived from tags — each tag counts as a category
- *     with the number of listings). Clicking a category toggles it into the
- *     tag filter; clicking the "All" row clears tag filters.
+ * Filter UI:
+ *   - Text search + tag MultiSelect.
+ *   - Left category sidebar (derived from tags). Clicking a category toggles
+ *     it into the tag filter; the "All" row clears tag filters.
  *   - "Verified publishers only" Switch (filters `listing.verified === true`).
- *   - Sort control: installs (default) | verified-first | alphabetical | recently added.
- *     Persists in the URL via `sort` search param.
+ *   - Sort: installs (default) | verified-first | alphabetical | recently added.
  *
- * All state is URL-synced (q, tags, verified, sort) so that the chosen view
- * survives refresh/deep links.
+ * All state is URL-synced (q, tags, verified, sort) so the chosen view
+ * survives refresh / deep links.
  */
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
@@ -47,6 +45,12 @@ import type { MarketplaceFilter, MarketplaceListing } from '../types';
 
 interface MarketplaceGridProps {
   onInstall: (listing: MarketplaceListing) => void;
+  /**
+   * Tenant slug used to scope the daemon catalog fetch + the install
+   * mutation. Empty string falls back to the global catalog. The page
+   * route always supplies a real slug.
+   */
+  tenantSlug?: string;
 }
 
 /** Valid sort modes. Persisted to the URL as `sort=<mode>`. */
@@ -89,7 +93,7 @@ function sortListings(listings: MarketplaceListing[], mode: SortMode): Marketpla
   }
 }
 
-export function MarketplaceGrid({ onInstall }: MarketplaceGridProps) {
+export function MarketplaceGrid({ onInstall, tenantSlug = '' }: MarketplaceGridProps) {
   const navigate = useNavigate();
   const search = useSearch({ strict: false });
 
@@ -172,14 +176,14 @@ export function MarketplaceGrid({ onInstall }: MarketplaceGridProps) {
 
   // ── Data ────────────────────────────────────────────────────────────────────
   const baseFilter: MarketplaceFilter = { search: urlQuery, tags: urlTags };
-  const baseListings = useMarketplaceListings(baseFilter);
-  const allTags = useMarketplaceTags();
+  const baseListings = useMarketplaceListings(baseFilter, tenantSlug);
+  const allTags = useMarketplaceTags(tenantSlug);
 
   // Category counts are derived from the FULL unfiltered set so the sidebar
   // reflects the catalog shape, not the current filter (important for
   // discoverability — users should see "no plugins match this tag" rather
   // than the tag vanishing).
-  const allListings = useMarketplaceListings({ search: '', tags: [] });
+  const allListings = useMarketplaceListings({ search: '', tags: [] }, tenantSlug);
   const categoryCounts = useMemo(() => {
     const counts: Record<string, number> = {};
     for (const l of allListings) {

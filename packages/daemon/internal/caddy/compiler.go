@@ -101,6 +101,18 @@ type OnDemandTLSConfig struct {
 	Burst           int
 }
 
+// SubdomainCertConfig is a static cert/key pair for the subdomain
+// tenancy mode. When both fields are non-empty, the compiler
+// emits an `apps.tls.certificates.load_files` entry so Caddy serves the
+// supplied wildcard cert for `*.<parent_domain>` connections without
+// going through ACME. The pair is typically a long-lived self-signed
+// wildcard for sandbox/dev or a bring-your-own enterprise cert for
+// air-gapped deployments.
+type SubdomainCertConfig struct {
+	CertFile string
+	KeyFile  string
+}
+
 // Compiler converts Rioku config into Caddy JSON.
 type Compiler struct {
 	trafficAddrs     []string
@@ -109,6 +121,7 @@ type Compiler struct {
 	trustedProxies   *TrustedProxiesConfig
 	securityHeaders  SecurityHeadersConfig
 	onDemandTLS      OnDemandTLSConfig
+	subdomainCert    SubdomainCertConfig
 	wafAuditEndpoint string
 }
 
@@ -128,6 +141,16 @@ func NewCompiler(trafficAddrs []string, admin AdminConfig, traceSocketPath strin
 // construction once the daemon knows the local AskURL.
 func (c *Compiler) SetOnDemandTLS(cfg OnDemandTLSConfig) {
 	c.onDemandTLS = cfg
+}
+
+// SetSubdomainCert installs a static wildcard cert/key pair for
+// subdomain tenancy mode. When both fields are non-empty, future
+// Compile() calls emit an `apps.tls.certificates.load_files` entry so
+// Caddy serves the supplied leaf for handshakes whose SNI matches it
+// (e.g. `*.localhost` in the sandbox or a customer-supplied wildcard
+// in production). When either field is empty the entry is omitted.
+func (c *Compiler) SetSubdomainCert(cfg SubdomainCertConfig) {
+	c.subdomainCert = cfg
 }
 
 // SetWAFAuditEndpoint sets the daemon-side `/waf-record` URL Coraza

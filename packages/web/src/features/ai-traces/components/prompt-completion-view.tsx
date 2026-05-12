@@ -2,35 +2,34 @@
  * <PromptCompletionView> — renders the prompt + completion blocks for a
  * trace with Shiki highlighting via the shared <CodeBlock>.
  *
- * Permission gating: when the current user lacks `ai-trace:read-sensitive`
- * both blocks are replaced with a `[redacted]` placeholder plus a Tooltip
- * explaining which permission unlocks the full text. The redacted view
- * still reports the character length so operators can confirm the record
- * is non-empty without reading its contents.
+ * Stage-2: gating is driven by the explicit `unmasked` prop. The daemon
+ * redacts prompts/completions by default (returning `null`) and only
+ * surfaces them through the `/reveal` endpoint, which the parent invokes
+ * when the operator confirms a justified reveal. The view itself stays
+ * dumb — when `unmasked === true` it shows the (already-fetched) text;
+ * otherwise it renders a "redacted" placeholder advising the operator
+ * how to surface the bodies.
  */
 import { Alert, Stack, Text, Tooltip } from '@mantine/core';
 import { IconLock } from '@tabler/icons-react';
 import { CodeBlock } from '@/components/code-block';
-import { usePermission } from '@/hooks/use-permission';
 
 interface PromptCompletionViewProps {
   prompt: string;
   completion: string;
+  /** When true, render the prompt + completion bodies verbatim. Default: false. */
+  unmasked?: boolean;
 }
 
-/** Language hints — <CodeBlock> only loads a small subset of Shiki grammars
- *  (json/yaml/typescript/javascript/bash + `text` fallback). Markdown is NOT
- *  in that subset, so prompts render as plain text. Adding `markdown` would
- *  mean pulling a new grammar import in `components/code-block/index.tsx`
- *  and bloating the Shiki chunk — not worth it for the prompt block alone.
- *  Completions are free-form model output; plain text is also correct. */
 const PROMPT_LANG = 'text' as const;
 const COMPLETION_LANG = 'text' as const;
 
-export function PromptCompletionView({ prompt, completion }: PromptCompletionViewProps) {
-  const canRead = usePermission('ai-trace:read-sensitive');
-
-  if (!canRead) {
+export function PromptCompletionView({
+  prompt,
+  completion,
+  unmasked = false,
+}: PromptCompletionViewProps) {
+  if (!unmasked) {
     return (
       <Alert
         icon={<IconLock size={16} />}
@@ -58,7 +57,7 @@ export function PromptCompletionView({ prompt, completion }: PromptCompletionVie
                 ai-trace:read-sensitive
               </Text>
             </Tooltip>{' '}
-            permission to view the full prompt and completion.
+            permission and an audited reveal to view the full prompt and completion.
           </Text>
           <Text size="xs" c="var(--mantine-color-gray-7)">
             [redacted — {String(prompt.length)} prompt chars, {String(completion.length)} completion

@@ -8,8 +8,6 @@
  *
  * Uses a module-level guard to prevent double-registration (Monaco's
  * language registry is global — re-registering emits warnings).
- *
- * spec §7.2 / Task 1d.64
  */
 
 import type * as MonacoNS from 'monaco-editor';

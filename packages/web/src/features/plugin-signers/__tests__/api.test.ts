@@ -1,127 +1,168 @@
 /**
- * Plugin-signers API unit tests (Plan 6).
+ * Plugin-signers API unit tests (Stage 2 — real daemon endpoints).
+ *
+ * Uses MSW to intercept fetch calls to the daemon REST API.
+ * Tests cover: createSigner, updateSigner, deleteSigner, verifySigner,
+ * revokeSigner against the real tenant-scoped + global endpoints.
  */
 import { describe, it, expect, beforeEach } from 'vitest';
-import { useMockStore } from '@/api/mock-store';
-import { seedStore } from '@/api/mock-seed';
+import { http, HttpResponse } from 'msw';
+import { server } from '@/test/msw-server';
 import { createSigner, updateSigner, deleteSigner, verifySigner, revokeSigner } from '../api';
-import { SignerInUseError } from '../types';
-
-beforeEach(() => {
-  useMockStore.getState().reset();
-  seedStore(useMockStore);
-});
 
 const SHA256_FIXTURE = 'a'.repeat(64);
 
-describe('plugin-signers API', () => {
-  it('seed contains 6 signers with expected scopes + statuses', () => {
-    const signers = Object.values(useMockStore.getState().pluginSigners);
-    expect(signers.length).toBe(6);
-    const globals = signers.filter((s) => s.tenant_scope === null);
-    expect(globals.length).toBe(3);
-    const statuses = new Set(signers.map((s) => s.status));
-    expect(statuses.has('verified')).toBe(true);
-    expect(statuses.has('revoked')).toBe(true);
-    expect(statuses.has('pending')).toBe(true);
-    // All fingerprints are 64 lowercase hex chars.
-    for (const s of signers) {
-      expect(s.fingerprint).toMatch(/^[0-9a-f]{64}$/);
-    }
+// ─── Helpers ──────────────────────────────────────────────────────────────────
+
+/** Build a minimal DaemonSigner JSON response. */
+function makeDaemonSigner(
+  overrides: Partial<{
+    id: string;
+    tenantScope: string | null;
+    name: string;
+    fingerprint: string;
+    status: 'verified' | 'revoked' | 'pending';
+    notes: string;
+  }> = {},
+) {
+  return {
+    id: overrides.id ?? 'signer-abc',
+    tenantScope: overrides.tenantScope ?? null,
+    name: overrides.name ?? 'Test Signer',
+    fingerprint: overrides.fingerprint ?? SHA256_FIXTURE,
+    status: overrides.status ?? 'pending',
+    notes: overrides.notes ?? '',
+    createdAt: '2026-01-01T00:00:00.000Z',
+    updatedAt: '2026-01-01T00:00:00.000Z',
+  };
+}
+
+// ─── Tests ────────────────────────────────────────────────────────────────────
+
+describe('plugin-signers API (real daemon)', () => {
+  beforeEach(() => {
+    server.resetHandlers();
   });
 
-  it('createSigner adds a new signer + audit + host event', async () => {
-    const signer = await createSigner({
-      tenant_scope: null,
-      name: 'Test Publisher',
-      fingerprint: SHA256_FIXTURE,
-      description: 'Unit-test publisher',
+  describe('createSigner', () => {
+    it('creates a tenant-scoped signer and returns a PluginSigner', async () => {
+      server.use(
+        http.post('/api/v1/t/tenant-1/plugin-signers', () =>
+          HttpResponse.json(
+            makeDaemonSigner({ id: 'signer-new-1', tenantScope: 'tenant-1', status: 'pending' }),
+            { status: 201 },
+          ),
+        ),
+      );
+
+      const signer = await createSigner({
+        tenant_scope: 'tenant-1',
+        name: 'Tenant Publisher',
+        fingerprint: SHA256_FIXTURE,
+        description: 'Unit-test publisher',
+      });
+
+      expect(signer.id).toBe('signer-new-1');
+      expect(signer.status).toBe('pending');
+      expect(signer.fingerprint).toBe(SHA256_FIXTURE);
+      expect(signer.tenant_scope).toBe('tenant-1');
     });
-    expect(signer.id).toMatch(/signer-new/);
-    expect(signer.status).toBe('pending');
-    expect(signer.fingerprint).toBe(SHA256_FIXTURE);
 
-    const audit = useMockStore.getState().audit;
-    const entry = audit[audit.length - 1];
-    expect(entry?.action).toBe('plugin-signer.create');
-    expect(entry?.resource_type).toBe('plugin-signer');
-    expect(entry?.resource_id).toBe(signer.id);
-  });
+    it('creates a global signer via /admin/plugin-signers', async () => {
+      server.use(
+        http.post('/api/v1/admin/plugin-signers', () =>
+          HttpResponse.json(
+            makeDaemonSigner({ id: 'signer-global-1', tenantScope: null, status: 'pending' }),
+            { status: 201 },
+          ),
+        ),
+      );
 
-  it('updateSigner rotates fingerprint + writes diff audit', async () => {
-    const signer = await createSigner({
-      tenant_scope: null,
-      name: 'Rotate Me',
-      fingerprint: SHA256_FIXTURE,
+      const signer = await createSigner({
+        tenant_scope: null,
+        name: 'Global Publisher',
+        fingerprint: SHA256_FIXTURE,
+      });
+
+      expect(signer.id).toBe('signer-global-1');
+      expect(signer.tenant_scope).toBeNull();
     });
-    const newFingerprint = 'b'.repeat(64);
-    const updated = await updateSigner(signer.id, { fingerprint: newFingerprint });
-    expect(updated.fingerprint).toBe(newFingerprint);
-
-    const audit = useMockStore.getState().audit;
-    const entry = audit[audit.length - 1];
-    expect(entry?.action).toBe('plugin-signer.update');
-    expect(entry?.diff).toBeDefined();
   });
 
-  it('verifySigner flips status → verified and is idempotent', async () => {
-    const signer = await createSigner({
-      tenant_scope: null,
-      name: 'Will Verify',
-      fingerprint: SHA256_FIXTURE,
+  describe('updateSigner', () => {
+    it('updates fingerprint and returns the updated signer', async () => {
+      const newFingerprint = 'b'.repeat(64);
+      server.use(
+        http.put('/api/v1/t/tenant-1/plugin-signers/signer-abc', () =>
+          HttpResponse.json(makeDaemonSigner({ id: 'signer-abc', fingerprint: newFingerprint })),
+        ),
+      );
+
+      const updated = await updateSigner('signer-abc', { fingerprint: newFingerprint }, 'tenant-1');
+      expect(updated.fingerprint).toBe(newFingerprint);
     });
-    expect(signer.status).toBe('pending');
-
-    const verified = await verifySigner(signer.id);
-    expect(verified.status).toBe('verified');
-
-    const beforeLen = useMockStore.getState().audit.length;
-    // Second call is a no-op — no new audit entry.
-    const again = await verifySigner(signer.id);
-    expect(again.status).toBe('verified');
-    const afterLen = useMockStore.getState().audit.length;
-    expect(afterLen).toBe(beforeLen);
   });
 
-  it('revokeSigner flips status → revoked and emits destructive audit', async () => {
-    const signer = await createSigner({
-      tenant_scope: null,
-      name: 'Will Revoke',
-      fingerprint: SHA256_FIXTURE,
-      status: 'verified',
+  describe('verifySigner', () => {
+    it('POSTs to /verify and returns status=verified', async () => {
+      server.use(
+        http.post('/api/v1/t/tenant-1/plugin-signers/signer-abc/verify', () =>
+          HttpResponse.json(makeDaemonSigner({ id: 'signer-abc', status: 'verified' })),
+        ),
+      );
+
+      const verified = await verifySigner('signer-abc', 'tenant-1');
+      expect(verified.status).toBe('verified');
     });
-    const revoked = await revokeSigner(signer.id);
-    expect(revoked.status).toBe('revoked');
 
-    const audit = useMockStore.getState().audit;
-    const entry = audit[audit.length - 1];
-    expect(entry?.action).toBe('plugin-signer.revoke');
-    expect(entry?.tier).toBe('destructive');
-  });
+    it('POSTs to global /verify and returns status=verified', async () => {
+      server.use(
+        http.post('/api/v1/admin/plugin-signers/signer-global/verify', () =>
+          HttpResponse.json(
+            makeDaemonSigner({ id: 'signer-global', tenantScope: null, status: 'verified' }),
+          ),
+        ),
+      );
 
-  it('deleteSigner refuses to delete a signer with referencing plugins', async () => {
-    // Find the seeded Rioku Labs signer (has plugins attached).
-    const rioku = Object.values(useMockStore.getState().pluginSigners).find(
-      (s) => s.name === 'Rioku Labs',
-    );
-    if (!rioku) throw new Error('Rioku Labs signer missing from seed');
-    await expect(deleteSigner(rioku.id)).rejects.toBeInstanceOf(SignerInUseError);
-
-    // Still in the store.
-    expect(useMockStore.getState().pluginSigners[rioku.id]).toBeDefined();
-  });
-
-  it('deleteSigner succeeds when no plugins reference the signer', async () => {
-    const signer = await createSigner({
-      tenant_scope: null,
-      name: 'Orphan',
-      fingerprint: SHA256_FIXTURE,
+      const verified = await verifySigner('signer-global', null);
+      expect(verified.status).toBe('verified');
+      expect(verified.tenant_scope).toBeNull();
     });
-    await deleteSigner(signer.id);
-    expect(useMockStore.getState().pluginSigners[signer.id]).toBeUndefined();
-    const audit = useMockStore.getState().audit;
-    const entry = audit[audit.length - 1];
-    expect(entry?.action).toBe('plugin-signer.delete');
-    expect(entry?.tier).toBe('destructive');
+  });
+
+  describe('revokeSigner', () => {
+    it('POSTs to /revoke and returns status=revoked', async () => {
+      server.use(
+        http.post('/api/v1/t/tenant-1/plugin-signers/signer-abc/revoke', () =>
+          HttpResponse.json(makeDaemonSigner({ id: 'signer-abc', status: 'revoked' })),
+        ),
+      );
+
+      const revoked = await revokeSigner('signer-abc', 'tenant-1');
+      expect(revoked.status).toBe('revoked');
+    });
+  });
+
+  describe('deleteSigner', () => {
+    it('DELETEs the signer and resolves void on 204', async () => {
+      server.use(
+        http.delete(
+          '/api/v1/t/tenant-1/plugin-signers/signer-abc',
+          () => new HttpResponse(null, { status: 204 }),
+        ),
+      );
+
+      await expect(deleteSigner('signer-abc', 'tenant-1')).resolves.toBeUndefined();
+    });
+
+    it('throws when the daemon returns 404', async () => {
+      server.use(
+        http.delete('/api/v1/t/tenant-1/plugin-signers/nonexistent', () =>
+          HttpResponse.json({ title: 'Signer not found', status: 404 }, { status: 404 }),
+        ),
+      );
+
+      await expect(deleteSigner('nonexistent', 'tenant-1')).rejects.toThrow();
+    });
   });
 });

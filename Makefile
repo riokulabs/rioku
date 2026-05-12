@@ -1,4 +1,4 @@
-.PHONY: all build build-daemon build-daemon-fast build-daemon-lean build-service proto proto-lint test test-race test-security test-raft-cluster test-coverage coverage-baseline lint lint-commit lint-spell clean web web-build web-build-if-changed web-embed web-dev test-web test-web-coverage ui-storybook test-ui hooks setup sandbox sandbox-stop sandbox-seed sandbox-reset sandbox-restart-daemon sandbox-restart-daemon-fast sandbox-restart-daemon-only sandbox-dev-web sandbox-test-auth sandbox-test-smoke sandbox-test-primitives sandbox-status sandbox-seed-users test-e2e test-e2e-full bench bench-compare bench-baseline sandbox-load sandbox-load-monitor sandbox-load-compare sandbox-container sandbox-container-stop sandbox-container-logs sandbox-container-clean docs-install docs-dev docs-build contrib-docs-install contrib-docs-dev contrib-docs-build web-types web-types-incremental help
+.PHONY: all build build-daemon build-daemon-fast build-daemon-lean build-service proto proto-lint test test-race test-security test-raft-cluster test-coverage coverage-baseline lint lint-commit lint-spell clean web web-build web-build-if-changed web-embed web-dev test-web test-web-coverage ui-storybook test-ui hooks setup sandbox sandbox-stop sandbox-seed sandbox-reset sandbox-restart-daemon sandbox-restart-daemon-fast sandbox-restart-daemon-only sandbox-dev-web sandbox-test-auth sandbox-test-smoke sandbox-test-primitives sandbox-status sandbox-seed-users test-e2e test-e2e-full bench bench-compare bench-baseline sandbox-load sandbox-load-monitor sandbox-load-compare sandbox-container sandbox-container-stop sandbox-container-logs sandbox-container-clean docs-install docs-dev docs-build contrib-docs-install contrib-docs-dev contrib-docs-build web-types web-types-incremental sandbox-seedgen-build sandbox-seedgen sandbox-snapshot sandbox-restore sandbox-baseline sandbox-prepull sandbox-doctor sandbox-certs sandbox-lean sandbox-rich sandbox-postgres openapi-embed help worktree-add worktree-rm worktree-rebase worktree-doctor pre-push-verify decisions-sync
 
 # Variables
 VERSION ?= $(shell git describe --tags --always --dirty 2>/dev/null || echo "dev")
@@ -26,18 +26,9 @@ sandbox:
 sandbox-stop:
 	@bash sandbox/scripts/stop.sh
 
-## sandbox-seed: Re-seed sandbox data from seed.yaml (requires running sandbox)
+## sandbox-seed: Re-seed sandbox data from sandbox/seed/*.yaml (requires running sandbox)
 sandbox-seed:
-	@if [ -f sandbox/.data/root-password ]; then \
-	  bin/rioku seed \
-	    --file sandbox/config/seed.yaml \
-	    --target "http://localhost:$${SANDBOX_PORT_REST:-7778}" \
-	    --password "$$(cat sandbox/.data/root-password)"; \
-	else \
-	  echo "[FAIL]  sandbox/.data/root-password not found"; \
-	  echo "        Is the sandbox running? Start it with: make sandbox"; \
-	  exit 1; \
-	fi
+	@bash sandbox/scripts/seed-config.sh "http://localhost:$${SANDBOX_PORT_REST:-7778}"
 
 ## sandbox-reset: Stop sandbox, wipe all data, restart fresh
 sandbox-reset: sandbox-stop
@@ -97,6 +88,9 @@ sandbox-dev-web:
 	@echo -e "  Admin panel:  \033[1mhttp://localhost:5173\033[0m"
 	@echo -e "  API backend:  http://localhost:$${SANDBOX_PORT_REST:-7778}"
 	@echo -e "  Caddy proxy:  http://localhost:$${SANDBOX_PORT_TRAFFIC:-8443}"
+	@echo ""
+	@echo -e "  Subdomain mode: Visit \033[1mhttp://t1.localhost:5173/t/acme/dashboard\033[0m to test subdomain mode"
+	@echo -e "  (Requires tenant url_mode=subdomain and CA cert installed — see contrib-docs/development/subdomain-mode.md)"
 	@echo ""
 	@echo -e "  Edit packages/web/src/ → instant HMR refresh"
 	@echo -e "  Backend changes → run 'make sandbox-restart-daemon-fast' in another terminal"
@@ -174,7 +168,7 @@ build-caddy:
 	cd $(PKG)/plugins && $(GO) build -ldflags "$(LDFLAGS)" -o ../../$(BIN_DIR)/rioku-caddy ./cmd/rioku-caddy
 
 ## build-daemon: Build the rioku daemon binary (embeds admin panel)
-build-daemon: web-embed
+build-daemon: web-embed openapi-embed
 	cd $(PKG)/daemon && $(GO) build -ldflags "$(LDFLAGS)" -o ../../$(BIN_DIR)/rioku ./cmd/rioku
 
 ## web-embed: Copy web build into daemon for go:embed
@@ -183,13 +177,25 @@ web-embed: web-build-if-changed
 	@mkdir -p $(PKG)/daemon/web/build
 	@cp -r $(PKG)/web/dist/. $(PKG)/daemon/web/build/
 
-## build-daemon-fast: Build daemon binary without rebuilding web SPA (faster iteration)
-## The go:embed directive requires packages/daemon/web/build/ to exist. If it
-## doesn't (e.g. fresh clone / first CI run), fall back to a full build-daemon
-## so web-embed runs. Otherwise reuse the existing embedded assets.
+## build-daemon-fast: Build daemon binary, re-embed web SPA only when source drifts
+## from the embedded copy. The go:embed directive requires
+## packages/daemon/web/build/ to exist, so we fall back to a full build-daemon
+## when it's missing (fresh clone / first CI run) or when the embedded build's
+## source hash doesn't match the current web sources — that drift was the root
+## cause of the "stale May 3 SPA served by today's daemon" footgun: start.sh
+## called build-daemon-fast, which previously skipped web-embed unconditionally
+## once the embed existed, so source changes never reached the running daemon.
 build-daemon-fast:
-	@if [ ! -f $(PKG)/daemon/web/build/index.html ]; then \
+	@CURRENT_HASH=$$(find packages/web/src -type f -exec sha256sum {} + 2>/dev/null | sort | sha256sum | cut -d' ' -f1); \
+	for f in packages/web/vite.config.ts packages/web/tsconfig.json packages/web/package.json; do \
+		CURRENT_HASH="$${CURRENT_HASH}$$(sha256sum "$$f" 2>/dev/null | cut -d' ' -f1)"; \
+	done; \
+	CURRENT_HASH=$$(echo "$${CURRENT_HASH}" | sha256sum | cut -d' ' -f1); \
+	if [ ! -f $(PKG)/daemon/web/build/index.html ]; then \
 		echo "==> No embedded web assets yet — running full build-daemon..."; \
+		$(MAKE) build-daemon; \
+	elif [ ! -f "$(WEB_HASH_FILE)" ] || [ "$$(cat $(WEB_HASH_FILE) 2>/dev/null)" != "$${CURRENT_HASH}" ]; then \
+		echo "==> Web SPA source has drifted from embedded build — re-embedding..."; \
 		$(MAKE) build-daemon; \
 	else \
 		cd $(PKG)/daemon && $(GO) build -ldflags "$(LDFLAGS)" -o ../../$(BIN_DIR)/rioku ./cmd/rioku; \
@@ -227,6 +233,10 @@ openapi:
 		-fragments ../../$(PKG)/proto/openapi-fragments/ \
 		-out ../../$(PKG)/proto/gen/openapi/rioku/v1/api.full.json
 	node $(PKG)/proto/scripts/normalize-to-oas3.mjs $(PKG)/proto/gen/openapi/rioku/v1/api.full.json
+
+## openapi-embed: copy generated openapi spec into gateway package for go:embed
+openapi-embed: openapi
+	cp $(PKG)/proto/gen/openapi/rioku/v1/api.full.json $(PKG)/daemon/internal/gateway/api.full.json
 
 ## test: Run all tests
 test:
@@ -444,3 +454,96 @@ sandbox-container-logs:
 ## sandbox-container-clean: Remove container sandbox (volumes + images)
 sandbox-container-clean:
 	@cd sandbox && $(COMPOSE_CMD) down -v --rmi local
+
+## sandbox-seedgen-build: build the rich-seed generator binary
+sandbox-seedgen-build:
+	cd sandbox/tools/seedgen && go build -o ../../../bin/rioku-seedgen .
+
+## sandbox-seedgen: run rich-seed generator against running daemon
+sandbox-seedgen: sandbox-seedgen-build
+	./bin/rioku-seedgen --mode=rich --seed=42
+
+## sandbox-snapshot: capture current state to a named snapshot tarball
+.PHONY: sandbox-snapshot
+sandbox-snapshot:
+	./sandbox/scripts/snapshot.sh $(NAME)
+
+## sandbox-restore: restore from a named snapshot
+.PHONY: sandbox-restore
+sandbox-restore:
+	./sandbox/scripts/restore.sh $(SNAPSHOT)
+
+## sandbox-baseline: run rich seed then capture as 'baseline' for test isolation
+.PHONY: sandbox-baseline
+sandbox-baseline: sandbox sandbox-seedgen
+	./sandbox/scripts/snapshot.sh baseline
+
+## sandbox-prepull: pull all sandbox container images once
+.PHONY: sandbox-prepull
+sandbox-prepull:
+	cd sandbox && podman-compose --env-file .env.example pull || \
+	  cd sandbox && docker compose --env-file .env.example pull
+
+## sandbox-doctor: health-probe every container against shifted ports
+.PHONY: sandbox-doctor
+sandbox-doctor:
+	./sandbox/scripts/doctor.sh
+
+## sandbox-certs: regenerate self-signed CA + leaf certs
+.PHONY: sandbox-certs
+sandbox-certs:
+	cd sandbox/tools/cert-gen && go run . --out ../../.data/certs --force
+
+## sandbox-lean: minimum-viable seed (CI smoke + RBAC tests)
+.PHONY: sandbox-lean
+sandbox-lean: sandbox-stop sandbox-clean
+	$(MAKE) sandbox SANDBOX_MODE=lean
+
+## sandbox-rich: full demo seed (alias for default sandbox; explicit form)
+.PHONY: sandbox-rich
+sandbox-rich: sandbox sandbox-seedgen
+
+## sandbox-postgres: bring sandbox up using Postgres as the config store
+.PHONY: sandbox-postgres
+sandbox-postgres:
+	cd sandbox && podman-compose --profile postgres --env-file .env.example up -d
+
+## worktree-add: create a new stage-2 plan worktree off origin/stage2/main
+.PHONY: worktree-add
+worktree-add:
+	./scripts/worktree-add.sh
+
+## worktree-rm: remove a worktree (archives decisions-needed.md to tmp/)
+.PHONY: worktree-rm
+worktree-rm:
+	./scripts/worktree-rm.sh
+
+## worktree-rebase: rebase all open plan worktrees onto origin/stage2/main
+.PHONY: worktree-rebase
+worktree-rebase:
+	./scripts/worktree-rebase.sh
+
+## worktree-doctor: full health check for the current worktree
+.PHONY: worktree-doctor
+worktree-doctor:
+	./scripts/worktree-doctor.sh
+
+## pre-push-verify: scan unpushed commits for forbidden phrases / shape per §13.3
+.PHONY: pre-push-verify
+pre-push-verify:
+	@if git log --format="%s" origin/stage2/main..HEAD 2>/dev/null | grep -ivE '^(feat|fix|chore|docs|test|refactor|perf|ci|build|revert|style)(\([a-z0-9_/-]+\))?!?: .+' | grep -v '^Merge\|^Revert\|^fixup!\|^squash!' >/dev/null 2>&1; then \
+	  echo "non-Conventional-Commits messages in this branch's commit history:"; \
+	  git log --format="%s" origin/stage2/main..HEAD | grep -ivE '^(feat|fix|chore|docs|test|refactor|perf|ci|build|revert|style)(\([a-z0-9_/-]+\))?!?: .+' | grep -v '^Merge\|^Revert\|^fixup!\|^squash!' || true; \
+	  exit 1; \
+	fi
+	@if git log --format="%B" origin/stage2/main..HEAD 2>/dev/null | grep -iE '(^claude\b|^anthropic\b|copilot|^wip\b|^oops\b|^fix typo)' >/dev/null 2>&1; then \
+	  echo "forbidden phrases found in commit history:"; \
+	  git log --format="%B" origin/stage2/main..HEAD | grep -iE '(^claude\b|^anthropic\b|copilot|^wip\b|^oops\b|^fix typo)' || true; \
+	  exit 1; \
+	fi
+	@echo "pre-push-verify OK"
+
+## decisions-sync: merge worktree decisions-needed.md into master + tmp mirror
+.PHONY: decisions-sync
+decisions-sync:
+	./scripts/decisions-sync.sh

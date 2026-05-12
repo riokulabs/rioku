@@ -518,7 +518,7 @@ func (t *raftTx) ListPoliciesByTarget(_ context.Context, targetType, targetID st
 // API Keys
 // ---------------------------------------------------------------------------
 
-func (t *raftTx) CreateAPIKey(_ context.Context, name, keyHash string, scopes []string, expiresAt *time.Time, ownerID string) (string, error) {
+func (t *raftTx) CreateAPIKey(_ context.Context, name, keyHash, prefix string, scopes []string, expiresAt *time.Time, ownerID string) (string, error) {
 	id := uuid.New().String()
 	now := nowUTC()
 
@@ -526,6 +526,7 @@ func (t *raftTx) CreateAPIKey(_ context.Context, name, keyHash string, scopes []
 		"id":         id,
 		"name":       name,
 		"key_hash":   keyHash,
+		"prefix":     prefix,
 		"scopes":     scopes,
 		"created_at": now.Format(timeFormat),
 	}
@@ -604,9 +605,8 @@ func (t *raftTx) RecordAPIKeyUse(_ context.Context, _ string, _ time.Time) error
 	return nil
 }
 
-// UpdateAPIKey is not yet implemented on the raft driver — single-tenant
-// raft deployments aren't a stage-2 release target. Returns ErrUnsupported
-// (sentinel) so callers can fall back gracefully.
+// UpdateAPIKey is not yet implemented on the raft driver. Returns
+// ErrUnsupported (sentinel) so callers can fall back gracefully.
 func (t *raftTx) UpdateAPIKey(_ context.Context, _ string, _ store.UpdateAPIKeyParams) (*store.APIKey, error) {
 	return nil, fmt.Errorf("raft: UpdateAPIKey not implemented")
 }
@@ -850,9 +850,8 @@ func (t *raftTx) CountAuditLog(_ context.Context, query store.AuditQuery) (int, 
 }
 
 // GetAuditEntry / ListAuditActors / ListAuditResourceIDs — not yet
-// implemented on the raft driver. Single-tenant raft isn't a stage-2
-// release target; these stubs satisfy the Tx interface so the daemon
-// builds against either backend.
+// implemented on the raft driver. These stubs satisfy the Tx interface
+// so the daemon builds against either backend.
 
 func (t *raftTx) GetAuditEntry(_ context.Context, _ string) (*riokuv1.AuditEntry, error) {
 	return nil, fmt.Errorf("raft: GetAuditEntry not implemented")
@@ -910,8 +909,28 @@ func (t *raftTx) GetUserByUsername(_ context.Context, _ string) (*store.User, er
 	return nil, fmt.Errorf("raft: GetUserByUsername not implemented")
 }
 
+func (t *raftTx) GetUserByEmail(_ context.Context, _ string) (*store.User, error) {
+	return nil, fmt.Errorf("raft: GetUserByEmail not implemented")
+}
+
 func (t *raftTx) ListUsers(_ context.Context) ([]*store.User, error) {
 	return nil, fmt.Errorf("raft: ListUsers not implemented")
+}
+
+func (t *raftTx) CountUsers(_ context.Context) (int, error) {
+	return 0, fmt.Errorf("raft: CountUsers not implemented")
+}
+
+func (t *raftTx) CreatePasswordResetToken(_ context.Context, _, _ string, _ time.Time) error {
+	return fmt.Errorf("raft: CreatePasswordResetToken not implemented")
+}
+
+func (t *raftTx) GetPasswordResetToken(_ context.Context, _ string) (*store.PasswordResetToken, error) {
+	return nil, fmt.Errorf("raft: GetPasswordResetToken not implemented")
+}
+
+func (t *raftTx) ConsumePasswordResetToken(_ context.Context, _ string) error {
+	return fmt.Errorf("raft: ConsumePasswordResetToken not implemented")
 }
 
 func (t *raftTx) UpdateUser(_ context.Context, _ *store.User) (*store.User, error) {
@@ -1014,6 +1033,14 @@ func (t *raftTx) ListPermissions(_ context.Context) ([]*store.Permission, error)
 	return nil, fmt.Errorf("raft: ListPermissions not implemented")
 }
 
+func (t *raftTx) RegisterPluginPermissions(_ context.Context, _ string, _ []*store.Permission) error {
+	return fmt.Errorf("raft: RegisterPluginPermissions not implemented")
+}
+
+func (t *raftTx) UnregisterPluginPermissions(_ context.Context, _ string) (int, error) {
+	return 0, fmt.Errorf("raft: UnregisterPluginPermissions not implemented")
+}
+
 func (t *raftTx) GetUserScopes(_ context.Context, _ string) ([]string, error) {
 	return nil, fmt.Errorf("raft: GetUserScopes not implemented")
 }
@@ -1083,6 +1110,22 @@ func (t *raftTx) DeleteAccessPolicy(_ context.Context, _ string) error {
 }
 
 // ---------------------------------------------------------------------------
+// Opaque handles
+// ---------------------------------------------------------------------------
+
+func (t *raftTx) GetOpaqueHandle(_ context.Context, _, _ string) (*store.OpaqueHandle, error) {
+	return nil, fmt.Errorf("raft: GetOpaqueHandle not implemented")
+}
+
+func (t *raftTx) GetOpaqueHandleByValueHash(_ context.Context, _, _ string) (*store.OpaqueHandle, error) {
+	return nil, fmt.Errorf("raft: GetOpaqueHandleByValueHash not implemented")
+}
+
+func (t *raftTx) UpsertOpaqueHandle(_ context.Context, _ store.OpaqueHandle) error {
+	return fmt.Errorf("raft: UpsertOpaqueHandle not implemented")
+}
+
+// ---------------------------------------------------------------------------
 // Helpers
 // ---------------------------------------------------------------------------
 
@@ -1114,6 +1157,7 @@ func unmarshalAPIKey(data []byte) (*store.APIKey, error) {
 		ID:      getString(entry, "id"),
 		Name:    getString(entry, "name"),
 		KeyHash: getString(entry, "key_hash"),
+		Prefix:  getString(entry, "prefix"),
 	}
 
 	if scopesRaw, ok := entry["scopes"]; ok {
@@ -1169,7 +1213,7 @@ func getString(m map[string]interface{}, key string) string {
 }
 
 // ---------------------------------------------------------------------------
-// Tenants + Memberships (stage-2) — raft stubs
+// Tenants + Memberships — raft stubs
 //
 // The raft FSM doesn't yet have ops for tenant/membership writes.
 // Callers should use the SQLite driver for tenant work until a
@@ -1213,6 +1257,14 @@ func (t *raftTx) GetMembershipByTenantUser(_ context.Context, _, _ string) (*sto
 	return nil, store.ErrMembershipNotFound
 }
 
+func (t *raftTx) GetMembershipByInviteToken(_ context.Context, _ string) (*store.Membership, error) {
+	return nil, store.ErrMembershipNotFound
+}
+
+func (t *raftTx) AcceptInvite(_ context.Context, _, _ string) error {
+	return fmt.Errorf("raft: AcceptInvite not implemented")
+}
+
 func (t *raftTx) ListMembershipsByTenant(_ context.Context, _ string) ([]*store.Membership, error) {
 	return nil, nil
 }
@@ -1242,7 +1294,7 @@ func (t *raftTx) ListMembershipRoles(_ context.Context, _ string) ([]store.Role,
 }
 
 // ---------------------------------------------------------------------------
-// Sites + Middlewares (stage-2) — raft stubs
+// Sites + Middlewares — raft stubs
 // ---------------------------------------------------------------------------
 
 func (t *raftTx) CreateSite(_ context.Context, _ *store.Site) (*store.Site, error) {
@@ -1281,7 +1333,7 @@ func (t *raftTx) DeleteMiddleware(_ context.Context, _, _ string) error {
 }
 
 // ---------------------------------------------------------------------------
-// Dashboards + Widgets + Versions (stage-2) — raft stubs
+// Dashboards + Widgets + Versions — raft stubs
 // ---------------------------------------------------------------------------
 
 func (t *raftTx) CreateDashboard(_ context.Context, _ *store.Dashboard) (*store.Dashboard, error) {
@@ -1336,7 +1388,7 @@ func (t *raftTx) ListDashboardVersions(_ context.Context, _ string) ([]*store.Da
 }
 
 // ---------------------------------------------------------------------------
-// AI subsystem (stage-2) — raft stubs
+// AI subsystem — raft stubs
 // ---------------------------------------------------------------------------
 
 func (t *raftTx) CreateAIProvider(_ context.Context, _ *store.AIProvider) (*store.AIProvider, error) {
@@ -1465,7 +1517,7 @@ func (t *raftTx) ListAITracesByAgent(_ context.Context, _ string, _ store.AITrac
 }
 
 // ---------------------------------------------------------------------------
-// Notifications (stage-2) — raft stubs
+// Notifications — raft stubs
 // ---------------------------------------------------------------------------
 
 func (t *raftTx) AppendNotificationItem(_ context.Context, _ *store.NotificationItem) (*store.NotificationItem, error) {
@@ -1482,6 +1534,9 @@ func (t *raftTx) CountUnreadNotifications(_ context.Context, _, _ string) (int, 
 }
 func (t *raftTx) MarkNotificationRead(_ context.Context, _ string) error {
 	return fmt.Errorf("raft: MarkNotificationRead not implemented")
+}
+func (t *raftTx) MarkNotificationUnread(_ context.Context, _ string) error {
+	return fmt.Errorf("raft: MarkNotificationUnread not implemented")
 }
 func (t *raftTx) MarkAllNotificationsRead(_ context.Context, _, _ string) error {
 	return fmt.Errorf("raft: MarkAllNotificationsRead not implemented")
@@ -1504,6 +1559,23 @@ func (t *raftTx) UpdateNotificationChannel(_ context.Context, _, _ string, _ sto
 }
 func (t *raftTx) DeleteNotificationChannel(_ context.Context, _, _ string) error {
 	return fmt.Errorf("raft: DeleteNotificationChannel not implemented")
+}
+
+// SSO providers — not yet implemented for raft.
+func (t *raftTx) CreateSsoProvider(_ context.Context, _ *store.SsoProvider) (*store.SsoProvider, error) {
+	return nil, fmt.Errorf("raft: CreateSsoProvider not implemented")
+}
+func (t *raftTx) GetSsoProvider(_ context.Context, _, _ string) (*store.SsoProvider, error) {
+	return nil, store.ErrSsoProviderNotFound
+}
+func (t *raftTx) ListSsoProvidersByTenant(_ context.Context, _ string) ([]*store.SsoProvider, error) {
+	return nil, nil
+}
+func (t *raftTx) UpdateSsoProvider(_ context.Context, _, _ string, _ store.UpdateSsoProviderParams) (*store.SsoProvider, error) {
+	return nil, fmt.Errorf("raft: UpdateSsoProvider not implemented")
+}
+func (t *raftTx) DeleteSsoProvider(_ context.Context, _, _ string) error {
+	return fmt.Errorf("raft: DeleteSsoProvider not implemented")
 }
 
 func (t *raftTx) CreateRoutingRule(_ context.Context, _ *store.NotificationRoutingRule) (*store.NotificationRoutingRule, error) {
@@ -1546,7 +1618,7 @@ func (t *raftTx) UpsertTenantNotificationConfig(_ context.Context, _ *store.Tena
 }
 
 // ---------------------------------------------------------------------------
-// Plugins (stage-2) — raft stubs
+// Plugins — raft stubs
 // ---------------------------------------------------------------------------
 
 func (t *raftTx) CreatePlugin(_ context.Context, _ *store.Plugin) (*store.Plugin, error) {
@@ -1585,7 +1657,7 @@ func (t *raftTx) ListPluginsBySigner(_ context.Context, _ string) ([]*store.Plug
 }
 
 // ---------------------------------------------------------------------------
-// PKI/TLS (stage-2) — raft stubs
+// PKI/TLS — raft stubs
 // ---------------------------------------------------------------------------
 
 func (t *raftTx) CreateCertAuthority(_ context.Context, _ *store.CertAuthority) (*store.CertAuthority, error) {
@@ -1644,7 +1716,7 @@ func (t *raftTx) UpsertTLSConfig(_ context.Context, _ *store.TLSConfig) (*store.
 }
 
 // ---------------------------------------------------------------------------
-// Settings configs (stage-2) — raft stubs
+// Settings configs — raft stubs
 // ---------------------------------------------------------------------------
 
 func (t *raftTx) GetNetworkConfig(_ context.Context, tenantID string) (*store.NetworkConfig, error) {
@@ -1689,7 +1761,7 @@ func (t *raftTx) UpsertAuditRetentionConfig(_ context.Context, _ *store.AuditRet
 }
 
 // ---------------------------------------------------------------------------
-// Webhooks + cluster + impersonation (stage-2) — raft stubs
+// Webhooks + cluster + impersonation — raft stubs
 // ---------------------------------------------------------------------------
 
 func (t *raftTx) CreateWebhookEndpoint(_ context.Context, _ *store.WebhookEndpoint) (*store.WebhookEndpoint, error) {

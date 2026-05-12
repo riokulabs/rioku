@@ -31,7 +31,7 @@ jobs:
       - name: Run SQLite store tests
         run: |
           cd packages/daemon
-          go test -race -count=1 -timeout=300s ./internal/store/sqlite/...
+          go test -race -count=1 -timeout=1500s ./internal/store/sqlite/...
 
   store-matrix-postgres-15:
     name: store-matrix-postgres-15

@@ -1,6 +1,5 @@
 /**
- * Injection-zone registry — spec §9.5.1
- *
+ * Injection-zone registry.
  * Tracks React component contributions keyed by zone string.
  * First-party `<Zone id="...">` components read from here to discover and
  * render contributions.

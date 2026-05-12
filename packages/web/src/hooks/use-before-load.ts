@@ -2,20 +2,24 @@
  * Route-level permission guard helper.
  *
  * `requirePermissions` returns a TanStack Router `beforeLoad` function.
- * It runs OUTSIDE the React hook call tree (beforeLoad is not a hook context),
- * so mock-store state is accessed via `useMockStore.getState()` directly.
+ * `beforeLoad` runs OUTSIDE the React hook tree, so we read from the
+ * shared QueryClient cache — by the time any tenant route mounts, the
+ * `/auth/me` query has already been kicked off (auth router resolves
+ * it before children render).
+ *
+ * Stage-2: the daemon resolves the role graph + denies + CEL conditions
+ * before populating `permissions` on `/auth/me`, so this guard is a
+ * straightforward set-membership check.
  *
  * Redirect behaviour:
- *   - No current user  → redirect to /login (with return URL in search)
- *   - Missing required perms → redirect to /access-denied (with required + requireAny)
- *
- * Stage-1 CEL note: `when` conditions on grants are treated as always-true.
- * Real CEL evaluation runs daemon-side at Phase 2+.
+ *   - No current user → redirect to `/login` with the original URL in
+ *     the `return` search param.
+ *   - Missing required perms → redirect to `/access-denied`.
  */
 
 import { redirect } from '@tanstack/react-router';
-import { useMockStore } from '../api/mock-store';
-import { resolveRolePermissions } from '../host/role-resolver';
+import { fetchCurrentUser, currentUserQueryKey } from '@/features/auth/use-current-user';
+import { queryClient } from '@/api/query-client';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -41,10 +45,17 @@ export interface RequirePermissionsOptions {
  * ```
  */
 export function requirePermissions(opts: RequirePermissionsOptions) {
-  return (): true => {
-    const { currentUserId, currentTenantId, memberships, roles } = useMockStore.getState();
+  return async (): Promise<true> => {
+    // Try cache first; fall through to a fetch when the auth root has not
+    // primed the query yet (e.g. cold deep-link into a guarded route).
+    const me =
+      queryClient.getQueryData<Awaited<ReturnType<typeof fetchCurrentUser>>>(currentUserQueryKey) ??
+      (await queryClient.fetchQuery({
+        queryKey: currentUserQueryKey,
+        queryFn: ({ signal }) => fetchCurrentUser(signal),
+      }));
 
-    if (!currentUserId) {
+    if (!me) {
       // eslint-disable-next-line @typescript-eslint/only-throw-error
       throw redirect({
         to: '/login' as string,
@@ -55,14 +66,12 @@ export function requirePermissions(opts: RequirePermissionsOptions) {
       });
     }
 
-    // Derive the user's active role IDs for the current tenant
-    const userMemberships = Object.values(memberships).filter(
-      (m) => m.user_id === currentUserId && m.tenant_id === currentTenantId && m.state === 'active',
-    );
-    const roleIds = userMemberships.flatMap((m) => m.role_ids);
-    const resolved = resolveRolePermissions(roleIds, roles);
-
-    const has = (k: string): boolean => resolved.has(k);
+    // Wildcard '*' is the daemon-side representation for superadmin/root
+    // ("full access"). Without this branch the gate fails for root on every
+    // tenant-scoped route — guarded pages render the /access-denied screen
+    // even though the user has unrestricted permissions on the backend.
+    const isWildcard = me.permissions.includes('*');
+    const has = (k: string): boolean => isWildcard || me.permissions.includes(k);
     const pass = opts.requireAny ? opts.required.some(has) : opts.required.every(has);
 
     if (!pass) {

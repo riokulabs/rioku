@@ -1,6 +1,5 @@
 /**
- * Plugin manifest Zod schema — spec §9.2.
- *
+ * Plugin manifest Zod schema.
  * Validates the raw manifest JSON declared by a plugin. Does NOT enforce
  * business rules (reserved-prefix rejection, ABI compat) — those live in the
  * manifest validator (manifest-validator.ts).

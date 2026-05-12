@@ -1,18 +1,17 @@
 /**
- * Widget data-source adapters (Plan 4 §4a.5).
+ * Widget data-source adapters.
  *
- * Each adapter is a pure function that takes a Widget and a snapshot of the
- * mock store state and returns the widget's rendered data. Adapters honour
- * the widget's wizard_state (dimensions / measures / filters / group_by /
+ * Each adapter is a pure function that takes a Widget and a snapshot of
+ * state and returns the widget's rendered data. Adapters honour the
+ * widget's wizard_state (dimensions / measures / filters / group_by /
  * order_by / limit) over the source records.
  *
  * For widgets in advanced mode (`raw_query` is non-empty), adapters parse
- * the query text as JSON matching the `AdvancedQuery` schema below and
- * apply it instead of wizard_state. A parse failure surfaces as a
- * `WidgetQueryError` with the parse error detail.
+ * the query text as JSON matching the `AdvancedQuery` schema and apply it
+ * instead of wizard_state. A parse failure surfaces as a `WidgetQueryError`.
  *
- * The 'mock' adapter synthesises 20 deterministic rows per widget so
- * renderers can be exercised without real data.
+ * The 'mock' adapter synthesises deterministic rows so renderers can be
+ * exercised without real data.
  */
 import type {
   AuditEntry,
@@ -24,8 +23,22 @@ import type {
   AiTrace,
   WidgetWizardState,
 } from '@/api/resources';
-import type { MockStore } from '@/api/mock-store';
 import { getTimeRange, type TimeRange, type TimeRangeId } from '@/hooks/use-dashboard-range';
+
+/**
+ * Structural state shape consumed by the widget data-source adapters.
+ * Callers in dashboards / dashboard-builder construct snapshots that
+ * satisfy this shape from real-API hooks.
+ */
+export interface WidgetDataSourceState {
+  currentTenantId: string | null;
+  audit: AuditEntry[];
+  services: Record<string, Service>;
+  routes: Record<string, Route>;
+  aiTraces: Record<string, AiTrace>;
+  notifications: Record<string, NotificationItem>;
+  dashboards: Record<string, { variables?: readonly DashboardVariable[] }>;
+}
 
 // ─── Errors ───────────────────────────────────────────────────────────────────
 
@@ -93,12 +106,12 @@ function parseAdvancedQuery(raw: string): NormalizedQuery {
 /**
  * Replace `$name` tokens in a raw-query string using the dashboard variables.
  *
- * Stage-1 rules:
+ * Rules:
  *  - `$name` is substituted with `variable.default`.
  *  - Unknown `$name` tokens are left untouched (never throw) so the adapter's
  *    downstream JSON parse surfaces the error instead.
  *  - Tokens inside string literals are substituted too (naive textual
- *    substitution — sufficient for the current mock JSON syntax).
+ *    substitution).
  */
 export function substituteVariables(raw: string, variables: readonly DashboardVariable[]): string {
   if (raw.length === 0 || variables.length === 0) return raw;
@@ -249,7 +262,7 @@ function applyGroupAggregate<R extends Record<string, unknown>>(
 
 // ─── Adapters ─────────────────────────────────────────────────────────────────
 
-type AdapterFn = (widget: Widget, state: MockStore) => unknown;
+type AdapterFn = (widget: Widget, state: WidgetDataSourceState) => unknown;
 
 function tenantFilter<T extends { tenant_id?: string | null }>(
   rows: T[],
@@ -268,12 +281,15 @@ function coerceRows(arr: readonly unknown[]): Record<string, unknown>[] {
  * widget's dashboard is not found (e.g. the widget was detached in a bad
  * restore), variable substitution is a no-op.
  */
-function widgetVariables(widget: Widget, state: MockStore): readonly DashboardVariable[] {
+function widgetVariables(
+  widget: Widget,
+  state: WidgetDataSourceState,
+): readonly DashboardVariable[] {
   const dashboard = state.dashboards[widget.dashboard_id];
   return dashboard?.variables ?? [];
 }
 
-function auditAdapter(widget: Widget, state: MockStore): unknown {
+function auditAdapter(widget: Widget, state: WidgetDataSourceState): unknown {
   const query = resolveQuery(widget, widgetVariables(widget, state));
   const tenantId = state.currentTenantId;
   const rows = applyFilters(
@@ -283,7 +299,7 @@ function auditAdapter(widget: Widget, state: MockStore): unknown {
   return finalShape(widget, rows, query);
 }
 
-function servicesAdapter(widget: Widget, state: MockStore): unknown {
+function servicesAdapter(widget: Widget, state: WidgetDataSourceState): unknown {
   const query = resolveQuery(widget, widgetVariables(widget, state));
   const tenantId = state.currentTenantId;
   const services: Service[] = tenantFilter<Service>(Object.values(state.services), tenantId);
@@ -291,14 +307,14 @@ function servicesAdapter(widget: Widget, state: MockStore): unknown {
   return finalShape(widget, rows, query);
 }
 
-function routesAdapter(widget: Widget, state: MockStore): unknown {
+function routesAdapter(widget: Widget, state: WidgetDataSourceState): unknown {
   const query = resolveQuery(widget, widgetVariables(widget, state));
   const routes: Route[] = Object.values(state.routes);
   const rows = applyFilters(coerceRows(routes), query.filters);
   return finalShape(widget, rows, query);
 }
 
-function tracesAdapter(widget: Widget, state: MockStore): unknown {
+function tracesAdapter(widget: Widget, state: WidgetDataSourceState): unknown {
   const query = resolveQuery(widget, widgetVariables(widget, state));
   const tenantId = state.currentTenantId;
   const traces: AiTrace[] = tenantFilter<AiTrace>(Object.values(state.aiTraces), tenantId);
@@ -306,7 +322,7 @@ function tracesAdapter(widget: Widget, state: MockStore): unknown {
   return finalShape(widget, rows, query);
 }
 
-function notificationsAdapter(widget: Widget, state: MockStore): unknown {
+function notificationsAdapter(widget: Widget, state: WidgetDataSourceState): unknown {
   const query = resolveQuery(widget, widgetVariables(widget, state));
   const notifs: NotificationItem[] = Object.values(state.notifications);
   const rows = applyFilters(coerceRows(notifs), query.filters);
@@ -407,7 +423,7 @@ const MOCK_SERVICE_EDGES = [
  * Kind-aware mock adapter — returns realistic stub data shaped for each widget
  * kind so charts render with visible bars/lines/slices rather than zero values.
  */
-function mockAdapter(widget: Widget, state: MockStore): unknown {
+function mockAdapter(widget: Widget, state: WidgetDataSourceState): unknown {
   const seed = hashCode(widget.id);
   const range = rangeFromConfig(widget);
 
@@ -903,7 +919,7 @@ export const DATA_SOURCE_ADAPTERS: Record<string, AdapterFn> = {
  * Run a widget's query. Throws WidgetQueryError for unknown data sources or
  * invalid advanced queries.
  */
-export function runWidgetQuery(widget: Widget, state: MockStore): unknown {
+export function runWidgetQuery(widget: Widget, state: WidgetDataSourceState): unknown {
   const adapter = DATA_SOURCE_ADAPTERS[widget.data_source];
   if (!adapter) throw new WidgetQueryError(`Unknown data source: ${widget.data_source}`);
   return adapter(widget, state);

@@ -109,21 +109,23 @@ Per the same decision doc: sandbox seed + smoke harness must be refreshed **at e
 
 **If the sandbox is broken, fix it before doing anything else.** A broken sandbox means you cannot validate your work. Do not skip sandbox validation and do not test against ad-hoc manual setups.
 
-**Active exception — admin panel stage 1.** The Mantine admin rebuild on `feat/admin-mantine` ships stage 1 as an in-browser UI/UX/IA mock. It explicitly bypasses the sandbox for the mock stage. See `tmp/specs/2026-04-18-admin-mantine-design.md` §13.0 for the carve-out rules. Sandbox discipline resumes at stage 2 when the admin starts hitting real daemon endpoints.
+**Stage 2 complete — admin panel wired to real daemon.** All 12 stage-2 plans (01-12) plus the 4 foundation plans (00a-00d) and the close-out (13) have merged to stage2/main. The admin SPA at `:7778` now hits real daemon endpoints; mock-store / mock-seed code has been retired. The sandbox-bypass carve-out is removed.
 
-**Admin stage-1 status (2026-04-20): COMPLETE.** Branch `feat/admin-mantine` has 604 total commits vs `main`. All 9 plans delivered per `tmp/plans/2026-04-18..2026-04-20-*.md`:
+**Admin stage-2 status (2026-05-07): COMPLETE.** All 12 stage-2 plans plus 4 foundation plans and close-out delivered:
 
-- Plan 1 (Foundation), Plan 2 (Sites + API management), Plan 3 (AI management), Plan 4 (Analytics + dashboard builder), Plan 5 (Audit extended), Plan 6 (Plugins polish), Plan 7 (Notifications), Plan 8 (Settings polish), Plan 9 (Stage-1 integration close-out)
-
-Test coverage at stage-1 close: ~1671 unit tests, ~86 a11y tests + 32 visual checks, ~80 E2E smoke tests passing (all mock-store backed). Bundle audit documented in `packages/web/BUNDLE_AUDIT.md`.
-
-**Stage-2 entry points** (not yet flipped):
-
-- `src/api/mode.ts` — flip from mock fetch to real fetch
-- `VITE_USE_MOCKS=false` env flag activates real daemon endpoints
-- See `contrib-docs/admin-stage2-entry.md` (Task 9c.11) for full migration checklist
-
-**The sandbox-bypass carve-out REMAINS in effect** until the `VITE_USE_MOCKS=false` flip occurs. Stage 2 will retire this exception per spec §13.0.
+- Plan 00a Codegen + SPA Foundation, Plan 00b Sandbox Refactor, Plan 00c Daemon Endpoints, Plan 00d Tooling + Governance
+- Plan 01 Auth/TOTP/SMTP/SSE
+- Plan 02 Identity (users/roles/sessions/api-keys/RBAC + super-admin impersonation)
+- Plan 03 API Management (services/routes/middlewares/sites/access-policies)
+- Plan 04 AI (providers/agents/tools/tool-bindings/rate-limits/traces/MCP)
+- Plan 05 Audit (full Orval + reveal + retention + Playwright)
+- Plan 06 Notifications (channels/routing/dispatcher + event router)
+- Plan 07 Settings (9 sections + TLS/PKI/observability)
+- Plan 08 Dashboards (PromQL AST + widgets + home dashboard)
+- Plan 09 Plugins (sideload + dev-mode gate + perm registry)
+- Plan 10 Cluster (nodes/enrollment + tabs)
+- Plan 11 Super-Admin (tenant inventory + cross-tenant users + admin audit)
+- Plan 12 Subdomain Tenancy (parent_domain + cookie domain + wildcard cert)
 
 ## Issue Tracking
 

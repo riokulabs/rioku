@@ -1,0 +1,20 @@
+# Owned by Plan 04 (ai) — ai-agents seed data. See sandbox/scripts/seed-config.sh for loader.
+
+# AI agents
+ai_agents:
+  - name: support-bot
+    provider: openai-prod
+    model: gpt-4-turbo
+    description: "Customer support assistant with web search + docs lookup"
+    system_prompt: "You are a helpful support agent for Acme. Be concise."
+
+  - name: code-reviewer
+    provider: anthropic-prod
+    model: claude-3-opus
+    description: "Reviews PR diffs and surfaces concerns"
+    system_prompt: "You review code for correctness, security, and style."
+
+  - name: local-experiment
+    provider: ollama-local
+    model: llama3
+    description: "Local-only experimentation agent (no external calls)"

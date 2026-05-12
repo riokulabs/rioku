@@ -31,4 +31,3 @@ export * from './cluster';
 export * from './dashboards';
 export * from './widgets';
 export * from './settings';
-export * from './super-admin';

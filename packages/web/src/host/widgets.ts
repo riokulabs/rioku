@@ -1,5 +1,5 @@
 /**
- * Dashboard-widget registry — spec §9.5.8
+ * Dashboard-widget registry.
  *
  * Plugins register widget types. The dashboard builder reads this registry
  * to offer the full set of available widget types when a user adds a widget.
@@ -15,7 +15,7 @@ import type React from 'react';
 export interface WidgetRegistration {
   type: string;
   displayName: string;
-  /** JSON-schema shapes for input and config (unknown at stage-1). */
+  /** JSON-schema shapes for input and config. */
   schema: {
     input: unknown;
     config: unknown;

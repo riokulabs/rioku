@@ -102,6 +102,10 @@ auth:
       - Authorization
       - X-Request-ID
     max_age: 3600
+  smtp:
+    host: ${SANDBOX_SMTP_HOST}
+    port: ${SANDBOX_SMTP_PORT}
+    from: ${SANDBOX_SMTP_FROM}
 
 security_headers:
   enabled: true

@@ -5,7 +5,6 @@
  * diverge (super-admin cross-cluster vs tenant-scoped view), but for stage 1
  * the mock-backed component is identical.
  *
- * spec §8.1 / Task 1d.78
  */
 import { createFileRoute } from '@tanstack/react-router';
 import { requirePermissions } from '@/hooks/use-before-load';

@@ -32,7 +32,7 @@ export function DeleteSiteModal({ opened, site, onClose, onSuccess }: DeleteSite
     if (typed !== site.domain) return;
     setDeleting(true);
     try {
-      await deleteSite(site.id, typed);
+      await deleteSite(site.tenant_id, site.id, typed, site.domain);
       notify.success('Site deleted', `${site.domain} was removed.`);
       onSuccess();
     } catch {

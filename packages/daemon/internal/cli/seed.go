@@ -8,7 +8,9 @@ import (
 	"log/slog"
 	"net/http"
 	"os"
+	"path/filepath"
 	"regexp"
+	"sort"
 	"strings"
 
 	"github.com/spf13/cobra"
@@ -21,11 +23,11 @@ import (
 
 // SeedFile represents the top-level structure of a seed YAML file.
 //
-// Stage-2 entities (Sites onward) target tenant-scoped REST paths
+// Tenant-scoped entities (Sites onward) target REST paths
 // `/api/v1/t/{tenant}/...`. The optional Tenant field on each entity
 // selects which tenant; defaults to "default" if unset.
 type SeedFile struct {
-	// Legacy + identity (tenant-implicit; default tenant only)
+	// Tenant-implicit identity entities (default tenant only)
 	Roles    []SeedRole    `yaml:"roles"`
 	Services []SeedService `yaml:"services"`
 	Policies []SeedPolicy  `yaml:"policies"`
@@ -33,9 +35,9 @@ type SeedFile struct {
 	Users    []SeedUser    `yaml:"users"`
 	APIKeys  []SeedAPIKey  `yaml:"api_keys"`
 
-	// Stage-2 entities (tenant-scoped). Tenants block creates extra
-	// tenants beyond the seeded "default"; everything below uses the
-	// per-entity Tenant field (defaults to "default").
+	// Tenant-scoped entities. The Tenants block creates extra tenants
+	// beyond the seeded "default"; everything below uses the per-entity
+	// Tenant field (defaults to "default").
 	Tenants              []SeedTenant              `yaml:"tenants"`
 	Memberships          []SeedMembership          `yaml:"memberships"`
 	Sites                []SeedSite                `yaml:"sites"`
@@ -48,7 +50,9 @@ type SeedFile struct {
 	AIRateLimits         []SeedAIRateLimit         `yaml:"ai_rate_limits"`
 	MCPServers           []SeedMCPServer           `yaml:"mcp_servers"`
 	NotificationChannels []SeedNotifChannel        `yaml:"notification_channels"`
+	SsoProviders         []SeedSsoProvider         `yaml:"sso_providers"`
 	NotificationRouting  []SeedNotifRoutingRule    `yaml:"notification_routing"`
+	Notifications        []SeedNotification        `yaml:"notifications"`
 	Plugins              []SeedPlugin              `yaml:"plugins"`
 	PluginSigners        []SeedPluginSigner        `yaml:"plugin_signers"`
 	CertAuthorities      []SeedCertAuthority       `yaml:"cert_authorities"`
@@ -61,6 +65,21 @@ type SeedFile struct {
 	AuditRetentionConfig *SeedAuditRetentionConfig `yaml:"audit_retention"`
 	NotificationConfig   *SeedNotificationConfig   `yaml:"notification_config"`
 	WebhookEndpoints     []SeedWebhookEndpoint     `yaml:"webhook_endpoints"`
+	ClusterNodes         []SeedClusterNode         `yaml:"cluster_nodes"`
+}
+
+// SeedClusterNode declares an expected cluster member for the sandbox.
+//
+// Cluster nodes are not creatable through the REST API — daemons join the
+// cluster by presenting an enrollment token at startup. This declaration
+// exists so the sandbox seed bundle documents the expected topology and the
+// loader can warn when the running cluster doesn't match. Missing nodes are
+// logged at info level and counted, never error-out — the sandbox should
+// still come up so non-cluster tests can run.
+type SeedClusterNode struct {
+	Name string `yaml:"name"`
+	Role string `yaml:"role"`
+	Note string `yaml:"note,omitempty"`
 }
 
 // SeedRole defines a custom role to create.
@@ -125,7 +144,7 @@ type SeedAPIKey struct {
 }
 
 // ---------------------------------------------------------------------------
-// Stage-2 entity seed types
+// Tenant-scoped entity seed types
 //
 // Each tenant-scoped entity carries a `Tenant` field that defaults to
 // "default" when unset. POSTs hit `/api/v1/t/{tenant}/...`.
@@ -133,10 +152,11 @@ type SeedAPIKey struct {
 
 // SeedTenant creates an extra tenant beyond the seeded "default".
 type SeedTenant struct {
-	Slug    string `yaml:"slug"`
-	Name    string `yaml:"name"`
-	Plan    string `yaml:"plan,omitempty"`
-	URLMode string `yaml:"url_mode,omitempty"`
+	Slug         string `yaml:"slug"`
+	Name         string `yaml:"name"`
+	Plan         string `yaml:"plan,omitempty"`
+	URLMode      string `yaml:"url_mode,omitempty"`
+	ParentDomain string `yaml:"parent_domain,omitempty"`
 }
 
 // SeedMembership ties a username to a tenant with a role set.
@@ -258,12 +278,41 @@ type SeedMCPServer struct {
 	AuthCredential string `yaml:"auth_credential,omitempty"`
 }
 
+// SeedSsoProvider registers an SSO provider config for a tenant.
+type SeedSsoProvider struct {
+	Tenant              string            `yaml:"tenant,omitempty"`
+	Name                string            `yaml:"name"`
+	Kind                string            `yaml:"kind"` // oidc | saml
+	OIDCIssuer          string            `yaml:"oidc_issuer,omitempty"`
+	OIDCClientID        string            `yaml:"oidc_client_id,omitempty"`
+	OIDCClientSecretRef string            `yaml:"oidc_client_secret_ref,omitempty"`
+	OIDCScopes          []string          `yaml:"oidc_scopes,omitempty"`
+	ClaimsMapping       map[string]string `yaml:"claims_mapping,omitempty"`
+	Enabled             *bool             `yaml:"enabled,omitempty"`
+}
+
 // SeedNotifChannel registers an outbound notification destination.
 type SeedNotifChannel struct {
 	Tenant string         `yaml:"tenant,omitempty"`
 	Name   string         `yaml:"name"`
 	Kind   string         `yaml:"kind"`
 	Config map[string]any `yaml:"config,omitempty"`
+}
+
+// SeedNotification is a per-user inbox entry for sandbox demo data.
+// Tenant defaults to "default"; UserUsername resolves to a user_id at
+// seed time (the seeder needs the user to already exist).
+type SeedNotification struct {
+	Tenant       string `yaml:"tenant,omitempty"`
+	UserUsername string `yaml:"user"`
+	Category     string `yaml:"category"`
+	Severity     string `yaml:"severity"`
+	Title        string `yaml:"title"`
+	Body         string `yaml:"body"`
+	ActionLink   string `yaml:"action_link,omitempty"`
+	OccurredAt   string `yaml:"occurred_at,omitempty"` // RFC3339; defaults to now
+	Read         bool   `yaml:"read,omitempty"`
+	Archived     bool   `yaml:"archived,omitempty"`
 }
 
 // SeedNotifRoutingRule maps event filters to channels.
@@ -405,6 +454,7 @@ type SeedWebhookEndpoint struct {
 func newSeedCmd() *cobra.Command {
 	var (
 		seedFile   string
+		seedDir    string
 		targetAddr string
 		username   string
 		password   string
@@ -413,22 +463,29 @@ func newSeedCmd() *cobra.Command {
 
 	cmd := &cobra.Command{
 		Use:   "seed",
-		Short: "Apply seed data from a YAML file to a running Rioku instance",
-		Long: `Reads a YAML seed file and applies services, routes, policies, users,
-roles, and API keys to a running Rioku daemon via its REST API.
+		Short: "Apply seed data from a YAML file or directory to a running Rioku instance",
+		Long: `Reads a YAML seed file (or a directory of seed files) and applies services,
+routes, policies, users, roles, and API keys to a running Rioku daemon via its REST API.
 
-The seed file supports environment variable substitution using ${VAR:-default} syntax.`,
+When --dir is used, all *.yaml and *.yml files in the directory are loaded in
+alphabetical order, env-substituted, and merged: slice fields are appended and
+pointer/singleton fields are last-write-wins.
+
+Both --file and --dir support environment variable substitution using ${VAR:-default} syntax.`,
 		RunE: func(cmd *cobra.Command, args []string) error {
-			return runSeed(seedFile, targetAddr, username, password, direct)
+			if (seedFile == "" && seedDir == "") || (seedFile != "" && seedDir != "") {
+				return fmt.Errorf("exactly one of --file or --dir is required")
+			}
+			return runSeed(seedFile, seedDir, targetAddr, username, password, direct)
 		},
 	}
 
-	cmd.Flags().StringVarP(&seedFile, "file", "f", "", "path to seed YAML file (required)")
+	cmd.Flags().StringVarP(&seedFile, "file", "f", "", "path to seed YAML file (mutually exclusive with --dir)")
+	cmd.Flags().StringVarP(&seedDir, "dir", "d", "", "path to a directory of seed YAML files (mutually exclusive with --file)")
 	cmd.Flags().StringVar(&targetAddr, "target", "http://localhost:7778", "daemon REST API address")
 	cmd.Flags().StringVarP(&username, "username", "u", "root", "admin username for API authentication")
 	cmd.Flags().StringVarP(&password, "password", "p", "", "admin password (or set SANDBOX_ROOT_PASSWORD env)")
 	cmd.Flags().BoolVar(&direct, "direct", false, "write directly to store, bypassing API (not implemented)")
-	_ = cmd.MarkFlagRequired("file")
 
 	return cmd
 }
@@ -437,23 +494,30 @@ The seed file supports environment variable substitution using ${VAR:-default} s
 // Core logic
 // ---------------------------------------------------------------------------
 
-func runSeed(seedFile, targetAddr, username, password string, direct bool) error {
+func runSeed(seedFile, seedDir, targetAddr, username, password string, direct bool) error {
 	logger := slog.Default().With("component", "seed")
 
 	if direct {
 		return fmt.Errorf("--direct mode is not implemented yet")
 	}
 
-	// Read and env-substitute the seed file.
-	raw, err := os.ReadFile(seedFile)
-	if err != nil {
-		return fmt.Errorf("read seed file: %w", err)
-	}
-	raw = envSubstitute(raw)
-
 	var seed SeedFile
-	if err := yaml.Unmarshal(raw, &seed); err != nil {
-		return fmt.Errorf("parse seed file: %w", err)
+	if seedFile != "" {
+		// Read and env-substitute the seed file.
+		raw, err := os.ReadFile(seedFile)
+		if err != nil {
+			return fmt.Errorf("read seed file: %w", err)
+		}
+		raw = envSubstitute(raw)
+		if err := yaml.Unmarshal(raw, &seed); err != nil {
+			return fmt.Errorf("parse seed file: %w", err)
+		}
+	} else {
+		merged, err := loadSeedFromDir(seedDir)
+		if err != nil {
+			return fmt.Errorf("load seed dir: %w", err)
+		}
+		seed = merged
 	}
 
 	// Resolve password.
@@ -704,7 +768,7 @@ func runSeed(seedFile, targetAddr, username, password string, direct bool) error
 		counts.apiKeys++
 	}
 
-	// --- Stage-2 entities ---
+	// --- Tenant-scoped entities ---
 	stage2Counts := applyStage2(client, sessionCookie, base, &seed, logger)
 
 	// Logout.
@@ -717,16 +781,16 @@ func runSeed(seedFile, targetAddr, username, password string, direct bool) error
 		stage2Counts.tenants, stage2Counts.memberships, stage2Counts.sites, stage2Counts.middlewares, stage2Counts.dashboards)
 	fmt.Printf("AI:      %d providers, %d agents, %d tools, %d bindings, %d rate limits, %d MCP servers\n",
 		stage2Counts.aiProviders, stage2Counts.aiAgents, stage2Counts.aiTools, stage2Counts.aiBindings, stage2Counts.aiRateLimits, stage2Counts.mcpServers)
-	fmt.Printf("Other:   %d notif channels, %d notif rules, %d plugins, %d signers, %d CAs, %d enrollments, %d TLS certs, %d webhooks\n",
+	fmt.Printf("Other:   %d notif channels, %d notif rules, %d plugins, %d signers, %d CAs, %d enrollments, %d TLS certs, %d webhooks, %d sso\n",
 		stage2Counts.notifChannels, stage2Counts.notifRules, stage2Counts.plugins, stage2Counts.pluginSigners,
-		stage2Counts.cas, stage2Counts.enrollments, stage2Counts.tlsCerts, stage2Counts.webhooks)
+		stage2Counts.cas, stage2Counts.enrollments, stage2Counts.tlsCerts, stage2Counts.webhooks, stage2Counts.ssoProviders)
 	fmt.Printf("Singletons: %s\n", stage2Counts.singletonsApplied)
 
 	return nil
 }
 
 // ---------------------------------------------------------------------------
-// Stage-2 entity application
+// Tenant-scoped entity application
 // ---------------------------------------------------------------------------
 
 type stage2Counts struct {
@@ -734,8 +798,10 @@ type stage2Counts struct {
 	aiProviders, aiAgents, aiTools, aiBindings           int
 	aiRateLimits, mcpServers                             int
 	notifChannels, notifRules                            int
+	ssoProviders                                         int
 	plugins, pluginSigners                               int
 	cas, enrollments, tlsCerts, webhooks                 int
+	clusterNodes                                         int
 	singletonsApplied                                    string
 }
 
@@ -756,7 +822,7 @@ func applyStage2(client *http.Client, sessionCookie, base string, seed *SeedFile
 	// 1. Tenants (must come first — everything else may reference them)
 	for _, tn := range seed.Tenants {
 		payload, _ := json.Marshal(map[string]any{
-			"slug": tn.Slug, "name": tn.Name, "plan": tn.Plan, "urlMode": tn.URLMode,
+			"slug": tn.Slug, "name": tn.Name, "plan": tn.Plan, "urlMode": tn.URLMode, "parentDomain": tn.ParentDomain,
 		})
 		status, _ := apiCall(client, sessionCookie, "POST", base+"/api/v1/admin/tenants", payload)
 		logSeed(logger, "tenant", tn.Slug, status)
@@ -996,6 +1062,68 @@ func applyStage2(client *http.Client, sessionCookie, base string, seed *SeedFile
 		}
 	}
 
+	// SSO providers.
+	for _, sp := range seed.SsoProviders {
+		payload := map[string]any{
+			"name": sp.Name, "kind": sp.Kind,
+		}
+		if sp.OIDCIssuer != "" {
+			payload["oidcIssuer"] = sp.OIDCIssuer
+		}
+		if sp.OIDCClientID != "" {
+			payload["oidcClientId"] = sp.OIDCClientID
+		}
+		if sp.OIDCClientSecretRef != "" {
+			payload["oidcClientSecretRef"] = sp.OIDCClientSecretRef
+		}
+		if len(sp.OIDCScopes) > 0 {
+			payload["oidcScopes"] = sp.OIDCScopes
+		}
+		if len(sp.ClaimsMapping) > 0 {
+			payload["claimsMapping"] = sp.ClaimsMapping
+		}
+		if sp.Enabled != nil {
+			payload["enabled"] = *sp.Enabled
+		}
+		body, _ := json.Marshal(payload)
+		status, _ := apiCall(client, sessionCookie, "POST", tenantBase(sp.Tenant)+"/sso/providers", body)
+		logSeed(logger, "sso-provider", sp.Name, status)
+		c.ssoProviders++
+	}
+
+	// 12b. Sandbox inbox notifications (admin-only seed endpoint).
+	if len(seed.Notifications) > 0 {
+		// Group by tenant so we can issue one bulk POST per tenant.
+		byTenant := map[string][]map[string]any{}
+		for _, n := range seed.Notifications {
+			t := n.Tenant
+			if t == "" {
+				t = "default"
+			}
+			item := map[string]any{
+				"username": n.UserUsername,
+				"category": n.Category,
+				"severity": n.Severity,
+				"title":    n.Title,
+				"body":     n.Body,
+				"read":     n.Read,
+				"archived": n.Archived,
+			}
+			if n.ActionLink != "" {
+				item["actionLink"] = n.ActionLink
+			}
+			if n.OccurredAt != "" {
+				item["occurredAt"] = n.OccurredAt
+			}
+			byTenant[t] = append(byTenant[t], item)
+		}
+		for tenant, items := range byTenant {
+			body, _ := json.Marshal(map[string]any{"items": items})
+			status, _ := apiCall(client, sessionCookie, "POST", tenantBase(tenant)+"/notifications/seed", body)
+			logSeed(logger, "notifications", fmt.Sprintf("%s (%d items)", tenant, len(items)), status)
+		}
+	}
+
 	// 13. Notification routing rules
 	for _, rule := range seed.NotificationRouting {
 		chIDs := make([]string, 0, len(rule.Channels))
@@ -1176,7 +1304,114 @@ func applyStage2(client *http.Client, sessionCookie, base string, seed *SeedFile
 		c.webhooks++
 	}
 
+	// 21. Cluster nodes — declarative-only.
+	//
+	// Cluster membership is established by the daemon presenting an
+	// enrollment token at boot, not by a REST POST. The seed bundle still
+	// carries a `cluster_nodes:` block so smoke tests / sandbox tooling
+	// can compare expected topology to live membership; the seed loader
+	// just logs each declared node and records the count.
+	for _, n := range seed.ClusterNodes {
+		role := n.Role
+		if role == "" {
+			role = "member"
+		}
+		logger.Info("cluster node declared",
+			"name", n.Name, "role", role, "note", n.Note,
+			"hint", "cluster nodes are seeded via enrollment tokens, not REST")
+		c.clusterNodes++
+	}
+
 	return c
+}
+
+// loadSeedFromDir walks dir, reads every *.yaml/*.yml file in alphabetical
+// order, env-substitutes each, decodes each into SeedFile, and merges the
+// results: slice fields are appended (later files extend), pointer fields
+// are last-write-wins (later files override).
+func loadSeedFromDir(dir string) (SeedFile, error) {
+	entries, err := os.ReadDir(dir)
+	if err != nil {
+		return SeedFile{}, err
+	}
+	var paths []string
+	for _, e := range entries {
+		if e.IsDir() {
+			continue
+		}
+		n := e.Name()
+		if strings.HasSuffix(n, ".yaml") || strings.HasSuffix(n, ".yml") {
+			paths = append(paths, filepath.Join(dir, n))
+		}
+	}
+	sort.Strings(paths)
+	var merged SeedFile
+	for _, p := range paths {
+		raw, err := os.ReadFile(p)
+		if err != nil {
+			return SeedFile{}, fmt.Errorf("read %s: %w", p, err)
+		}
+		raw = envSubstitute(raw)
+		var part SeedFile
+		if err := yaml.Unmarshal(raw, &part); err != nil {
+			return SeedFile{}, fmt.Errorf("parse %s: %w", p, err)
+		}
+		mergeSeed(&merged, &part)
+	}
+	return merged, nil
+}
+
+// mergeSeed appends slice fields and overwrites pointer fields with
+// last-write-wins semantics. Order in the directory listing is the
+// tiebreaker for pointer-field conflicts.
+func mergeSeed(dst, src *SeedFile) {
+	dst.Roles = append(dst.Roles, src.Roles...)
+	dst.Services = append(dst.Services, src.Services...)
+	dst.Policies = append(dst.Policies, src.Policies...)
+	dst.Routes = append(dst.Routes, src.Routes...)
+	dst.Users = append(dst.Users, src.Users...)
+	dst.APIKeys = append(dst.APIKeys, src.APIKeys...)
+	dst.Tenants = append(dst.Tenants, src.Tenants...)
+	dst.Memberships = append(dst.Memberships, src.Memberships...)
+	dst.Sites = append(dst.Sites, src.Sites...)
+	dst.Middlewares = append(dst.Middlewares, src.Middlewares...)
+	dst.Dashboards = append(dst.Dashboards, src.Dashboards...)
+	dst.AIProviders = append(dst.AIProviders, src.AIProviders...)
+	dst.AIAgents = append(dst.AIAgents, src.AIAgents...)
+	dst.AITools = append(dst.AITools, src.AITools...)
+	dst.AIToolBindings = append(dst.AIToolBindings, src.AIToolBindings...)
+	dst.AIRateLimits = append(dst.AIRateLimits, src.AIRateLimits...)
+	dst.MCPServers = append(dst.MCPServers, src.MCPServers...)
+	dst.NotificationChannels = append(dst.NotificationChannels, src.NotificationChannels...)
+	dst.SsoProviders = append(dst.SsoProviders, src.SsoProviders...)
+	dst.NotificationRouting = append(dst.NotificationRouting, src.NotificationRouting...)
+	dst.Notifications = append(dst.Notifications, src.Notifications...)
+	dst.Plugins = append(dst.Plugins, src.Plugins...)
+	dst.PluginSigners = append(dst.PluginSigners, src.PluginSigners...)
+	dst.CertAuthorities = append(dst.CertAuthorities, src.CertAuthorities...)
+	dst.CertEnrollments = append(dst.CertEnrollments, src.CertEnrollments...)
+	dst.TLSCertificates = append(dst.TLSCertificates, src.TLSCertificates...)
+	dst.WebhookEndpoints = append(dst.WebhookEndpoints, src.WebhookEndpoints...)
+	dst.ClusterNodes = append(dst.ClusterNodes, src.ClusterNodes...)
+	// Pointer/singleton fields: last-write-wins.
+	if src.TLSConfig != nil {
+		dst.TLSConfig = src.TLSConfig
+	}
+	if src.NetworkConfig != nil {
+		dst.NetworkConfig = src.NetworkConfig
+	}
+	if src.AuthPolicy != nil {
+		dst.AuthPolicy = src.AuthPolicy
+	}
+	if src.ObservabilityConfig != nil {
+		dst.ObservabilityConfig = src.ObservabilityConfig
+	}
+	if src.AuditRetentionConfig != nil {
+		dst.AuditRetentionConfig = src.AuditRetentionConfig
+	}
+	if src.NotificationConfig != nil {
+		dst.NotificationConfig = src.NotificationConfig
+	}
 }
 
 // logSeed emits a single info or warn line for a seeded entity.

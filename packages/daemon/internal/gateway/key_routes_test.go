@@ -18,6 +18,22 @@ import (
 	_ "github.com/riokulabs/rioku/internal/store/sqlite"
 )
 
+// decodeKeyList unwraps a key-list response into its inner array. The
+// list endpoint moved from emitting a bare `[...]` array to the
+// OpenAPI-aligned `{"apiKeys": [...], "nextPageToken": "…"}` shape so
+// the SPA's Orval-typed hooks could read `data.data.apiKeys` directly;
+// keep the test helper here so the call sites stay narrow.
+func decodeKeyList(t *testing.T, body interface{ Read(p []byte) (int, error) }) []map[string]any {
+	t.Helper()
+	var wrap struct {
+		ApiKeys []map[string]any `json:"apiKeys"`
+	}
+	if err := json.NewDecoder(body).Decode(&wrap); err != nil {
+		t.Fatalf("decode key list: %v", err)
+	}
+	return wrap.ApiKeys
+}
+
 // setupKeyTestServer creates a fully wired test server with auth middleware,
 // auth routes (for login), and key routes. Returns the server, store driver,
 // root password, and an authenticated HTTP client (logged in as root).
@@ -211,10 +227,7 @@ func TestKeyRoutes_CreateKey_WithScopes(t *testing.T) {
 		t.Fatalf("list keys: expected 200, got %d", listResp.StatusCode)
 	}
 
-	var keys []map[string]any
-	if err := json.NewDecoder(listResp.Body).Decode(&keys); err != nil {
-		t.Fatalf("decode list response: %v", err)
-	}
+	keys := decodeKeyList(t, listResp.Body)
 
 	var found bool
 	for _, k := range keys {
@@ -356,10 +369,7 @@ func TestKeyRoutes_ListKeys(t *testing.T) {
 		t.Fatalf("expected 200, got %d", resp.StatusCode)
 	}
 
-	var keys []map[string]any
-	if err := json.NewDecoder(resp.Body).Decode(&keys); err != nil {
-		t.Fatalf("decode response: %v", err)
-	}
+	keys := decodeKeyList(t, resp.Body)
 
 	if len(keys) != 2 {
 		t.Fatalf("expected 2 keys, got %d", len(keys))
@@ -396,12 +406,12 @@ func TestKeyRoutes_ListKeys_FiltersInternalTokens(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	_, err = tx.CreateAPIKey(ctx, "bootstrap", auth.HashToken("fake-bootstrap"), []string{"admin"}, nil, "")
+	_, err = tx.CreateAPIKey(ctx, "bootstrap", auth.HashToken("fake-bootstrap"), "", []string{"admin"}, nil, "")
 	if err != nil {
 		_ = tx.Rollback()
 		t.Fatal(err)
 	}
-	_, err = tx.CreateAPIKey(ctx, "refresh:user123", auth.HashToken("fake-refresh"), []string{"refresh"}, nil, "")
+	_, err = tx.CreateAPIKey(ctx, "refresh:user123", auth.HashToken("fake-refresh"), "", []string{"refresh"}, nil, "")
 	if err != nil {
 		_ = tx.Rollback()
 		t.Fatal(err)
@@ -421,10 +431,7 @@ func TestKeyRoutes_ListKeys_FiltersInternalTokens(t *testing.T) {
 		t.Fatalf("expected 200, got %d", resp.StatusCode)
 	}
 
-	var keys []map[string]any
-	if err := json.NewDecoder(resp.Body).Decode(&keys); err != nil {
-		t.Fatalf("decode response: %v", err)
-	}
+	keys := decodeKeyList(t, resp.Body)
 
 	for _, k := range keys {
 		name := k["name"].(string)
@@ -772,10 +779,7 @@ func TestKeyRoutes_OperatorListsOnlyOwnKeys(t *testing.T) {
 	if respA.StatusCode != http.StatusOK {
 		t.Fatalf("op-a list: expected 200, got %d", respA.StatusCode)
 	}
-	var keysA []map[string]any
-	if err := json.NewDecoder(respA.Body).Decode(&keysA); err != nil {
-		t.Fatalf("decode op-a keys: %v", err)
-	}
+	keysA := decodeKeyList(t, respA.Body)
 	if len(keysA) != 1 {
 		t.Fatalf("op-a: expected 1 key, got %d", len(keysA))
 	}
@@ -789,10 +793,7 @@ func TestKeyRoutes_OperatorListsOnlyOwnKeys(t *testing.T) {
 	if respB.StatusCode != http.StatusOK {
 		t.Fatalf("op-b list: expected 200, got %d", respB.StatusCode)
 	}
-	var keysB []map[string]any
-	if err := json.NewDecoder(respB.Body).Decode(&keysB); err != nil {
-		t.Fatalf("decode op-b keys: %v", err)
-	}
+	keysB := decodeKeyList(t, respB.Body)
 	if len(keysB) != 1 {
 		t.Fatalf("op-b: expected 1 key, got %d", len(keysB))
 	}
@@ -850,10 +851,7 @@ func TestKeyRoutes_AdminCanListAllKeys(t *testing.T) {
 	if resp.StatusCode != http.StatusOK {
 		t.Fatalf("admin list: expected 200, got %d", resp.StatusCode)
 	}
-	var keys []map[string]any
-	if err := json.NewDecoder(resp.Body).Decode(&keys); err != nil {
-		t.Fatalf("decode keys: %v", err)
-	}
+	keys := decodeKeyList(t, resp.Body)
 
 	found := make(map[string]bool)
 	for _, k := range keys {
@@ -963,10 +961,7 @@ func TestKeyRoutes_OwnerIDSetOnCreation(t *testing.T) {
 	if resp.StatusCode != http.StatusOK {
 		t.Fatalf("list: expected 200, got %d", resp.StatusCode)
 	}
-	var keys []map[string]any
-	if err := json.NewDecoder(resp.Body).Decode(&keys); err != nil {
-		t.Fatalf("decode keys: %v", err)
-	}
+	keys := decodeKeyList(t, resp.Body)
 	if len(keys) != 1 {
 		t.Fatalf("expected 1 key, got %d", len(keys))
 	}
@@ -998,7 +993,7 @@ func TestKeyRoutes_APIKeyAuthCreatesSystemKey(t *testing.T) {
 		_ = tx.Rollback()
 		t.Fatal(err)
 	}
-	_, err = tx.CreateAPIKey(ctx, "bootstrap-test", auth.HashToken(rawBootstrap), []string{"admin"}, nil, "")
+	_, err = tx.CreateAPIKey(ctx, "bootstrap-test", auth.HashToken(rawBootstrap), "", []string{"admin"}, nil, "")
 	if err != nil {
 		_ = tx.Rollback()
 		t.Fatal(err)
@@ -1042,10 +1037,7 @@ func TestKeyRoutes_APIKeyAuthCreatesSystemKey(t *testing.T) {
 	if listResp.StatusCode != http.StatusOK {
 		t.Fatalf("list: expected 200, got %d", listResp.StatusCode)
 	}
-	var keys []map[string]any
-	if err := json.NewDecoder(listResp.Body).Decode(&keys); err != nil {
-		t.Fatalf("decode keys: %v", err)
-	}
+	keys := decodeKeyList(t, listResp.Body)
 
 	var found bool
 	for _, k := range keys {

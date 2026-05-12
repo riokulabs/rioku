@@ -9,11 +9,15 @@ export {
   useInstalledPlugin,
   usePluginAuditTail,
   useInstalledPluginMutations,
+  useEnablePluginMutation,
+  useDisablePluginMutation,
+  useUninstallPluginMutation,
   enablePlugin,
   disablePlugin,
   uninstallPlugin,
   installPluginWithProgress,
   getBuildLog,
+  pluginQueryKeys,
 } from './api';
 export type {
   InstallProgressStage,

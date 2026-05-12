@@ -1,8 +1,7 @@
-// Package gateway: tenant-scoped RBAC policy CRUD (stage-2 admin
-// completion chunk 7b). RBAC policies map subjects (user / group /
-// service-account) to roles within a tenant. Distinct from
-// access-policies (request-time conditional access) and the legacy
-// proto Policy (handler config blob).
+// Package gateway: tenant-scoped RBAC policy CRUD. RBAC policies map
+// subjects (user / group / service-account) to roles within a tenant.
+// Distinct from access-policies (request-time conditional access) and
+// the legacy proto Policy (handler config blob).
 //
 //	OPTIONS  /api/v1/t/{tenant}/rbac-policies                discovery
 //	GET      /api/v1/t/{tenant}/rbac-policies                list                rbac:read
@@ -129,10 +128,14 @@ func handleListRbacPolicies(st store.Driver) http.HandlerFunc {
 		for _, p := range policies {
 			out = append(out, rbacPolicyToDTO(p, b))
 		}
+		// OpenAPI: ListRbacPolicies200 = `{rbacPolicies: [...], nextPageToken: ""}`.
+		// The legacy `{items, total, _links}` shape made the SPA's
+		// `useRbacPolicyList` read `data.data.rbacPolicies → undefined → []`
+		// and render an empty list across every tenant.
 		writeJSON(w, http.StatusOK, map[string]any{
-			"items":  out,
-			"total":  len(out),
-			"_links": links.Set{"self": b.Collection("rbac-policies")},
+			"rbacPolicies":  out,
+			"nextPageToken": "",
+			"_links":        links.Set{"self": b.Collection("rbac-policies")},
 		})
 	}
 }

@@ -1,6 +1,5 @@
 /**
  * TOTP recovery page — backup code login.
- * Task 1e.87
  */
 import { createFileRoute } from '@tanstack/react-router';
 import { z } from 'zod';

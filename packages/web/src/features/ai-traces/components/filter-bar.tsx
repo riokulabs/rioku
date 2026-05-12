@@ -15,10 +15,17 @@ import { Group, TextInput, MultiSelect, SegmentedControl, Tooltip, Stack } from 
 import { DatePickerInput } from '@mantine/dates';
 import { useDebouncedValue } from '@mantine/hooks';
 import { IconSearch } from '@tabler/icons-react';
-import { useMockStore } from '@/api/mock-store';
+import { useAgentList } from '@/features/ai-agents/api';
+import type { AgentFilter } from '@/features/ai-agents/types';
 import { usePermission } from '@/hooks/use-permission';
 import type { AiTrace } from '@/api/resources';
 import type { TraceFilter } from '../types';
+
+const EMPTY_AGENT_FILTER: AgentFilter = {
+  search: '',
+  provider_ids: [],
+  role_ids: [],
+};
 
 export type RangePreset = '1h' | '24h' | '7d' | 'all' | 'custom';
 
@@ -66,12 +73,8 @@ export function TraceFilterBar({ tenantId, filter, rangePreset, onChange }: Trac
   const [searchInput, setSearchInput] = useState(filter.search);
   const [debouncedSearch] = useDebouncedValue(searchInput, 300);
 
-  const agents = useMockStore((s) => s.aiAgents);
-  const agentOptions = useMemo(() => {
-    return Object.values(agents)
-      .filter((a) => a.tenant_id === tenantId)
-      .map((a) => ({ value: a.id, label: a.name }));
-  }, [agents, tenantId]);
+  const agents = useAgentList(tenantId, EMPTY_AGENT_FILTER);
+  const agentOptions = useMemo(() => agents.map((a) => ({ value: a.id, label: a.name })), [agents]);
 
   useEffect(() => {
     if (filter.search !== debouncedSearch) {

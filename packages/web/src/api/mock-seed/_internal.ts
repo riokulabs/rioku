@@ -1,7 +1,7 @@
 /* eslint-disable @typescript-eslint/no-non-null-assertion */
 /* eslint-disable @typescript-eslint/restrict-template-expressions */
 /**
- * Seed the Zustand mock store with deterministic fixtures per spec §13.2.
+ * Seed the Zustand mock store with deterministic fixtures.
  *
  * Target counts:
  *   4 tenants (3 seeded + 1 empty), 15 users, 8 roles, 20 services, 60 routes,
@@ -505,8 +505,8 @@ export function seedStore(store: StoreApi<MockStore>): void {
     { permission: 'route:write' },
     { permission: 'policy:read' },
     { permission: 'policy:write' },
-    // Sites + middlewares were added in Plan 2; admins need these to reach
-    // the corresponding routes behind their requirePermissions guards.
+    // Sites + middlewares require these grants on admin roles to reach the
+    // corresponding routes behind their requirePermissions guards.
     { permission: 'site:read' },
     { permission: 'site:write' },
     { permission: 'site:delete' },
@@ -524,7 +524,7 @@ export function seedStore(store: StoreApi<MockStore>): void {
     { permission: 'tenant:switch' },
     { permission: 'admin:cross-tenant-read' },
     { permission: 'admin:cross-tenant-write' },
-    // Plan 3 — AI / MCP (full access).
+    // AI / MCP (full access).
     { permission: 'ai-provider:read' },
     { permission: 'ai-provider:write' },
     { permission: 'ai-provider:delete' },
@@ -535,6 +535,7 @@ export function seedStore(store: StoreApi<MockStore>): void {
     { permission: 'ai-tool:read' },
     { permission: 'ai-tool:write' },
     { permission: 'ai-tool:delete' },
+    { permission: 'ai-tool:invoke' },
     { permission: 'ai-trace:read' },
     { permission: 'ai-trace:read-sensitive' },
     { permission: 'ai-rate-limit:read' },
@@ -542,24 +543,24 @@ export function seedStore(store: StoreApi<MockStore>): void {
     { permission: 'mcp-server:read' },
     { permission: 'mcp-server:write' },
     { permission: 'mcp-server:delete' },
-    // Plan 4 — dashboards (full access).
+    // dashboards (full access).
     { permission: 'dashboard:read' },
     { permission: 'dashboard:write' },
     { permission: 'dashboard:delete' },
     { permission: 'dashboard:share' },
     { permission: 'dashboard:set-default' },
-    // Plan 6 — plugin signers (full access).
+    // plugin signers (full access).
     { permission: 'plugin-signer:read' },
     { permission: 'plugin-signer:write' },
     { permission: 'plugin-signer:delete' },
-    // Plugins (Plan 1; backfill for admin role — default_roles on
+    // Plugins (backfill for admin role — default_roles on
     // BUILT_IN_PERMISSIONS list admin but the grants table was never updated
     // when the permission catalog added them).
     { permission: 'plugin:read' },
     { permission: 'plugin:install' },
     { permission: 'plugin:uninstall' },
     { permission: 'plugin:enable' },
-    // Plan 7 — notifications (full access).
+    // notifications (full access).
     { permission: 'notification:read' },
     { permission: 'notification:manage-own' },
     { permission: 'notification-channel:read' },
@@ -568,38 +569,38 @@ export function seedStore(store: StoreApi<MockStore>): void {
     { permission: 'notification-routing:read' },
     { permission: 'notification-routing:write' },
     { permission: 'notification-log:read' },
-    // Plan 8a — self-profile update (all logged-in roles).
+    // self-profile update (all logged-in roles).
     { permission: 'user:update-own' },
-    // Plan 8a — tenant settings (admin: read + write).
+    // tenant settings (admin: read + write).
     { permission: 'tenant:read' },
     { permission: 'tenant:write' },
-    // Plan 8a.4 — tenant auth policy (admin: read + write).
+    // tenant auth policy (admin: read + write).
     { permission: 'tenant-auth:read' },
     { permission: 'tenant-auth:write' },
-    // Plan 8b.6 — network config (admin: read + write).
+    // network config (admin: read + write).
     { permission: 'network:read' },
     { permission: 'network:write' },
-    // Plan 8b.7 — PKI (admin: read + write).
+    // PKI (admin: read + write).
     { permission: 'pki:read' },
     { permission: 'pki:write' },
-    // Plan 8b.8 — TLS (admin: read + write).
+    // TLS (admin: read + write).
     { permission: 'tls:read' },
     { permission: 'tls:write' },
-    // Plan 8b.9 — Observability (admin: read + write for all 3 subsystems).
+    // Observability (admin: read + write for all 3 subsystems).
     { permission: 'metrics:read' },
     { permission: 'metrics:write' },
     { permission: 'logs:read' },
     { permission: 'logs:write' },
     { permission: 'traces:read' },
     { permission: 'traces:write' },
-    // Plan 8c.11 — Integrations (admin: read + write).
+    // Integrations (admin: read + write).
     { permission: 'integrations:read' },
     { permission: 'integrations:write' },
-    // Plan 8c.13 — Danger zone (admin: hard-reset + export; delete is super-admin only).
+    // Danger zone (admin: hard-reset + export; delete is super-admin only).
     { permission: 'tenant:hard-reset' },
     { permission: 'tenant:export' },
     // tenant:delete and user:impersonate are super-admin only — see superAdminGrants below.
-    // Plan 10 — Cluster management (admin: full access).
+    // Cluster management (admin: full access).
     { permission: 'cluster:read' },
     { permission: 'cluster:write' },
     { permission: 'cluster:enroll' },
@@ -624,21 +625,22 @@ export function seedStore(store: StoreApi<MockStore>): void {
     { permission: 'ai-agent:invoke' },
     { permission: 'ai-tool:read' },
     { permission: 'ai-tool:write' },
+    { permission: 'ai-tool:invoke' },
     { permission: 'ai-trace:read' },
     { permission: 'ai-rate-limit:read' },
     { permission: 'ai-rate-limit:write' },
     { permission: 'mcp-server:read' },
     { permission: 'mcp-server:write' },
-    // Plan 4 — dashboards (read/write/share; no delete, no set-default).
+    // dashboards (read/write/share; no delete, no set-default).
     { permission: 'dashboard:read' },
     { permission: 'dashboard:write' },
     { permission: 'dashboard:share' },
-    // Plan 6 — plugin signers (read-only for ops).
+    // plugin signers (read-only for ops).
     { permission: 'plugin-signer:read' },
     // Plugins — ops can read + enable, not install or uninstall.
     { permission: 'plugin:read' },
     { permission: 'plugin:enable' },
-    // Plan 7 — notifications (read + own-manage + channel/routing write + test;
+    // notifications (read + own-manage + channel/routing write + test;
     // ops does NOT get delete-only perms since none exist in the catalog).
     { permission: 'notification:read' },
     { permission: 'notification:manage-own' },
@@ -648,25 +650,25 @@ export function seedStore(store: StoreApi<MockStore>): void {
     { permission: 'notification-routing:read' },
     { permission: 'notification-routing:write' },
     { permission: 'notification-log:read' },
-    // Plan 8a — self-profile update.
+    // self-profile update.
     { permission: 'user:update-own' },
-    // Plan 8a — tenant settings (ops: read-only).
+    // tenant settings (ops: read-only).
     { permission: 'tenant:read' },
-    // Plan 8a.4 — tenant auth policy (ops: read-only).
+    // tenant auth policy (ops: read-only).
     { permission: 'tenant-auth:read' },
-    // Plan 8b.6 — network config (ops: read-only).
+    // network config (ops: read-only).
     { permission: 'network:read' },
-    // Plan 8b.7 — PKI (ops: read-only).
+    // PKI (ops: read-only).
     { permission: 'pki:read' },
-    // Plan 8b.8 — TLS (ops: read-only).
+    // TLS (ops: read-only).
     { permission: 'tls:read' },
-    // Plan 8b.9 — Observability (ops: read-only for all 3 subsystems).
+    // Observability (ops: read-only for all 3 subsystems).
     { permission: 'metrics:read' },
     { permission: 'logs:read' },
     { permission: 'traces:read' },
-    // Plan 8c.11 — Integrations (ops: read-only).
+    // Integrations (ops: read-only).
     { permission: 'integrations:read' },
-    // Plan 10 — Cluster management (ops: read-only).
+    // Cluster management (ops: read-only).
     { permission: 'cluster:read' },
   ];
 
@@ -683,44 +685,44 @@ export function seedStore(store: StoreApi<MockStore>): void {
     { permission: 'audit:read' },
     { permission: 'audit:retention:read' },
     { permission: 'tenant:switch' },
-    // Plan 3 — read-only (NOT ai-trace:read-sensitive).
+    // read-only (NOT ai-trace:read-sensitive).
     { permission: 'ai-provider:read' },
     { permission: 'ai-agent:read' },
     { permission: 'ai-tool:read' },
     { permission: 'ai-trace:read' },
     { permission: 'ai-rate-limit:read' },
     { permission: 'mcp-server:read' },
-    // Plan 4 — dashboards (read only).
+    // dashboards (read only).
     { permission: 'dashboard:read' },
-    // Plan 6 — plugin signers (read-only for viewer).
+    // plugin signers (read-only for viewer).
     { permission: 'plugin-signer:read' },
     // Plugins — viewer can read the catalog.
     { permission: 'plugin:read' },
-    // Plan 7 — notifications (read + own-manage only; no write/test).
+    // notifications (read + own-manage only; no write/test).
     { permission: 'notification:read' },
     { permission: 'notification:manage-own' },
     { permission: 'notification-channel:read' },
     { permission: 'notification-routing:read' },
     { permission: 'notification-log:read' },
-    // Plan 8a — self-profile update (all logged-in users can update their own profile).
+    // self-profile update (all logged-in users can update their own profile).
     { permission: 'user:update-own' },
-    // Plan 8a — tenant settings (viewer: read-only).
+    // tenant settings (viewer: read-only).
     { permission: 'tenant:read' },
-    // Plan 8a.4 — tenant auth policy (viewer: read-only).
+    // tenant auth policy (viewer: read-only).
     { permission: 'tenant-auth:read' },
-    // Plan 8b.6 — network config (viewer: read-only).
+    // network config (viewer: read-only).
     { permission: 'network:read' },
-    // Plan 8b.7 — PKI (viewer: read-only).
+    // PKI (viewer: read-only).
     { permission: 'pki:read' },
-    // Plan 8b.8 — TLS (viewer: read-only).
+    // TLS (viewer: read-only).
     { permission: 'tls:read' },
-    // Plan 8b.9 — Observability (viewer: read-only for all 3 subsystems).
+    // Observability (viewer: read-only for all 3 subsystems).
     { permission: 'metrics:read' },
     { permission: 'logs:read' },
     { permission: 'traces:read' },
-    // Plan 8c.11 — Integrations (viewer: read-only).
+    // Integrations (viewer: read-only).
     { permission: 'integrations:read' },
-    // Plan 10 — Cluster management (viewer: read-only).
+    // Cluster management (viewer: read-only).
     { permission: 'cluster:read' },
   ];
 
@@ -1302,7 +1304,7 @@ export function seedStore(store: StoreApi<MockStore>): void {
 
   for (let i = 0; i < 300; i++) {
     const tenantId = i % 20 === 0 ? null : pick(allTenantIds, i);
-    // Plan 5 extended fields — deterministic per-index sprinkling:
+    // Extended-field deterministic per-index sprinkling:
     //   ~30% have ip (and user_agent rides alongside it),
     //   ~20% totp_verified=true, ~10% have 1–3 policies_evaluated entries.
     const hasIp = i % 10 < 3;
@@ -1680,9 +1682,9 @@ export function seedStore(store: StoreApi<MockStore>): void {
   // This dashboard is the tenant default. It covers the whole Rioku system:
   // traffic, latency, errors, status codes, service topology, security,
   // AI usage, cache, cluster health, and recent activity. It uses the mock
-  // data source exclusively so every card renders with rich sample data in
-  // stage 1. When stage-2 wires real daemon endpoints, each widget's
-  // data_source + config/query get repointed to live metrics.
+  // data source exclusively so every card renders with rich sample data.
+  // When real daemon endpoints are wired, each widget's data_source +
+  // config/query get repointed to live metrics.
   interface OverviewSpec {
     kind: string;
     title: string;
@@ -2446,12 +2448,12 @@ export function seedStore(store: StoreApi<MockStore>): void {
 
   // ── Notification channels (6) ─────────────────────────────────────────────
   //
-  // Spec §11 shape: 2 SMTP (email), 2 Slack, 2 webhook (pagerduty / teams / sms
-  // round out the kind enum for schema coverage but count as webhook-family).
-  // The seed uses `email, slack, webhook, pagerduty, teams, sms` to exercise
-  // every per-kind config schema; the "2 email / 2 slack / 2 webhook" target
-  // from Plan 7 §11 is satisfied via kind distribution + test channels added
-  // at the `testChannel()` call path.
+  // Shape: 2 SMTP (email), 2 Slack, 2 webhook (pagerduty / teams / sms round
+  // out the kind enum for schema coverage but count as webhook-family). The
+  // seed uses `email, slack, webhook, pagerduty, teams, sms` to exercise every
+  // per-kind config schema; the "2 email / 2 slack / 2 webhook" target is
+  // satisfied via kind distribution + test channels added at the
+  // `testChannel()` call path.
 
   const channelKinds: T.NotificationChannel['kind'][] = [
     'email',
@@ -2523,7 +2525,7 @@ export function seedStore(store: StoreApi<MockStore>): void {
 
   // ── Inbox notifications (40) ──────────────────────────────────────────────
   //
-  // Categories follow Plan 7 §11: system / security / audit / plugin:<slug>.
+  // Categories: system / security / audit / plugin:<slug>.
   // Mix of read/unread/archived + severities for realistic UX testing.
 
   const notifCategories = [
@@ -3306,7 +3308,7 @@ export function seedStore(store: StoreApi<MockStore>): void {
   const n1Id = nextClusterNodeId();
   clusterNodes[n1Id] = {
     id: n1Id,
-    name: 'rioku-east-1',
+    name: 'node-primary-1',
     role: 'primary',
     status: 'healthy',
     address: '10.0.1.10:7777',
@@ -3324,7 +3326,7 @@ export function seedStore(store: StoreApi<MockStore>): void {
   const n2Id = nextClusterNodeId();
   clusterNodes[n2Id] = {
     id: n2Id,
-    name: 'rioku-west-1',
+    name: 'node-replica-1',
     role: 'replica',
     status: 'healthy',
     address: '10.0.2.11:7777',
@@ -3342,11 +3344,11 @@ export function seedStore(store: StoreApi<MockStore>): void {
   const n3Id = nextClusterNodeId();
   clusterNodes[n3Id] = {
     id: n3Id,
-    name: 'rioku-eu-1',
+    name: 'node-replica-2',
     role: 'replica',
     status: 'degraded',
     address: '10.1.0.50:7777',
-    version: '0.1.0',
+    version: '0.0.9',
     joined_at: daysAgo(60),
     last_heartbeat_at: hoursAgo(2),
     metrics: {
@@ -3360,7 +3362,7 @@ export function seedStore(store: StoreApi<MockStore>): void {
   const n4Id = nextClusterNodeId();
   clusterNodes[n4Id] = {
     id: n4Id,
-    name: 'rioku-witness-1',
+    name: 'node-witness-1',
     role: 'witness',
     status: 'healthy',
     address: '10.0.3.99:7777',

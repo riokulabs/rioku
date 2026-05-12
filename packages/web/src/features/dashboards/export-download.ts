@@ -6,7 +6,6 @@
  * convention in a single place means every caller gets the same
  * `dashboard-<slug>-v<version>.json` shape.
  */
-import { useMockStore } from '@/api/mock-store';
 import type { Dashboard } from '@/api/resources';
 import { exportDashboardJson } from './api';
 
@@ -17,17 +16,14 @@ function kebab(s: string): string {
     .replace(/^-+|-+$/g, '');
 }
 
-/** Latest version number for the dashboard, or 0 when no versions exist. */
-function latestVersion(dashboardId: string): number {
-  const versions = useMockStore.getState().dashboardVersions;
-  let max = 0;
-  for (const v of Object.values(versions)) {
-    if (v.dashboard_id === dashboardId && v.version > max) max = v.version;
-  }
-  return max;
-}
-
-/** Trigger a browser download of the dashboard's export payload as JSON. */
+/**
+ * Trigger a browser download of the dashboard's export payload as JSON.
+ * The version tag was previously suffixed via a mock-store snapshot of
+ * `dashboardVersions`. With the dashboards feature still on the
+ * mock-mode backend, the SPA does not have a live versions stream;
+ * exports drop the tag until a real `/dashboards/{id}/versions` endpoint
+ * lands and `useDashboardVersions` becomes a daemon query.
+ */
 export function downloadDashboardExport(dashboard: Dashboard): void {
   const payload = exportDashboardJson(dashboard.id);
   const blob = new Blob([JSON.stringify(payload, null, 2)], {
@@ -35,11 +31,9 @@ export function downloadDashboardExport(dashboard: Dashboard): void {
   });
   const url = URL.createObjectURL(blob);
   const slug = kebab(dashboard.name) || 'dashboard';
-  const version = latestVersion(dashboard.id);
-  const versionTag = version > 0 ? `-v${String(version)}` : '';
   const link = document.createElement('a');
   link.href = url;
-  link.download = `dashboard-${slug}${versionTag}.json`;
+  link.download = `dashboard-${slug}.json`;
   link.click();
   URL.revokeObjectURL(url);
 }

@@ -1,0 +1,9 @@
+# Owned by Plan 02 (identity) — api-keys seed data. See sandbox/scripts/seed-config.sh for loader.
+
+# API keys
+api_keys:
+  - name: sandbox-admin
+    scopes: [admin]
+
+  - name: sandbox-monitor
+    scopes: ["config:read", "traffic:read"]

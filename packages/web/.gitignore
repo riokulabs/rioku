@@ -4,6 +4,7 @@ coverage/
 playwright-report/
 test-results/
 e2e/screenshots/
+e2e/.auth/
 *.tsbuildinfo
 .tsc-node-out/
 .env.local

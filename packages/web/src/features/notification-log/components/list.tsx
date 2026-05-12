@@ -14,8 +14,25 @@ import relativeTime from 'dayjs/plugin/relativeTime';
 import { DataTable } from '@/components/data-table';
 import { EmptyState } from '@/components/empty-state';
 import { StatusBadge } from '@/components/status-badge';
-import { useMockStore } from '@/api/mock-store';
+import { useChannelList } from '@/features/notification-channels/api';
+import type { ChannelFilter } from '@/features/notification-channels/types';
+import { useNotificationList } from '@/features/notifications/api';
+import type { InboxFilter } from '@/features/notifications/types';
 import type { NotificationDeliveryLogEntry } from '@/api/resources';
+
+const EMPTY_CHANNEL_FILTER: ChannelFilter = {
+  kinds: [],
+  enabled: undefined,
+  search: '',
+};
+
+const EMPTY_INBOX_FILTER: InboxFilter = {
+  categories: [],
+  severities: [],
+  unreadOnly: false,
+  includeArchived: true,
+  search: '',
+};
 
 dayjs.extend(relativeTime);
 
@@ -30,13 +47,25 @@ const STATUS_KIND = {
 >;
 
 interface DeliveryLogListProps {
+  /** Tenant slug used to resolve channel + notification display data. */
+  tenantId: string;
   rows: NotificationDeliveryLogEntry[];
   onSelect: (entry: NotificationDeliveryLogEntry) => void;
 }
 
-export function DeliveryLogList({ rows, onSelect }: DeliveryLogListProps) {
-  const notifications = useMockStore((s) => s.notifications);
-  const channels = useMockStore((s) => s.notificationChannels);
+export function DeliveryLogList({ tenantId, rows, onSelect }: DeliveryLogListProps) {
+  const notificationList = useNotificationList('', EMPTY_INBOX_FILTER);
+  const notifications = useMemo(() => {
+    const m: Record<string, (typeof notificationList)[number]> = {};
+    for (const n of notificationList) m[n.id] = n;
+    return m;
+  }, [notificationList]);
+  const channelList = useChannelList(tenantId, EMPTY_CHANNEL_FILTER);
+  const channels = useMemo(() => {
+    const m: Record<string, (typeof channelList)[number]> = {};
+    for (const c of channelList) m[c.id] = c;
+    return m;
+  }, [channelList]);
 
   const columns = useMemo<ColumnDef<NotificationDeliveryLogEntry>[]>(
     () => [

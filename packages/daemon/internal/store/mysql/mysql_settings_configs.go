@@ -1,4 +1,4 @@
-// Package mysql — Settings config singletons (stage-2).
+// Package mysql — Settings config singletons.
 package mysql
 
 import (

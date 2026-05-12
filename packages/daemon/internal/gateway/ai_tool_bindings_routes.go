@@ -1,4 +1,4 @@
-// Package gateway: AI tool-binding handlers (stage-2).
+// Package gateway: AI tool-binding handlers.
 //
 // See `ai_routes.go` for the full route registration table.
 package gateway

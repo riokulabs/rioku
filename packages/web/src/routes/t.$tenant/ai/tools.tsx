@@ -1,8 +1,9 @@
 /**
  * AI Tools page — /t/$tenant/ai/tools
  *
- * List + filter bar + drawer (detail / create / edit). URL-synced search +
- * kinds + dangerous + enabled filter.
+ * List + filter bar + drawer (quick info / create / edit). URL-synced search +
+ * kinds + dangerous + enabled filter. Detail "Open full page" link routes to
+ * /t/$tenant/ai/tools/$toolId.
  *
  * Permission guard: ai-tool:read.
  */
@@ -11,14 +12,13 @@ import { createFileRoute, useNavigate } from '@tanstack/react-router';
 import { Alert, Stack, Title, Group, Button, Drawer } from '@mantine/core';
 import { useDisclosure } from '@mantine/hooks';
 import { IconInfoCircle, IconPlus } from '@tabler/icons-react';
-import { useMockStore } from '@/api/mock-store';
 import { notify } from '@/hooks/use-notify';
 import { requirePermissions } from '@/hooks/use-before-load';
 import {
   ToolList,
   ToolFilterBar,
   ToolForm,
-  ToolDetail,
+  ToolDrawer,
   deleteTool,
   ToolInUseError,
 } from '@/features/ai-tools';
@@ -62,10 +62,6 @@ function AiToolsPage() {
   const search = Route.useSearch();
   const navigate = useNavigate();
 
-  const tenantRecord = useMockStore((s) => Object.values(s.tenants).find((t) => t.slug === tenant));
-  const tenantId = tenantRecord?.id ?? '';
-  const tenantSlug = tenantRecord?.slug ?? tenant;
-
   const filter: ToolFilter = {
     search: search.search,
     kinds: search.kinds,
@@ -85,7 +81,7 @@ function AiToolsPage() {
   function setFilter(next: ToolFilter) {
     void navigate({
       to: '/t/$tenant/ai/tools',
-      params: { tenant: tenantSlug },
+      params: { tenant },
       search: (prev: Record<string, unknown>) => ({
         ...prev,
         search: next.search,
@@ -120,13 +116,9 @@ function AiToolsPage() {
     openDrawer();
   }
 
-  function handleEditFromDetail() {
-    setDrawerMode('edit');
-  }
-
   async function handleDeleteFromList(t: AiTool) {
     try {
-      await deleteTool(t.id);
+      await deleteTool(tenant, t.id);
       notify.success('Tool deleted', `${t.name} was removed.`);
     } catch (err) {
       if (err instanceof ToolInUseError) {
@@ -170,14 +162,13 @@ function AiToolsPage() {
             setFilter(next);
           }}
         >
-          Showing tools exposed by MCP server{' '}
-          <strong>{tenantId && filter.mcp_server_id ? filter.mcp_server_id : ''}</strong>. Close
-          this banner to clear the filter.
+          Showing tools exposed by MCP server <strong>{filter.mcp_server_id}</strong>. Close this
+          banner to clear the filter.
         </Alert>
       )}
 
       <ToolList
-        tenantId={tenantId}
+        tenant={tenant}
         filter={filter}
         onSelect={handleRowClick}
         onEdit={handleEditFromList}
@@ -195,17 +186,12 @@ function AiToolsPage() {
         padding="md"
       >
         {drawerMode === 'detail' && selectedTool && (
-          <ToolDetail
-            toolId={selectedTool.id}
-            tenantSlug={tenantSlug}
-            onEdit={handleEditFromDetail}
-            onClose={closeDrawer}
-          />
+          <ToolDrawer tenant={tenant} toolId={selectedTool.id} onClose={closeDrawer} />
         )}
         {drawerMode === 'create' && (
           <ToolForm
             mode="create"
-            tenantId={tenantId}
+            tenant={tenant}
             onSuccess={(t) => {
               setSelectedTool(t);
               setDrawerMode('detail');
@@ -216,7 +202,7 @@ function AiToolsPage() {
         {drawerMode === 'edit' && selectedTool && (
           <ToolForm
             mode="edit"
-            tenantId={tenantId}
+            tenant={tenant}
             initialValues={selectedTool}
             onSuccess={(t) => {
               setSelectedTool(t);

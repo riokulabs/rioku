@@ -1,47 +1,30 @@
 /**
- * usePermission — returns whether the current user has a specific permission
- * on the current active tenant.
+ * usePermission — returns whether the current user holds a specific
+ * permission key.
  *
- * Stage-1 CEL note: If a grant has a `when` CEL condition, this hook treats
- * it as always-true (pass-through). Real CEL evaluation runs daemon-side and
- * is only enforced at Phase 2+ when the admin hits live endpoints.
+ * Stage-2: the daemon's `/auth/me` endpoint returns the resolved
+ * permission set for the calling user, with role inheritance and explicit
+ * denies already applied server-side. We simply check membership in that
+ * set. CEL `when` conditions are also evaluated server-side and surface as
+ * presence/absence in the resolved list.
  *
- * Resolution path:
- *   currentUserId + currentTenantId → memberships (active) → roleIds →
- *   resolveRolePermissions → check presence of key in resolved map.
- *
- * Returns false if currentUserId is null (not authenticated).
- *
- * spec §7 / Task 1d.68
+ * Returns false when the user is unauthenticated.
  */
 
-import { useMemo } from 'react';
-import { useMockStore } from '../api/mock-store';
-import { resolveRolePermissions } from '../host/role-resolver';
+import { useCurrentUser } from '@/features/auth/use-current-user';
 
 // ─── Hook ─────────────────────────────────────────────────────────────────────
 
 /**
- * Returns true if the current user holds the given permission key on the
- * current active tenant, false otherwise.
+ * Returns true if the current user holds the given permission key,
+ * false otherwise. Wildcard `*` (the daemon's representation for
+ * superadmin/root) grants any specific permission — without this
+ * branch, every action button gated by `usePermission(...)` is
+ * disabled for root, even though the user has unrestricted access.
  */
 export function usePermission(key: string): boolean {
-  const currentUserId = useMockStore((s) => s.currentUserId);
-  const currentTenantId = useMockStore((s) => s.currentTenantId);
-  const memberships = useMockStore((s) => s.memberships);
-  const roles = useMockStore((s) => s.roles);
-
-  return useMemo(() => {
-    if (!currentUserId) return false;
-
-    const userMemberships = Object.values(memberships).filter(
-      (m) => m.user_id === currentUserId && m.tenant_id === currentTenantId && m.state === 'active',
-    );
-
-    const roleIds = userMemberships.flatMap((m) => m.role_ids);
-    const resolved = resolveRolePermissions(roleIds, roles);
-
-    // Stage-1: `when` conditions are pass-through; presence in resolved map is sufficient.
-    return resolved.has(key);
-  }, [currentUserId, currentTenantId, memberships, roles, key]);
+  const me = useCurrentUser().data ?? null;
+  if (!me) return false;
+  if (me.permissions.includes('*')) return true;
+  return me.permissions.includes(key);
 }

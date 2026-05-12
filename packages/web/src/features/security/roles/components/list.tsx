@@ -1,8 +1,5 @@
 /**
  * <RoleList> — DataTable list of roles.
- *
- * Columns: name, user count, parent count, explicit-deny count, created_at.
- * (Role has no created_at in the current type — we derive a placeholder.)
  */
 import { useMemo } from 'react';
 import { type ColumnDef } from '@tanstack/react-table';
@@ -14,12 +11,13 @@ import { useRoleList, useRoleUserCounts } from '../api';
 import type { Role } from '../types';
 
 interface RoleListProps {
+  tenant: string;
   onSelect: (role: Role) => void;
 }
 
-export function RoleList({ onSelect }: RoleListProps) {
-  const roles = useRoleList();
-  const userCounts = useRoleUserCounts();
+export function RoleList({ tenant, onSelect }: RoleListProps) {
+  const roles = useRoleList(tenant);
+  const userCounts = useRoleUserCounts(tenant);
 
   const columns = useMemo<ColumnDef<Role>[]>(
     () => [

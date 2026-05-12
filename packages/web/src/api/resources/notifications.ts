@@ -1,9 +1,9 @@
-// Owned by Plan 06 (notifications) — types for the notifications resource surface.
+// Types for the notifications resource surface.
 
 import type { ID } from './common';
 
 /**
- * Notification inbox entry — spec §11.
+ * Notification inbox entry.
  *
  * Categories:
  *   - 'system'        — infrastructure / health / policy notifications
@@ -15,9 +15,9 @@ import type { ID } from './common';
  * `tenant_id: null` denotes a cross-tenant / super-admin notification.
  * `read_at` and `archived_at` are ISO timestamps or null (unread / not-archived).
  *
- * Plan 7 extended this shape — earlier Plan 1 callers used `read: boolean`,
- * `created_at`, and `action_url`. Those fields are preserved (as optional /
- * derived) so legacy widget adapters keep compiling.
+ * Legacy callers used `read: boolean`, `created_at`, and `action_url`. Those
+ * fields are preserved (as optional / derived) so legacy widget adapters keep
+ * compiling.
  */
 export interface NotificationItem {
   readonly id: ID;
@@ -36,7 +36,7 @@ export interface NotificationItem {
   archived_at: string | null;
   /** ISO timestamp — when the notification was emitted. */
   readonly at: string;
-  // ── Legacy Plan 1 fields (kept for back-compat with widget data-sources) ──
+  // ── Legacy fields (kept for back-compat with widget data-sources) ────────
   /** Legacy boolean mirror of `read_at !== null`. */
   read: boolean;
   /** Legacy alias of `at`. */

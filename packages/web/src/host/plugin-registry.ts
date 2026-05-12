@@ -2,12 +2,10 @@
  * Plugin registry — dedicated Zustand store tracking installed plugins and
  * their per-surface contributions.
  *
- * Intentionally separate from mock-store (api/).  The plugin loader writes
+ * Intentionally separate from the API layer (api/).  The plugin loader writes
  * here; surface registries (zones, routes, etc.) are the authoritative stores
  * for rendering — this store is the accounting layer that lets the loader undo
  * everything a plugin registered when it is unloaded.
- *
- * spec §9.5
  */
 
 import { create } from 'zustand';

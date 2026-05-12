@@ -1,47 +1,68 @@
 /**
- * <SessionList> — DataTable list of user sessions.
+ * <SessionList> — inline list of the principal's active sessions.
  *
- * Columns: device, IP, last-seen (relative), location, expires-at, current badge, revoke.
+ * RD5 contract: sessions render inline. There is no detail drawer and
+ * no full-page detail view — every session is visible directly with
+ * its device fingerprint, IP, last-active timestamp, and a per-row
+ * Revoke action. A page-level "Revoke all other sessions" button
+ * triggers the bulk endpoint.
  */
-import { useMemo, useState } from 'react';
+import { useCallback, useMemo, useState } from 'react';
 import { type ColumnDef } from '@tanstack/react-table';
-import { Badge, Text, Stack, Group, Button } from '@mantine/core';
-import { useDisclosure } from '@mantine/hooks';
-import { IconDeviceDesktop, IconShield } from '@tabler/icons-react';
+import { Badge, Text, Stack, Group, Button, Alert } from '@mantine/core';
+import { IconAlertCircle, IconDeviceDesktop } from '@tabler/icons-react';
 import { DataTable } from '@/components/data-table';
 import { EmptyState } from '@/components/empty-state';
 import { StatusBadge } from '@/components/status-badge';
 import { notify } from '@/hooks/use-notify';
-import { useSessionList, revokeSession } from '../api';
-import { RevokeAllConfirm } from './revoke-confirm';
+import { useSessionList, useSessionMutations } from '../api';
 import type { SessionWithMeta } from '../types';
 
-const PLACEHOLDER_CURRENT_SESSION = 'current-session-mock';
-
 interface SessionListProps {
-  /** Filter to this userId; defaults to currentUser */
-  userId?: string;
-  /** Filter to this tenantId */
-  tenantId?: string;
-  /** Called when a row is clicked — opens the detail drawer in the parent. */
-  onSelect?: (session: SessionWithMeta) => void;
+  /** Tenant slug — required for the daemon-scoped path. */
+  tenant: string;
+  /**
+   * Optional id of "this" session. When provided, that row is badged
+   * "current" and its Revoke button is hidden so the user can never
+   * sign themselves out from this surface.
+   */
+  currentSessionId?: string | null;
 }
 
-export function SessionList({ userId, tenantId, onSelect }: SessionListProps) {
+export function SessionList({ tenant, currentSessionId = null }: SessionListProps) {
   const [revokingId, setRevokingId] = useState<string | null>(null);
-  const [revokeAllOpened, { open: openRevokeAll, close: closeRevokeAll }] = useDisclosure(false);
+  const [revokingAll, setRevokingAll] = useState(false);
 
-  const sessions = useSessionList(userId, tenantId);
+  const { sessions, isLoading, isError } = useSessionList(tenant, currentSessionId);
+  const { revokeSession, revokeAllOtherSessions } = useSessionMutations(tenant);
 
-  async function handleRevoke(sessionId: string) {
-    setRevokingId(sessionId);
+  const handleRevoke = useCallback(
+    async (sessionId: string) => {
+      setRevokingId(sessionId);
+      try {
+        await revokeSession(sessionId);
+        notify.success('Session revoked', 'The session has been signed out.');
+      } catch {
+        notify.error('Failed to revoke session', 'Please try again.');
+      } finally {
+        setRevokingId(null);
+      }
+    },
+    [revokeSession],
+  );
+
+  async function handleRevokeAll() {
+    setRevokingAll(true);
     try {
-      await revokeSession(sessionId);
-      notify.success('Session revoked', 'The session has been signed out.');
+      await revokeAllOtherSessions();
+      notify.success(
+        'Sessions revoked',
+        'All other active sessions have been signed out. You remain logged in.',
+      );
     } catch {
-      notify.error('Failed to revoke session', 'Please try again.');
+      notify.error('Failed to revoke sessions', 'Please try again.');
     } finally {
-      setRevokingId(null);
+      setRevokingAll(false);
     }
   }
 
@@ -53,6 +74,7 @@ export function SessionList({ userId, tenantId, onSelect }: SessionListProps) {
         accessorFn: (row) => row.device,
         cell: ({ getValue, row }) => (
           <Group gap="xs">
+            <IconDeviceDesktop size={14} color="var(--mantine-color-gray-6)" />
             <Text size="sm" fw={500}>
               {getValue<string>()}
             </Text>
@@ -70,46 +92,20 @@ export function SessionList({ userId, tenantId, onSelect }: SessionListProps) {
         accessorFn: (row) => row.ip,
         cell: ({ getValue }) => (
           <Text size="xs" ff="monospace" c="var(--mantine-color-gray-7)">
-            {getValue<string>()}
-          </Text>
-        ),
-      },
-      {
-        id: 'location',
-        header: 'Location',
-        accessorFn: (row) => row.location,
-        cell: ({ getValue }) => (
-          <Text size="sm" c="var(--mantine-color-gray-7)">
-            {getValue<string>()}
+            {getValue<string>() || '—'}
           </Text>
         ),
       },
       {
         id: 'last_seen',
-        header: 'Last seen',
+        header: 'Last active',
         accessorFn: (row) => row.last_seen_relative,
         cell: ({ getValue }) => <Text size="sm">{getValue<string>()}</Text>,
       },
       {
-        id: 'expires_at',
-        header: 'Expires',
-        accessorFn: (row) => row.expires_at,
-        cell: ({ getValue }) => {
-          const val = getValue<string>();
-          const d = new Date(val);
-          const diff = d.getTime() - Date.now();
-          const days = Math.ceil(diff / (1000 * 60 * 60 * 24));
-          return (
-            <Text size="sm" c={days < 1 ? 'red' : days < 3 ? 'orange' : 'dimmed'}>
-              {days < 1 ? 'Expired' : `${String(days)}d`}
-            </Text>
-          );
-        },
-      },
-      {
         id: 'status',
         header: 'Status',
-        size: 90,
+        size: 100,
         accessorFn: (row) => row.revoked,
         cell: ({ getValue }) =>
           getValue<boolean>() ? (
@@ -136,6 +132,7 @@ export function SessionList({ userId, tenantId, onSelect }: SessionListProps) {
               color="red.8"
               loading={revokingId === sess.id}
               onClick={() => void handleRevoke(sess.id)}
+              data-testid={`revoke-${sess.id}`}
             >
               Revoke
             </Button>
@@ -143,7 +140,7 @@ export function SessionList({ userId, tenantId, onSelect }: SessionListProps) {
         },
       },
     ],
-    [revokingId],
+    [revokingId, handleRevoke],
   );
 
   const activeSessions = sessions.filter((s) => !s.revoked);
@@ -151,9 +148,22 @@ export function SessionList({ userId, tenantId, onSelect }: SessionListProps) {
 
   return (
     <Stack gap="sm">
+      {isError && (
+        <Alert color="red" variant="light" icon={<IconAlertCircle size={16} />}>
+          Failed to load sessions. Please refresh the page.
+        </Alert>
+      )}
+
       {hasOtherSessions && (
         <Group justify="flex-end">
-          <Button size="sm" variant="light" color="red.8" onClick={openRevokeAll}>
+          <Button
+            size="sm"
+            variant="light"
+            color="red.8"
+            loading={revokingAll}
+            onClick={() => void handleRevokeAll()}
+            data-testid="revoke-all-others"
+          >
             Revoke all other sessions
           </Button>
         </Group>
@@ -165,25 +175,17 @@ export function SessionList({ userId, tenantId, onSelect }: SessionListProps) {
         sorting
         pagination={{ pageSize: 20 }}
         urlSyncKey="sessions"
-        {...(onSelect ? { onRowClick: onSelect } : {})}
         emptyState={
           <EmptyState
             icon={IconDeviceDesktop}
-            title="No sessions"
-            description="No active sessions found"
+            title={isLoading ? 'Loading sessions…' : 'No sessions'}
+            description={
+              isLoading ? 'Fetching active sessions from the daemon.' : 'No active sessions found.'
+            }
           />
         }
         caption="Sessions"
       />
-
-      <RevokeAllConfirm
-        opened={revokeAllOpened}
-        onClose={closeRevokeAll}
-        currentSessionId={PLACEHOLDER_CURRENT_SESSION}
-      />
     </Stack>
   );
 }
-
-// Re-export for convenience
-export { IconShield };

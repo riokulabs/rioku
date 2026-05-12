@@ -1,4 +1,4 @@
-// Package sqlite — Dashboards + Widgets + Versions (stage-2).
+// Package sqlite — Dashboards + Widgets + Versions.
 package sqlite
 
 import (

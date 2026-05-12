@@ -1,43 +1,41 @@
 /**
- * useEffectivePermissions — returns the full resolved permission map for a
- * user on the current active tenant.
+ * useEffectivePermissions — returns the resolved permission map for the
+ * current authenticated user.
  *
- * Defaults to the current user if `userId` is omitted. Returns an empty Map
- * when the target user has no active memberships on the current tenant.
+ * Stage-2: the daemon resolves the user's role graph (parents, denies,
+ * RBAC policies) before returning `/auth/me`, so the resolved set is
+ * already authoritative. We surface it here as a `Map<key, ResolvedPermission>`
+ * to preserve the legacy consumer contract — `path` / `condition` are
+ * not exposed by the daemon at the user-scope level (those live on the
+ * per-role endpoint), so they remain empty here.
  *
- * Stage-1 CEL note: `when` conditions are preserved in ResolvedPermission but
- * are NOT evaluated client-side — all entries are treated as unconditionally
- * granted. Real CEL evaluation runs daemon-side at Phase 2+.
- *
- * spec §7 / Task 1d.68
+ * The `userId` parameter is retained for backwards compatibility but is
+ * ignored; the resolved set always belongs to the calling user. Use
+ * `<EffectivePermissionsPanel scope="role" id={...}>` for per-role
+ * inspection.
  */
 
 import { useMemo } from 'react';
-import { useMockStore } from '../api/mock-store';
-import { resolveRolePermissions } from '../host/role-resolver';
+import { useCurrentUser } from '@/features/auth/use-current-user';
 import type { ResolvedPermission } from '../host/role-resolver';
 
 // ─── Hook ─────────────────────────────────────────────────────────────────────
 
 /**
- * Returns a Map<permissionKey, ResolvedPermission> for the given user (or the
- * current authenticated user) on the current active tenant.
+ * Returns a Map<permissionKey, ResolvedPermission> for the current user.
+ * The `userId` parameter is accepted for legacy callers but ignored —
+ * the daemon only exposes the calling user's resolved set.
  */
-export function useEffectivePermissions(userId?: string): Map<string, ResolvedPermission> {
-  const currentUserId = useMockStore((s) => s.currentUserId);
-  const currentTenantId = useMockStore((s) => s.currentTenantId);
-  const memberships = useMockStore((s) => s.memberships);
-  const roles = useMockStore((s) => s.roles);
+export function useEffectivePermissions(_userId?: string): Map<string, ResolvedPermission> {
+  void _userId;
+  const me = useCurrentUser().data ?? null;
 
   return useMemo(() => {
-    const targetId = userId ?? currentUserId;
-    if (!targetId) return new Map<string, ResolvedPermission>();
-
-    const userMemberships = Object.values(memberships).filter(
-      (m) => m.user_id === targetId && m.tenant_id === currentTenantId && m.state === 'active',
-    );
-
-    const roleIds = userMemberships.flatMap((m) => m.role_ids);
-    return resolveRolePermissions(roleIds, roles);
-  }, [userId, currentUserId, currentTenantId, memberships, roles]);
+    const map = new Map<string, ResolvedPermission>();
+    if (!me) return map;
+    for (const key of me.permissions) {
+      map.set(key, { permission: key, path: [] });
+    }
+    return map;
+  }, [me]);
 }

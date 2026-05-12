@@ -1,0 +1,6 @@
+# Owned by Plan 02 (identity) — roles seed data. See sandbox/scripts/seed-config.sh for loader.
+
+# Custom roles (beyond built-in admin/operator/viewer)
+roles:
+  - name: auditor
+    description: "Read-only audit access with extra audit:read permission"

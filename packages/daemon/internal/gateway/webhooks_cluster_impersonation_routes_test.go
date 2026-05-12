@@ -103,8 +103,9 @@ func TestImpersonation_StartListEnd(t *testing.T) {
 		"/api/v1/admin/impersonation", "", nil))
 	var list map[string]any
 	_ = json.NewDecoder(r2.Body).Decode(&list)
-	if list["total"].(float64) != 1 {
-		t.Errorf("expected 1 active session, got %v", list["total"])
+	sessions, _ := list["sessions"].([]any)
+	if len(sessions) != 1 {
+		t.Errorf("expected 1 active session, got %v", list["sessions"])
 	}
 
 	// End

@@ -1,4 +1,4 @@
-// Package gateway: AI trace handlers (stage-2).
+// Package gateway: AI trace handlers.
 //
 // Traces are append-only from the daemon invoke path; this file exposes
 // the read-side endpoints (list + get). The shared `traceQueryFromRequest`
@@ -13,8 +13,11 @@ import (
 	"errors"
 	"net/http"
 	"strconv"
+	"strings"
 
+	"github.com/riokulabs/rioku/internal/auth"
 	"github.com/riokulabs/rioku/internal/store"
+	storeaudit "github.com/riokulabs/rioku/internal/store/audit"
 )
 
 // ─── Trace handlers ─────────────────────────────────────────────────────────
@@ -108,9 +111,92 @@ func handleGetAITrace(st store.Driver) http.HandlerFunc {
 			writeInternalError(w, r, "get trace")
 			return
 		}
-		// TODO(#117): gate sensitive fields on ai-trace:read-sensitive permission
-		// once the permission catalog supports finer-grained AI trace perms; for
-		// now, include them.
+		// GET returns the redacted shape; sensitive fields require POST
+		// .../reveal with a compliance reason (see handleRevealAITrace).
+		writeJSON(w, http.StatusOK, aiTraceToResponse(tr, false))
+	}
+}
+
+// handleRevealAITrace returns the full trace including sensitive prompt /
+// completion fields. Access is gated by `ai-trace:read-sensitive` at the
+// route layer AND requires a non-trivial reason in the request body.
+// Each successful reveal appends an `ai.trace_sensitive_revealed.v1`
+// audit entry in the same transaction so the unmask is permanently
+// recorded for compliance review.
+func handleRevealAITrace(st store.Driver) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		ctx := r.Context()
+		tenant, ok := tenantOrError(w, r)
+		if !ok {
+			return
+		}
+		id := r.PathValue("id")
+
+		var body struct {
+			Reason string `json:"reason"`
+		}
+		if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+			writeBadRequest(w, r, "request body must be JSON with a `reason` field")
+			return
+		}
+		reason := strings.TrimSpace(body.Reason)
+		// 10 chars is the contract documented in the test fixtures: short
+		// reasons like "ok" or "too short" are rejected so reviewers
+		// always see something usable.
+		if len(reason) < 10 {
+			writeBadRequest(w, r, "reason must be at least 10 characters")
+			return
+		}
+
+		actor := "system"
+		if sc := auth.SessionClaimsFromContext(ctx); sc != nil && sc.UserID != "" {
+			actor = sc.UserID
+		}
+
+		tx, err := st.Begin(ctx, store.TxOptions{})
+		if err != nil {
+			writeInternalError(w, r, "begin tx")
+			return
+		}
+		tr, err := tx.GetAITrace(ctx, tenant.ID, id)
+		if err != nil {
+			_ = tx.Rollback()
+			if errors.Is(err, store.ErrAITraceNotFound) {
+				writeProblem(w, http.StatusNotFound, errTypeNotFound, "Trace not found",
+					"No trace with id "+id, r.URL.Path, nil)
+				return
+			}
+			writeInternalError(w, r, "reveal trace")
+			return
+		}
+
+		entry, err := storeaudit.BuildEntry(
+			storeaudit.DefaultRegistry,
+			actor,
+			"ai-trace",
+			id,
+			"reveal",
+			&storeaudit.AITraceSensitiveRevealed{
+				RevealedTraceID: id,
+				Reason:          reason,
+			},
+		)
+		if err != nil {
+			_ = tx.Rollback()
+			writeInternalError(w, r, "build reveal audit entry")
+			return
+		}
+		_ = tenant // tenant scoping happens at the route layer; AuditEntry has no per-row tenant column today
+		if err := tx.AppendAuditEntry(ctx, entry); err != nil {
+			_ = tx.Rollback()
+			writeInternalError(w, r, "persist reveal audit entry")
+			return
+		}
+		if err := tx.Commit(); err != nil {
+			writeInternalError(w, r, "commit reveal audit entry")
+			return
+		}
+
 		writeJSON(w, http.StatusOK, aiTraceToResponse(tr, true))
 	}
 }

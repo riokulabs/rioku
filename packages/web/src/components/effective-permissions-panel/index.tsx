@@ -1,20 +1,19 @@
 /**
- * <EffectivePermissionsPanel> — at-a-glance view of ALL computed permissions
- * for a user or role, with per-permission source attribution.
+ * <EffectivePermissionsPanel> — at-a-glance view of the daemon-resolved
+ * permissions for a user or role.
  *
- * Shows:
- *   - Full computed permission list (merged from direct grants + inherited
- *     parent role grants + RBAC policy grants)
- *   - Source badges per permission: "direct", "inherited from <role>",
- *     "via policy <name>"
- *   - TextInput to filter by permission substring
- *   - Optional group-by-prefix toggle (All / Grouped)
+ * Stage-2: the daemon flattens role inheritance + denies + RBAC policies
+ * before returning, so per-source attribution beyond "direct grant" is
+ * not exposed in the wire shape. We surface what the daemon gives us:
+ *   - For `scope="user"` we list `useListUserRoles` then look up each
+ *     role's flat permission array via `useListRoles(tenant)`.
+ *   - For `scope="role"` we look up the single role and list its
+ *     permissions.
  *
- * Usage:
- *   <EffectivePermissionsPanel scope="user" id={userId} tenantId={tenantId} />
- *   <EffectivePermissionsPanel scope="role" id={roleId} />
- *
- * When scope === "role", tenantId is not used (role resolution is graph-only).
+ * Features retained:
+ *   - Filter input narrows the list by substring match.
+ *   - SegmentedControl flips between flat and grouped (by namespace prefix).
+ *   - Empty state when the role has no permissions or the user has no roles.
  */
 
 import { useMemo, useState } from 'react';
@@ -32,24 +31,23 @@ import {
   ThemeIcon,
   Box,
 } from '@mantine/core';
-import {
-  IconSearch,
-  IconShield,
-  IconArrowRight,
-  IconLink,
-  IconAlertCircle,
-} from '@tabler/icons-react';
-import { useMockStore } from '../../api/mock-store';
-import {
-  resolveEffectiveRolePerms,
-  resolveEffectiveUserPerms,
-} from '../../features/security/shared/resolve-effective-perms';
-import type {
-  ResolvedGrant,
-  GrantSource,
-} from '../../features/security/shared/resolve-effective-perms';
+import { IconSearch, IconShield, IconAlertCircle } from '@tabler/icons-react';
+import { useListRoles, useListUserRoles } from '@/api/generated/roles/roles';
+import { useActiveTenantSlug } from '@/hooks/use-tenant';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
+
+interface RoleRow {
+  id?: string;
+  name?: string;
+  permissions?: string[];
+}
+
+interface ResolvedRow {
+  permission: string;
+  /** Roles that directly carry this permission. */
+  roles: { id: string; name: string }[];
+}
 
 export interface EffectivePermissionsPanelProps {
   scope: 'user' | 'role';
@@ -61,74 +59,20 @@ export interface EffectivePermissionsPanelProps {
 
 // ─── Source badge ─────────────────────────────────────────────────────────────
 
-function SourceBadge({ source }: { source: GrantSource }) {
-  if (source.type === 'direct') {
-    return (
-      <Tooltip label={`Direct grant on role "${source.roleName}"`} withArrow>
-        <Badge
-          size="xs"
-          color="green"
-          variant="light"
-          leftSection={
-            <ThemeIcon size={10} variant="transparent" color="green">
-              <IconShield size={10} />
-            </ThemeIcon>
-          }
-        >
-          direct · {source.roleName}
-        </Badge>
-      </Tooltip>
-    );
-  }
-
-  if (source.type === 'parent-role') {
-    return (
-      <Tooltip label={`Inherited from parent role "${source.roleName}"`} withArrow>
-        <Badge
-          size="xs"
-          color="blue"
-          variant="light"
-          leftSection={
-            <ThemeIcon size={10} variant="transparent" color="blue">
-              <IconArrowRight size={10} />
-            </ThemeIcon>
-          }
-        >
-          inherited · {source.roleName}
-        </Badge>
-      </Tooltip>
-    );
-  }
-
-  // rbac-policy
+function SourceBadge({ roleName }: { roleName: string }) {
   return (
-    <Tooltip
-      label={`Added via RBAC policy "${source.policyName ?? source.policyId ?? 'unknown'}" → role "${source.roleName}"`}
-      withArrow
-    >
+    <Tooltip label={`Granted via role "${roleName}"`} withArrow>
       <Badge
         size="xs"
-        color="violet"
+        color="green"
         variant="light"
         leftSection={
-          <ThemeIcon size={10} variant="transparent" color="violet">
-            <IconLink size={10} />
+          <ThemeIcon size={10} variant="transparent" color="green">
+            <IconShield size={10} />
           </ThemeIcon>
         }
       >
-        policy · {source.policyName ?? source.policyId}
-      </Badge>
-    </Tooltip>
-  );
-}
-
-// ─── Condition badge ──────────────────────────────────────────────────────────
-
-function ConditionBadge({ condition }: { condition: string }) {
-  return (
-    <Tooltip label={`Conditional grant — CEL: ${condition}`} multiline maw={280} withArrow>
-      <Badge size="xs" color="yellow" variant="outline" style={{ cursor: 'help' }}>
-        conditional
+        {roleName}
       </Badge>
     </Tooltip>
   );
@@ -136,8 +80,8 @@ function ConditionBadge({ condition }: { condition: string }) {
 
 // ─── Table view ───────────────────────────────────────────────────────────────
 
-function PermissionsTable({ grants }: { grants: ResolvedGrant[] }) {
-  if (grants.length === 0) {
+function PermissionsTable({ rows }: { rows: ResolvedRow[] }) {
+  if (rows.length === 0) {
     return (
       <Text size="sm" c="var(--mantine-color-gray-7)" ta="center" py="md">
         No permissions match.
@@ -154,27 +98,18 @@ function PermissionsTable({ grants }: { grants: ResolvedGrant[] }) {
         </Table.Tr>
       </Table.Thead>
       <Table.Tbody>
-        {grants.map((grant) => (
-          <Table.Tr key={grant.permission} data-testid={`perm-row-${grant.permission}`}>
+        {rows.map((row) => (
+          <Table.Tr key={row.permission} data-testid={`perm-row-${row.permission}`}>
             <Table.Td>
               <Text size="xs" ff="monospace" fw={500}>
-                {grant.permission}
+                {row.permission}
               </Text>
             </Table.Td>
             <Table.Td>
               <Group gap={4} wrap="wrap">
-                {grant.sources.map((source, idx) => (
-                  <SourceBadge
-                    key={`${source.roleId}-${source.type}-${String(idx)}`}
-                    source={source}
-                  />
+                {row.roles.map((r) => (
+                  <SourceBadge key={r.id} roleName={r.name} />
                 ))}
-                {/* Show conditional badge if any source has a condition */}
-                {grant.sources.some((s) => s.condition) && (
-                  <ConditionBadge
-                    condition={grant.sources.find((s) => s.condition)?.condition ?? ''}
-                  />
-                )}
               </Group>
             </Table.Td>
           </Table.Tr>
@@ -186,8 +121,8 @@ function PermissionsTable({ grants }: { grants: ResolvedGrant[] }) {
 
 // ─── Grouped view ─────────────────────────────────────────────────────────────
 
-function PermissionsGrouped({ grants }: { grants: ResolvedGrant[] }) {
-  if (grants.length === 0) {
+function PermissionsGrouped({ rows }: { rows: ResolvedRow[] }) {
+  if (rows.length === 0) {
     return (
       <Text size="sm" c="var(--mantine-color-gray-7)" ta="center" py="md">
         No permissions match.
@@ -196,12 +131,12 @@ function PermissionsGrouped({ grants }: { grants: ResolvedGrant[] }) {
   }
 
   // Group by prefix (everything before the first ':' or '*', else 'other')
-  const groups = new Map<string, ResolvedGrant[]>();
-  for (const grant of grants) {
-    const colonIdx = grant.permission.indexOf(':');
-    const prefix = colonIdx > -1 ? grant.permission.slice(0, colonIdx) : 'other';
+  const groups = new Map<string, ResolvedRow[]>();
+  for (const row of rows) {
+    const colonIdx = row.permission.indexOf(':');
+    const prefix = colonIdx > -1 ? row.permission.slice(0, colonIdx) : 'other';
     const group = groups.get(prefix) ?? [];
-    group.push(grant);
+    group.push(row);
     groups.set(prefix, group);
   }
 
@@ -209,7 +144,7 @@ function PermissionsGrouped({ grants }: { grants: ResolvedGrant[] }) {
 
   return (
     <Accordion multiple variant="separated" chevronPosition="left">
-      {sortedGroups.map(([prefix, groupGrants]) => (
+      {sortedGroups.map(([prefix, groupRows]) => (
         <Accordion.Item key={prefix} value={prefix}>
           <Accordion.Control>
             <Group gap="xs">
@@ -217,17 +152,36 @@ function PermissionsGrouped({ grants }: { grants: ResolvedGrant[] }) {
                 {prefix}:*
               </Text>
               <Badge size="xs" variant="outline" color="gray">
-                {groupGrants.length}
+                {groupRows.length}
               </Badge>
             </Group>
           </Accordion.Control>
           <Accordion.Panel>
-            <PermissionsTable grants={groupGrants} />
+            <PermissionsTable rows={groupRows} />
           </Accordion.Panel>
         </Accordion.Item>
       ))}
     </Accordion>
   );
+}
+
+// ─── Resolver ─────────────────────────────────────────────────────────────────
+
+function resolveRows(roles: RoleRow[]): ResolvedRow[] {
+  const map = new Map<string, ResolvedRow>();
+  for (const role of roles) {
+    const id = role.id ?? '';
+    const name = role.name ?? id;
+    for (const perm of role.permissions ?? []) {
+      const existing = map.get(perm);
+      if (existing) {
+        if (!existing.roles.some((r) => r.id === id)) existing.roles.push({ id, name });
+      } else {
+        map.set(perm, { permission: perm, roles: [{ id, name }] });
+      }
+    }
+  }
+  return Array.from(map.values()).sort((a, b) => a.permission.localeCompare(b.permission));
 }
 
 // ─── Component ────────────────────────────────────────────────────────────────
@@ -236,26 +190,43 @@ export function EffectivePermissionsPanel({ scope, id, tenantId }: EffectivePerm
   const [filter, setFilter] = useState('');
   const [viewMode, setViewMode] = useState<'flat' | 'grouped'>('flat');
 
-  const allRoles = useMockStore((s) => s.roles);
-  const memberships = useMockStore((s) => s.memberships);
-  const rbacPolicies = useMockStore((s) => s.rbacPolicies);
+  const routeTenantSlug = useActiveTenantSlug();
+  const tenant = tenantId ?? routeTenantSlug ?? '';
 
-  const allGrants = useMemo<ResolvedGrant[]>(() => {
+  // Pull every role in the tenant once — we need names + permission lists
+  // regardless of scope.
+  const allRolesQuery = useListRoles(tenant, {
+    query: { enabled: tenant !== '' },
+  });
+  // For user scope, also pull the user's role assignments.
+  const userRolesQuery = useListUserRoles(tenant, id, {
+    query: { enabled: scope === 'user' && tenant !== '' && id !== '' },
+  });
+
+  const allRolesData = allRolesQuery.data;
+  const userRolesData = userRolesQuery.data;
+
+  const rows = useMemo<ResolvedRow[]>(() => {
+    const allRoles: RoleRow[] = (allRolesData?.data.roles ?? []) as RoleRow[];
+    const userRoles: { id?: string; name?: string }[] = userRolesData?.data.roles ?? [];
     if (scope === 'role') {
-      return resolveEffectiveRolePerms(id, allRoles);
+      const role = allRoles.find((r) => r.id === id);
+      if (!role) return [];
+      return resolveRows([role]);
     }
+    // user scope
+    const assignedIds = new Set(userRoles.map((r) => r.id).filter((x): x is string => !!x));
+    const assignedRoles = allRoles.filter((r) => r.id && assignedIds.has(r.id));
+    return resolveRows(assignedRoles);
+  }, [scope, id, allRolesData, userRolesData]);
 
-    if (!tenantId) return [];
-    return resolveEffectiveUserPerms(id, tenantId, allRoles, memberships, rbacPolicies);
-  }, [scope, id, tenantId, allRoles, memberships, rbacPolicies]);
-
-  const filteredGrants = useMemo(() => {
-    if (!filter.trim()) return allGrants;
+  const filteredRows = useMemo(() => {
+    if (!filter.trim()) return rows;
     const lower = filter.toLowerCase();
-    return allGrants.filter((g) => g.permission.toLowerCase().includes(lower));
-  }, [allGrants, filter]);
+    return rows.filter((r) => r.permission.toLowerCase().includes(lower));
+  }, [rows, filter]);
 
-  if (scope === 'user' && !tenantId) {
+  if (scope === 'user' && tenant === '') {
     return (
       <Alert icon={<IconAlertCircle size={16} />} color="orange" variant="light">
         tenantId is required for user scope.
@@ -269,11 +240,11 @@ export function EffectivePermissionsPanel({ scope, id, tenantId }: EffectivePerm
       <Group justify="space-between" align="center">
         <Group gap="xs">
           <Text size="sm" fw={500}>
-            {allGrants.length} effective permission{allGrants.length !== 1 ? 's' : ''}
+            {rows.length} effective permission{rows.length !== 1 ? 's' : ''}
           </Text>
-          {filter && filteredGrants.length !== allGrants.length && (
+          {filter && filteredRows.length !== rows.length && (
             <Badge size="xs" variant="outline" color="gray">
-              {filteredGrants.length} shown
+              {filteredRows.length} shown
             </Badge>
           )}
         </Group>
@@ -304,7 +275,7 @@ export function EffectivePermissionsPanel({ scope, id, tenantId }: EffectivePerm
       />
 
       {/* Empty state */}
-      {allGrants.length === 0 && (
+      {rows.length === 0 && (
         <Box py="md">
           <Text size="sm" c="var(--mantine-color-gray-7)" ta="center">
             No effective permissions found. Assign a role to this{' '}
@@ -314,10 +285,8 @@ export function EffectivePermissionsPanel({ scope, id, tenantId }: EffectivePerm
       )}
 
       {/* Permissions list */}
-      {allGrants.length > 0 && viewMode === 'flat' && <PermissionsTable grants={filteredGrants} />}
-      {allGrants.length > 0 && viewMode === 'grouped' && (
-        <PermissionsGrouped grants={filteredGrants} />
-      )}
+      {rows.length > 0 && viewMode === 'flat' && <PermissionsTable rows={filteredRows} />}
+      {rows.length > 0 && viewMode === 'grouped' && <PermissionsGrouped rows={filteredRows} />}
     </Stack>
   );
 }

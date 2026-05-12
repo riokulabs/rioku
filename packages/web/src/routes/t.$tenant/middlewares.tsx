@@ -8,14 +8,13 @@ import { createFileRoute, useNavigate } from '@tanstack/react-router';
 import { Stack, Title, Group, Button, Drawer } from '@mantine/core';
 import { useDisclosure } from '@mantine/hooks';
 import { IconPlus } from '@tabler/icons-react';
-import { useMockStore } from '@/api/mock-store';
 import { requirePermissions } from '@/hooks/use-before-load';
 import { notify } from '@/hooks/use-notify';
 import {
   MiddlewareList,
   MiddlewareFilterBar,
   MiddlewareForm,
-  MiddlewareDetail,
+  MiddlewareDrawer,
   deleteMiddleware,
   MiddlewareInUseError,
 } from '@/features/middlewares';
@@ -49,9 +48,8 @@ function MiddlewaresPage() {
   const search = Route.useSearch();
   const navigate = useNavigate();
 
-  const tenantRecord = useMockStore((s) => Object.values(s.tenants).find((t) => t.slug === tenant));
-  const tenantId = tenantRecord?.id ?? '';
-  const tenantSlug = tenantRecord?.slug ?? tenant;
+  const tenantId = tenant;
+  const tenantSlug = tenant;
 
   const filter: MiddlewareFilter = {
     search: search.search,
@@ -97,7 +95,7 @@ function MiddlewaresPage() {
 
   async function handleDeleteFromList(m: Middleware) {
     try {
-      await deleteMiddleware(m.id);
+      await deleteMiddleware(tenantId, m.id);
       notify.success('Middleware deleted', `${m.name} was removed.`);
     } catch (err) {
       if (err instanceof MiddlewareInUseError) {
@@ -148,13 +146,7 @@ function MiddlewaresPage() {
         padding="md"
       >
         {drawerMode === 'detail' && selected && (
-          <MiddlewareDetail
-            middlewareId={selected.id}
-            onEdit={() => {
-              setDrawerMode('edit');
-            }}
-            onClose={closeDrawer}
-          />
+          <MiddlewareDrawer middlewareId={selected.id} tenantSlug={tenantSlug} />
         )}
         {drawerMode === 'create' && (
           <MiddlewareForm

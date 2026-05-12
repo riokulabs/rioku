@@ -32,9 +32,15 @@ import {
 import { DataTable } from '@/components/data-table';
 import { EmptyState } from '@/components/empty-state';
 import { usePermission } from '@/hooks/use-permission';
-import { useMockStore } from '@/api/mock-store';
+import { useInstalledPluginList } from '@/features/plugins/installed/api';
+import type { InstalledPluginFilter } from '@/features/plugins/installed/types';
 import { useSignerList } from '../api';
 import type { PluginSigner, SignerFilter } from '../types';
+
+const EMPTY_PLUGIN_FILTER: InstalledPluginFilter = {
+  search: '',
+  enabled: 'all',
+};
 
 interface SignerListProps {
   /** null = global signers only (super-admin view); string = tenant-scoped. */
@@ -60,12 +66,18 @@ function fingerprintShort(fp: string): string {
   return `${fp.slice(0, 16)}…`;
 }
 
-/** Counts plugins referencing each signer id (derived outside the selector). */
-function usePluginCountsBySigner(): Record<string, number> {
-  const plugins = useMockStore((s) => s.plugins);
+/**
+ * Counts plugins referencing each signer id, derived from the tenant-
+ * scoped plugin list. For the global super-admin view (`tenantScope ===
+ * null`) the daemon doesn't yet expose a cross-tenant plugin index, so
+ * counts come back empty and the column reads as 0. The component still
+ * renders correctly.
+ */
+function usePluginCountsBySigner(tenantScope: string | null): Record<string, number> {
+  const plugins = useInstalledPluginList(tenantScope ?? '', EMPTY_PLUGIN_FILTER);
   const out: Record<string, number> = {};
-  for (const p of Object.values(plugins)) {
-    if (p.signer_id) {
+  for (const p of plugins) {
+    if (p.signer_id !== undefined) {
       out[p.signer_id] = (out[p.signer_id] ?? 0) + 1;
     }
   }
@@ -81,7 +93,7 @@ export function SignerList({
   onDelete,
 }: SignerListProps) {
   const signers = useSignerList(tenantScope);
-  const pluginCounts = usePluginCountsBySigner();
+  const pluginCounts = usePluginCountsBySigner(tenantScope);
   const canWrite = usePermission('plugin-signer:write');
   const canDelete = usePermission('plugin-signer:delete');
 

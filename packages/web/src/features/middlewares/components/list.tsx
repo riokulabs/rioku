@@ -11,7 +11,7 @@ import { IconDots, IconPencil, IconTrash, IconStack } from '@tabler/icons-react'
 import { DataTable } from '@/components/data-table';
 import { EmptyState } from '@/components/empty-state';
 import { notify } from '@/hooks/use-notify';
-import { useMockStore } from '@/api/mock-store';
+import { useRouteListReal } from '@/features/routes/api.stage2';
 import { useMiddlewareList, updateMiddleware } from '../api';
 import type { Middleware, MiddlewareFilter } from '../types';
 
@@ -41,12 +41,11 @@ export function MiddlewareList({
   onDelete,
 }: MiddlewareListProps) {
   const middlewares = useMiddlewareList(tenantId, filter);
-  const routes = useMockStore((s) => s.routes);
+  const { routes } = useRouteListReal(tenantId, undefined);
 
-  // Derive "referenced by" count outside the selector.
   const refCounts = useMemo(() => {
     const counts: Record<string, number> = {};
-    for (const route of Object.values(routes)) {
+    for (const route of routes) {
       for (const mid of route.middleware_ids) {
         counts[mid] = (counts[mid] ?? 0) + 1;
       }
@@ -59,7 +58,7 @@ export function MiddlewareList({
   async function handleToggle(m: Middleware, next: boolean) {
     setTogglingId(m.id);
     try {
-      await updateMiddleware(m.id, { enabled: next });
+      await updateMiddleware(tenantId, m.id, { enabled: next });
       notify.success(
         next ? 'Middleware enabled' : 'Middleware disabled',
         `${m.name} is now ${next ? 'active' : 'inactive'}.`,

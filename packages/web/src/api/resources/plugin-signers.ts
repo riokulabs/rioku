@@ -1,12 +1,11 @@
-// Owned by Plan 09 (plugins) — types for the plugin-signers resource surface.
+// Types for the plugin-signers resource surface.
 
 import type { ID } from './common';
 
 /**
  * PluginSigner — identity of a party authorised to sign plugins.
  *
- * Plan 6 stage-1 mock surface. In stage 2+ this maps to the cosign/TUF root
- * allow-list enforced by the daemon.
+ * Maps to the cosign/TUF root allow-list enforced by the daemon.
  */
 export interface PluginSigner {
   readonly id: ID;

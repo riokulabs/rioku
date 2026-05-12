@@ -30,16 +30,36 @@ import { useDisclosure } from '@mantine/hooks';
 import { IconAlertCircle, IconGauge } from '@tabler/icons-react';
 import dayjs from 'dayjs';
 import relativeTime from 'dayjs/plugin/relativeTime';
-import { useMockStore } from '@/api/mock-store';
+import { useAgentList } from '@/features/ai-agents/api';
+import type { AgentFilter } from '@/features/ai-agents/types';
+import { useToolList } from '@/features/ai-tools/api';
+import type { ToolFilter } from '@/features/ai-tools/types';
+import { useAuditList } from '@/features/audit/api';
+import type { AuditFilter } from '@/features/audit/types';
 import { notify } from '@/hooks/use-notify';
 import type { AiSemanticRateLimit } from '@/api/resources';
 import { deleteRateLimit, updateRateLimit, useRateLimitDetail } from '../api';
+
+const EMPTY_AGENT_FILTER: AgentFilter = { search: '', provider_ids: [], role_ids: [] };
+const EMPTY_TOOL_FILTER: ToolFilter = { search: '', kinds: [] };
+const RATE_LIMIT_AUDIT_FILTER: AuditFilter = {
+  actions: [],
+  outcomes: [],
+  resource_types: ['ai-rate-limit'],
+  tiers: [],
+  date_from: null,
+  date_to: null,
+  actor_handles: [],
+  resource_id_handles: [],
+  search: '',
+};
 import { MetricsSparkline } from './metrics-sparkline';
 import { Simulator } from './simulator';
 
 dayjs.extend(relativeTime);
 
 interface RateLimitDetailProps {
+  tenantId: string;
   ruleId: string;
   onEdit: () => void;
   onClose: () => void;
@@ -57,16 +77,26 @@ function formatWindow(seconds: number): string {
   return `${String(seconds)}s`;
 }
 
-export function RateLimitDetail({ ruleId, onEdit, onClose }: RateLimitDetailProps) {
-  const rule = useRateLimitDetail(ruleId);
-  const agents = useMockStore((s) => s.aiAgents);
-  const tools = useMockStore((s) => s.aiTools);
-  const auditEntries = useMockStore((s) => s.audit);
+export function RateLimitDetail({ tenantId, ruleId, onEdit, onClose }: RateLimitDetailProps) {
+  const rule = useRateLimitDetail(tenantId, ruleId);
+  const agentList = useAgentList(tenantId, EMPTY_AGENT_FILTER);
+  const toolList = useToolList(tenantId, EMPTY_TOOL_FILTER);
+  const agents = useMemo(() => {
+    const m: Record<string, (typeof agentList)[number]> = {};
+    for (const a of agentList) m[a.id] = a;
+    return m;
+  }, [agentList]);
+  const tools = useMemo(() => {
+    const m: Record<string, (typeof toolList)[number]> = {};
+    for (const t of toolList) m[t.id] = t;
+    return m;
+  }, [toolList]);
+  const auditEntries = useAuditList(tenantId, RATE_LIMIT_AUDIT_FILTER);
 
   const auditTail = useMemo(() => {
     if (!rule) return [];
     return auditEntries
-      .filter((e) => e.resource_type === 'ai-rate-limit' && e.resource_id === rule.id)
+      .filter((e) => e.resource_id === rule.id)
       .slice()
       .sort((a, b) => b.at.localeCompare(a.at))
       .slice(0, 10);
@@ -94,7 +124,7 @@ export function RateLimitDetail({ ruleId, onEdit, onClose }: RateLimitDetailProp
   async function handleToggle(enabled: boolean) {
     if (!rule) return;
     try {
-      await updateRateLimit(rule.id, { enabled });
+      await updateRateLimit(tenantId, rule.id, { enabled });
     } catch {
       notify.error('Failed to update rule', 'Please try again.');
     }
@@ -105,7 +135,7 @@ export function RateLimitDetail({ ruleId, onEdit, onClose }: RateLimitDetailProp
     if (deleteInput !== rule.name) return;
     setDeleting(true);
     try {
-      await deleteRateLimit(rule.id);
+      await deleteRateLimit(tenantId, rule.id);
       notify.success('Rate limit deleted', `${rule.name} was removed.`);
       closeDelete();
       onClose();
@@ -212,13 +242,13 @@ export function RateLimitDetail({ ruleId, onEdit, onClose }: RateLimitDetailProp
         <Text size="sm" fw={600}>
           Matches — last 24h
         </Text>
-        <MetricsSparkline ruleId={rule.id} size="lg" window="24h" />
+        <MetricsSparkline tenantId={tenantId} ruleId={rule.id} size="lg" window="24h" />
       </Stack>
 
       <Divider />
 
       {/* Simulator */}
-      <Simulator ruleId={rule.id} />
+      <Simulator tenantId={tenantId} ruleId={rule.id} />
 
       <Divider />
 

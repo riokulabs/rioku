@@ -44,25 +44,24 @@ func TestStubCluster_LegacyRouteServedByClusterRoutes(t *testing.T) {
 	}
 }
 
-func TestStubPlugins(t *testing.T) {
+// TestStubPluginsRemoved verifies that the Plan 0c global plugin stubs
+// (GET /api/v1/plugins and GET /api/v1/plugins/manifest) have been retired.
+// Plan 9 replaces them with tenant-scoped routes in RegisterPluginRoutes.
+func TestStubPluginsRemoved(t *testing.T) {
 	cfg := config.Default()
 	mux := http.NewServeMux()
 	RegisterStubRoutes(mux, cfg)
 
+	// These global stub paths are gone — they now 404 on stub-only mux.
+	// Real requests go to /api/v1/t/{tenant}/plugins via RegisterPluginRoutes.
 	for _, path := range []string{"/api/v1/plugins", "/api/v1/plugins/manifest"} {
 		t.Run(path, func(t *testing.T) {
 			req := httptest.NewRequest(http.MethodGet, path, nil)
 			rec := httptest.NewRecorder()
 			mux.ServeHTTP(rec, req)
 
-			if rec.Code != http.StatusOK {
-				t.Fatalf("expected 200, got %d", rec.Code)
-			}
-			if ct := rec.Header().Get("Content-Type"); ct != "application/json" {
-				t.Errorf("Content-Type = %q, want application/json", ct)
-			}
-			if body := rec.Body.String(); body != "[]" {
-				t.Errorf("body = %q, want []", body)
+			if rec.Code != http.StatusNotFound {
+				t.Fatalf("expected 404 (stub retired), got %d", rec.Code)
 			}
 		})
 	}

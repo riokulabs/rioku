@@ -41,8 +41,8 @@ export function hardenGlobals(): void {
   }
 
   // Suppress React DevTools reconciler hook for non-first-party plugin code.
-  // Plan says: first-party code gets DevTools in dev; third-party plugin code
-  // shouldn't see it. For stage 1, we always suppress during production builds.
+  // Policy: first-party code gets DevTools in dev; third-party plugin code
+  // shouldn't see it. We always suppress during production builds.
   // In DEV, we leave the hook intact so developer tools still work.
   if (typeof window !== 'undefined' && !import.meta.env.DEV) {
     if (!('__REACT_DEVTOOLS_GLOBAL_HOOK__' in window)) {

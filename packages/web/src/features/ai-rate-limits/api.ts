@@ -1,16 +1,32 @@
 /**
- * AI Semantic Rate Limits API — backed by the Zustand mock store.
+ * AI Semantic Rate Limits API.
  *
- * Uses Jaccard similarity as a cheap stand-in for the real cosine-embedding
- * match the daemon will perform. Deterministic metrics are derived from a
- * hash-seeded PRNG per-rule so repeated calls return stable series.
+ * Adapter: the daemon proto shape (`AIRateLimit`, camelCase) is translated
+ * to the admin `AiSemanticRateLimit` shape (snake_case). `threshold` ↔
+ * `max_matches`. `description` is not in the daemon model yet — adapter
+ * returns `undefined`.
  */
-import { useMemo, useState } from 'react';
-import { useMockStore } from '@/api/mock-store';
-import { simulateLatency } from '@/api/mock-latency';
-import { makeIdFactory } from '@/lib/id-generator';
-import { emitHostEvent } from '@/host/events';
-import type { AiSemanticRateLimit, AuditEntry } from '@/api/resources';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import {
+  listAIRateLimits,
+  getAIRateLimit,
+  createAIRateLimit as orvalCreateAIRateLimit,
+  updateAIRateLimit as orvalUpdateAIRateLimit,
+  deleteAIRateLimit as orvalDeleteAIRateLimit,
+  simulateAIRateLimit as orvalSimulateAIRateLimit,
+  getAIRateLimitMetrics as orvalGetAIRateLimitMetrics,
+  getListAIRateLimitsQueryKey,
+  getGetAIRateLimitQueryKey,
+  getGetAIRateLimitMetricsQueryKey,
+} from '@/api/generated/ai-rate-limits/ai-rate-limits';
+import type {
+  AIRateLimit,
+  AIRateLimitCreateRequest,
+  AIRateLimitSimulateRequest,
+  AIRateLimitUpdateRequest,
+  AIRateLimitMetricsPoint,
+} from '@/api/generated/schemas';
+import type { AiSemanticRateLimit } from '@/api/resources';
 import type {
   CreateRateLimitInput,
   MetricWindow,
@@ -18,278 +34,252 @@ import type {
   RateLimitMetricsPoint,
   SimulateMatchResult,
   UpdateRateLimitInput,
+  SimulateProbeInput,
+  SimulateProbeResult,
 } from './types';
 
-const nextRuleId = makeIdFactory('airate-new');
-const nextAuditId = makeIdFactory('audit-airate');
+// ─── Adapter ──────────────────────────────────────────────────────────────────
 
-// ─── Helpers ──────────────────────────────────────────────────────────────────
-
-function now(): string {
-  return new Date().toISOString();
-}
-
-function getCurrentActorId(): string {
-  return useMockStore.getState().currentUserId ?? 'unknown';
-}
-
-function makeAuditEntry(
-  actorId: string,
-  tenantId: string | null,
-  action: string,
-  resourceId?: string,
-  tier: AuditEntry['tier'] = 'write',
-): AuditEntry {
+/** Translate a daemon `AIRateLimit` to the admin `AiSemanticRateLimit`. */
+function fromProto(p: AIRateLimit): AiSemanticRateLimit {
+  const scope: AiSemanticRateLimit['scope'] =
+    p.scope === 'agent' || p.scope === 'tool' ? p.scope : 'tenant';
+  const action: AiSemanticRateLimit['action'] =
+    p.action === 'block' || p.action === 'degrade' || p.action === 'log' ? p.action : 'log';
   return {
-    id: nextAuditId(),
-    tenant_id: tenantId,
-    actor_id: actorId,
+    id: p.id,
+    tenant_id: p.tenantId,
+    name: p.name,
+    scope,
+    ...(p.agentId ? { agent_id: p.agentId } : {}),
+    ...(p.toolId ? { tool_id: p.toolId } : {}),
+    exemplars: p.exemplars ?? [],
+    similarity_threshold: p.similarityThreshold ?? 0,
+    window_seconds: p.windowSeconds ?? 60,
+    max_matches: p.threshold ?? 0,
     action,
-    resource_type: 'ai-rate-limit',
-    ...(resourceId ? { resource_id: resourceId } : {}),
-    outcome: 'success',
-    at: now(),
-    tier,
+    enabled: p.enabled,
+    created_at: p.createdAt,
   };
 }
 
-/** Tokenise a string into lowercase word tokens. */
-function tokenize(s: string): Set<string> {
-  const out = new Set<string>();
-  for (const tok of s.toLowerCase().split(/\s+/)) {
-    if (tok.length > 0) out.add(tok);
+function toCreateBody(input: CreateRateLimitInput): AIRateLimitCreateRequest {
+  return {
+    name: input.name,
+    scope: input.scope,
+    ...(input.agent_id !== undefined ? { agentId: input.agent_id } : {}),
+    ...(input.tool_id !== undefined ? { toolId: input.tool_id } : {}),
+    exemplars: [...input.exemplars],
+    similarityThreshold: input.similarity_threshold,
+    windowSeconds: input.window_seconds,
+    threshold: input.max_matches,
+    action: input.action,
+  };
+}
+
+function toUpdateBody(input: UpdateRateLimitInput): AIRateLimitUpdateRequest {
+  const out: AIRateLimitUpdateRequest = {};
+  if (input.name !== undefined) out.name = input.name;
+  if (input.scope !== undefined) out.scope = input.scope;
+  if (input.agent_id !== undefined) out.agentId = input.agent_id;
+  if (input.tool_id !== undefined) out.toolId = input.tool_id;
+  if (input.exemplars !== undefined) out.exemplars = [...input.exemplars];
+  if (input.similarity_threshold !== undefined)
+    out.similarityThreshold = input.similarity_threshold;
+  if (input.window_seconds !== undefined) out.windowSeconds = input.window_seconds;
+  if (input.max_matches !== undefined) out.threshold = input.max_matches;
+  if (input.action !== undefined) out.action = input.action;
+  if (input.enabled !== undefined) out.enabled = input.enabled;
+  return out;
+}
+
+// ─── Selectors (query hooks) ──────────────────────────────────────────────────
+
+/** Returns rate-limit rules for a tenant after applying client-side filters. */
+export function useRateLimitList(tenantId: string, filter: RateLimitFilter): AiSemanticRateLimit[] {
+  const { data } = useQuery({
+    queryKey: getListAIRateLimitsQueryKey(tenantId),
+    queryFn: ({ signal }) => listAIRateLimits(tenantId, { signal }),
+    enabled: Boolean(tenantId),
+  });
+  const items = data?.data.items ?? [];
+
+  const search = filter.search.toLowerCase().trim();
+  const out: AiSemanticRateLimit[] = [];
+  for (const proto of items) {
+    // The daemon already scopes the response to the URL's tenant. Do NOT
+    // reintroduce a `proto.tenantId !== tenantId` guard — it would compare
+    // the URL slug against the daemon's internal id and filter out everything.
+    const rule = fromProto(proto);
+    if (filter.scopes.length > 0 && !filter.scopes.includes(rule.scope)) continue;
+    if (filter.actions.length > 0 && !filter.actions.includes(rule.action)) continue;
+    if (filter.enabled !== undefined && rule.enabled !== filter.enabled) continue;
+    if (search && !rule.name.toLowerCase().includes(search)) continue;
+    out.push(rule);
   }
   return out;
 }
 
-/** Jaccard similarity of two token sets. */
-function jaccard(a: string, b: string): number {
-  const A = tokenize(a);
-  const B = tokenize(b);
-  if (A.size === 0 && B.size === 0) return 0;
-  let inter = 0;
-  for (const tok of A) {
-    if (B.has(tok)) inter += 1;
-  }
-  const union = new Set([...A, ...B]).size;
-  return union === 0 ? 0 : inter / union;
+/** Returns a single rate-limit rule for a tenant. */
+export function useRateLimitDetail(tenantId: string, id: string): AiSemanticRateLimit | undefined {
+  const { data } = useQuery({
+    queryKey: getGetAIRateLimitQueryKey(tenantId, id),
+    queryFn: ({ signal }) => getAIRateLimit(tenantId, id, { signal }),
+    enabled: Boolean(tenantId) && Boolean(id),
+  });
+  if (!data) return undefined;
+  return fromProto(data.data);
 }
 
-/** djb2 string hash. */
-function hashCode(s: string): number {
-  let h = 5381;
-  for (let i = 0; i < s.length; i++) {
-    h = ((h << 5) + h + s.charCodeAt(i)) | 0;
-  }
-  return h >>> 0;
-}
+// ─── Mutations (imperative) ───────────────────────────────────────────────────
 
-/** Mulberry32 PRNG — deterministic uniform float in [0, 1). */
-function mulberry32(seed: number): () => number {
-  return function () {
-    seed = (seed + 0x6d2b79f5) | 0;
-    let t = seed;
-    t = Math.imul(t ^ (t >>> 15), t | 1);
-    t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
-    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
-  };
-}
-
-// ─── Selectors ────────────────────────────────────────────────────────────────
-
-export function useRateLimitList(tenantId: string, filter: RateLimitFilter): AiSemanticRateLimit[] {
-  const rules = useMockStore((s) => s.aiSemanticRateLimits);
-  const search = filter.search.toLowerCase().trim();
-  const results: AiSemanticRateLimit[] = [];
-  for (const rule of Object.values(rules)) {
-    if (rule.tenant_id !== tenantId) continue;
-    if (filter.scopes.length > 0 && !filter.scopes.includes(rule.scope)) continue;
-    if (filter.actions.length > 0 && !filter.actions.includes(rule.action)) continue;
-    if (filter.enabled !== undefined && rule.enabled !== filter.enabled) continue;
-    if (search) {
-      const nameMatch = rule.name.toLowerCase().includes(search);
-      const descMatch = rule.description?.toLowerCase().includes(search) ?? false;
-      if (!nameMatch && !descMatch) continue;
-    }
-    results.push(rule);
-  }
-  return results;
-}
-
-export function useRateLimitDetail(id: string): AiSemanticRateLimit | undefined {
-  return useMockStore((s) => s.aiSemanticRateLimits[id]);
-}
-
-// ─── Mutations ────────────────────────────────────────────────────────────────
-
+/**
+ * Create a rate-limit rule. Real endpoint: POST
+ * `/api/v1/t/{tenantId}/ai/rate-limits`.
+ */
 export async function createRateLimit(
   tenantId: string,
   input: CreateRateLimitInput,
 ): Promise<AiSemanticRateLimit> {
-  await simulateLatency('mutation');
-  const id = nextRuleId();
-  const rule: AiSemanticRateLimit = {
-    id,
-    tenant_id: tenantId,
-    name: input.name,
-    ...(input.description !== undefined ? { description: input.description } : {}),
-    scope: input.scope,
-    ...(input.agent_id !== undefined ? { agent_id: input.agent_id } : {}),
-    ...(input.tool_id !== undefined ? { tool_id: input.tool_id } : {}),
-    exemplars: [...input.exemplars],
-    similarity_threshold: input.similarity_threshold,
-    window_seconds: input.window_seconds,
-    max_matches: input.max_matches,
-    action: input.action,
-    enabled: input.enabled ?? true,
-    created_at: now(),
-  };
-  const state = useMockStore.getState();
-  state.addEntity('aiSemanticRateLimits', rule);
-  state.appendAudit(makeAuditEntry(getCurrentActorId(), tenantId, 'ai-rate-limit.create', id));
-  emitHostEvent('ai-rate-limit.created', {
-    rule_id: id,
-    tenant_id: tenantId,
-    scope: input.scope,
-    action: input.action,
-  });
-  return rule;
+  const res = await orvalCreateAIRateLimit(tenantId, toCreateBody(input));
+  return fromProto(res.data);
 }
 
+/** Update a rate-limit rule. PUT `/api/v1/t/{tenantId}/ai/rate-limits/{id}`. */
 export async function updateRateLimit(
+  tenantId: string,
   id: string,
   input: UpdateRateLimitInput,
 ): Promise<AiSemanticRateLimit> {
-  await simulateLatency('mutation');
-  const state = useMockStore.getState();
-  const current = state.aiSemanticRateLimits[id];
-  if (!current) throw new Error(`Rate limit ${id} not found`);
-
-  const patch: Partial<AiSemanticRateLimit> = {};
-  if (input.name !== undefined) patch.name = input.name;
-  if (input.description !== undefined) patch.description = input.description;
-  if (input.scope !== undefined) patch.scope = input.scope;
-  if (input.agent_id !== undefined) patch.agent_id = input.agent_id;
-  if (input.tool_id !== undefined) patch.tool_id = input.tool_id;
-  if (input.exemplars !== undefined) patch.exemplars = [...input.exemplars];
-  if (input.similarity_threshold !== undefined)
-    patch.similarity_threshold = input.similarity_threshold;
-  if (input.window_seconds !== undefined) patch.window_seconds = input.window_seconds;
-  if (input.max_matches !== undefined) patch.max_matches = input.max_matches;
-  if (input.action !== undefined) patch.action = input.action;
-  if (input.enabled !== undefined) patch.enabled = input.enabled;
-
-  const before = { ...current };
-  state.updateEntity('aiSemanticRateLimits', id, patch);
-  const updated = useMockStore.getState().aiSemanticRateLimits[id];
-  if (!updated) throw new Error(`Rate limit ${id} vanished mid-update`);
-
-  state.appendAudit({
-    ...makeAuditEntry(getCurrentActorId(), current.tenant_id, 'ai-rate-limit.update', id),
-    diff: { before, after: updated },
-  });
-  emitHostEvent('ai-rate-limit.updated', {
-    rule_id: id,
-    tenant_id: current.tenant_id,
-  });
-  return updated;
+  const res = await orvalUpdateAIRateLimit(tenantId, id, toUpdateBody(input));
+  return fromProto(res.data);
 }
-
-export async function deleteRateLimit(id: string): Promise<void> {
-  await simulateLatency('mutation');
-  const state = useMockStore.getState();
-  const rule = state.aiSemanticRateLimits[id];
-  if (!rule) throw new Error(`Rate limit ${id} not found`);
-
-  state.deleteEntity('aiSemanticRateLimits', id);
-  state.appendAudit(
-    makeAuditEntry(getCurrentActorId(), rule.tenant_id, 'ai-rate-limit.delete', id, 'destructive'),
-  );
-  emitHostEvent('ai-rate-limit.deleted', {
-    rule_id: id,
-    tenant_id: rule.tenant_id,
-  });
-}
-
-// ─── Simulate ────────────────────────────────────────────────────────────────
 
 /**
- * Cheap Jaccard-token-overlap match against the rule's exemplars. Returns
- * the highest-scoring exemplar and whether it clears the rule's threshold.
+ * Delete a rate-limit rule. Real endpoint: DELETE
+ * `/api/v1/t/{tenantId}/ai/rate-limits/{id}`.
  */
-export function simulateMatch(ruleId: string, candidateText: string): SimulateMatchResult {
-  const rule = useMockStore.getState().aiSemanticRateLimits[ruleId];
-  if (!rule) throw new Error(`Rate limit ${ruleId} not found`);
+export async function deleteRateLimit(tenantId: string, id: string): Promise<void> {
+  await orvalDeleteAIRateLimit(tenantId, id);
+}
 
-  let best = { score: 0, exemplar: '' };
-  for (const ex of rule.exemplars) {
-    const s = jaccard(ex, candidateText);
-    if (s > best.score) best = { score: s, exemplar: ex };
-  }
-  const matched = best.score >= rule.similarity_threshold;
-  return {
-    matched,
-    score: Number(best.score.toFixed(4)),
-    ...(best.score > 0 ? { matched_exemplar: best.exemplar } : {}),
+// ─── Mutation hooks (with cache invalidation) ─────────────────────────────────
+
+export function useCreateRateLimitMutation(tenantId: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (input: CreateRateLimitInput) => createRateLimit(tenantId, input),
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: getListAIRateLimitsQueryKey(tenantId) });
+    },
+  });
+}
+
+export function useUpdateRateLimitMutation(tenantId: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, input }: { id: string; input: UpdateRateLimitInput }) =>
+      updateRateLimit(tenantId, id, input),
+    onSuccess: (_d, { id }) => {
+      void qc.invalidateQueries({ queryKey: getListAIRateLimitsQueryKey(tenantId) });
+      void qc.invalidateQueries({ queryKey: getGetAIRateLimitQueryKey(tenantId, id) });
+    },
+  });
+}
+
+export function useDeleteRateLimitMutation(tenantId: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (id: string) => deleteRateLimit(tenantId, id),
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: getListAIRateLimitsQueryKey(tenantId) });
+    },
+  });
+}
+
+// ─── Simulate ─────────────────────────────────────────────────────────────────
+
+/**
+ * Run the daemon's deterministic simulator against a configured rule.
+ * Real endpoint: POST `/api/v1/t/{tenantId}/ai/rate-limits/{id}/simulate`.
+ * Body: `{ request_count, time_window_seconds, principal }` (all optional).
+ */
+export async function simulateRateLimitProbe(
+  tenantId: string,
+  id: string,
+  input: SimulateProbeInput,
+): Promise<SimulateProbeResult> {
+  const body: AIRateLimitSimulateRequest = {
+    ...(input.request_count !== undefined ? { request_count: input.request_count } : {}),
+    ...(input.time_window_seconds !== undefined
+      ? { time_window_seconds: input.time_window_seconds }
+      : {}),
+    ...(input.principal !== undefined ? { principal: input.principal } : {}),
   };
+  const res = await orvalSimulateAIRateLimit(tenantId, id, body);
+  const data = res.data;
+  return {
+    rate_limit_id: data.rate_limit_id,
+    ...(data.principal !== undefined ? { principal: data.principal } : {}),
+    would_throttle: data.would_throttle,
+    retry_after_ms: data.retry_after_ms,
+    current_consumption: data.current_consumption,
+    limit: data.limit,
+  };
+}
+
+/**
+ * TanStack mutation hook around `simulateRateLimitProbe`. Components in the
+ * Simulate tab use this so they get loading + error state for free.
+ */
+export function useSimulateRateLimitProbeMutation(tenantId: string, id: string) {
+  return useMutation({
+    mutationFn: (input: SimulateProbeInput) => simulateRateLimitProbe(tenantId, id, input),
+  });
+}
+
+/**
+ * Compatibility shim. The daemon doesn't ship a Jaccard-style match
+ * primitive; consumers should use `simulateRateLimitProbe` instead. This
+ * wrapper returns `{ matched: false, score: 0 }` so third-party callers
+ * don't crash.
+ *
+ * @deprecated Use `simulateRateLimitProbe` against the real daemon instead.
+ */
+export function simulateMatch(_ruleId: string, _candidateText: string): SimulateMatchResult {
+  return { matched: false, score: 0 };
 }
 
 // ─── Metrics ─────────────────────────────────────────────────────────────────
 
 /**
- * Deterministic metrics time-series for a rule. Bucket layouts:
- *   '1h'  → 60 × 1-minute buckets
- *   '24h' → 24 × 1-hour buckets
- *   '7d'  → 7  × 1-day buckets
+ * Pull the throttle-event time-series for a rate-limit.
+ * GET `/api/v1/t/{tenantId}/ai/rate-limits/{id}/metrics?since={window}`.
  *
- * Values are derived from a rule-seeded PRNG, modulated by bucket-of-day so
- * "business hours" carry more traffic than the small hours. The last bucket
- * always ends at the call moment; bucket timestamps are ISO strings marking
- * the bucket's START.
+ * Returns `{timestamp, matches}` for sparkline back-compat. New code should
+ * read `throttle_events` directly via `useRateLimitMetricsRaw`.
  */
-export function useRateLimitMetrics(ruleId: string, window: MetricWindow): RateLimitMetricsPoint[] {
-  // Hook into the store so sparklines refresh when the rule itself changes.
-  const rule = useMockStore((s) => s.aiSemanticRateLimits[ruleId]);
+export function useRateLimitMetrics(
+  tenantId: string,
+  ruleId: string,
+  window: MetricWindow,
+): RateLimitMetricsPoint[] {
+  const points = useRateLimitMetricsRaw(tenantId, ruleId, window);
+  return points.map((p) => ({ timestamp: p.timestamp, matches: p.throttle_events }));
+}
 
-  // Capture Date.now() once per mount — keeps the memo pure and gives stable
-  // bucket timestamps across re-renders with the same inputs.
-  const [nowMs] = useState<number>(() => Date.now());
-
-  return useMemo((): RateLimitMetricsPoint[] => {
-    if (!rule) return [];
-    const seed = hashCode(ruleId);
-    const rand = mulberry32(seed);
-
-    let bucketCount: number;
-    let bucketMs: number;
-    switch (window) {
-      case '1h':
-        bucketCount = 60;
-        bucketMs = 60 * 1000;
-        break;
-      case '24h':
-        bucketCount = 24;
-        bucketMs = 60 * 60 * 1000;
-        break;
-      case '7d':
-        bucketCount = 7;
-        bucketMs = 24 * 60 * 60 * 1000;
-        break;
-    }
-
-    const out: RateLimitMetricsPoint[] = [];
-    for (let i = bucketCount - 1; i >= 0; i--) {
-      const bucketStart = nowMs - i * bucketMs;
-      const date = new Date(bucketStart);
-      // Business-hours modulation — 09..17 local hours get boosted.
-      const hour = date.getUTCHours();
-      const boost = hour >= 9 && hour <= 17 ? 1.6 : 0.5;
-      const raw = rand() * 20 * boost;
-      out.push({
-        timestamp: date.toISOString(),
-        matches: Math.max(0, Math.round(raw)),
-      });
-    }
-    return out;
-  }, [rule, ruleId, window, nowMs]);
+/** Native metrics hook — returns the daemon shape directly. */
+export function useRateLimitMetricsRaw(
+  tenantId: string,
+  ruleId: string,
+  window: MetricWindow,
+): AIRateLimitMetricsPoint[] {
+  const { data } = useQuery({
+    queryKey: getGetAIRateLimitMetricsQueryKey(tenantId, ruleId, { since: window }),
+    queryFn: ({ signal }) =>
+      orvalGetAIRateLimitMetrics(tenantId, ruleId, { since: window }, { signal }),
+    enabled: Boolean(tenantId) && Boolean(ruleId),
+  });
+  if (!data) return [];
+  return data.data.points;
 }

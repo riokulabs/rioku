@@ -7,10 +7,10 @@
 // Reads require `certificates:read`; mutations require `certificates:manage`.
 //
 // Backed by a caddy.CertService implementation supplied by the daemon.
-// Stage-1 default is caddy.StubCertService — empty list + structured
-// "not implemented yet" responses for renew/revoke. The full Caddy
-// filesystem scan + admin-API renew/revoke integration lands in stage-2
-// alongside #77 (Caddy cert lifecycle audit).
+// Default is caddy.StubCertService — empty list + structured
+// "not implemented yet" responses for renew/revoke. Full Caddy
+// filesystem scan + admin-API renew/revoke integration lands alongside
+// #77 (Caddy cert lifecycle audit).
 package gateway
 
 import (

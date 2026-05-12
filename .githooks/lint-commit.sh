@@ -33,12 +33,25 @@ if echo "$MSG" | grep -qE '^(Merge |Revert "|fixup! |squash! )'; then
   exit 0
 fi
 
+# Reject WIP / oops / TODO commits — squash before pushing.
+# Pattern: subject starts with one of these markers (case-insensitive)
+# followed by either nothing, whitespace, or a colon.
+LOWER_FIRST=$(echo "$MSG" | tr '[:upper:]' '[:lower:]')
+case "$LOWER_FIRST" in
+  wip:*|wip\ *|wip|oops:*|oops\ *|oops|"fix typo"*|todo:*|todo\ *|todo)
+    echo "ERROR: Commit subject looks like work-in-progress noise (WIP/oops/TODO/'fix typo')."
+    echo "       Squash it into a meaningful Conventional Commit before pushing."
+    echo "  Got: $MSG"
+    exit 1
+    ;;
+esac
+
 # Check conventional commit format
-if ! echo "$MSG" | grep -qE '^(feat|fix|docs|chore|refactor|test|ci|perf|build|revert)(\(.+\))?: .+'; then
+if ! echo "$MSG" | grep -qE '^(feat|fix|docs|chore|refactor|test|ci|perf|build|revert|style)(\(.+\))?: .+'; then
   echo "ERROR: Commit message does not follow Conventional Commits format."
   echo ""
   echo "  Expected: type(scope): description"
-  echo "  Types: feat, fix, docs, chore, refactor, test, ci, perf, build, revert"
+  echo "  Types: feat, fix, docs, chore, refactor, test, ci, perf, build, revert, style"
   echo ""
   echo "  Got: $MSG"
   exit 1

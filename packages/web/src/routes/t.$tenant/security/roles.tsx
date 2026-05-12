@@ -15,10 +15,8 @@ import {
   RoleDetail,
   RoleCreate,
   RoleDeleteConfirm,
-  createRoleMutation,
-  deleteRoleMutation,
+  useRoleMutations,
 } from '@/features/security/roles';
-import { useMockStore } from '@/api/mock-store';
 import { notify } from '@/hooks/use-notify';
 import type { Role } from '@/api/resources';
 import type { RoleCreateFormValues } from '@/features/security/roles';
@@ -27,9 +25,7 @@ type DrawerMode = 'detail' | 'create' | 'delete';
 
 function RolesPage() {
   const { tenant } = Route.useParams();
-  const tenantId = useMockStore(
-    (s) => Object.values(s.tenants).find((t) => t.slug === tenant)?.id ?? '',
-  );
+  const { create, remove } = useRoleMutations(tenant);
 
   const [drawerOpened, { open: openDrawer, close: closeDrawer }] = useDisclosure(false);
   const [drawerMode, setDrawerMode] = useState<DrawerMode>('detail');
@@ -52,7 +48,7 @@ function RolesPage() {
   }
 
   async function handleCreateSave(values: RoleCreateFormValues) {
-    const role = await createRoleMutation(tenantId, {
+    const role = await create({
       name: values.name,
       ...(values.description ? { description: values.description } : {}),
       parent_ids: values.parent_id ? [values.parent_id] : [],
@@ -65,7 +61,7 @@ function RolesPage() {
 
   async function handleDeleteConfirm() {
     if (!selectedRole) return;
-    await deleteRoleMutation(selectedRole.id);
+    await remove(selectedRole.id);
     notify.success('Role deleted', `"${selectedRole.name}" has been deleted.`);
     closeDrawer();
   }
@@ -86,7 +82,7 @@ function RolesPage() {
         </Button>
       </Group>
 
-      <RoleList onSelect={handleRowClick} />
+      <RoleList tenant={tenant} onSelect={handleRowClick} />
 
       {/* duration=0 prevents JSDOM animation hangs in tests */}
       <Drawer
@@ -99,13 +95,19 @@ function RolesPage() {
         padding="md"
       >
         {drawerMode === 'detail' && selectedRole && (
-          <RoleDetail role={selectedRole} onDelete={handleDeleteRequest} onClose={closeDrawer} />
+          <RoleDetail
+            tenant={tenant}
+            role={selectedRole}
+            onDelete={handleDeleteRequest}
+            onClose={closeDrawer}
+          />
         )}
         {drawerMode === 'create' && (
-          <RoleCreate tenantId={tenantId} onSave={handleCreateSave} onCancel={closeDrawer} />
+          <RoleCreate tenant={tenant} onSave={handleCreateSave} onCancel={closeDrawer} />
         )}
         {drawerMode === 'delete' && selectedRole && (
           <RoleDeleteConfirm
+            tenant={tenant}
             role={selectedRole}
             onConfirm={handleDeleteConfirm}
             onCancel={() => {

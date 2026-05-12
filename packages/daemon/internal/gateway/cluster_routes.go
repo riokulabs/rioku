@@ -7,8 +7,8 @@
 // Reads require `cluster:read`; mutations require `cluster:manage`.
 //
 // Backed by a cluster.Service implementation supplied by the daemon. The
-// stage-1 default is cluster.LocalOnlyService — single-node responses with
-// the running daemon as the sole member. Once Discovery is wired up
+// default is cluster.LocalOnlyService — single-node responses with the
+// running daemon as the sole member. Once Discovery is wired up
 // (related: #57), the daemon swaps in a multi-node implementation.
 package gateway
 

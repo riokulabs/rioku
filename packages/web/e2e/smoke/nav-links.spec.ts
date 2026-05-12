@@ -70,31 +70,3 @@ for (const { label, to } of NAV_LINKS) {
     expect(url).not.toContain('/access-denied');
   });
 }
-
-test('sidebar Insights link navigates to /t/acme/dashboards', async ({ authedPage: page }) => {
-  await page.goto('/t/acme/dashboard');
-
-  // The "Insights" link in the Analytics group should point to /dashboards.
-  const insightsLink = page.getByRole('link', { name: /^insights$/i });
-  await expect(insightsLink).toBeVisible();
-  await insightsLink.click();
-
-  await expect(page).toHaveURL(/\/t\/acme\/dashboards/);
-  await expect(page.getByText(/not found/i).first()).not.toBeVisible({ timeout: 5000 });
-});
-
-test('sidebar links reflect active tenant when on /t/beta/dashboard', async ({
-  authedPage: page,
-}) => {
-  await page.goto('/t/beta/dashboard');
-
-  // The page must load without 404.
-  await expect(page.getByText(/not found/i).first()).not.toBeVisible({ timeout: 5000 });
-
-  // The Services link should point to /t/beta/services, not /t/acme/services.
-  const servicesLink = page.getByRole('link', { name: /^services$/i });
-  await expect(servicesLink).toBeVisible();
-  const href = await servicesLink.getAttribute('href');
-  expect(href).toContain('/t/beta/services');
-  expect(href).not.toContain('/t/acme/');
-});

@@ -10,9 +10,15 @@ import { Badge, Text, Stack, Menu, ActionIcon, Switch } from '@mantine/core';
 import { IconDots, IconPencil, IconTrash, IconGauge } from '@tabler/icons-react';
 import { DataTable } from '@/components/data-table';
 import { EmptyState } from '@/components/empty-state';
-import { useMockStore } from '@/api/mock-store';
+import { useAgentList } from '@/features/ai-agents/api';
+import type { AgentFilter } from '@/features/ai-agents/types';
+import { useToolList } from '@/features/ai-tools/api';
+import type { ToolFilter } from '@/features/ai-tools/types';
 import type { AiSemanticRateLimit } from '@/api/resources';
 import { useRateLimitList, updateRateLimit } from '../api';
+
+const EMPTY_AGENT_FILTER: AgentFilter = { search: '', provider_ids: [], role_ids: [] };
+const EMPTY_TOOL_FILTER: ToolFilter = { search: '', kinds: [] };
 import type { RateLimitFilter } from '../types';
 import { MetricsSparkline } from './metrics-sparkline';
 
@@ -44,8 +50,18 @@ export function RateLimitList({
   onDelete,
 }: RateLimitListProps) {
   const rules = useRateLimitList(tenantId, filter);
-  const agents = useMockStore((s) => s.aiAgents);
-  const tools = useMockStore((s) => s.aiTools);
+  const agentList = useAgentList(tenantId, EMPTY_AGENT_FILTER);
+  const toolList = useToolList(tenantId, EMPTY_TOOL_FILTER);
+  const agents = useMemo(() => {
+    const m: Record<string, (typeof agentList)[number]> = {};
+    for (const a of agentList) m[a.id] = a;
+    return m;
+  }, [agentList]);
+  const tools = useMemo(() => {
+    const m: Record<string, (typeof toolList)[number]> = {};
+    for (const t of toolList) m[t.id] = t;
+    return m;
+  }, [toolList]);
 
   const columns = useMemo<ColumnDef<AiSemanticRateLimit>[]>(
     () => [
@@ -145,7 +161,9 @@ export function RateLimitList({
         header: 'Last 24h',
         size: 120,
         enableSorting: false,
-        cell: ({ row }) => <MetricsSparkline ruleId={row.original.id} size="sm" window="24h" />,
+        cell: ({ row }) => (
+          <MetricsSparkline tenantId={tenantId} ruleId={row.original.id} size="sm" window="24h" />
+        ),
       },
       {
         id: 'enabled',
@@ -162,7 +180,7 @@ export function RateLimitList({
                 e.stopPropagation();
               }}
               onChange={(e) => {
-                void updateRateLimit(r.id, {
+                void updateRateLimit(tenantId, r.id, {
                   enabled: e.currentTarget.checked,
                 });
               }}
@@ -216,7 +234,7 @@ export function RateLimitList({
         },
       },
     ],
-    [agents, tools, onEdit, onDelete],
+    [tenantId, agents, tools, onEdit, onDelete],
   );
 
   return (

@@ -12,10 +12,38 @@ import { BUILTIN_THEMES } from '@/theme';
 import { getDir } from '@/i18n/dir';
 import { queryClient } from '@/api/query-client';
 import { setNotifyBackend } from '@/host/notify';
-import { useMockStore } from '@/api/mock-store';
+import { useCurrentUser } from '@/features/auth/use-current-user';
+import { useActiveTenantSlug } from '@/hooks/use-tenant';
 import { emitNotification } from '@/features/notifications';
 
 const colorSchemeManager = localStorageColorSchemeManager({ key: 'rioku-color-scheme' });
+
+/**
+ * NotifyBackendBridge — installs the notify backend after a QueryClient
+ * is in scope so we can read the daemon-backed current user and route
+ * tenant slug for fallback fields. Lives inside <QueryClientProvider> so
+ * `useCurrentUser` resolves cleanly.
+ */
+function NotifyBackendBridge() {
+  const me = useCurrentUser().data ?? null;
+  const tenantSlug = useActiveTenantSlug();
+  useEffect(() => {
+    setNotifyBackend({
+      write(input) {
+        emitNotification({
+          tenant_id: input.tenant ?? tenantSlug ?? null,
+          user_id: input.user ?? me?.id ?? 'unknown',
+          category: input.category,
+          severity: input.severity,
+          title: input.title,
+          body: input.body,
+          ...(input.action ? { action: input.action } : {}),
+        });
+      },
+    });
+  }, [me?.id, tenantSlug]);
+  return null;
+}
 
 // Dark theme is always present as the first built-in; used as fallback.
 const DARK_THEME = BUILTIN_THEMES.find((t) => t.name === 'dark') ??
@@ -34,29 +62,6 @@ export function Providers({ children }: { children: ReactNode }) {
 
   // Plugin-contributed themes (reactive — re-resolves when plugins register/unregister)
   const pluginThemes = usePluginThemes();
-
-  // Wire the notify backend once at mount — must run before any plugin code.
-  // The backend forwards plugin emissions to `emitNotification` which writes
-  // the inbox entry, dispatches on the inbox-stream bus, and fires the
-  // Mantine toast. Tenant / user default to the current session when the
-  // plugin omits them.
-  useEffect(() => {
-    setNotifyBackend({
-      write(input) {
-        const state = useMockStore.getState();
-        emitNotification({
-          tenant_id: input.tenant ?? state.currentTenantId ?? null,
-          user_id: input.user ?? state.currentUserId ?? 'unknown',
-          category: input.category,
-          severity: input.severity,
-          title: input.title,
-          body: input.body,
-          ...(input.action ? { action: input.action } : {}),
-        });
-      },
-    });
-    // Run once — setNotifyBackend is idempotent; backend is a module singleton.
-  }, []);
 
   // Resolve theme: if user hasn't manually picked (still default 'dark'),
   // use OS preferences to determine the best theme.
@@ -105,7 +110,10 @@ export function Providers({ children }: { children: ReactNode }) {
     >
       <Notifications position="top-right" />
       <ModalsProvider>
-        <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>
+        <QueryClientProvider client={queryClient}>
+          <NotifyBackendBridge />
+          {children}
+        </QueryClientProvider>
       </ModalsProvider>
     </MantineProvider>
   );

@@ -1,4 +1,4 @@
-// Package gateway: Notifications REST endpoints (stage-2).
+// Package gateway: Notifications REST endpoints.
 //
 // Routes (per the admin panel mock):
 //
@@ -6,6 +6,7 @@
 //	GET    /api/v1/t/{tenant}/notifications/unread-count         badge counter
 //	GET    /api/v1/t/{tenant}/notifications/{id}                 detail
 //	POST   /api/v1/t/{tenant}/notifications/{id}/read            mark read
+//	POST   /api/v1/t/{tenant}/notifications/{id}/unread          mark unread (inverse of /read)
 //	POST   /api/v1/t/{tenant}/notifications/read-all             bulk mark read
 //	POST   /api/v1/t/{tenant}/notifications/{id}/archive         archive
 //	POST   /api/v1/t/{tenant}/notifications/{id}/unarchive       unarchive
@@ -19,12 +20,63 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"log/slog"
 	"net/http"
+	"os"
 	"strconv"
+	"sync"
+	"time"
 
 	"github.com/riokulabs/rioku/internal/auth"
+	"github.com/riokulabs/rioku/internal/notifications"
 	"github.com/riokulabs/rioku/internal/store"
 )
+
+// channelDispatcherOnce lazily constructs a process-wide
+// notifications.ChannelDispatcher backed by the wired store. Tests
+// override this via SetChannelDispatcherForTest below.
+var (
+	channelDispatcherMu      sync.Mutex
+	channelDispatcherFactory func(store.Driver) *notifications.ChannelDispatcher
+	channelDispatcher        *notifications.ChannelDispatcher
+)
+
+// SetChannelDispatcherForTest replaces the channel-send dispatcher used
+// by handleTestChannel. Pass nil to reset.
+func SetChannelDispatcherForTest(d *notifications.ChannelDispatcher) {
+	channelDispatcherMu.Lock()
+	defer channelDispatcherMu.Unlock()
+	channelDispatcher = d
+}
+
+func getChannelDispatcher(st store.Driver) *notifications.ChannelDispatcher {
+	channelDispatcherMu.Lock()
+	defer channelDispatcherMu.Unlock()
+	if channelDispatcher != nil {
+		return channelDispatcher
+	}
+	if channelDispatcherFactory != nil {
+		channelDispatcher = channelDispatcherFactory(st)
+		return channelDispatcher
+	}
+	d := notifications.NewChannelDispatcher(st, slog.New(slog.NewJSONHandler(os.Stderr, nil)))
+	// Sandbox / dev default: mailpit at localhost:1025. Override via
+	// RIOKU_SMTP_HOST / RIOKU_SMTP_PORT in production.
+	if h := os.Getenv("RIOKU_SMTP_HOST"); h != "" {
+		d.DefaultSMTPHost = h
+	} else {
+		d.DefaultSMTPHost = "localhost"
+	}
+	if p := os.Getenv("RIOKU_SMTP_PORT"); p != "" {
+		if n, err := strconv.Atoi(p); err == nil {
+			d.DefaultSMTPPort = n
+		}
+	} else {
+		d.DefaultSMTPPort = 1025
+	}
+	channelDispatcher = d
+	return d
+}
 
 func RegisterNotificationsRoutes(mux *http.ServeMux, st store.Driver) {
 	// Inbox
@@ -36,6 +88,8 @@ func RegisterNotificationsRoutes(mux *http.ServeMux, st store.Driver) {
 		RequirePermission("notification:read")(http.HandlerFunc(handleGetNotification(st))))
 	mux.Handle("POST /api/v1/t/{tenant}/notifications/{id}/read",
 		RequirePermission("notification:manage-own")(http.HandlerFunc(handleMarkNotificationRead(st))))
+	mux.Handle("POST /api/v1/t/{tenant}/notifications/{id}/unread",
+		RequirePermission("notification:manage-own")(http.HandlerFunc(handleMarkNotificationUnread(st))))
 	mux.Handle("POST /api/v1/t/{tenant}/notifications/read-all",
 		RequirePermission("notification:manage-own")(http.HandlerFunc(handleMarkAllRead(st))))
 	mux.Handle("POST /api/v1/t/{tenant}/notifications/{id}/archive",
@@ -76,6 +130,13 @@ func RegisterNotificationsRoutes(mux *http.ServeMux, st store.Driver) {
 		RequirePermission("notification-log:read")(http.HandlerFunc(handleListDeliveryLog(st))))
 	mux.Handle("GET /api/v1/t/{tenant}/notification-log/{id}",
 		RequirePermission("notification-log:read")(http.HandlerFunc(handleGetDeliveryLog(st))))
+
+	// Sandbox / admin: bulk-seed inbox notifications. Restricted to
+	// notification:admin so only operators can seed; the sandbox seeder
+	// uses this to populate demo data without depending on an upstream
+	// event source.
+	mux.Handle("POST /api/v1/t/{tenant}/notifications/seed",
+		RequirePermission("notification:admin")(http.HandlerFunc(handleSeedNotifications(st))))
 
 	// Tenant notification config (singleton-per-tenant)
 	mux.Handle("GET /api/v1/t/{tenant}/settings/notifications",
@@ -240,6 +301,100 @@ func notificationQueryFromRequest(r *http.Request) store.NotificationItemQuery {
 	return q
 }
 
+// handleSeedNotifications accepts a JSON body of inbox notifications
+// and inserts each into the per-user inbox. Used by the sandbox seeder
+// to populate demo data; restricted to notification:admin so only
+// operators can call it.
+func handleSeedNotifications(st store.Driver) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		tenant, ok := tenantOrError(w, r)
+		if !ok {
+			return
+		}
+		var req struct {
+			Items []struct {
+				Username   string `json:"username"`
+				UserID     string `json:"userId"`
+				Category   string `json:"category"`
+				Severity   string `json:"severity"`
+				Title      string `json:"title"`
+				Body       string `json:"body"`
+				ActionLink string `json:"actionLink,omitempty"`
+				OccurredAt string `json:"occurredAt,omitempty"`
+				Read       bool   `json:"read,omitempty"`
+				Archived   bool   `json:"archived,omitempty"`
+			} `json:"items"`
+		}
+		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+			writeBadRequest(w, r, "invalid JSON body")
+			return
+		}
+		tx, err := st.Begin(r.Context(), store.TxOptions{})
+		if err != nil {
+			writeInternalError(w, r, "begin tx")
+			return
+		}
+		defer func() { _ = tx.Rollback() }()
+
+		// Resolve usernames -> user IDs once.
+		userIDs := make(map[string]string)
+		now := time.Now().UTC()
+		inserted := 0
+		for _, it := range req.Items {
+			uid := it.UserID
+			if uid == "" && it.Username != "" {
+				if cached, ok := userIDs[it.Username]; ok {
+					uid = cached
+				} else {
+					u, lookupErr := tx.GetUserByUsername(r.Context(), it.Username)
+					if lookupErr != nil || u == nil {
+						// Skip — log via response, do not fail the bulk op.
+						continue
+					}
+					uid = u.ID
+					userIDs[it.Username] = uid
+				}
+			}
+			if uid == "" {
+				continue
+			}
+			occurred := now
+			if it.OccurredAt != "" {
+				if parsed, parseErr := time.Parse(time.RFC3339, it.OccurredAt); parseErr == nil {
+					occurred = parsed.UTC()
+				}
+			}
+			tID := tenant.ID
+			n := &store.NotificationItem{
+				TenantID: &tID, UserID: uid, Category: it.Category, Severity: it.Severity,
+				Title: it.Title, Body: it.Body, OccurredAt: occurred,
+			}
+			if it.ActionLink != "" {
+				al := it.ActionLink
+				n.ActionLink = &al
+			}
+			if it.Read {
+				rt := occurred
+				n.ReadAt = &rt
+			}
+			if it.Archived {
+				at := occurred
+				n.ArchivedAt = &at
+			}
+			if _, appendErr := tx.AppendNotificationItem(r.Context(), n); appendErr != nil {
+				writeInternalError(w, r, "append")
+				return
+			}
+			inserted++
+		}
+		if err := tx.Commit(); err != nil {
+			writeInternalError(w, r, "commit")
+			return
+		}
+		writeJSON(w, http.StatusOK, map[string]any{"inserted": inserted})
+	}
+}
+
 func handleListNotifications(st store.Driver) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		tenant, ok := tenantOrError(w, r)
@@ -345,6 +500,45 @@ func handleMarkNotificationRead(st store.Driver) http.HandlerFunc {
 		if err := tx.MarkNotificationRead(r.Context(), id); err != nil {
 			_ = tx.Rollback()
 			writeInternalError(w, r, "mark read")
+			return
+		}
+		if err := tx.Commit(); err != nil {
+			writeInternalError(w, r, "commit")
+			return
+		}
+		w.WriteHeader(http.StatusNoContent)
+	}
+}
+
+// handleMarkNotificationUnread is the inverse of handleMarkNotificationRead:
+// clears the read_at timestamp on a notification owned by the calling user.
+// Idempotent — a no-op on already-unread notifications. Same RBAC as /read
+// (notification:manage-own) and the same ownership/tenant guards.
+func handleMarkNotificationUnread(st store.Driver) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		if _, ok := tenantOrError(w, r); !ok {
+			return
+		}
+		sc := auth.SessionClaimsFromContext(r.Context())
+		id := r.PathValue("id")
+		tx, _ := st.Begin(r.Context(), store.TxOptions{})
+		// Ownership guard.
+		n, err := tx.GetNotificationItem(r.Context(), id)
+		if err != nil {
+			_ = tx.Rollback()
+			writeProblem(w, http.StatusNotFound, errTypeNotFound, "Notification not found",
+				"No notification with id "+id, r.URL.Path, nil)
+			return
+		}
+		if sc != nil && sc.UserID != "" && n.UserID != sc.UserID {
+			_ = tx.Rollback()
+			writeProblem(w, http.StatusNotFound, errTypeNotFound, "Notification not found",
+				"No notification with id "+id, r.URL.Path, nil)
+			return
+		}
+		if err := tx.MarkNotificationUnread(r.Context(), id); err != nil {
+			_ = tx.Rollback()
+			writeInternalError(w, r, "mark unread")
 			return
 		}
 		if err := tx.Commit(); err != nil {
@@ -568,14 +762,67 @@ func handleDeleteChannel(st store.Driver) http.HandlerFunc {
 }
 
 func handleTestChannel(st store.Driver) http.HandlerFunc {
-	// Stage-2 stub — real channel test will dispatch a real test message.
+	// Resolves the stored channel, runs a single dispatch through the
+	// channel-send dispatcher (with retry + delivery-log writes), and
+	// returns the result. Used by the admin panel "Send test" button.
 	return func(w http.ResponseWriter, r *http.Request) {
+		tenant, ok := tenantOrError(w, r)
+		if !ok {
+			return
+		}
+		id := r.PathValue("id")
+
+		tx, err := st.Begin(r.Context(), store.TxOptions{ReadOnly: true})
+		if err != nil {
+			writeInternalError(w, r, "begin tx")
+			return
+		}
+		ch, err := tx.GetNotificationChannel(r.Context(), tenant.ID, id)
+		_ = tx.Rollback()
+		if err != nil {
+			if errors.Is(err, store.ErrNotificationChannelNotFound) {
+				writeProblem(w, http.StatusNotFound, errTypeNotFound, "Channel not found",
+					"No notification channel with id "+id, r.URL.Path, nil)
+				return
+			}
+			writeInternalError(w, r, "get channel")
+			return
+		}
+
+		msg := notifications.Message{
+			Kind:     "test",
+			Subject:  "Test from Rioku",
+			Body:     "This is a test notification dispatched from the Rioku admin panel. If you received this, the channel is correctly configured.",
+			Severity: "info",
+			Metadata: map[string]any{
+				"channelId":   ch.ID,
+				"channelName": ch.Name,
+				"channelKind": ch.Kind,
+			},
+		}
+
+		disp := getChannelDispatcher(st)
+		sendErr := disp.SendToChannel(r.Context(), ch, msg, nil)
+		now := nowFormatted()
+		if sendErr != nil {
+			writeProblem(w, http.StatusBadGateway, errTypeBadGateway, "Channel test delivery failed",
+				sendErr.Error(), r.URL.Path, nil)
+			return
+		}
 		writeJSON(w, http.StatusOK, map[string]any{
-			"channelId": r.PathValue("id"), "ok": true,
-			"note": "live channel delivery test is stubbed in stage-2",
+			"channelId":   ch.ID,
+			"ok":          true,
+			"deliveredAt": now,
 		})
 	}
 }
+
+func nowFormatted() string {
+	return timeNowFn().UTC().Format("2006-01-02T15:04:05.000Z")
+}
+
+// timeNowFn is a seam for tests. Defaults to time.Now.
+var timeNowFn = func() time.Time { return time.Now() }
 
 // ─── Routing rule handlers ──────────────────────────────────────────────────
 

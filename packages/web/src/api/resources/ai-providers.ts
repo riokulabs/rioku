@@ -1,4 +1,4 @@
-// Owned by Plan 04 (ai) — types for the ai-providers resource surface.
+// Types for the ai-providers resource surface.
 
 import type { ID } from './common';
 
@@ -20,7 +20,6 @@ export interface AiProvider {
   kind: 'openai' | 'anthropic' | 'gemini' | 'ollama' | 'custom';
   base_url: string;
   enabled: boolean;
-  // New in Plan 3:
   description?: string;
   /** Credential reference — stores prefix-only; real value never persisted after create. */
   credential_ref: { prefix: string; created_at: string };

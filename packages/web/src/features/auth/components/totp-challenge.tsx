@@ -1,14 +1,21 @@
 /**
- * <TotpChallengeForm> — TOTP step 2 form.
- * Task 1e.85
+ * <TotpChallengeForm> — second step of two-factor login.
+ *
+ * Reads the in-memory pending-credentials slot maintained by `api.ts`.
+ * On submit, calls `verifyTotp(code)` which re-issues `/auth/login` with
+ * the saved username/password plus the supplied totpCode. Daemon falls back
+ * to backup codes automatically.
+ *
+ * Plan 01 — stage 2 wiring.
  */
-import { useState, useRef } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { Stack, Text, Alert, Anchor, PinInput, Group, Button } from '@mantine/core';
 import { useNavigate } from '@tanstack/react-router';
+import { useQueryClient } from '@tanstack/react-query';
 import { IconAlertCircle } from '@tabler/icons-react';
-import { verifyTotp } from '../api';
-import { useMockStore } from '@/api/mock-store';
+import { verifyTotp, getPendingAuthUserId } from '../api';
 import { consumeReturnUrl } from '@/api/auth-failure';
+import { currentUserQueryKey } from '../use-current-user';
 
 const MAX_ATTEMPTS = 5;
 
@@ -19,6 +26,7 @@ interface TotpChallengeFormProps {
 
 export function TotpChallengeForm({ userId: _userId, returnUrl }: TotpChallengeFormProps) {
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
   const [code, setCode] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [attempts, setAttempts] = useState(0);
@@ -26,7 +34,19 @@ export function TotpChallengeForm({ userId: _userId, returnUrl }: TotpChallengeF
   const [locked, setLocked] = useState(false);
   const pinRef = useRef<HTMLInputElement>(null);
 
-  const pendingUserId = useMockStore((s) => s.pendingAuthUserId);
+  const [pendingUserId, setPendingUserId] = useState<string | null>(getPendingAuthUserId());
+
+  // Re-read the pending slot on focus changes (in case user navigated away
+  // and back). The slot is in-memory only, no subscription mechanism.
+  useEffect(() => {
+    const handler = () => {
+      setPendingUserId(getPendingAuthUserId());
+    };
+    window.addEventListener('focus', handler);
+    return () => {
+      window.removeEventListener('focus', handler);
+    };
+  }, []);
 
   async function handleSubmit(value: string) {
     if (locked || submitting) return;
@@ -47,11 +67,7 @@ export function TotpChallengeForm({ userId: _userId, returnUrl }: TotpChallengeF
         setCode('');
         if (nextAttempts >= MAX_ATTEMPTS) {
           setLocked(true);
-          setError(
-            'Too many failed attempts. For security, your session has been locked. Please start the login process again.',
-          );
-          // Clear pending state.
-          useMockStore.setState({ pendingAuthUserId: null });
+          setError('Too many failed attempts. For security, please start the login process again.');
         } else {
           setError(
             `Invalid code — try again (${String(MAX_ATTEMPTS - nextAttempts)} attempt${MAX_ATTEMPTS - nextAttempts === 1 ? '' : 's'} remaining)`,
@@ -60,11 +76,9 @@ export function TotpChallengeForm({ userId: _userId, returnUrl }: TotpChallengeF
         return;
       }
 
-      // Success — navigate.
+      await queryClient.invalidateQueries({ queryKey: currentUserQueryKey });
       const saved = consumeReturnUrl();
-      // Fall back to /tenants so multi-tenant users can choose their context.
-      // TODO(stage-2): subdomain routing may change this default destination.
-      const dest = saved ?? returnUrl ?? '/tenants';
+      const dest = saved ?? returnUrl ?? '/';
       await navigate({ to: dest });
     } finally {
       setSubmitting(false);

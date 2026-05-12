@@ -1,5 +1,5 @@
 /**
- * Zustand mock store — in-browser relational data layer for Stage 1.
+ * Zustand mock store — in-browser relational data layer.
  *
  * All entity kinds are indexed by ID (Record<ID, T>) for O(1) lookup.
  * AuditEntry uses an ordered array because it is append-only.
@@ -58,7 +58,7 @@ interface MockStoreState {
   // Integrations — inbound webhook endpoints
   webhookEndpoints: Record<T.ID, T.WebhookEndpoint>;
 
-  // Cluster — nodes and enrollment tokens (Plan 10)
+  // Cluster — nodes and enrollment tokens
   clusterNodes: Record<T.ID, T.ClusterNode>;
   clusterEnrollmentTokens: Record<T.ID, T.ClusterEnrollmentToken>;
 
@@ -626,7 +626,7 @@ export const useMockStore = IS_VITEST
             state.pendingAuthUserId = null;
           }
           // Version 4 — add aiSemanticRateLimits + aiToolBindings maps; older
-          // stores drop their persisted AI data (Plan 3 expanded types made old
+          // stores drop their persisted AI data (expanded types made old
           // seeds incompatible).
           if (version < 4) {
             state.aiProviders = {};
@@ -637,7 +637,7 @@ export const useMockStore = IS_VITEST
             state.aiSemanticRateLimits = {};
             state.aiToolBindings = {};
           }
-          // Version 5 — Plan 4 expanded dashboards + widgets shape; older seeds
+          // Version 5 — expanded dashboards + widgets shape; older seeds
           // lack mode/scope/layout/variables/data_source/wizard_state. Drop and re-seed.
           if (version < 5) {
             state.dashboards = {};
@@ -645,12 +645,12 @@ export const useMockStore = IS_VITEST
             state.dashboardVersions = {};
             state.userHomeDashboards = {};
           }
-          // Version 6 — Plan 5 adds auditRetentionConfigs (tenant_id → config).
+          // Version 6 — adds auditRetentionConfigs (tenant_id → config).
           // Additive; persisted stores from v5 simply get an empty map.
           if (version < 6) {
             state.auditRetentionConfigs = {};
           }
-          // Version 7 — Plan 6 extends Plugin (build_state, cosign_verified,
+          // Version 7 — extends Plugin (build_state, cosign_verified,
           // signer_id, last_build_log, sbom_uri) and adds pluginSigners map.
           // Drop and re-seed plugins so the required new fields are populated
           // from the current seed data, and initialise pluginSigners to {}.
@@ -659,7 +659,7 @@ export const useMockStore = IS_VITEST
             state.marketplaceListings = {};
             state.pluginSigners = {};
           }
-          // Version 8 — Plan 7 extends NotificationItem + NotificationChannel
+          // Version 8 — extends NotificationItem + NotificationChannel
           // + NotificationRoutingRule + NotificationDeliveryLogEntry with new
           // required fields (tenant_id, severity, read_at/archived_at, at,
           // order_hint, attempts, first/last_attempted_at). Older seeds lack
@@ -670,45 +670,45 @@ export const useMockStore = IS_VITEST
             state.notificationRoutingRules = {};
             state.notificationDeliveryLog = {};
           }
-          // Version 9 — Plan 8a adds tenantAuthPolicies (tenant_id → policy).
+          // Version 9 — adds tenantAuthPolicies (tenant_id → policy).
           // Additive; persisted stores from v8 simply get an empty map.
           if (version < 9) {
             state.tenantAuthPolicies = {};
           }
-          // Version 10 — Plan 8b adds networkConfigs (tenant_id → config).
+          // Version 10 — adds networkConfigs (tenant_id → config).
           // Additive; persisted stores from v9 simply get an empty map.
           if (version < 10) {
             state.networkConfigs = {};
           }
-          // Version 11 — Plan 8b.7 adds certAuthorities + certEnrollments maps.
+          // Version 11 — adds certAuthorities + certEnrollments maps.
           // Additive; persisted stores from v10 simply get empty maps.
           if (version < 11) {
             state.certAuthorities = {};
             state.certEnrollments = {};
           }
-          // Version 12 — Plan 8b.8 adds tlsCertificates + tlsConfigs maps.
+          // Version 12 — adds tlsCertificates + tlsConfigs maps.
           // Additive; persisted stores from v11 simply get empty maps.
           if (version < 12) {
             state.tlsCertificates = {};
             state.tlsConfigs = {};
           }
-          // Version 13 — Plan 8b.9 adds observabilityConfigs map.
+          // Version 13 — adds observabilityConfigs map.
           // Additive; persisted stores from v12 simply get an empty map.
           if (version < 13) {
             state.observabilityConfigs = {};
           }
-          // Version 14 — Plan 8c.11 adds webhookEndpoints map.
+          // Version 14 — adds webhookEndpoints map.
           // Additive; persisted stores from v13 simply get an empty map.
           if (version < 14) {
             state.webhookEndpoints = {};
           }
-          // Version 15 — Plan 10 adds clusterNodes + clusterEnrollmentTokens maps.
+          // Version 15 — adds clusterNodes + clusterEnrollmentTokens maps.
           // Additive; persisted stores from v14 simply get empty maps.
           if (version < 15) {
             state.clusterNodes = {};
             state.clusterEnrollmentTokens = {};
           }
-          // Version 16 — Plan 8 adds notificationConfigs (tenant_id → config).
+          // Version 16 — adds notificationConfigs (tenant_id → config).
           // Additive; persisted stores from v15 simply get an empty map.
           if (version < 16) {
             state.notificationConfigs = {};

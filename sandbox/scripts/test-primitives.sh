@@ -345,8 +345,6 @@ JSON
     fail "Upsert prim-rules-route"
   fi
 
-  sleep 2
-
   # Hit a path that 404s on the upstream → handle_response should serve our
   # custom body. Don't accept gzip (compression isn't configured on this
   # service) so we can grep the body directly.
@@ -354,10 +352,22 @@ JSON
   rules_headers="$(mktemp)"
   trap 'rm -rf "${TMPDIR_COOKIES}" "${probe_out}" "${probe_headers}" "${rules_body}" "${rules_headers}"' EXIT
 
-  curl -sk --max-time 5 -D "${rules_headers}" -o "${rules_body}" \
-    "${TRAFFIC_BASE}/prim-rules/no-such-path" 2>/dev/null || true
+  # Poll for up to 15s while the sync agent pushes the new route + rule
+  # into Caddy. On warm runners this is sub-second; on free CI it can
+  # take 5-10s. Replaces a fixed 2s sleep that flaked here.
+  matched=false
+  for _ in $(seq 1 15); do
+    : > "${rules_body}"
+    curl -sk --max-time 5 -D "${rules_headers}" -o "${rules_body}" \
+      "${TRAFFIC_BASE}/prim-rules/no-such-path" 2>/dev/null || true
+    if grep -q "Sandbox 404" "${rules_body}"; then
+      matched=true
+      break
+    fi
+    sleep 1
+  done
 
-  if grep -q "Sandbox 404" "${rules_body}"; then
+  if [[ "${matched}" == "true" ]]; then
     pass "response_rules: custom error page served on 404"
   else
     fail "response_rules: custom error page NOT served"

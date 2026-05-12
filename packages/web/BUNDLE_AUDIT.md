@@ -112,7 +112,7 @@ are lazy-loaded and do not affect initial TTI.
 
 ## Stage-1 Budget Status
 
-```
+```text
 pnpm check-budgets result:
   ✓ main:         87.7 KB gzipped  (hard cap 1000 KB)
   ✓ mantine-core: 115.8 KB gzipped (hard cap 600 KB)
@@ -143,6 +143,25 @@ This successfully extracted `zod-mini` (used by `@scalar/agent-chat`) out of the
 `AgentScalarChatInterface.vue` chunk, reducing it from 202 KB → 145 KB raw
 (57 KB / 13 KB gz saved). The main Zod v4 classic library remains inside `scalar`
 due to pnpm virtual-store path isolation (see § above).
+
+---
+
+## Overriding budgets
+
+Per-route budgets are defined in `scripts/check-bundle-budgets.mjs`. To
+temporarily relax a budget (e.g. while a feature is in active development),
+set `BUNDLE_BUDGET_OVERRIDES_JSON`:
+
+```bash
+BUNDLE_BUDGET_OVERRIDES_JSON='{"scalar": 1100}' pnpm run check-budgets
+```
+
+The env var accepts a JSON object mapping chunk name to hard-cap in KB.
+Valid chunk names are the keys in `BUDGETS_KB`: `main`, `mantine-core`,
+`tanstack`, `scalar`, `monaco`, `shiki`, `tiptap`, `cel`, `total-gzipped`.
+
+Overrides are intended for local iteration only; CI rejects PRs that ship
+overrides in workflow files.
 
 ---
 

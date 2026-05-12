@@ -201,11 +201,14 @@ test('channel detail "Send test" surfaces a result badge', async ({ authedPage: 
 
   await expect(page.getByTestId('notification-channels-page')).toBeVisible({ timeout: 10_000 });
 
-  // Open the first row. Click on the Name column cell text rather than
-  // the whole row to avoid the action-menu ActionIcon swallowing clicks.
-  const firstRow = page.locator('tbody tr[role="row"]').first();
-  await expect(firstRow).toBeVisible({ timeout: 10_000 });
-  await firstRow.click();
+  // Open the first row. Click on the first td (Name cell) rather than
+  // the row itself so the row-click handler fires deterministically —
+  // clicking the row directly can land on the Mantine ActionIcon menu
+  // that uses `stopPropagation`, and clicking the action button column
+  // would never bubble back to onRowClick.
+  const firstCell = page.locator('tbody tr[role="row"]').first().locator('td').first();
+  await expect(firstCell).toBeVisible({ timeout: 10_000 });
+  await firstCell.click();
 
   const drawer = page.getByRole('dialog');
   await expect(drawer).toBeVisible({ timeout: 5_000 });

@@ -1,4 +1,4 @@
-// Owned by Plan 07 (settings) — types for the settings resource surface.
+// Types for the settings resource surface.
 
 import type { ID, LogLevel } from './common';
 
@@ -31,9 +31,9 @@ export interface TenantAuthPolicy {
  */
 export interface NetworkConfig {
   readonly tenant_id: ID;
-  /** Daemon listen addresses — tuples of address + port (e.g. ':443'). Read-only in stage 1. */
+  /** Daemon listen addresses — tuples of address + port (e.g. ':443'). Read-only. */
   listen_addresses: string[];
-  /** Caddy JSON config overrides. Free-form JSON string (not parsed at stage 1). */
+  /** Caddy JSON config overrides. Free-form JSON string (not parsed). */
   caddy_config_overrides: string;
   http3_enabled: boolean;
   /** Default upstream timeouts in seconds. */
@@ -109,7 +109,7 @@ export interface TlsCertificate {
   /** ISO-8601 */
   issued_at: string;
   expires_at: string;
-  /** Only applies to acme source. Stage-1 toggle only. */
+  /** Only applies to acme source. */
   auto_renew: boolean;
   /** Cert PEM (for manual uploads; empty for ACME-managed). */
   certificate_pem: string;
@@ -120,7 +120,7 @@ export interface TlsCertificate {
 
 /**
  * Per-tenant observability configuration. Covers metrics, logs, and traces.
- * Audit retention is stored separately in AuditRetentionConfig (Plan 5).
+ * Audit retention is stored separately in AuditRetentionConfig.
  */
 export interface ObservabilityConfig {
   readonly tenant_id: ID;
@@ -157,15 +157,15 @@ export interface ObservabilityConfig {
 }
 
 /**
- * External inbound webhook endpoint. Stage-1 placeholder — real handler
- * registration happens at stage 2+.
+ * External inbound webhook endpoint. Placeholder — real handler registration
+ * is not yet implemented.
  */
 export interface WebhookEndpoint {
   readonly id: ID;
   readonly tenant_id: ID;
   name: string;
   path: string; // e.g. "/webhooks/github-events"
-  /** Stage-1 placeholder — static list in UI; not consulted at runtime. */
+  /** Placeholder — static list in UI; not consulted at runtime. */
   expected_event_types: string[];
   secret: string; // fake random 32-char hex
   enabled: boolean;

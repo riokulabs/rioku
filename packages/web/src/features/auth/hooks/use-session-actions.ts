@@ -1,35 +1,34 @@
 /**
- * useSessionActions — exposes login/logout actions and session-derived state.
+ * useSessionActions — exposes login/logout actions and derives auth state
+ * from the daemon's `/auth/me` endpoint plus the in-memory pending-creds slot
+ * used during the TOTP step of login.
  *
- * Complements the read-only `useSession()` in src/hooks/use-session.ts.
- * Task 1e.83
+ * Plan 01 — stage 2 wiring.
  */
-import { useMockStore } from '@/api/mock-store';
-import { login, logout, verifyTotp, verifyBackupCode } from '../api';
+import { login, logout, verifyTotp, verifyBackupCode, getPendingAuthUserId } from '../api';
+import { useCurrentUser } from '../use-current-user';
 import type { AuthState, LoginResult, TotpResult, BackupCodeResult } from '../types';
 
 export interface SessionActions {
-  /** Current auth state. */
   authState: AuthState;
-  /** Step 1: email + password. */
   loginAction(email: string, password: string): Promise<LoginResult>;
-  /** Step 2: TOTP code. */
   verifyTotpAction(code: string): Promise<TotpResult>;
-  /** Alternative step 2: backup code. */
   verifyBackupCodeAction(code: string): Promise<BackupCodeResult>;
-  /** Clear session. */
   logoutAction(): Promise<void>;
 }
 
 export function useSessionActions(): SessionActions {
-  const currentUserId = useMockStore((s) => s.currentUserId);
-  const currentTenantId = useMockStore((s) => s.currentTenantId);
-  const pendingAuthUserId = useMockStore((s) => s.pendingAuthUserId);
+  const { data: me } = useCurrentUser();
+  const pendingAuthUserId = getPendingAuthUserId();
 
   const authState: AuthState = {
-    isAuthenticated: currentUserId !== null,
-    currentUserId,
-    currentTenantId,
+    isAuthenticated: me !== null && me !== undefined,
+    currentUserId: me?.id ?? null,
+    // Tenant context is per-route (`/t/{tenant}/...`); the daemon's `/auth/me`
+    // does not lock the user to a single tenant, so this stays null at the
+    // session-action layer. Components needing the active tenant slug read it
+    // from the route params.
+    currentTenantId: null,
     pendingAuthUserId,
     isTotpPending: pendingAuthUserId !== null,
   };

@@ -1,24 +1,37 @@
 /**
- * Sessions API — backed by the Zustand mock store.
+ * Sessions API — backed by the Orval-generated daemon hooks.
+ *
+ * Public function names (`useSessionList`, `useSessionMutations`,
+ * `revokeSession`, `revokeAllOtherSessions`, `parseDevice`) are
+ * preserved across the legacy and real-API surfaces so existing
+ * consumers continue to compile.
+ *
+ * RD5: sessions are inline-only — no drawer, no full-page detail.
+ * The list page renders rows with device fingerprint + IP +
+ * last-active inline + per-row Revoke + page-level Revoke-all-others.
  */
-import { useMockStore } from '@/api/mock-store';
-import { simulateLatency } from '@/api/mock-latency';
-import { logAuditEntry } from '@/api/resources/audit';
-import type { Session } from '@/api/resources';
+import { useMemo, useCallback } from 'react';
+import { useQueryClient } from '@tanstack/react-query';
+import {
+  useListSessions,
+  useRevokeSession as useRevokeSessionGenerated,
+  useRevokeOtherSessions as useRevokeOtherSessionsGenerated,
+  revokeSession as revokeSessionRequest,
+  revokeOtherSessions as revokeOtherSessionsRequest,
+  getListSessionsQueryKey,
+} from '@/api/generated/sessions/sessions';
+import type { ListSessions200SessionsItem } from '@/api/generated/schemas';
 import type { SessionWithMeta } from './types';
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
-function getCurrentActorId(): string {
-  return useMockStore.getState().currentUserId ?? 'unknown';
-}
-
-function getCurrentTenantId(): string {
-  return useMockStore.getState().currentTenantId ?? '';
-}
-
-/** Parse a device name from a user-agent string (no external dep). */
+/**
+ * Parse a coarse device fingerprint from a user-agent string. The result is
+ * intentionally readable (e.g. "Chrome", "Rioku CLI") rather than verbose;
+ * the IP column carries the discriminator when two devices share an UA.
+ */
 export function parseDevice(ua: string): string {
+  if (!ua) return 'Unknown device';
   if (ua.includes('rioku-cli')) return 'Rioku CLI';
   if (ua.includes('curl')) return 'curl';
   if (ua.includes('Firefox')) return 'Firefox';
@@ -27,27 +40,12 @@ export function parseDevice(ua: string): string {
   return 'Unknown browser';
 }
 
-/** Stub geo-location derived from IP octets for stage-1. */
-function geoFromIp(ip: string): string {
-  const locations = [
-    'Toronto, CA',
-    'San Francisco, US',
-    'London, UK',
-    'Berlin, DE',
-    'Sydney, AU',
-    'Tokyo, JP',
-    'Paris, FR',
-    'New York, US',
-    'Amsterdam, NL',
-    'Singapore, SG',
-  ];
-  const parts = ip.split('.');
-  const lastOctet = parseInt(parts[parts.length - 1] ?? '0', 10);
-  return locations[lastOctet % locations.length] ?? 'Unknown';
-}
-
-function relativeTime(isoStr: string): string {
-  const diff = Date.now() - new Date(isoStr).getTime();
+function relativeTime(isoStr: string | undefined): string {
+  if (!isoStr) return '—';
+  const t = new Date(isoStr).getTime();
+  if (Number.isNaN(t)) return '—';
+  const diff = Date.now() - t;
+  if (diff < 0) return 'just now';
   const mins = Math.floor(diff / 60_000);
   if (mins < 1) return 'just now';
   if (mins < 60) return `${String(mins)}m ago`;
@@ -57,92 +55,128 @@ function relativeTime(isoStr: string): string {
   return `${String(days)}d ago`;
 }
 
-function enrichSession(session: Session, currentSessionId: string | null): SessionWithMeta {
+function enrichSession(
+  raw: ListSessions200SessionsItem,
+  currentSessionId: string | null,
+): SessionWithMeta {
+  const id = raw.id ?? '';
+  const userAgent = raw.userAgent ?? '';
   return {
-    ...session,
-    device: parseDevice(session.user_agent),
-    location: geoFromIp(session.ip),
-    last_seen_relative: relativeTime(session.last_seen),
-    is_current: session.id === currentSessionId,
+    id,
+    user_id: raw.userId ?? '',
+    tenant_id: raw.tenantId ?? '',
+    ip: raw.ipAddress ?? '',
+    user_agent: userAgent,
+    last_seen: raw.lastActivityAt ?? '',
+    expires_at: raw.expiresAt ?? '',
+    revoked: raw.revoked ?? false,
+    device: parseDevice(userAgent),
+    location: '',
+    last_seen_relative: relativeTime(raw.lastActivityAt),
+    is_current: currentSessionId !== null && id === currentSessionId,
   };
 }
 
 // ─── Selectors ────────────────────────────────────────────────────────────────
 
+interface UseSessionListResult {
+  sessions: SessionWithMeta[];
+  isLoading: boolean;
+  isError: boolean;
+  error: unknown;
+  refetch: () => void;
+}
+
 /**
- * Returns sessions for the given userId (defaults to currentUserId).
- * If tenantId is provided, filters to that tenant.
+ * Returns the active sessions for the current principal in the given tenant.
+ *
+ * The current-session id is resolved per-call (defaults to `null` — the
+ * daemon does not yet expose a "this session" hint over the list endpoint;
+ * callers can pass an explicit id once the bridge lands).
+ *
+ * The hook accepts optional `currentSessionId` so callers (the inline list
+ * page, tests) can mark the appropriate row.
  */
-export function useSessionList(userId?: string, tenantId?: string): SessionWithMeta[] {
-  const allSessions = useMockStore((s) => s.sessions);
-  const currentUserId = useMockStore((s) => s.currentUserId);
-  const activeImpersonationId = useMockStore((s) => s.activeImpersonationId);
+export function useSessionList(
+  tenant: string,
+  currentSessionId: string | null = null,
+): UseSessionListResult {
+  const query = useListSessions(tenant);
+  const data = query.data?.data;
 
-  const targetUserId = userId ?? currentUserId;
-  if (!targetUserId) return [];
+  const sessions = useMemo<SessionWithMeta[]>(() => {
+    const raw = data?.sessions ?? [];
+    const enriched = raw.map((s) => enrichSession(s, currentSessionId));
+    return enriched.sort((a, b) => {
+      if (a.revoked !== b.revoked) return a.revoked ? 1 : -1;
+      return new Date(b.last_seen).getTime() - new Date(a.last_seen).getTime();
+    });
+  }, [data, currentSessionId]);
 
-  // For stage-1, the "current session" is the first non-revoked session for this user
-  // In a real app this would come from the auth token.
-  const currentSessionId = activeImpersonationId ?? null;
-
-  const results: SessionWithMeta[] = [];
-  for (const session of Object.values(allSessions)) {
-    if (session.user_id !== targetUserId) continue;
-    if (tenantId && session.tenant_id !== tenantId) continue;
-    results.push(enrichSession(session, currentSessionId));
-  }
-
-  // Sort: non-revoked first, then by last_seen descending
-  return results.sort((a, b) => {
-    if (a.revoked !== b.revoked) return a.revoked ? 1 : -1;
-    return new Date(b.last_seen).getTime() - new Date(a.last_seen).getTime();
-  });
+  return {
+    sessions,
+    isLoading: query.isLoading,
+    isError: query.isError,
+    error: query.error,
+    refetch: () => {
+      void query.refetch();
+    },
+  };
 }
 
 // ─── Mutations ────────────────────────────────────────────────────────────────
 
-export function useSessionMutations() {
-  return { revokeSession, revokeAllOtherSessions };
+/**
+ * Hook bundle for revocation mutations. Returns imperative async helpers
+ * that close over the active tenant and invalidate the list query on
+ * success so the inline page re-renders without manual refetch wiring.
+ */
+export function useSessionMutations(tenant: string) {
+  const queryClient = useQueryClient();
+  const revokeMutation = useRevokeSessionGenerated();
+  const revokeOthersMutation = useRevokeOtherSessionsGenerated();
+
+  const invalidate = useCallback(() => {
+    void queryClient.invalidateQueries({ queryKey: getListSessionsQueryKey(tenant) });
+  }, [queryClient, tenant]);
+
+  const revokeSession = useCallback(
+    async (sessionId: string): Promise<void> => {
+      await revokeMutation.mutateAsync({ tenant, id: sessionId });
+      invalidate();
+    },
+    [revokeMutation, tenant, invalidate],
+  );
+
+  const revokeAllOtherSessions = useCallback(async (): Promise<void> => {
+    await revokeOthersMutation.mutateAsync({ tenant });
+    invalidate();
+  }, [revokeOthersMutation, tenant, invalidate]);
+
+  return {
+    revokeSession,
+    revokeAllOtherSessions,
+    isRevokingSession: revokeMutation.isPending,
+    isRevokingOthers: revokeOthersMutation.isPending,
+  };
 }
 
-export async function revokeSession(sessionId: string): Promise<void> {
-  await simulateLatency('mutation');
-  const state = useMockStore.getState();
-  state.updateEntity('sessions', sessionId, { revoked: true });
-
-  logAuditEntry({
-    tenant_id: getCurrentTenantId(),
-    actor_id: getCurrentActorId(),
-    action: 'session:revoke',
-    resource_type: 'session',
-    resource_id: sessionId,
-    tier: 'destructive',
-  });
+/**
+ * Imperative revoke — issues the DELETE directly against the daemon.
+ * Preserved for callers that operate outside the React tree (e.g.
+ * `users/components/detail.tsx` which still drives revocation against
+ * the mock store via its own `revokeSession`; this export is the
+ * real-API counterpart should that ever flip).
+ */
+export async function revokeSession(tenant: string, sessionId: string): Promise<void> {
+  await revokeSessionRequest(tenant, sessionId);
 }
 
-export async function revokeAllOtherSessions(currentSessionId: string): Promise<number> {
-  await simulateLatency('mutation');
-  const state = useMockStore.getState();
-  const currentUserId = state.currentUserId;
-  const tenantId = getCurrentTenantId();
-
-  let count = 0;
-  for (const session of Object.values(state.sessions)) {
-    if (session.id === currentSessionId) continue;
-    if (session.user_id !== currentUserId) continue;
-    if (session.revoked) continue;
-    state.updateEntity('sessions', session.id, { revoked: true });
-    count++;
-  }
-
-  logAuditEntry({
-    tenant_id: tenantId,
-    actor_id: currentUserId ?? 'unknown',
-    action: 'session:revoke-all-other',
-    resource_type: 'session',
-    tier: 'destructive',
-    payload: { count, kept_session_id: currentSessionId },
-  });
-
-  return count;
+/**
+ * Imperative revoke-all-others — issues POST .../sessions/revoke-others.
+ * The daemon decides which session is "current" from the request
+ * credentials, so no id is passed.
+ */
+export async function revokeAllOtherSessions(tenant: string): Promise<void> {
+  await revokeOtherSessionsRequest(tenant);
 }

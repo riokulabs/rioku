@@ -1,4 +1,4 @@
-// Owned by Plan 02 (identity) — types for the access-policies resource surface.
+// Types for the access-policies resource surface.
 
 import type { ID } from './common';
 

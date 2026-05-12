@@ -1,4 +1,4 @@
-// Owned by Plan 09 (plugins) — types for the plugins resource surface.
+// Types for the plugins resource surface.
 
 import type { ID } from './common';
 
@@ -14,7 +14,6 @@ export interface Plugin {
   declared_permissions: string[];
   manifest: unknown;
   has_errors: boolean;
-  // New in Plan 6:
   /** Build/swap state. 'stable' = latest published; 'building' = install in progress; 'failed' = last install failed. */
   build_state: 'stable' | 'building' | 'failed';
   /** Captured stdout/stderr for failed builds. */

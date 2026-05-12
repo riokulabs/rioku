@@ -13,10 +13,10 @@
  * ISO strings. Selected row id is also carried so back/forward restore the
  * open drawer.
  *
- * Live-tail uses the Plan 3d trace-store pattern — the mock SSE bus
- * dispatches `AuditEntry` events which `publishAudit` emits alongside
- * `appendAudit`. The Zustand selector picks up new rows automatically;
- * the `useAuditStream` hook is used only to bump the "+N" badge counter.
+ * Live-tail uses `useAuditStream` which subscribes to the real SSE stream
+ * at `/api/v1/t/:tenant/audit/stream`. The `onEntry` callback is used only
+ * to bump the "+N" badge counter — the list re-renders via query
+ * invalidation / Zustand subscription when new rows arrive.
  */
 import { useCallback, useMemo, useState } from 'react';
 import { createFileRoute, Link, useNavigate } from '@tanstack/react-router';
@@ -34,7 +34,6 @@ import {
 } from '@mantine/core';
 import { useDisclosure } from '@mantine/hooks';
 import { IconAccessPoint, IconChevronDown, IconDownload } from '@tabler/icons-react';
-import { useMockStore } from '@/api/mock-store';
 import { notify } from '@/hooks/use-notify';
 import { requirePermissions } from '@/hooks/use-before-load';
 import { usePermission } from '@/hooks/use-permission';
@@ -43,8 +42,8 @@ import {
   AuditFilterBar,
   AuditList,
   LiveTailBadge,
-  exportAuditCsv,
-  exportAuditJsonl,
+  encodeResourceHandle,
+  streamAuditExport,
   useAuditList,
   useAuditStream,
 } from '@/features/audit';
@@ -108,9 +107,8 @@ function AuditPage() {
   const search = Route.useSearch();
   const navigate = useNavigate();
 
-  const tenantRecord = useMockStore((s) => Object.values(s.tenants).find((t) => t.slug === tenant));
-  const tenantId = tenantRecord?.id ?? '';
-  const tenantSlug = tenantRecord?.slug ?? tenant;
+  const tenantId = tenant;
+  const tenantSlug = tenant;
 
   // Build the filter from URL-synced search params. Filter identity changes
   // only when an underlying value changes; deriving it via useMemo keeps the
@@ -216,27 +214,28 @@ function AuditPage() {
 
   const handleExport = useCallback(
     (format: 'csv' | 'jsonl') => {
-      try {
-        const blob =
-          format === 'csv' ? exportAuditCsv(tenantId, filter) : exportAuditJsonl(tenantId, filter);
-        const url = URL.createObjectURL(blob);
-        const a = document.createElement('a');
-        a.href = url;
-        const datestamp = new Date().toISOString().slice(0, 10);
-        a.download = `audit-${tenantSlug}-${datestamp}.${format === 'csv' ? 'csv' : 'jsonl'}`;
-        document.body.appendChild(a);
-        a.click();
-        document.body.removeChild(a);
-        URL.revokeObjectURL(url);
-        notify.success(
-          'Export complete',
-          `Downloaded ${String(rows.length)} entries as ${format.toUpperCase()}.`,
-        );
-      } catch {
-        notify.error('Export failed', 'Please try again.');
-      }
+      const datestamp = new Date().toISOString().slice(0, 10);
+      const filename = `audit-${tenantSlug}-${datestamp}.${format === 'csv' ? 'csv' : 'jsonl'}`;
+      const sinceISO = filter.date_from ? new Date(filter.date_from).toISOString() : undefined;
+      const untilISO = filter.date_to ? new Date(filter.date_to).toISOString() : undefined;
+      const daemonFilters: Parameters<typeof streamAuditExport>[3] = {
+        ...(sinceISO ? { since: sinceISO } : {}),
+        ...(untilISO ? { until: untilISO } : {}),
+      };
+
+      // The daemon streams the server-side export and triggers the
+      // browser download. No client-side fallback — the in-memory blob
+      // builders shipped no rows after the mock-store removal.
+      void (async () => {
+        try {
+          await streamAuditExport(tenantSlug, format, filename, daemonFilters);
+          notify.success('Export complete', `Streamed audit export as ${format.toUpperCase()}.`);
+        } catch {
+          notify.error('Export failed', 'Please try again.');
+        }
+      })();
     },
-    [tenantId, tenantSlug, filter, rows.length],
+    [tenantSlug, filter],
   );
 
   return (
@@ -340,16 +339,54 @@ function AuditPage() {
 export const Route = createFileRoute('/t/$tenant/security/audit')({
   beforeLoad: requirePermissions({ required: ['audit:read'] }),
   component: AuditPage,
-  validateSearch: (s: Record<string, unknown>): SearchParams => ({
-    actions: parseCsv(s.actions),
-    outcomes: parseOutcomes(s.outcomes),
-    resource_types: parseCsv(s.resource_types),
-    tiers: parseTiers(s.tiers),
-    actor_handles: parseCsv(s.actor_handles),
-    resource_id_handles: parseCsv(s.resource_id_handles),
-    search: typeof s.search === 'string' ? s.search : '',
-    date_from: parseIso(s.date_from),
-    date_to: parseIso(s.date_to),
-    ...(typeof s.selected === 'string' && s.selected.length > 0 ? { selected: s.selected } : {}),
-  }),
+  validateSearch: (s: Record<string, unknown>): SearchParams => {
+    // Per-entity filter alias (#82). Entity pages link here with
+    // `?entity_type=service&entity_id=svc-123` (or the equivalent
+    // `?resource_type=…&resource_id=…`). When present, expand into the
+    // canonical `resource_types` + `resource_id_handles` shape so the
+    // existing filter machinery picks them up without per-entity wiring.
+    const aliasType =
+      typeof s.entity_type === 'string' && s.entity_type.length > 0
+        ? s.entity_type
+        : typeof s.resource_type === 'string' && s.resource_type.length > 0
+          ? s.resource_type
+          : null;
+    const aliasId =
+      typeof s.entity_id === 'string' && s.entity_id.length > 0
+        ? s.entity_id
+        : typeof s.resource_id === 'string' && s.resource_id.length > 0
+          ? s.resource_id
+          : null;
+
+    const baseResourceTypes = parseCsv(s.resource_types);
+    const baseResourceHandles = parseCsv(s.resource_id_handles);
+
+    const resource_types =
+      aliasType !== null && !baseResourceTypes.includes(aliasType)
+        ? [...baseResourceTypes, aliasType]
+        : baseResourceTypes;
+
+    const resource_id_handles =
+      aliasType !== null && aliasId !== null
+        ? (() => {
+            const handle = encodeResourceHandle(aliasType, aliasId);
+            return baseResourceHandles.includes(handle)
+              ? baseResourceHandles
+              : [...baseResourceHandles, handle];
+          })()
+        : baseResourceHandles;
+
+    return {
+      actions: parseCsv(s.actions),
+      outcomes: parseOutcomes(s.outcomes),
+      resource_types,
+      tiers: parseTiers(s.tiers),
+      actor_handles: parseCsv(s.actor_handles),
+      resource_id_handles,
+      search: typeof s.search === 'string' ? s.search : '',
+      date_from: parseIso(s.date_from),
+      date_to: parseIso(s.date_to),
+      ...(typeof s.selected === 'string' && s.selected.length > 0 ? { selected: s.selected } : {}),
+    };
+  },
 });

@@ -1,4 +1,4 @@
-// Package sqlite — Notifications subsystem (stage-2).
+// Package sqlite — Notifications subsystem.
 package sqlite
 
 import (
@@ -144,6 +144,30 @@ func (t *tx) MarkNotificationRead(ctx context.Context, id string) error {
 	n, _ := res.RowsAffected()
 	if n == 0 {
 		// Idempotent — could be already read, or not exist. Verify existence.
+		row := t.sqlTx.QueryRowContext(ctx, `SELECT 1 FROM notification_items WHERE id = ?`, id)
+		var dummy int
+		if err := row.Scan(&dummy); err == sql.ErrNoRows {
+			return store.ErrNotificationItemNotFound
+		}
+	}
+	t.emit("notification_items", id, "UPDATE")
+	return nil
+}
+
+// MarkNotificationUnread is the inverse of MarkNotificationRead: clears the
+// read_at timestamp. Idempotent — calling on an already-unread notification
+// is a no-op (returns nil). Returns ErrNotificationItemNotFound if the id
+// does not exist.
+func (t *tx) MarkNotificationUnread(ctx context.Context, id string) error {
+	res, err := t.sqlTx.ExecContext(ctx,
+		`UPDATE notification_items SET read_at = NULL WHERE id = ? AND read_at IS NOT NULL`,
+		id)
+	if err != nil {
+		return fmt.Errorf("sqlite: mark unread: %w", err)
+	}
+	n, _ := res.RowsAffected()
+	if n == 0 {
+		// Idempotent — could be already unread, or not exist. Verify existence.
 		row := t.sqlTx.QueryRowContext(ctx, `SELECT 1 FROM notification_items WHERE id = ?`, id)
 		var dummy int
 		if err := row.Scan(&dummy); err == sql.ErrNoRows {

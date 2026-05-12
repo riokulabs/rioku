@@ -13,15 +13,16 @@ import { useMemo, useState } from 'react';
 import { createFileRoute, useNavigate } from '@tanstack/react-router';
 import { Stack, Title, Group, Button, Drawer, SegmentedControl, Tooltip } from '@mantine/core';
 import { useDisclosure } from '@mantine/hooks';
-import { IconPlus } from '@tabler/icons-react';
-import { useMockStore } from '@/api/mock-store';
+import { IconPlus, IconLink } from '@tabler/icons-react';
 import { requirePermissions } from '@/hooks/use-before-load';
 import { usePermission } from '@/hooks/use-permission';
+import { notify } from '@/hooks/use-notify';
 import {
   BindingList,
   BindingFilterBar,
   BindingForm,
   BindingDetail,
+  BulkAttachModal,
   MatrixView,
 } from '@/features/ai-tool-routing';
 import type { BindingFilter } from '@/features/ai-tool-routing';
@@ -61,9 +62,9 @@ function AiToolRoutingPage() {
   const navigate = useNavigate();
   const canWrite = usePermission('ai-tool:write');
 
-  const tenantRecord = useMockStore((s) => Object.values(s.tenants).find((t) => t.slug === tenant));
-  const tenantId = tenantRecord?.id ?? '';
-  const tenantSlug = tenantRecord?.slug ?? tenant;
+  // Stage-2 daemon-backed feature: tenantId is the URL slug; daemon resolves it.
+  const tenantSlug = tenant;
+  const tenantId = tenantSlug;
 
   /** Effective filter — merges multi-select csv with deep-link single ids. */
   const filter: BindingFilter = useMemo(() => {
@@ -123,6 +124,7 @@ function AiToolRoutingPage() {
   }
 
   const [drawerOpened, { open: openDrawer, close: closeDrawer }] = useDisclosure(false);
+  const [bulkOpened, { open: openBulk, close: closeBulk }] = useDisclosure(false);
   const [drawerMode, setDrawerMode] = useState<DrawerMode>('detail');
   const [selectedBinding, setSelectedBinding] = useState<AiToolBinding | null>(null);
   const [createDefaults, setCreateDefaults] = useState<{
@@ -203,6 +205,17 @@ function AiToolRoutingPage() {
             }}
             aria-label="View mode"
           />
+          <Tooltip disabled={canWrite} label="You need ai-tool:write to bulk-attach">
+            <Button
+              variant="default"
+              leftSection={<IconLink size={16} />}
+              onClick={openBulk}
+              disabled={!canWrite}
+              aria-label="Bulk attach tools to agents"
+            >
+              Bulk attach
+            </Button>
+          </Tooltip>
           <Tooltip disabled={canWrite} label="You need ai-tool:write to create bindings">
             <Button
               leftSection={<IconPlus size={16} />}
@@ -241,6 +254,7 @@ function AiToolRoutingPage() {
       >
         {drawerMode === 'detail' && selectedBinding && (
           <BindingDetail
+            tenantId={tenantId}
             bindingId={selectedBinding.id}
             onEdit={handleEditFromDetail}
             onClose={closeDrawer}
@@ -276,6 +290,18 @@ function AiToolRoutingPage() {
           />
         )}
       </Drawer>
+
+      <BulkAttachModal
+        tenantId={tenantId}
+        opened={bulkOpened}
+        onClose={closeBulk}
+        onComplete={(s) => {
+          notify.success(
+            'Bulk attach complete',
+            `${String(s.attached)} binding${s.attached === 1 ? '' : 's'} processed across ${String(s.agents)} agent${s.agents === 1 ? '' : 's'} and ${String(s.tools)} tool${s.tools === 1 ? '' : 's'}.`,
+          );
+        }}
+      />
     </Stack>
   );
 }

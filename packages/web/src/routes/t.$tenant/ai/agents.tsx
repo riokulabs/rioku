@@ -1,8 +1,9 @@
 /**
  * AI Agents page — /t/$tenant/ai/agents
  *
- * List + filter bar + drawer (detail / create / edit). URL-synced search +
- * provider + role + enabled filter.
+ * List + filter bar + drawer. URL-synced search + provider + role + enabled
+ * filter. Drawer is a quick summary; "Open full page" navigates to
+ * /t/$tenant/ai/agents/$agentId.
  *
  * Permission guard: ai-agent:read.
  */
@@ -11,14 +12,13 @@ import { createFileRoute, useNavigate } from '@tanstack/react-router';
 import { Stack, Title, Group, Button, Drawer } from '@mantine/core';
 import { useDisclosure } from '@mantine/hooks';
 import { IconPlus } from '@tabler/icons-react';
-import { useMockStore } from '@/api/mock-store';
 import { notify } from '@/hooks/use-notify';
 import { requirePermissions } from '@/hooks/use-before-load';
 import {
   AgentList,
   AgentFilterBar,
   AgentForm,
-  AgentDetail,
+  AgentDrawer,
   deleteAgent,
 } from '@/features/ai-agents';
 import type { AgentFilter } from '@/features/ai-agents';
@@ -51,9 +51,8 @@ function AiAgentsPage() {
   const search = Route.useSearch();
   const navigate = useNavigate();
 
-  const tenantRecord = useMockStore((s) => Object.values(s.tenants).find((t) => t.slug === tenant));
-  const tenantId = tenantRecord?.id ?? '';
-  const tenantSlug = tenantRecord?.slug ?? tenant;
+  // Tenant slug is the URL segment; the daemon resolves it server-side.
+  const tenantId = tenant;
 
   const filter: AgentFilter = {
     search: search.search,
@@ -69,7 +68,7 @@ function AiAgentsPage() {
   function setFilter(next: AgentFilter) {
     void navigate({
       to: '/t/$tenant/ai/agents',
-      params: { tenant: tenantSlug },
+      params: { tenant },
       search: (prev: Record<string, unknown>) => ({
         ...prev,
         search: next.search,
@@ -108,15 +107,15 @@ function AiAgentsPage() {
   }
 
   function handleInvokeFromList(a: AiAgent) {
-    // Open detail drawer where the invoke panel lives.
-    setSelectedAgent(a);
-    setDrawerMode('detail');
-    openDrawer();
+    void navigate({
+      to: '/t/$tenant/ai/agents/$agentId',
+      params: { tenant, agentId: a.id },
+    } as unknown as Parameters<typeof navigate>[0]);
   }
 
   async function handleDeleteFromList(a: AiAgent) {
     try {
-      await deleteAgent(a.id);
+      await deleteAgent(tenant, a.id);
       notify.success('Agent deleted', `${a.name} was removed.`);
     } catch {
       notify.error('Failed to delete agent', 'Please try again.');
@@ -142,7 +141,7 @@ function AiAgentsPage() {
       <AgentFilterBar tenantId={tenantId} filter={filter} onChange={setFilter} />
 
       <AgentList
-        tenantId={tenantId}
+        tenant={tenant}
         filter={filter}
         onSelect={handleRowClick}
         onEdit={handleEditFromList}
@@ -150,7 +149,6 @@ function AiAgentsPage() {
         onInvoke={handleInvokeFromList}
       />
 
-      {/* duration=0 prevents JSDOM animation hangs in tests */}
       <Drawer
         transitionProps={{ duration: 0 }}
         opened={drawerOpened}
@@ -161,9 +159,9 @@ function AiAgentsPage() {
         padding="md"
       >
         {drawerMode === 'detail' && selectedAgent && (
-          <AgentDetail
+          <AgentDrawer
+            tenant={tenant}
             agentId={selectedAgent.id}
-            tenantSlug={tenantSlug}
             onEdit={handleEditFromDetail}
             onClose={closeDrawer}
           />
@@ -171,6 +169,7 @@ function AiAgentsPage() {
         {drawerMode === 'create' && (
           <AgentForm
             mode="create"
+            tenant={tenant}
             tenantId={tenantId}
             onSuccess={(a) => {
               setSelectedAgent(a);
@@ -182,6 +181,7 @@ function AiAgentsPage() {
         {drawerMode === 'edit' && selectedAgent && (
           <AgentForm
             mode="edit"
+            tenant={tenant}
             tenantId={tenantId}
             initialValues={selectedAgent}
             onSuccess={(a) => {

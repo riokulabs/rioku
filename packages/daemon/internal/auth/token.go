@@ -15,6 +15,8 @@ const (
 	tokenPrefix      = "rku_tok_"
 	refreshPrefix    = "rku_ref_"
 	signingKeyPrefix = "rku_key_"
+	resetPrefix      = "rku_rst_"
+	invitePrefix     = "rku_inv_"
 	tokenRandBytes   = 32
 )
 
@@ -36,6 +38,18 @@ func GenerateSigningKey() (string, error) {
 	return generateToken(signingKeyPrefix)
 }
 
+// GeneratePasswordResetToken generates a cryptographically random password
+// reset token. Format: rku_rst_<32 random bytes base64url encoded>
+func GeneratePasswordResetToken() (string, error) {
+	return generateToken(resetPrefix)
+}
+
+// GenerateInviteToken generates a cryptographically random invite token.
+// Format: rku_inv_<32 random bytes base64url encoded>
+func GenerateInviteToken() (string, error) {
+	return generateToken(invitePrefix)
+}
+
 func generateToken(prefix string) (string, error) {
 	b := make([]byte, tokenRandBytes)
 	if _, err := rand.Read(b); err != nil {
@@ -49,4 +63,19 @@ func generateToken(prefix string) (string, error) {
 func HashToken(token string) string {
 	h := sha256.Sum256([]byte(token))
 	return hex.EncodeToString(h[:])
+}
+
+// KeyPrefixLen is the number of leading characters of the raw API key
+// that we persist as a non-secret display prefix. Twelve chars is long
+// enough to be unambiguous in a list of human-readable keys; small
+// enough that the visible portion alone is not a usable secret.
+const KeyPrefixLen = 12
+
+// KeyPrefix returns the non-secret display prefix of a raw token.
+// Returns the whole token when shorter than KeyPrefixLen.
+func KeyPrefix(rawKey string) string {
+	if len(rawKey) <= KeyPrefixLen {
+		return rawKey
+	}
+	return rawKey[:KeyPrefixLen]
 }

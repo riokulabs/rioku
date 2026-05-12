@@ -26,7 +26,8 @@ import { EmptyState } from '@/components/empty-state';
 import { IdBadge } from '@/components/id-badge';
 import { StatusBadge } from '@/components/status-badge';
 import { usePermission } from '@/hooks/use-permission';
-import { useMockStore } from '@/api/mock-store';
+import { useUserList } from '@/features/security/users/api';
+import { useActiveTenantSlug } from '@/hooks/use-tenant';
 import type { AuditEntry } from '@/api/resources';
 
 dayjs.extend(relativeTime);
@@ -54,7 +55,15 @@ export interface AuditListProps {
 }
 
 export function AuditList({ rows, onSelect }: AuditListProps) {
-  const users = useMockStore((s) => s.users);
+  const tenantId = useActiveTenantSlug() ?? '';
+  const userList = useUserList(tenantId, { search: '', status: 'all' });
+  const users = useMemo(() => {
+    const m: Record<string, { name: string; email: string }> = {};
+    for (const { user } of userList.items) {
+      m[user.id] = { name: user.name, email: user.email };
+    }
+    return m;
+  }, [userList.items]);
   const canReadSensitive = usePermission('audit:read-sensitive');
 
   const columns = useMemo<ColumnDef<AuditEntry>[]>(

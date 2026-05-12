@@ -13,26 +13,27 @@
  * both tenant pages (AppLayout) and admin pages (AdminLayout). The parent
  * div in app-layout.tsx positions it outside AppShell's header slot to avoid
  * conflicting with the TopBar.
- *
- * spec §8.2 / Task 1d.76
  */
 import { Alert, Group, Text, Button, Anchor, Badge } from '@mantine/core';
 import { modals } from '@mantine/modals';
 import { IconEye } from '@tabler/icons-react';
 import { useNavigate } from '@tanstack/react-router';
-import { useMockStore } from '@/api/mock-store';
+import { useListAdminTenants } from '@/api/generated/admin/admin';
 import { useImpersonation } from '@/hooks/use-impersonation';
+import { ImpersonationIdleModal } from '@/features/security/impersonation/components/idle-modal';
 
 // ─── Component ────────────────────────────────────────────────────────────────
 
 export function ImpersonationBanner() {
   const { session, exit } = useImpersonation();
   const navigate = useNavigate();
-  const tenants = useMockStore((s) => s.tenants);
+  const tenantsQuery = useListAdminTenants();
+  // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
+  const tenants = tenantsQuery.data?.data?.items ?? [];
 
   if (!session) return null;
 
-  const tenant = tenants[session.tenant_id];
+  const tenant = tenants.find((t) => t.id === session.tenant_id || t.slug === session.tenant_id);
   const tenantName = tenant?.name ?? session.tenant_id;
   const shortId = session.id.slice(0, 12);
 
@@ -49,6 +50,8 @@ export function ImpersonationBanner() {
       confirmProps: { color: 'orange' },
       onConfirm: () => {
         void (async () => {
+          // useImpersonation.exit() handles the daemon DELETE,
+          // active-id clear, and list-query invalidation in one shot.
           await exit();
           void navigate({ to: '/admin' as string });
         })();
@@ -136,6 +139,7 @@ export function ImpersonationBanner() {
           </Button>
         </Group>
       </Alert>
+      <ImpersonationIdleModal />
     </div>
   );
 }

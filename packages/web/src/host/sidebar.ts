@@ -1,6 +1,5 @@
 /**
- * Sidebar-entry registry — spec §9.5.3
- *
+ * Sidebar-entry registry.
  * Plugins register sidebar nav entries grouped into one of four groups.
  * First-party sidebar (app-shell) reads this registry and renders plugin
  * entries below built-in entries in the same group.

@@ -1,108 +1,149 @@
 /**
  * <CrossTenantUsers> — global user registry across all tenants.
  *
- * spec §8.1 / Task 1d.78
+ * Consumes `/api/v1/admin/users` via `useListAdminUsers`. The daemon returns
+ * `{id, username, status}` per user; richer per-user detail (memberships,
+ * audit) is a follow-up endpoint.
+ *
+ * Features:
+ *   - Search by username
+ *   - Filter by status (active / disabled)
+ *   - User detail drawer with profile fields
  */
 import { useMemo, useState } from 'react';
 import { type ColumnDef } from '@tanstack/react-table';
-import { Stack, Title, Group, Select, TextInput, Badge, Text } from '@mantine/core';
-import { IconSearch, IconUsers } from '@tabler/icons-react';
+import {
+  Stack,
+  Title,
+  Group,
+  Select,
+  TextInput,
+  Badge,
+  Text,
+  Drawer,
+  Box,
+  SimpleGrid,
+  Loader,
+  Alert,
+} from '@mantine/core';
+import { IconSearch, IconUsers, IconAlertTriangle } from '@tabler/icons-react';
 import { useDebouncedValue } from '@mantine/hooks';
 import { DataTable } from '@/components/data-table';
 import { EmptyState } from '@/components/empty-state';
-import { useMockStore } from '@/api/mock-store';
-import type { Tenant, User, Membership } from '@/api/resources';
+import { useListAdminUsers } from '@/api/generated/admin/admin';
+import type { ListAdminUsers200ItemsItem } from '@/api/generated/schemas';
 
-interface CrossTenantUserRow {
-  user: User;
-  membership: Membership;
-  tenant: Tenant;
-}
+type AdminUser = ListAdminUsers200ItemsItem;
 
-const STATE_COLORS: Record<string, string> = {
-  pending: 'yellow',
+const STATUS_COLORS: Record<string, string> = {
   active: 'green',
-  deactivated: 'orange',
-  removed: 'red',
+  enabled: 'green',
+  disabled: 'red',
+  pending: 'yellow',
+  removed: 'gray',
 };
 
-export function CrossTenantUsers() {
-  const users = useMockStore((s) => s.users);
-  const memberships = useMockStore((s) => s.memberships);
-  const tenants = useMockStore((s) => s.tenants);
+// ─── User detail drawer ───────────────────────────────────────────────────────
 
-  const [tenantFilter, setTenantFilter] = useState<string | null>(null);
-  const [stateFilter, setStateFilter] = useState<string>('all');
+function UserDetailDrawer({ user }: { user: AdminUser | null }) {
+  if (!user) return null;
+  return (
+    <Stack gap="md">
+      <SimpleGrid cols={2} spacing="xs">
+        <Box>
+          <Text size="xs" c="dimmed">
+            ID
+          </Text>
+          <Text size="sm" ff="monospace">
+            {user.id ?? '—'}
+          </Text>
+        </Box>
+        <Box>
+          <Text size="xs" c="dimmed">
+            Username
+          </Text>
+          <Text size="sm" fw={500}>
+            {user.username ?? '—'}
+          </Text>
+        </Box>
+        <Box>
+          <Text size="xs" c="dimmed">
+            Status
+          </Text>
+          <Badge color={STATUS_COLORS[user.status ?? ''] ?? 'gray'} variant="light" size="sm">
+            {user.status ?? 'unknown'}
+          </Badge>
+        </Box>
+      </SimpleGrid>
+      <Text size="xs" c="dimmed">
+        Detailed cross-tenant memberships and per-user audit are exposed via the per-user admin
+        endpoint that lands with the next sprint.
+      </Text>
+    </Stack>
+  );
+}
+
+// ─── Main component ───────────────────────────────────────────────────────────
+
+export function CrossTenantUsers() {
+  const { data, isLoading, isError, error } = useListAdminUsers();
+
+  const [statusFilter, setStatusFilter] = useState<string>('all');
   const [searchInput, setSearchInput] = useState('');
   const [debouncedSearch] = useDebouncedValue(searchInput, 300);
+  const [detailUser, setDetailUser] = useState<AdminUser | null>(null);
 
-  const tenantOptions = useMemo(
-    () => [
-      { value: 'all', label: 'All tenants' },
-      ...Object.values(tenants).map((t) => ({ value: t.id, label: t.name })),
-    ],
-    [tenants],
-  );
+  const users = useMemo<AdminUser[]>(() => data?.data.items ?? [], [data]);
 
-  const rows = useMemo((): CrossTenantUserRow[] => {
-    return Object.values(memberships)
-      .filter((m) => {
-        if (tenantFilter && tenantFilter !== 'all' && m.tenant_id !== tenantFilter) return false;
-        if (stateFilter !== 'all' && m.state !== stateFilter) return false;
-        return true;
-      })
-      .map((m) => {
-        const user = users[m.user_id];
-        const tenant = tenants[m.tenant_id];
-        if (!user || !tenant) return null;
-        return { user, membership: m, tenant };
-      })
-      .filter((r): r is CrossTenantUserRow => r !== null)
-      .filter((r) => {
-        if (!debouncedSearch) return true;
+  const rows = useMemo((): AdminUser[] => {
+    return users.filter((u) => {
+      if (statusFilter === 'active' && u.status === 'disabled') return false;
+      if (statusFilter === 'disabled' && u.status !== 'disabled') return false;
+      if (debouncedSearch) {
         const q = debouncedSearch.toLowerCase();
-        return r.user.name.toLowerCase().includes(q) || r.user.email.toLowerCase().includes(q);
-      });
-  }, [memberships, users, tenants, tenantFilter, stateFilter, debouncedSearch]);
+        if (!(u.username ?? '').toLowerCase().includes(q)) return false;
+      }
+      return true;
+    });
+  }, [users, statusFilter, debouncedSearch]);
 
-  const columns: ColumnDef<CrossTenantUserRow>[] = [
+  const columns: ColumnDef<AdminUser>[] = [
     {
-      id: 'name',
-      header: 'Name',
+      id: 'username',
+      header: 'Username',
       cell: (info) => (
-        <Text size="sm" fw={500}>
-          {info.row.original.user.name}
+        <Text
+          size="sm"
+          fw={500}
+          style={{ cursor: 'pointer' }}
+          onClick={() => {
+            setDetailUser(info.row.original);
+          }}
+          data-testid="user-name-cell"
+        >
+          {info.row.original.username ?? '—'}
         </Text>
       ),
     },
     {
-      id: 'email',
-      header: 'Email',
+      id: 'id',
+      header: 'ID',
       cell: (info) => (
-        <Text size="sm" c="var(--mantine-color-gray-7)">
-          {info.row.original.user.email}
+        <Text size="xs" ff="monospace" c="var(--mantine-color-gray-7)">
+          {info.row.original.id ?? '—'}
         </Text>
       ),
     },
     {
-      id: 'tenant',
-      header: 'Tenant',
-      cell: (info) => (
-        <Text size="sm" ff="monospace">
-          {info.row.original.tenant.slug}
-        </Text>
-      ),
-    },
-    {
-      id: 'state',
-      header: 'State',
+      id: 'status',
+      header: 'Status',
       cell: (info) => (
         <Badge
-          color={STATE_COLORS[info.row.original.membership.state] ?? 'gray'}
+          color={STATUS_COLORS[info.row.original.status ?? ''] ?? 'gray'}
           variant="light"
           size="sm"
         >
-          {info.row.original.membership.state}
+          {info.row.original.status ?? 'unknown'}
         </Badge>
       ),
     },
@@ -114,40 +155,40 @@ export function CrossTenantUsers() {
 
       <Group gap="sm">
         <TextInput
-          placeholder="Search by name or email…"
+          placeholder="Search by username…"
           leftSection={<IconSearch size={14} />}
           value={searchInput}
           onChange={(e) => {
             setSearchInput(e.currentTarget.value);
           }}
           style={{ flex: 1 }}
+          data-testid="user-search"
         />
         <Select
-          placeholder="Filter by tenant"
-          data={tenantOptions}
-          value={tenantFilter ?? 'all'}
-          onChange={setTenantFilter}
-          clearable={false}
-          style={{ minWidth: 160 }}
-        />
-        <Select
-          placeholder="Filter by state"
+          placeholder="Filter by status"
           data={[
-            { value: 'all', label: 'All states' },
-            { value: 'pending', label: 'Pending' },
-            { value: 'active', label: 'Active' },
-            { value: 'deactivated', label: 'Deactivated' },
-            { value: 'removed', label: 'Removed' },
+            { value: 'all', label: 'All users' },
+            { value: 'active', label: 'Active only' },
+            { value: 'disabled', label: 'Disabled only' },
           ]}
-          value={stateFilter}
+          value={statusFilter}
           onChange={(v) => {
-            setStateFilter(v ?? 'all');
+            setStatusFilter(v ?? 'all');
           }}
           style={{ minWidth: 140 }}
+          data-testid="status-filter"
         />
       </Group>
 
-      {rows.length === 0 ? (
+      {isLoading ? (
+        <Group justify="center" p="xl">
+          <Loader data-testid="user-list-loading" />
+        </Group>
+      ) : isError ? (
+        <Alert color="red" icon={<IconAlertTriangle size={16} />} title="Failed to load users">
+          {error instanceof Error ? error.message : 'Unknown error'}
+        </Alert>
+      ) : rows.length === 0 ? (
         <EmptyState
           icon={IconUsers}
           title="No users found"
@@ -156,6 +197,20 @@ export function CrossTenantUsers() {
       ) : (
         <DataTable columns={columns} data={rows} />
       )}
+
+      {/* User detail drawer */}
+      <Drawer
+        opened={detailUser !== null}
+        onClose={() => {
+          setDetailUser(null);
+        }}
+        title={detailUser ? `User: ${detailUser.username ?? detailUser.id ?? ''}` : 'User detail'}
+        position="right"
+        size="lg"
+        padding="md"
+      >
+        <UserDetailDrawer user={detailUser} />
+      </Drawer>
     </Stack>
   );
 }

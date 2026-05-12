@@ -1,5 +1,5 @@
 /**
- * Dev-mode plugin sideload — Task 1f.114.
+ * Dev-mode plugin sideload.
  *
  * On app mount (dev builds only), reads `?plugin=./path/plugin.mjs` from the
  * URL search params and sideloads the plugin ESM bundle.
@@ -13,8 +13,6 @@
  * This component renders nothing — it is mounted once early in <App> and only
  * runs in DEV builds.  In production the entire effect is a no-op (the
  * `import.meta.env.DEV` guard ensures the module is tree-shaken).
- *
- * spec §9.2 distribution / Task 1f.114
  */
 
 import { useEffect } from 'react';

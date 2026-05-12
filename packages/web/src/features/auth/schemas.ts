@@ -6,8 +6,13 @@ import { z } from 'zod';
 
 // ─── Login ────────────────────────────────────────────────────────────────────
 
+// The daemon's login endpoint accepts either a username or an email in the
+// `username` field. Seeded operational accounts like `root` have no email
+// at all, so the form must not enforce email-format validation — doing so
+// locks the only superadmin out of the SPA. The form-state key remains
+// `email` to keep call sites stable.
 export const loginSchema = z.object({
-  email: z.email('Enter a valid email address').min(1, 'Email is required'),
+  email: z.string().min(1, 'Username or email is required'),
   password: z.string().min(1, 'Password is required'),
 });
 

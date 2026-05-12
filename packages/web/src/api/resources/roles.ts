@@ -1,4 +1,4 @@
-// Owned by Plan 02 (identity) — types for the roles resource surface.
+// Types for the roles resource surface.
 
 import type { ID, Grant } from './common';
 

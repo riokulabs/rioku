@@ -5,8 +5,6 @@
  * renders them in a vertical Stack.  Wraps in a semantic `role="region"`
  * landmark only when contributions are present so empty zones leave zero
  * DOM footprint.
- *
- * spec §9.5.1 / Task 1f.105
  */
 
 import { Stack } from '@mantine/core';

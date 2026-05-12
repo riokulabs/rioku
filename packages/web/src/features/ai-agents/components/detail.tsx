@@ -22,7 +22,6 @@ import {
   Divider,
   Group,
   Modal,
-  PasswordInput,
   Stack,
   Switch,
   Table,
@@ -42,9 +41,26 @@ import {
 } from '@tabler/icons-react';
 import dayjs from 'dayjs';
 import relativeTime from 'dayjs/plugin/relativeTime';
-import { useMockStore } from '@/api/mock-store';
+import { useProviderList } from '@/features/ai-providers/api';
+import type { ProviderFilter } from '@/features/ai-providers/types';
+import { useRolesMap } from '@/features/security/roles/api';
+import { useAuditList } from '@/features/audit/api';
+import type { AuditFilter } from '@/features/audit/types';
 import { notify } from '@/hooks/use-notify';
 import { ProviderKindBadge, formatCost, formatTokens, shortenPrompt } from '@/features/ai-shared';
+
+const EMPTY_PROVIDER_FILTER: ProviderFilter = { search: '', kinds: [] };
+const AGENT_AUDIT_FILTER: AuditFilter = {
+  actions: [],
+  outcomes: [],
+  resource_types: ['ai-agent'],
+  tiers: [],
+  date_from: null,
+  date_to: null,
+  actor_handles: [],
+  resource_id_handles: [],
+  search: '',
+};
 import {
   deleteAgent,
   rotateScopedCredential,
@@ -53,6 +69,7 @@ import {
   useAgentTools,
   useAgentTraces,
 } from '../api';
+import type { RotateAgentCredentialResult } from '../api';
 import { InvokePanel } from './invoke-panel';
 
 dayjs.extend(relativeTime);
@@ -65,19 +82,24 @@ interface AgentDetailProps {
 }
 
 export function AgentDetail({ agentId, tenantSlug, onEdit, onClose }: AgentDetailProps) {
-  const agent = useAgentDetail(agentId);
-  const tools = useAgentTools(agentId);
-  const recentTraces = useAgentTraces(agentId, 10);
-  const auditEntries = useMockStore((s) => s.audit);
-  const providers = useMockStore((s) => s.aiProviders);
-  const roles = useMockStore((s) => s.roles);
+  const agent = useAgentDetail(tenantSlug, agentId);
+  const tools = useAgentTools(tenantSlug, agentId);
+  const recentTraces = useAgentTraces(tenantSlug, agentId, 10);
+  const auditEntries = useAuditList(tenantSlug, AGENT_AUDIT_FILTER);
+  const providerList = useProviderList(tenantSlug, EMPTY_PROVIDER_FILTER);
+  const providers = useMemo(() => {
+    const m: Record<string, (typeof providerList)[number]> = {};
+    for (const p of providerList) m[p.id] = p;
+    return m;
+  }, [providerList]);
+  const roles = useRolesMap(tenantSlug);
 
   const provider = agent ? providers[agent.provider_id] : undefined;
 
   const auditTail = useMemo(() => {
     if (!agent) return [];
     return auditEntries
-      .filter((e) => e.resource_type === 'ai-agent' && e.resource_id === agent.id)
+      .filter((e) => e.resource_id === agent.id)
       .slice()
       .sort((a, b) => b.at.localeCompare(a.at))
       .slice(0, 10);
@@ -88,8 +110,10 @@ export function AgentDetail({ agentId, tenantSlug, onEdit, onClose }: AgentDetai
   const [rotateOpened, { open: openRotate, close: closeRotate }] = useDisclosure(false);
   const [deleteInput, setDeleteInput] = useState('');
   const [deleting, setDeleting] = useState(false);
-  const [rotateValue, setRotateValue] = useState('');
   const [rotating, setRotating] = useState(false);
+  const [rotatedCredential, setRotatedCredential] = useState<RotateAgentCredentialResult | null>(
+    null,
+  );
 
   if (!agent) {
     return (
@@ -102,7 +126,7 @@ export function AgentDetail({ agentId, tenantSlug, onEdit, onClose }: AgentDetai
   async function handleToggle(enabled: boolean) {
     if (!agent) return;
     try {
-      await updateAgent(agent.id, { enabled });
+      await updateAgent(tenantSlug, agent.id, { enabled });
     } catch {
       notify.error('Failed to update agent', 'Please try again.');
     }
@@ -113,7 +137,7 @@ export function AgentDetail({ agentId, tenantSlug, onEdit, onClose }: AgentDetai
     if (deleteInput !== agent.name) return;
     setDeleting(true);
     try {
-      await deleteAgent(agent.id);
+      await deleteAgent(tenantSlug, agent.id);
       notify.success('Agent deleted', `${agent.name} was removed.`);
       closeDelete();
       onClose();
@@ -127,13 +151,11 @@ export function AgentDetail({ agentId, tenantSlug, onEdit, onClose }: AgentDetai
 
   async function handleRotate() {
     if (!agent) return;
-    if (rotateValue === '') return;
     setRotating(true);
     try {
-      await rotateScopedCredential(agent.id, rotateValue);
+      const result = await rotateScopedCredential(tenantSlug, agent.id);
+      setRotatedCredential(result);
       notify.success('Credential rotated', `${agent.name} credential updated.`);
-      closeRotate();
-      setRotateValue('');
     } catch {
       notify.error('Failed to rotate credential', 'Please try again.');
     } finally {
@@ -302,7 +324,7 @@ export function AgentDetail({ agentId, tenantSlug, onEdit, onClose }: AgentDetai
       <Divider />
 
       {/* Invoke panel */}
-      <InvokePanel agentId={agent.id} />
+      <InvokePanel tenant={tenantSlug} agentId={agent.id} />
 
       <Divider />
 
@@ -430,43 +452,60 @@ export function AgentDetail({ agentId, tenantSlug, onEdit, onClose }: AgentDetai
         opened={rotateOpened}
         onClose={() => {
           closeRotate();
-          setRotateValue('');
+          setRotatedCredential(null);
         }}
         title="Rotate scoped credential"
         size="sm"
       >
         <Stack gap="md">
-          <Text size="sm">
-            Paste the new credential. Only the prefix will be stored for display.
-          </Text>
-          <PasswordInput
-            value={rotateValue}
-            onChange={(e) => {
-              setRotateValue(e.currentTarget.value);
-            }}
-            placeholder="sk-…"
-            data-autofocus
-          />
-          <Group justify="flex-end" gap="sm">
-            <Button
-              variant="default"
-              size="sm"
-              onClick={() => {
-                closeRotate();
-                setRotateValue('');
-              }}
-            >
-              Cancel
-            </Button>
-            <Button
-              size="sm"
-              loading={rotating}
-              disabled={rotateValue === ''}
-              onClick={() => void handleRotate()}
-            >
-              Rotate
-            </Button>
-          </Group>
+          {rotatedCredential === null && (
+            <>
+              <Alert color="yellow" variant="light" icon={<IconAlertCircle size={16} />}>
+                Rotating will issue a new credential. The previous one is invalidated immediately.
+                The new credential is shown only once.
+              </Alert>
+              <Group justify="flex-end" gap="sm">
+                <Button
+                  variant="default"
+                  size="sm"
+                  onClick={() => {
+                    closeRotate();
+                  }}
+                >
+                  Cancel
+                </Button>
+                <Button
+                  size="sm"
+                  loading={rotating}
+                  onClick={() => void handleRotate()}
+                  data-testid="rotate-confirm"
+                >
+                  Rotate now
+                </Button>
+              </Group>
+            </>
+          )}
+          {rotatedCredential !== null && (
+            <>
+              <Alert color="green" variant="light">
+                Credential rotated successfully. Copy the value below — it cannot be shown again.
+              </Alert>
+              <Code block data-testid="rotated-credential">
+                {rotatedCredential.newCredential}
+              </Code>
+              <Group justify="flex-end" gap="sm">
+                <Button
+                  size="sm"
+                  onClick={() => {
+                    closeRotate();
+                    setRotatedCredential(null);
+                  }}
+                >
+                  Close
+                </Button>
+              </Group>
+            </>
+          )}
         </Stack>
       </Modal>
 

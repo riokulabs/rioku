@@ -39,7 +39,7 @@ import type { AuditFilter } from '../types';
 
 // ─── Bounded options ─────────────────────────────────────────────────────────
 
-/** Canonical seeded action catalog — mirrors mock-seed. */
+/** Canonical action catalog used by the audit filter dropdown. */
 const ACTION_OPTIONS = [
   'user.login',
   'user.logout',

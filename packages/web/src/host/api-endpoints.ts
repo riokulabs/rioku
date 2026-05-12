@@ -1,6 +1,5 @@
 /**
- * Plugin backend endpoint registry — spec §9.5.10
- *
+ * Plugin backend endpoint registry.
  * UI-side catalog of what endpoints each plugin's backend half exposes.
  * Used by the OpenAPI explorer and the install-time approval UI to show
  * which backend API surface a plugin requires.

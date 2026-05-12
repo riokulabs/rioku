@@ -1,15 +1,12 @@
 /**
- * seed-zones — Demo zone contributions registered during mock-store seeding.
- *
- * Purpose: exercise the "plugin has settings" code path in both the running
- * dev app and test suites without requiring a real plugin loader.
+/**
+ * seed-zones — Demo zone contributions registered for storybook / test
+ * fixtures. Not seeded in production; the helpers below are still callable
+ * from tests that want to exercise the "plugin has settings" code path
+ * without a real plugin loader.
  *
  * Registered zones:
  *   plugin-settings.com.acme.billing — Acme Billing settings placeholder card
- *
- * Called from `api/mock-seed.ts` at the end of `seedStore()`.
- *
- * Task 8c.12 — Zone seed for plugin-settings integration.
  */
 
 import { Alert, Stack, Text } from '@mantine/core';

@@ -1,5 +1,4 @@
-// Package gateway: stage-2 audit additions — detail / stream /
-// export / typeahead.
+// Package gateway: audit detail / stream / export / typeahead.
 //
 //	OPTIONS  /api/v1/t/{tenant}/audit                discovery
 //	OPTIONS  /api/v1/t/{tenant}/audit/{id}           discovery
@@ -20,13 +19,16 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"strings"
 	"time"
 
+	"github.com/riokulabs/rioku/internal/auth"
 	"github.com/riokulabs/rioku/internal/gateway/export"
 	"github.com/riokulabs/rioku/internal/gateway/links"
 	"github.com/riokulabs/rioku/internal/gateway/optionsutil"
 	"github.com/riokulabs/rioku/internal/gateway/stream"
 	"github.com/riokulabs/rioku/internal/store"
+	storeaudit "github.com/riokulabs/rioku/internal/store/audit"
 	riokuv1 "github.com/riokulabs/rioku/proto/gen/go/rioku/v1"
 )
 
@@ -39,8 +41,10 @@ func RegisterAuditExtraRoutes(mux *http.ServeMux, st store.Driver) {
 	jsonl := RequirePermission("audit:read")(http.HandlerFunc(handleAuditExportJSONL(st)))
 	actors := RequirePermission("audit:read")(http.HandlerFunc(handleAuditActors(st)))
 	resourceIDs := RequirePermission("audit:read")(http.HandlerFunc(handleAuditResourceIDs(st)))
+	reveal := RequirePermission("audit:read-sensitive")(http.HandlerFunc(handleAuditReveal(st)))
 
 	mux.Handle("GET /api/v1/t/{tenant}/audit/{id}", detail)
+	mux.Handle("POST /api/v1/t/{tenant}/audit/{id}/reveal", reveal)
 	mux.Handle("GET /api/v1/t/{tenant}/audit/stream", streamH)
 	mux.Handle("GET /api/v1/t/{tenant}/audit/export/csv", csv)
 	mux.Handle("GET /api/v1/t/{tenant}/audit/export/jsonl", jsonl)
@@ -50,6 +54,7 @@ func RegisterAuditExtraRoutes(mux *http.ServeMux, st store.Driver) {
 	optionsutil.RegisterWithCapabilities(mux, "/api/v1/t/{tenant}/audit",
 		[]string{"GET"}, []string{"sse", "export-csv", "export-jsonl", "typeahead"})
 	optionsutil.Register(mux, "/api/v1/t/{tenant}/audit/{id}", []string{"GET"})
+	optionsutil.Register(mux, "/api/v1/t/{tenant}/audit/{id}/reveal", []string{"POST"})
 	optionsutil.RegisterWithCapabilities(mux, "/api/v1/t/{tenant}/audit/stream",
 		[]string{"GET"}, []string{"sse"})
 	optionsutil.Register(mux, "/api/v1/t/{tenant}/audit/export/csv", []string{"GET"})
@@ -106,6 +111,103 @@ func auditEntryLinks(e *riokuv1.AuditEntry, b *links.Builder) links.Set {
 		out["entity"] = b.Path("/audit/entity/" + e.GetEntityType() + "/" + e.GetEntityId())
 	}
 	return out
+}
+
+// handleAuditReveal records a sensitive-fields reveal action against
+// an existing audit entry and returns the original entry alongside
+// the new follow-up audit row that captures the reveal. Requires
+// `audit:read-sensitive`. The caller-supplied reason is persisted
+// verbatim with the new audit row so subsequent compliance reviewers
+// can verify the bypass was justified.
+func handleAuditReveal(st store.Driver) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		ctx := r.Context()
+		id := r.PathValue("id")
+
+		var body struct {
+			Reason string `json:"reason"`
+		}
+		if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+			writeBadRequest(w, r, "request body must be JSON with a `reason` field")
+			return
+		}
+		reason := strings.TrimSpace(body.Reason)
+		if len(reason) < 4 {
+			writeBadRequest(w, r, "reason must be at least 4 characters")
+			return
+		}
+
+		actor := "system"
+		if sc := auth.SessionClaimsFromContext(ctx); sc != nil && sc.UserID != "" {
+			actor = sc.UserID
+		}
+
+		// 1) read the original entry
+		txr, err := st.Begin(ctx, store.TxOptions{ReadOnly: true})
+		if err != nil {
+			writeInternalError(w, r, "begin tx")
+			return
+		}
+		entry, err := txr.GetAuditEntry(ctx, id)
+		_ = txr.Rollback()
+		if err != nil {
+			writeProblem(w, http.StatusNotFound, errTypeNotFound, "Audit entry not found",
+				"No audit entry with id "+id, r.URL.Path, nil)
+			return
+		}
+
+		// 2) build + persist the follow-up reveal entry
+		revealEntry, err := storeaudit.BuildEntry(
+			storeaudit.DefaultRegistry,
+			actor,
+			"audit-entry",
+			id,
+			"reveal",
+			&storeaudit.AuditSensitiveRevealed{
+				RevealedEntryID: id,
+				Reason:          reason,
+			},
+		)
+		if err != nil {
+			writeInternalError(w, r, "build reveal audit entry")
+			return
+		}
+
+		txw, err := st.Begin(ctx, store.TxOptions{})
+		if err != nil {
+			writeInternalError(w, r, "begin tx")
+			return
+		}
+		if err := txw.AppendAuditEntry(ctx, revealEntry); err != nil {
+			_ = txw.Rollback()
+			writeInternalError(w, r, "persist reveal audit entry")
+			return
+		}
+		if err := txw.Commit(); err != nil {
+			writeInternalError(w, r, "commit reveal audit entry")
+			return
+		}
+
+		writeJSON(w, http.StatusOK, map[string]any{
+			"entry":       auditEntryToMap(entry),
+			"revealEntry": auditEntryToMap(revealEntry),
+		})
+	}
+}
+
+func auditEntryToMap(e *riokuv1.AuditEntry) map[string]any {
+	return map[string]any{
+		"id":            e.GetId(),
+		"actor":         e.GetActor(),
+		"entityType":    e.GetEntityType(),
+		"entityId":      e.GetEntityId(),
+		"operation":     e.GetOperation(),
+		"diff":          e.GetDiff(),
+		"payloadSchema": e.GetPayloadSchema(),
+		"payload":       e.GetPayload(),
+		"configVersion": e.GetConfigVersion(),
+		"occurredAt":    e.GetOccurredAt().AsTime().Format(time.RFC3339Nano),
+	}
 }
 
 // handleAuditStream emits an SSE feed of new audit entries. Backed

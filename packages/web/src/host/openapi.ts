@@ -1,10 +1,10 @@
 /**
- * OpenAPI contribution merge registry — spec §9.5.11
+ * OpenAPI contribution merge registry.
  *
  * Maintains a catalog of each plugin's contributed OpenAPI spec fragment.
- * At stage-1, `OpenApiSpec` is `unknown` — actual merging and Scalar viewer
- * integration land in a later plan.  This registry is the plumbing that lets
- * plugins declare their spec and lets the OpenAPI explorer discover it.
+ * `OpenApiSpec` is currently `unknown` — actual merging and Scalar viewer
+ * integration are planned. This registry is the plumbing that lets plugins
+ * declare their spec and lets the OpenAPI explorer discover it.
  *
  * Duplicate-plugin policy: overwrite with a warning in dev.
  */
@@ -13,7 +13,7 @@ import { create } from 'zustand';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
-/** Stage-1 placeholder — full typing deferred to Scalar integration. */
+/** Placeholder — full typing deferred to Scalar integration. */
 export type OpenApiSpec = unknown;
 
 export interface PluginOpenApiContrib {

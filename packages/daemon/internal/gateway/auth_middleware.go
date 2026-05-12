@@ -10,11 +10,17 @@ import (
 
 // skipAuthPaths are REST paths that don't require authentication.
 var skipAuthPaths = map[string]bool{
-	"/api/v1/health":       true,
-	"/api/v1/health/caddy": true,
-	"/api/v1/auth/token":   true,
-	"/api/v1/auth/refresh": true,
-	"/api/v1/auth/login":   true,
+	"/api/v1/health":                       true,
+	"/api/v1/health/caddy":                 true,
+	"/api/v1/auth/token":                   true,
+	"/api/v1/auth/refresh":                 true,
+	"/api/v1/auth/login":                   true,
+	"/api/v1/auth/bootstrap-status":        true,
+	"/api/v1/auth/bootstrap":               true,
+	"/api/v1/auth/password-reset/request":  true,
+	"/api/v1/auth/password-reset/validate": true,
+	"/api/v1/auth/password-reset/apply":    true,
+	"/api/v1/auth/invite/accept":           true,
 }
 
 // AuthMiddleware returns HTTP middleware that validates sessions (cookie-first)
@@ -34,7 +40,7 @@ func AuthMiddleware(a *auth.Auth, sm *auth.SessionManager) func(http.Handler) ht
 				if cookie, err := r.Cookie(auth.SessionCookieName); err == nil {
 					claims, err := sm.ValidateSession(r.Context(), cookie.Value, r)
 					if err != nil {
-						sm.ClearCookie(w)
+						sm.ClearCookie(w, auth.CookieOptions{})
 						writeAuthError(w, r, "Session invalid or expired")
 						return
 					}

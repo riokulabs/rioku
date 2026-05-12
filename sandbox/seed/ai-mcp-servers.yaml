@@ -1,0 +1,11 @@
+# Owned by Plan 04 (ai) — ai-mcp-servers seed data. See sandbox/scripts/seed-config.sh for loader.
+
+# MCP servers (referenced by AI tools below)
+mcp_servers:
+  - name: docs-mcp
+    url: "https://mcp.example/docs"
+    auth_kind: bearer
+
+  - name: filesystem-mcp
+    url: "http://localhost:7800"
+    auth_kind: none

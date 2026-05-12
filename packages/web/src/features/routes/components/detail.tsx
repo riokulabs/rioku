@@ -27,10 +27,24 @@ import {
 import { useDisclosure } from '@mantine/hooks';
 import { IconAlertCircle, IconRoute } from '@tabler/icons-react';
 import dayjs from 'dayjs';
-import { useMockStore } from '@/api/mock-store';
+import { useServiceListReal } from '@/features/services/api.stage2';
+import { useAuditList } from '@/features/audit/api';
+import type { AuditFilter } from '@/features/audit/types';
 import { notify } from '@/hooks/use-notify';
 import { buildMatchPreview } from '@/features/api-mgmt-shared';
 import { useRouteDetail, deleteRoute } from '../api';
+
+const ROUTE_AUDIT_FILTER: AuditFilter = {
+  actions: [],
+  outcomes: [],
+  resource_types: ['route'],
+  tiers: [],
+  date_from: null,
+  date_to: null,
+  actor_handles: [],
+  resource_id_handles: [],
+  search: '',
+};
 import { AttachedPolicies } from './attached-policies';
 import { MiddlewareStackEditor } from './middleware-stack-editor';
 
@@ -51,16 +65,26 @@ const METHOD_COLORS: Record<string, string> = {
 };
 
 export function RouteDetail({ routeId, tenantId, onEdit, onClose }: RouteDetailProps) {
-  const route = useRouteDetail(routeId);
-  const services = useMockStore((s) => s.services);
-  const auditEntries = useMockStore((s) => s.audit);
+  const route = useRouteDetail(tenantId, routeId);
+  const { services: serviceList } = useServiceListReal(tenantId, {
+    search: '',
+    health: [],
+    env: [],
+    tags: [],
+  });
+  const services = useMemo(() => {
+    const m: Record<string, (typeof serviceList)[number]> = {};
+    for (const s of serviceList) m[s.id] = s;
+    return m;
+  }, [serviceList]);
+  const auditEntries = useAuditList(tenantId, ROUTE_AUDIT_FILTER);
 
   const service = route ? services[route.service_id] : undefined;
 
   const auditTail = useMemo(() => {
     if (!route) return [];
     return auditEntries
-      .filter((e) => e.resource_type === 'route' && e.resource_id === route.id)
+      .filter((e) => e.resource_id === route.id)
       .slice()
       .sort((a, b) => b.at.localeCompare(a.at))
       .slice(0, 10);
@@ -83,7 +107,7 @@ export function RouteDetail({ routeId, tenantId, onEdit, onClose }: RouteDetailP
     if (deleteInput !== route.name) return;
     setDeleting(true);
     try {
-      await deleteRoute(route.id);
+      await deleteRoute(tenantId, route.id);
       notify.success('Route deleted', `${route.name} was removed.`);
       closeDelete();
       onClose();
@@ -154,7 +178,7 @@ export function RouteDetail({ routeId, tenantId, onEdit, onClose }: RouteDetailP
 
       <Divider />
 
-      <AttachedPolicies routeId={route.id} />
+      <AttachedPolicies routeId={route.id} tenant={tenantId} />
 
       <Divider />
 

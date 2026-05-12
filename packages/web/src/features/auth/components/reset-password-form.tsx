@@ -1,22 +1,15 @@
 /**
  * <ResetPasswordForm> — set a new password via a reset token.
  *
- * Stage-1: token validation is relaxed (any mock-reset or force-reset token
- * with a known userId passes). Real cryptographic validation happens in the daemon.
+ * Validates the token via GET /auth/password-reset/validate?token=… on mount
+ * (200 ⇒ token usable, 410 ⇒ expired/consumed). Submits the new password to
+ * POST /auth/password-reset/apply, which marks the token consumed in one
+ * transaction.
  *
- * Task 1e.88
+ * Plan 01 — stage 2 wiring.
  */
 import { useState, useEffect } from 'react';
-import {
-  Stack,
-  PasswordInput,
-  Button,
-  Alert,
-  Text,
-  Checkbox,
-  Progress,
-  Group,
-} from '@mantine/core';
+import { Stack, PasswordInput, Button, Alert, Text, Anchor, Progress, Group } from '@mantine/core';
 import { useForm, schemaResolver } from '@mantine/form';
 import { useNavigate } from '@tanstack/react-router';
 import { IconAlertCircle, IconCheck } from '@tabler/icons-react';
@@ -27,7 +20,6 @@ interface ResetPasswordFormProps {
   token: string;
 }
 
-/** Simple password strength gauge: 0–100 */
 function passwordStrength(password: string): number {
   if (!password) return 0;
   let score = 0;
@@ -58,10 +50,10 @@ export function ResetPasswordForm({ token }: ResetPasswordFormProps) {
   const navigate = useNavigate();
   const [validating, setValidating] = useState(true);
   const [tokenError, setTokenError] = useState<string | null>(null);
-  const [userId, setUserId] = useState<string | null>(null);
+  const [tokenValid, setTokenValid] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
-  const [reEnrollTotp, setReEnrollTotp] = useState(false);
+  const [success, setSuccess] = useState(false);
 
   const form = useForm<ResetPasswordFormValues>({
     validate: schemaResolver(resetPasswordSchema, { sync: true }),
@@ -77,15 +69,13 @@ export function ResetPasswordForm({ token }: ResetPasswordFormProps) {
       .then((result) => {
         if (cancelled) return;
         if (result.ok) {
-          setUserId(result.user_id);
+          setTokenValid(true);
         } else {
           setTokenError(result.error);
         }
       })
       .catch(() => {
-        if (!cancelled) {
-          setTokenError('An error occurred validating the reset link.');
-        }
+        if (!cancelled) setTokenError('An error occurred validating the reset link.');
       })
       .finally(() => {
         if (!cancelled) setValidating(false);
@@ -98,7 +88,7 @@ export function ResetPasswordForm({ token }: ResetPasswordFormProps) {
   }, []);
 
   async function handleSubmit(values: ResetPasswordFormValues) {
-    if (!userId) return;
+    if (!tokenValid) return;
     setSubmitting(true);
     setSubmitError(null);
 
@@ -108,23 +98,9 @@ export function ResetPasswordForm({ token }: ResetPasswordFormProps) {
         setSubmitError(result.error ?? 'Failed to reset password.');
         return;
       }
-
-      if (reEnrollTotp) {
-        await navigate({ to: '/totp-enroll', search: { userId, return: undefined } });
-      } else {
-        // Navigate to tenant dashboard. Use mock store to get tenantId.
-        const { useMockStore } = await import('@/api/mock-store');
-        const tenantId = useMockStore.getState().currentTenantId;
-        if (tenantId) {
-          const tenants = useMockStore.getState().tenants;
-          const tenant = tenants[tenantId];
-          if (tenant) {
-            await navigate({ to: '/t/$tenant/dashboard', params: { tenant: tenant.slug } });
-            return;
-          }
-        }
-        await navigate({ to: '/login' });
-      }
+      setSuccess(true);
+      await new Promise<void>((resolve) => setTimeout(resolve, 1200));
+      await navigate({ to: '/login' });
     } catch {
       setSubmitError('An unexpected error occurred. Please try again.');
     } finally {
@@ -148,9 +124,22 @@ export function ResetPasswordForm({ token }: ResetPasswordFormProps) {
           {tokenError}
         </Alert>
         <Text size="sm" ta="center">
-          <a href="/forgot-password">Request a new reset link</a>
+          <Anchor href="/forgot-password">Request a new reset link</Anchor>
         </Text>
       </Stack>
+    );
+  }
+
+  if (success) {
+    return (
+      <Alert
+        icon={<IconCheck size={16} />}
+        color="green"
+        variant="light"
+        data-testid="reset-success"
+      >
+        Password reset. Redirecting to sign-in…
+      </Alert>
     );
   }
 
@@ -178,7 +167,6 @@ export function ResetPasswordForm({ token }: ResetPasswordFormProps) {
           {...form.getInputProps('password')}
         />
 
-        {/* Password strength gauge */}
         {passwordValue.length > 0 && (
           <Stack gap={4}>
             <Progress
@@ -203,15 +191,6 @@ export function ResetPasswordForm({ token }: ResetPasswordFormProps) {
           required
           data-testid="confirm-password-input"
           {...form.getInputProps('confirm')}
-        />
-
-        <Checkbox
-          label="Re-enroll TOTP authenticator after reset"
-          checked={reEnrollTotp}
-          onChange={(e) => {
-            setReEnrollTotp(e.currentTarget.checked);
-          }}
-          data-testid="reenroll-totp-checkbox"
         />
 
         <Button

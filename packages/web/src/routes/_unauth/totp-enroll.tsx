@@ -1,6 +1,5 @@
 /**
  * TOTP enrollment page.
- * Task 1e.86
  */
 import { createFileRoute } from '@tanstack/react-router';
 import { z } from 'zod';

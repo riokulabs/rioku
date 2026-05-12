@@ -1,4 +1,4 @@
-// Package sqlite — Site + Middleware CRUD (stage-2).
+// Package sqlite — Site + Middleware CRUD.
 //
 // Both entities are tenant-scoped. Every read/write enforces the
 // tenant_id constraint to prevent cross-tenant access via guessed

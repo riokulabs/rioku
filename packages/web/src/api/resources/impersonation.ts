@@ -1,4 +1,4 @@
-// Owned by Plan 02 (identity) — types for the impersonation resource surface.
+// Types for the impersonation resource surface.
 
 import type { ID } from './common';
 

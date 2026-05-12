@@ -1,4 +1,4 @@
-// Package gateway: AI agent handlers (stage-2).
+// Package gateway: AI agent handlers.
 //
 // Includes per-agent nested resources: tool bindings list, traces list,
 // and the rotate-credential stub. Bindings + trace types live in
@@ -10,7 +10,10 @@ package gateway
 import (
 	"encoding/json"
 	"errors"
+	"fmt"
+	"io"
 	"net/http"
+	"time"
 
 	"github.com/riokulabs/rioku/internal/store"
 )
@@ -263,9 +266,104 @@ func handleListAgentTraces(st store.Driver) http.HandlerFunc {
 func handleRotateAgentCredential(st store.Driver) http.HandlerFunc {
 	// Stub — real implementation generates a new scoped credential.
 	return func(w http.ResponseWriter, r *http.Request) {
+		// Generate a stub rotation credential whose prefix is what the
+		// admin UI displays once. Treated as opaque by the panel.
+		now := time.Now().UTC().Format("20060102T150405")
+		newCred := "sk-rot-" + now + "-" + r.PathValue("id")
 		writeJSON(w, http.StatusOK, map[string]any{
-			"agentId": r.PathValue("id"), "ok": true,
-			"note": "scoped credential rotation is stubbed in stage-2",
+			"agentId":       r.PathValue("id"),
+			"ok":            true,
+			"newCredential": newCred,
+			"prefix":        newCred[:min(12, len(newCred))],
+			"note":          "scoped credential rotation is stubbed",
 		})
+	}
+}
+
+// handleInvokeAIAgent streams a stub completion as Server-Sent Events.
+//
+// Request: POST /api/v1/t/{tenant}/ai/agents/{id}/invoke
+// Body:    {"prompt": "...", "variables": {...}}
+// Response: text/event-stream with `event: chunk` frames carrying small
+//
+//	text fragments, terminated by `event: done` carrying token + cost
+//	summary, or `event: error` on failure.
+//
+// Currently a stub; real implementations will route through the configured
+// provider's streaming completion API.
+func handleInvokeAIAgent(st store.Driver) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		tenant, ok := tenantOrError(w, r)
+		if !ok {
+			return
+		}
+		agentID := r.PathValue("id")
+		tx, _ := st.Begin(r.Context(), store.TxOptions{ReadOnly: true})
+		agent, err := tx.GetAIAgent(r.Context(), tenant.ID, agentID)
+		_ = tx.Rollback()
+		if err != nil {
+			writeProblem(w, http.StatusNotFound, errTypeNotFound, "Agent not found",
+				"No agent with id "+agentID, r.URL.Path, nil)
+			return
+		}
+
+		var req struct {
+			Prompt    string          `json:"prompt"`
+			Variables json.RawMessage `json:"variables,omitempty"`
+		}
+		if err := json.NewDecoder(r.Body).Decode(&req); err != nil && !errors.Is(err, io.EOF) {
+			writeBadRequest(w, r, "invalid JSON body")
+			return
+		}
+		if req.Prompt == "" {
+			writeBadRequest(w, r, "prompt is required")
+			return
+		}
+
+		flusher, fok := w.(http.Flusher)
+		if !fok {
+			http.Error(w, "streaming not supported", http.StatusInternalServerError)
+			return
+		}
+		w.Header().Set("Content-Type", "text/event-stream")
+		w.Header().Set("Cache-Control", "no-cache")
+		w.Header().Set("Connection", "keep-alive")
+		w.Header().Set("X-Accel-Buffering", "no")
+		w.WriteHeader(http.StatusOK)
+		flusher.Flush()
+
+		chunks := []string{
+			"Routing prompt to ",
+			agent.Model,
+			" via agent ",
+			agent.Name,
+			". ",
+			"Generating response… ",
+			"This is a stub completion produced by the invoke handler.",
+		}
+		start := time.Now()
+		for i, c := range chunks {
+			select {
+			case <-r.Context().Done():
+				return
+			default:
+			}
+			payload, _ := json.Marshal(map[string]any{
+				"index": i,
+				"text":  c,
+			})
+			_, _ = fmt.Fprintf(w, "event: chunk\ndata: %s\n\n", payload)
+			flusher.Flush()
+			time.Sleep(20 * time.Millisecond)
+		}
+		done, _ := json.Marshal(map[string]any{
+			"latencyMs":    time.Since(start).Milliseconds(),
+			"inputTokens":  len(req.Prompt) / 4,
+			"outputTokens": 32,
+			"costUsd":      0.0001,
+			"status":       "success",
+		})
+		_, _ = fmt.Fprintf(w, "event: done\ndata: %s\n\n", done)
+		flusher.Flush()
 	}
 }

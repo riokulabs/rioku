@@ -1,0 +1,15 @@
+# Owned by Plan 09 (plugins) — plugins seed data. See sandbox/scripts/seed-config.sh for loader.
+
+# Plugins (creates rows in `building` state — install orchestration is a stage-2 stub)
+plugins:
+  - slug: pii-redaction
+    name: "PII Redaction"
+    version: "1.2.0"
+
+  - slug: prompt-injection-guard
+    name: "Prompt Injection Guard"
+    version: "0.9.1"
+
+  - slug: grpc-transcoding
+    name: "gRPC Transcoding"
+    version: "2.0.0"

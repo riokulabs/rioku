@@ -1,4 +1,4 @@
-// Package gateway: PKI + TLS REST endpoints (stage-2).
+// Package gateway: PKI + TLS REST endpoints.
 //
 // Routes (per the admin panel spec):
 //

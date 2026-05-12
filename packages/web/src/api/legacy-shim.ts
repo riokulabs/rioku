@@ -1,7 +1,6 @@
 /**
- * TEMPORARY shim during Stage-2 migration. Delegates the old `apiClient.get/post/...`
- * surface to the new mutator. Each parallel plan retires its feature's apiClient
- * usage; Plan 13 close-out asserts this file has zero importers and deletes it.
+ * TEMPORARY shim. Delegates the old `apiClient.get/post/...` surface to the
+ * new mutator. Slated for deletion once all importers are migrated.
  */
 import { customFetch } from './mutator';
 

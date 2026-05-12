@@ -38,8 +38,12 @@ fi
 : "${SANDBOX_PORT_AUTH:=9004}"
 : "${SANDBOX_PORT_MEDIA:=9005}"
 : "${SANDBOX_DEV_MODE:=true}"
-: "${SANDBOX_RATE_LIMIT_RPM:=6000}"
-: "${SANDBOX_RATE_LIMIT_BURST:=100}"
+# 60k RPM (1000/sec) + 1000 burst gives parallel Playwright workers
+# (2-4 workers × tens of requests per spec) and the cross-tenant seed
+# loop enough headroom to not trip the gateway-wide rate limiter,
+# which previously surfaced as flaky 429s on `/t/acme/dashboard`.
+: "${SANDBOX_RATE_LIMIT_RPM:=60000}"
+: "${SANDBOX_RATE_LIMIT_BURST:=1000}"
 : "${SANDBOX_REST_BIND:=0.0.0.0}"
 
 # OTLP smoke-test plumbing (off by default). When SANDBOX_OTLP_ENABLED=true,
@@ -51,11 +55,20 @@ fi
 : "${SANDBOX_OTLP_STATUS_PORT:=4319}"
 : "${SANDBOX_OTLP_ENDPOINT:=localhost:${SANDBOX_OTLP_PORT}}"
 
+# SMTP wiring for the daemon (tests/sandbox use mailpit on 11025 by default).
+# These need to be exported defaults — envsubst (gettext) does NOT understand
+# the `${VAR:-default}` bash form and leaves it literally in the rendered
+# config when the variable is unset.
+: "${SANDBOX_SMTP_HOST:=localhost}"
+: "${SANDBOX_SMTP_PORT:=11025}"
+: "${SANDBOX_SMTP_FROM:=noreply@rioku.local}"
+
 # Export all SANDBOX_ vars so envsubst can see them
 export SANDBOX_PORT_REST SANDBOX_PORT_GRPC SANDBOX_PORT_TRAFFIC SANDBOX_PORT_CADDY_ADMIN
 export SANDBOX_PORT_USERS SANDBOX_PORT_PRODUCTS SANDBOX_PORT_WEBHOOKS SANDBOX_PORT_AUTH SANDBOX_PORT_MEDIA
 export SANDBOX_DEV_MODE SANDBOX_RATE_LIMIT_RPM SANDBOX_RATE_LIMIT_BURST SANDBOX_REST_BIND
 export SANDBOX_OTLP_ENABLED SANDBOX_OTLP_PORT SANDBOX_OTLP_STATUS_PORT SANDBOX_OTLP_ENDPOINT
+export SANDBOX_SMTP_HOST SANDBOX_SMTP_PORT SANDBOX_SMTP_FROM
 
 # --------------------------------------------------------------------------
 # Derived paths and addresses
@@ -367,7 +380,7 @@ wait_for_health "products" "http://localhost:${SANDBOX_PORT_PRODUCTS}/health" 15
 wait_for_health "webhooks" "http://localhost:${SANDBOX_PORT_WEBHOOKS}/health" 15 & health_pids+=($!)
 wait_for_health "auth"     "http://localhost:${SANDBOX_PORT_AUTH}/health"     15 & health_pids+=($!)
 wait_for_health "media"    "http://localhost:${SANDBOX_PORT_MEDIA}/health"    15 & health_pids+=($!)
-wait_for_health "daemon"   "${REST_BASE}/api/v1/health"                      20 & health_pids+=($!)
+wait_for_health "daemon"   "${REST_BASE}/api/v1/health"                      60 & health_pids+=($!)
 
 # Wait for each health check
 for pid in "${health_pids[@]}"; do
@@ -388,14 +401,26 @@ if [[ -z "${ROOT_PASSWORD}" ]]; then
   warn "No root password available — skipping seed"
   warn "If the daemon was previously initialized, run 'make sandbox-seed' manually"
 else
-  info "Seeding sandbox data via 'rioku seed' ..."
-  if ! "${DAEMON_BIN}" seed \
-    --file "${SANDBOX_DIR}/config/seed.yaml" \
-    --target "http://localhost:${SANDBOX_PORT_REST}" \
-    --password "${ROOT_PASSWORD}"; then
+  info "Seeding sandbox data via seed-config.sh (loads sandbox/seed/*.yaml) ..."
+  # seed-config.sh runs `rioku seed --dir sandbox/seed/` which loads the
+  # full per-stage YAML set (services, policies, routes, tenants,
+  # memberships, etc.). The earlier flat seed.json/yaml only had services
+  # + policies and missed tenants/memberships entirely, which broke
+  # multi-tenant smoke checks.
+  if ! bash "${SANDBOX_DIR}/scripts/seed-config.sh" "http://localhost:${SANDBOX_PORT_REST}"; then
     warn "Seed encountered errors — run 'make sandbox-seed' manually after daemon is healthy"
   else
     success "Sandbox data seeded"
+  fi
+
+  # Seed test users (testadmin/testoperator/testviewer). The rioku seed
+  # CLI only loads services/policies/routes from seed.json — user seeding
+  # uses the dedicated REST-based seed-users.sh because it needs to drive
+  # the auth flow (create user, assign role, enable account) rather than
+  # config-store inserts. Without this, every smoke-test login returns 401.
+  info "Seeding sandbox test users via seed-users.sh ..."
+  if ! bash "${SANDBOX_DIR}/scripts/seed-users.sh" "${ROOT_PASSWORD}"; then
+    warn "Test users seed encountered errors — auth smoke tests will fail"
   fi
 fi
 

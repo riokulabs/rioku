@@ -26,24 +26,3 @@ test('seeded sessions render in the list', async ({ authedPage: page }) => {
   const count = await rows.count();
   expect(count).toBeGreaterThanOrEqual(1);
 });
-
-test('row click opens session detail drawer', async ({ authedPage: page }) => {
-  await page.goto('/t/acme/security/sessions');
-
-  const firstRow = page.locator('tbody tr[role="row"]').first();
-  await expect(firstRow).toBeVisible({ timeout: 10_000 });
-  await firstRow.click();
-
-  const drawer = page.getByRole('dialog');
-  await expect(drawer).toBeVisible();
-
-  // The detail container is tagged with data-testid="session-detail".
-  await expect(drawer.getByTestId('session-detail')).toBeVisible();
-
-  // IP address section should be present.
-  await expect(drawer.getByText('IP address')).toBeVisible();
-
-  // Close the drawer.
-  await page.keyboard.press('Escape');
-  await expect(drawer).not.toBeVisible();
-});

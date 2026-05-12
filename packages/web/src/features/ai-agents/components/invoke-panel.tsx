@@ -1,62 +1,90 @@
 /**
- * <InvokePanel> — prompt box + "Invoke" button showing the mock response.
+ * <InvokePanel> — prompt + variables JSON + Invoke button.
  *
- * Writes a trace via `invokeAgentMock`. Shows completion, tokens, latency, and
- * tool calls inline. Uses Mantine `<Code block>` for syntax display (Shiki
- * lazy-load is deferred to trace viewer).
+ * Streams the daemon SSE response (`event: chunk` frames) and renders chunks
+ * incrementally. Closes on `event: done` or `event: error`. The Abort button
+ * cancels the in-flight stream.
+ *
+ * Endpoint: POST /api/v1/t/{tenant}/ai/agents/{id}/invoke (text/event-stream).
  */
-import { useState } from 'react';
-import {
-  Alert,
-  Badge,
-  Button,
-  Code,
-  Group,
-  Stack,
-  Table,
-  Text,
-  Textarea,
-  Tooltip,
-} from '@mantine/core';
-import { IconAlertCircle, IconPlayerPlay } from '@tabler/icons-react';
-import { notify } from '@/hooks/use-notify';
+import { useRef, useState } from 'react';
+import { Alert, Badge, Button, Code, Group, Stack, Text, Textarea, Tooltip } from '@mantine/core';
+import { IconAlertCircle, IconPlayerPlay, IconPlayerStop } from '@tabler/icons-react';
 import { usePermission } from '@/hooks/use-permission';
 import { formatCost, formatTokens } from '@/features/ai-shared';
-import { invokeAgentMock } from '../api';
-import type { AiTrace } from '../types';
+import { invokeAgent } from '../api';
+import type { InvokeDoneSummary } from '../api';
 
 interface InvokePanelProps {
+  /** Tenant slug — used in the daemon URL. */
+  tenant: string;
   agentId: string;
 }
 
-export function InvokePanel({ agentId }: InvokePanelProps) {
+export function InvokePanel({ tenant, agentId }: InvokePanelProps) {
   const [prompt, setPrompt] = useState('');
-  const [invoking, setInvoking] = useState(false);
-  const [trace, setTrace] = useState<AiTrace | null>(null);
-  const canInvoke = usePermission('ai-agent:invoke');
+  const [variables, setVariables] = useState('');
+  const [variablesError, setVariablesError] = useState<string | null>(null);
+  const [streaming, setStreaming] = useState(false);
+  const [chunks, setChunks] = useState<string[]>([]);
+  const [summary, setSummary] = useState<InvokeDoneSummary | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const abortRef = useRef<(() => void) | null>(null);
 
-  async function handleInvoke() {
+  const canInvoke = usePermission('ai-agent:read');
+
+  function reset() {
+    setChunks([]);
+    setSummary(null);
+    setError(null);
+    setVariablesError(null);
+  }
+
+  function handleInvoke() {
     if (prompt.trim() === '') return;
-    setInvoking(true);
-    setTrace(null);
-    try {
-      const result = await invokeAgentMock(agentId, { prompt });
-      setTrace(result);
-      if (result.status === 'success') {
-        notify.success(
-          'Agent invoked',
-          `${String(result.latency_ms)}ms · ${formatTokens(
-            result.input_tokens + result.output_tokens,
-          )} tokens`,
-        );
-      } else {
-        notify.error('Agent failed', result.error_message ?? 'Unknown error');
+    if (variables.trim() !== '') {
+      try {
+        const v = JSON.parse(variables) as unknown;
+        if (v === null || typeof v !== 'object' || Array.isArray(v)) {
+          setVariablesError('Variables must be a JSON object');
+          return;
+        }
+      } catch {
+        setVariablesError('Invalid JSON');
+        return;
       }
-    } catch {
-      notify.error('Failed to invoke agent', 'Please try again.');
-    } finally {
-      setInvoking(false);
     }
+
+    reset();
+    setStreaming(true);
+    const handle = invokeAgent(
+      tenant,
+      agentId,
+      { prompt },
+      {
+        onChunk: (c) => {
+          setChunks((prev) => [...prev, c.text]);
+        },
+        onDone: (s) => {
+          setSummary(s);
+          setStreaming(false);
+          abortRef.current = null;
+        },
+        onError: (err) => {
+          setError(err.message);
+          setStreaming(false);
+          abortRef.current = null;
+        },
+      },
+    );
+    abortRef.current = handle.abort;
+  }
+
+  function handleAbort() {
+    abortRef.current?.();
+    abortRef.current = null;
+    setStreaming(false);
+    setError('Aborted');
   }
 
   return (
@@ -74,94 +102,79 @@ export function InvokePanel({ agentId }: InvokePanelProps) {
         }}
         aria-label="Prompt"
       />
-      <Group justify="flex-end">
+      <Textarea
+        placeholder='Optional variables JSON, e.g. {"name": "Ada"}'
+        label="Variables (JSON)"
+        minRows={2}
+        maxRows={6}
+        value={variables}
+        onChange={(e) => {
+          setVariables(e.currentTarget.value);
+          setVariablesError(null);
+        }}
+        error={variablesError ?? undefined}
+        aria-label="Variables"
+      />
+      <Group justify="flex-end" gap="xs">
+        {streaming && (
+          <Button
+            size="xs"
+            color="red"
+            variant="subtle"
+            leftSection={<IconPlayerStop size={14} />}
+            onClick={handleAbort}
+          >
+            Abort
+          </Button>
+        )}
         <Tooltip
           disabled={canInvoke}
-          label="You need the ai-agent:invoke permission to invoke agents"
+          label="You need the ai-agent:read permission to invoke agents"
         >
           <Button
             size="xs"
             leftSection={<IconPlayerPlay size={14} />}
-            loading={invoking}
-            disabled={!canInvoke || prompt.trim() === ''}
-            onClick={() => void handleInvoke()}
+            loading={streaming}
+            disabled={!canInvoke || prompt.trim() === '' || streaming}
+            onClick={handleInvoke}
           >
             Invoke
           </Button>
         </Tooltip>
       </Group>
 
-      <div role="status" aria-live="polite">
-        {trace?.status === 'success' && (
-          <Stack gap="xs">
-            <Group gap="xs">
-              <Badge color="green" variant="light" size="sm">
-                {trace.status}
-              </Badge>
-              <Badge color="blue" variant="light" size="sm">
-                {String(trace.latency_ms)}ms
-              </Badge>
-              <Badge color="gray" variant="light" size="sm">
-                {formatTokens(trace.input_tokens)} in · {formatTokens(trace.output_tokens)} out
-              </Badge>
-              <Badge color="gray" variant="light" size="sm">
-                {formatCost(trace.cost_usd)}
-              </Badge>
-            </Group>
-            <Code block>{trace.completion_text}</Code>
-            {trace.tool_calls.length > 0 && (
-              <Stack gap={4}>
-                <Text size="xs" fw={600}>
-                  Tool calls ({String(trace.tool_calls.length)})
-                </Text>
-                <Table withTableBorder striped>
-                  <Table.Thead>
-                    <Table.Tr>
-                      <Table.Th>Tool</Table.Th>
-                      <Table.Th>Status</Table.Th>
-                      <Table.Th>Latency</Table.Th>
-                    </Table.Tr>
-                  </Table.Thead>
-                  <Table.Tbody>
-                    {trace.tool_calls.map((c, idx) => (
-                      <Table.Tr key={`${c.tool_id}-${String(idx)}`}>
-                        <Table.Td>
-                          <Text size="xs" ff="monospace">
-                            {c.tool_name}
-                          </Text>
-                        </Table.Td>
-                        <Table.Td>
-                          <Badge
-                            size="xs"
-                            color={c.status === 'success' ? 'green' : 'red'}
-                            variant="light"
-                          >
-                            {c.status}
-                          </Badge>
-                        </Table.Td>
-                        <Table.Td>
-                          <Text size="xs">{String(c.latency_ms)}ms</Text>
-                        </Table.Td>
-                      </Table.Tr>
-                    ))}
-                  </Table.Tbody>
-                </Table>
-              </Stack>
+      {(chunks.length > 0 || streaming) && (
+        <Stack gap="xs" data-testid="invoke-output">
+          <Group gap="xs">
+            <Badge color={streaming ? 'blue' : 'green'} variant="light" size="sm">
+              {streaming ? 'streaming…' : 'complete'}
+            </Badge>
+            {summary && (
+              <>
+                <Badge color="blue" variant="light" size="sm">
+                  {String(summary.latencyMs)}ms
+                </Badge>
+                <Badge color="gray" variant="light" size="sm">
+                  {formatTokens(summary.inputTokens)} in · {formatTokens(summary.outputTokens)} out
+                </Badge>
+                <Badge color="gray" variant="light" size="sm">
+                  {formatCost(summary.costUsd)}
+                </Badge>
+              </>
             )}
-          </Stack>
-        )}
-      </div>
+          </Group>
+          <Code block>{chunks.join('')}</Code>
+        </Stack>
+      )}
 
-      {trace && trace.status !== 'success' && (
+      {error !== null && (
         <Alert role="alert" icon={<IconAlertCircle size={16} />} color="red" variant="light">
           <Text size="sm" fw={600}>
-            Invocation {trace.status}
+            Invocation failed
           </Text>
-          {trace.error_message && (
-            <Text size="xs" mt={4}>
-              {trace.error_message}
-            </Text>
-          )}
+          <Text size="xs" mt={4}>
+            {error}
+          </Text>
         </Alert>
       )}
     </Stack>

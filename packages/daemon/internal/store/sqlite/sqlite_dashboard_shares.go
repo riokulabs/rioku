@@ -10,7 +10,7 @@ import (
 )
 
 // ---------------------------------------------------------------------------
-// Dashboard shares (stage-2 admin completion chunk 8)
+// Dashboard shares
 // ---------------------------------------------------------------------------
 
 func (t *tx) CreateDashboardShare(ctx context.Context, s *store.DashboardShare) (*store.DashboardShare, error) {

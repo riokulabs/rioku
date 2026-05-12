@@ -1,4 +1,4 @@
-// Owned by Plan 04 (ai) — types for the ai-traces resource surface.
+// Types for the ai-traces resource surface.
 
 import type { ID } from './common';
 
@@ -22,7 +22,6 @@ export interface AiTrace {
   latency_ms: number;
   status: 'success' | 'error' | 'timeout';
   readonly at: string;
-  // New in Plan 3:
   /** Provider + model used — redundant with agent but captured at trace time for historical fidelity. */
   provider_id: ID;
   model: string;

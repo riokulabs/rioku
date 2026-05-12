@@ -8,6 +8,8 @@ export {
   updateChannel,
   deleteChannel,
   testChannel,
+  useInvalidateChannels,
+  channelKeys,
 } from './api';
 
 export {

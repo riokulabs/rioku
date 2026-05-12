@@ -1,0 +1,791 @@
+# Stage-2 admin API completion chunk 8: Dashboards + Widgets + Versions + Sharing
+# + Import/Export + PromQL proxy.
+#
+# All routes mirror packages/daemon/internal/gateway/dashboards_routes.go and
+# packages/daemon/internal/gateway/promql_routes.go.
+#
+# Explicit list-response schemas everywhere — Plan 02 hit `data: void` from
+# missing schemas. Each response declares its concrete shape.
+
+components:
+  schemas:
+    Dashboard:
+      type: object
+      required: [id, tenantId, name, description, mode, scope, isDefault, sharedRoleIds, homeForUsers, variables, createdAt, updatedAt]
+      properties:
+        id: { type: string }
+        tenantId: { type: string }
+        name: { type: string }
+        description: { type: string }
+        mode:
+          type: string
+          enum: [metabase, advanced, ""]
+          description: "Builder mode — `metabase` (wizard) or `advanced` (raw query). Empty for legacy rows."
+        scope:
+          type: string
+          enum: [tenant, user, ""]
+          description: "Visibility scope. `tenant` is shared; `user` is private."
+        ownerUserId:
+          type: string
+          nullable: true
+        isDefault: { type: boolean }
+        sharedRoleIds:
+          type: array
+          items: { type: string }
+          description: "Role ids that the dashboard is shared with."
+        homeForUsers:
+          type: array
+          items: { type: string }
+          description: "User ids that have set this dashboard as their personal home."
+        variables:
+          type: array
+          items:
+            type: object
+            additionalProperties: true
+        createdAt: { type: string, format: date-time }
+        updatedAt: { type: string, format: date-time }
+
+    DashboardList:
+      type: object
+      required: [items, total]
+      properties:
+        items:
+          type: array
+          items: { $ref: "#/components/schemas/Dashboard" }
+        total: { type: integer }
+
+    Widget:
+      type: object
+      required: [id, dashboardId, kind, title, dataSource, config, lockedAdvanced, layout, createdAt, updatedAt]
+      properties:
+        id: { type: string }
+        dashboardId: { type: string }
+        kind:
+          type: string
+          description: "Widget kind. Built-ins: `line-chart`, `bar`, `single-stat`, `table`."
+        title: { type: string }
+        dataSource:
+          type: string
+          description: "Logical source: `promql`, `audit`, `notifications`, `traces`, etc."
+        config:
+          type: object
+          additionalProperties: true
+        rawQuery:
+          type: string
+          nullable: true
+          description: "Raw PromQL or other query when `lockedAdvanced` is true."
+        lockedAdvanced:
+          type: boolean
+          description: "True when the user flipped the widget to advanced mode and the wizard form is locked."
+        layout:
+          type: object
+          required: [x, y, w, h]
+          properties:
+            x: { type: integer }
+            y: { type: integer }
+            w: { type: integer }
+            h: { type: integer }
+        createdAt: { type: string, format: date-time }
+        updatedAt: { type: string, format: date-time }
+
+    WidgetList:
+      type: object
+      required: [items, total]
+      properties:
+        items:
+          type: array
+          items: { $ref: "#/components/schemas/Widget" }
+        total: { type: integer }
+
+    DashboardVersion:
+      type: object
+      required: [id, dashboardId, version, createdAt, note, snapshot]
+      properties:
+        id: { type: string }
+        dashboardId: { type: string }
+        version: { type: integer, format: int32 }
+        createdBy: { type: string, nullable: true }
+        createdAt: { type: string, format: date-time }
+        note: { type: string }
+        snapshot:
+          type: object
+          description: "Full export payload captured at snapshot time."
+          additionalProperties: true
+
+    DashboardVersionList:
+      type: object
+      required: [items, total]
+      properties:
+        items:
+          type: array
+          items: { $ref: "#/components/schemas/DashboardVersion" }
+        total: { type: integer }
+
+    DashboardShare:
+      type: object
+      required: [id, tenantId, dashboardId, roleId, createdAt]
+      properties:
+        id: { type: string }
+        tenantId: { type: string }
+        dashboardId: { type: string }
+        roleId: { type: string }
+        createdBy: { type: string }
+        createdAt: { type: string, format: date-time }
+        expiresAt: { type: string, format: date-time }
+        _links:
+          type: object
+          additionalProperties: true
+
+    DashboardShareList:
+      type: object
+      required: [items, total]
+      properties:
+        items:
+          type: array
+          items: { $ref: "#/components/schemas/DashboardShare" }
+        total: { type: integer }
+
+    DashboardExport:
+      type: object
+      required: [dashboard, widgets]
+      properties:
+        dashboard: { $ref: "#/components/schemas/Dashboard" }
+        widgets:
+          type: array
+          items: { $ref: "#/components/schemas/Widget" }
+
+    CreateDashboardRequest:
+      type: object
+      required: [name]
+      properties:
+        name: { type: string }
+        description: { type: string }
+        mode: { type: string }
+        scope: { type: string }
+        sharedRoleIds:
+          type: array
+          items: { type: string }
+        variables:
+          type: array
+          items:
+            type: object
+            additionalProperties: true
+
+    UpdateDashboardRequest:
+      type: object
+      properties:
+        name: { type: string }
+        description: { type: string }
+        mode: { type: string }
+        scope: { type: string }
+        sharedRoleIds:
+          type: array
+          items: { type: string }
+        variables:
+          type: array
+          items:
+            type: object
+            additionalProperties: true
+
+    CreateWidgetRequest:
+      type: object
+      required: [kind, title]
+      properties:
+        kind: { type: string }
+        title: { type: string }
+        dataSource: { type: string }
+        config:
+          type: object
+          additionalProperties: true
+        layout:
+          type: object
+          additionalProperties: true
+
+    UpdateWidgetRequest:
+      type: object
+      properties:
+        kind: { type: string }
+        title: { type: string }
+        dataSource: { type: string }
+        rawQuery: { type: string, nullable: true }
+        lockedAdvanced: { type: boolean }
+        config:
+          type: object
+          additionalProperties: true
+        layout:
+          type: object
+          additionalProperties: true
+
+    UpdateLayoutRequest:
+      type: object
+      required: [layouts]
+      properties:
+        layouts:
+          type: object
+          description: "Map of widget id → layout `{x,y,w,h}` object. Sent as a single bulk update after drag-drop reorder."
+          additionalProperties:
+            type: object
+            properties:
+              x: { type: integer }
+              y: { type: integer }
+              w: { type: integer }
+              h: { type: integer }
+
+    SnapshotRequest:
+      type: object
+      properties:
+        note: { type: string }
+
+    ShareDashboardRequest:
+      type: object
+      required: [roleId]
+      properties:
+        roleId: { type: string }
+        expiresAt:
+          type: string
+          format: date-time
+
+    PromQLQueryRequest:
+      type: object
+      required: [query]
+      properties:
+        query: { type: string, description: "PromQL expression. Tenant label injected server-side." }
+        time: { type: string, description: "RFC3339 or unix timestamp for instant query." }
+        start: { type: string, description: "Range query start." }
+        end: { type: string, description: "Range query end." }
+        step: { type: string, description: "Range query step (e.g. `30s`, `1m`)." }
+
+    PromQLQueryResponse:
+      type: object
+      description: "Prometheus HTTP API response, forwarded verbatim."
+      additionalProperties: true
+
+    WidgetQueryRequest:
+      type: object
+      required: [type]
+      description: |
+        Dashboard widget query body. The daemon dispatches to the
+        Prometheus endpoint matching `type`:
+
+        - `instant` → `/api/v1/query` (uses `expr`, optional `time`)
+        - `range`   → `/api/v1/query_range` (uses `expr`, `start`, `end`, `step`)
+        - `series`  → `/api/v1/series` (uses `match[]`, optional `start`/`end`)
+
+        Tenant isolation is enforced at the AST layer — every
+        VectorSelector / `match[]` selector is rewritten with
+        `tenant_id="<tenant>"` and selected bypass patterns
+        (label_replace targeting tenant_id, on/ignoring with tenant_id,
+        regex `__name__` matchers, mismatched explicit tenant_id) are
+        rejected with HTTP 400.
+      properties:
+        type:
+          type: string
+          enum: [instant, range, series]
+        expr:
+          type: string
+          description: "PromQL expression for instant/range queries."
+        time:
+          type: string
+          description: "Instant query timestamp (Prometheus-formatted)."
+        start:
+          type: string
+          description: "Range/series query window start."
+        end:
+          type: string
+          description: "Range/series query window end."
+        step:
+          type: string
+          description: "Range query step (e.g. `30s`, `1m`)."
+        match:
+          type: array
+          description: "Series query match[] selectors."
+          items: { type: string }
+
+    WidgetQueryResponse:
+      type: object
+      description: "Prometheus HTTP API response shape, forwarded verbatim with tenant-scoped data."
+      additionalProperties: true
+
+paths:
+  /api/v1/t/{tenant}/dashboards:
+    parameters:
+      - $ref: "#/components/parameters/Tenant"
+    get:
+      tags: [dashboards]
+      summary: List dashboards
+      operationId: listDashboards
+      responses:
+        "200":
+          description: ok
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/DashboardList" }
+    post:
+      tags: [dashboards]
+      summary: Create a dashboard
+      operationId: createDashboard
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/CreateDashboardRequest" }
+      responses:
+        "201":
+          description: created
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Dashboard" }
+    options:
+      responses: { "204": { description: no content } }
+
+  /api/v1/t/{tenant}/dashboards/{id}:
+    parameters:
+      - $ref: "#/components/parameters/Tenant"
+      - $ref: "#/components/parameters/ID"
+    get:
+      tags: [dashboards]
+      summary: Get a dashboard
+      operationId: getDashboard
+      responses:
+        "200":
+          description: ok
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Dashboard" }
+    put:
+      tags: [dashboards]
+      summary: Update a dashboard
+      operationId: updateDashboard
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/UpdateDashboardRequest" }
+      responses:
+        "200":
+          description: ok
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Dashboard" }
+    patch:
+      tags: [dashboards]
+      summary: Patch a dashboard
+      operationId: patchDashboard
+      requestBody:
+        required: true
+        content:
+          application/merge-patch+json:
+            schema: { $ref: "#/components/schemas/UpdateDashboardRequest" }
+      responses:
+        "200":
+          description: ok
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Dashboard" }
+    delete:
+      tags: [dashboards]
+      summary: Delete a dashboard
+      operationId: deleteDashboard
+      responses: { "204": { description: deleted } }
+    options:
+      responses: { "204": { description: no content } }
+
+  /api/v1/t/{tenant}/dashboards/{id}/set-default:
+    parameters:
+      - $ref: "#/components/parameters/Tenant"
+      - $ref: "#/components/parameters/ID"
+    post:
+      tags: [dashboards]
+      summary: Mark dashboard as the tenant default
+      operationId: setDefaultDashboard
+      responses:
+        "200":
+          description: ok
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Dashboard" }
+    options:
+      responses: { "204": { description: no content } }
+
+  /api/v1/t/{tenant}/dashboards/{id}/set-home:
+    parameters:
+      - $ref: "#/components/parameters/Tenant"
+      - $ref: "#/components/parameters/ID"
+    post:
+      tags: [dashboards]
+      summary: Set dashboard as the calling user's personal home
+      operationId: setDashboardHome
+      responses:
+        "200":
+          description: ok
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Dashboard" }
+    options:
+      responses: { "204": { description: no content } }
+
+  /api/v1/t/{tenant}/dashboards/{id}/share:
+    parameters:
+      - $ref: "#/components/parameters/Tenant"
+      - $ref: "#/components/parameters/ID"
+    post:
+      tags: [dashboards]
+      summary: Share a dashboard with a role
+      operationId: shareDashboard
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/ShareDashboardRequest" }
+      responses:
+        "201":
+          description: created
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/DashboardShare" }
+    options:
+      responses: { "204": { description: no content } }
+
+  /api/v1/t/{tenant}/dashboards/{id}/shares:
+    parameters:
+      - $ref: "#/components/parameters/Tenant"
+      - $ref: "#/components/parameters/ID"
+    get:
+      tags: [dashboards]
+      summary: List active dashboard shares
+      operationId: listDashboardShares
+      responses:
+        "200":
+          description: ok
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/DashboardShareList" }
+    options:
+      responses: { "204": { description: no content } }
+
+  /api/v1/t/{tenant}/dashboards/{id}/shares/{shareId}:
+    parameters:
+      - $ref: "#/components/parameters/Tenant"
+      - $ref: "#/components/parameters/ID"
+      - in: path
+        name: shareId
+        required: true
+        schema: { type: string }
+    delete:
+      tags: [dashboards]
+      summary: Revoke a dashboard share
+      operationId: deleteDashboardShare
+      responses: { "204": { description: revoked } }
+    options:
+      responses: { "204": { description: no content } }
+
+  /api/v1/t/{tenant}/dashboards/{id}/snapshot:
+    parameters:
+      - $ref: "#/components/parameters/Tenant"
+      - $ref: "#/components/parameters/ID"
+    post:
+      tags: [dashboards]
+      summary: Capture a versioned snapshot of the dashboard
+      operationId: snapshotDashboard
+      requestBody:
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/SnapshotRequest" }
+      responses:
+        "201":
+          description: created
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/DashboardVersion" }
+
+  /api/v1/t/{tenant}/dashboards/{id}/versions:
+    parameters:
+      - $ref: "#/components/parameters/Tenant"
+      - $ref: "#/components/parameters/ID"
+    get:
+      tags: [dashboards]
+      summary: List dashboard versions
+      operationId: listDashboardVersions
+      responses:
+        "200":
+          description: ok
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/DashboardVersionList" }
+
+  /api/v1/t/{tenant}/dashboards/versions/{vid}/restore:
+    parameters:
+      - $ref: "#/components/parameters/Tenant"
+      - in: path
+        name: vid
+        required: true
+        schema: { type: string }
+    post:
+      tags: [dashboards]
+      summary: Restore a dashboard from a captured version
+      operationId: restoreDashboardVersion
+      responses:
+        "200":
+          description: ok
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Dashboard" }
+
+  /api/v1/t/{tenant}/dashboards/{id}/export:
+    parameters:
+      - $ref: "#/components/parameters/Tenant"
+      - $ref: "#/components/parameters/ID"
+    get:
+      tags: [dashboards]
+      summary: Export a dashboard as JSON
+      operationId: exportDashboard
+      responses:
+        "200":
+          description: ok
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/DashboardExport" }
+
+  /api/v1/t/{tenant}/dashboards/import:
+    parameters:
+      - $ref: "#/components/parameters/Tenant"
+    post:
+      tags: [dashboards]
+      summary: Import a dashboard from a JSON export
+      operationId: importDashboard
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/DashboardExport" }
+      responses:
+        "201":
+          description: created
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Dashboard" }
+
+  /api/v1/t/{tenant}/dashboards/{id}/widgets:
+    parameters:
+      - $ref: "#/components/parameters/Tenant"
+      - $ref: "#/components/parameters/ID"
+    get:
+      tags: [widgets]
+      summary: List widgets for a dashboard
+      operationId: listWidgets
+      responses:
+        "200":
+          description: ok
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/WidgetList" }
+    post:
+      tags: [widgets]
+      summary: Add a widget to the dashboard
+      operationId: createWidget
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/CreateWidgetRequest" }
+      responses:
+        "201":
+          description: created
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Widget" }
+    options:
+      responses: { "204": { description: no content } }
+
+  /api/v1/t/{tenant}/dashboards/{id}/widgets/{wid}:
+    parameters:
+      - $ref: "#/components/parameters/Tenant"
+      - $ref: "#/components/parameters/ID"
+      - in: path
+        name: wid
+        required: true
+        schema: { type: string }
+    delete:
+      tags: [widgets]
+      summary: Remove a widget from a dashboard
+      operationId: deleteWidget
+      responses: { "204": { description: deleted } }
+    options:
+      responses: { "204": { description: no content } }
+
+  /api/v1/t/{tenant}/dashboards/{id}/layout:
+    parameters:
+      - $ref: "#/components/parameters/Tenant"
+      - $ref: "#/components/parameters/ID"
+    put:
+      tags: [widgets]
+      summary: Bulk update widget layouts after drag-drop reorder
+      operationId: updateDashboardLayout
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/UpdateLayoutRequest" }
+      responses: { "204": { description: layout applied } }
+
+  /api/v1/t/{tenant}/widgets/{id}:
+    parameters:
+      - $ref: "#/components/parameters/Tenant"
+      - $ref: "#/components/parameters/ID"
+    put:
+      tags: [widgets]
+      summary: Update a widget
+      operationId: updateWidget
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/UpdateWidgetRequest" }
+      responses:
+        "200":
+          description: ok
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Widget" }
+    patch:
+      tags: [widgets]
+      summary: Patch a widget
+      operationId: patchWidget
+      requestBody:
+        required: true
+        content:
+          application/merge-patch+json:
+            schema: { $ref: "#/components/schemas/UpdateWidgetRequest" }
+      responses:
+        "200":
+          description: ok
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Widget" }
+    options:
+      responses: { "204": { description: no content } }
+
+  /api/v1/t/{tenant}/widgets/{id}/flip-advanced:
+    parameters:
+      - $ref: "#/components/parameters/Tenant"
+      - $ref: "#/components/parameters/ID"
+    post:
+      tags: [widgets]
+      summary: Lock the widget into advanced (raw query) mode
+      operationId: flipWidgetAdvanced
+      responses:
+        "200":
+          description: ok
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Widget" }
+
+  /api/v1/t/{tenant}/widgets/{id}/flip-wizard:
+    parameters:
+      - $ref: "#/components/parameters/Tenant"
+      - $ref: "#/components/parameters/ID"
+    post:
+      tags: [widgets]
+      summary: Unlock the widget back to wizard (form) mode
+      operationId: flipWidgetWizard
+      responses:
+        "200":
+          description: ok
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Widget" }
+
+  /api/v1/t/{tenant}/promql/query:
+    parameters:
+      - $ref: "#/components/parameters/Tenant"
+    get:
+      tags: [promql]
+      summary: Run a PromQL query (instant or range)
+      operationId: queryPromQLGet
+      parameters:
+        - in: query
+          name: query
+          required: true
+          schema: { type: string }
+        - in: query
+          name: time
+          schema: { type: string }
+        - in: query
+          name: start
+          schema: { type: string }
+        - in: query
+          name: end
+          schema: { type: string }
+        - in: query
+          name: step
+          schema: { type: string }
+      responses:
+        "200":
+          description: ok
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/PromQLQueryResponse" }
+    post:
+      tags: [promql]
+      summary: Run a PromQL query (instant or range)
+      operationId: queryPromQL
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/PromQLQueryRequest" }
+      responses:
+        "200":
+          description: ok
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/PromQLQueryResponse" }
+
+  /api/v1/t/{tenant}/widgets/query:
+    parameters:
+      - $ref: "#/components/parameters/Tenant"
+    post:
+      tags: [widgets]
+      summary: Execute a dashboard widget query (instant / range / series)
+      description: |
+        Dashboard-builder query engine (#236, plan-16c). Reuses the
+        PromQL AST-injection pipeline so widget queries cannot leak
+        across tenants. Subject to a per-tenant token-bucket rate limit
+        (default 60 queries/minute/tenant; configurable via #237).
+      operationId: queryWidget
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/WidgetQueryRequest" }
+      responses:
+        "200":
+          description: ok
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/WidgetQueryResponse" }
+        "400":
+          description: |
+            Query rejected — malformed JSON, unknown query type, empty
+            expression / match[], or a tenant-isolation bypass pattern
+            (label_replace targeting tenant_id, regex __name__ matcher,
+            mismatched explicit tenant_id).
+          content:
+            application/problem+json:
+              schema:
+                type: object
+                additionalProperties: true
+        "429":
+          description: Per-tenant widget query rate limit exceeded.
+          content:
+            application/problem+json:
+              schema:
+                type: object
+                additionalProperties: true
+        "502":
+          description: Upstream Prometheus error.
+          content:
+            application/problem+json:
+              schema:
+                type: object
+                additionalProperties: true

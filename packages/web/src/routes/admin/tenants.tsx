@@ -4,7 +4,6 @@
  * Requires: admin:cross-tenant-write (tenant creation/deletion is a write operation).
  * Wrapped by AdminLayout via parent /admin route.
  *
- * spec §8.1 / Task 1d.78
  */
 import { createFileRoute } from '@tanstack/react-router';
 import { requirePermissions } from '@/hooks/use-before-load';

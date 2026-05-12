@@ -1,4 +1,4 @@
-// Package postgres — Settings config singletons (stage-2).
+// Package postgres — Settings config singletons.
 //
 // Per-tenant config rows: NetworkConfig, TenantAuthPolicy,
 // ObservabilityConfig, AuditRetentionConfig.

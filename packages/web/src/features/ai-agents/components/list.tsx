@@ -1,22 +1,26 @@
 /**
  * <AgentList> — DataTable list of AI agents for a tenant.
  *
- * Columns: name, provider (name + kind badge), model, tool count,
- * recent-traces count (last 24h), enabled Switch, actions.
+ * Backed by the real daemon (`useAgentList` returns adapted AiAgent records).
+ * Provider name lookup is via the real ai-providers feature.
  */
-import { useMemo, useState } from 'react';
+import { useMemo } from 'react';
 import { type ColumnDef } from '@tanstack/react-table';
-import { Badge, Text, Stack, Group, Menu, ActionIcon, Switch } from '@mantine/core';
+import { Text, Stack, Group, Menu, ActionIcon, Switch } from '@mantine/core';
 import { IconDots, IconPencil, IconTrash, IconRobot, IconPlayerPlay } from '@tabler/icons-react';
 import { DataTable } from '@/components/data-table';
 import { EmptyState } from '@/components/empty-state';
 import { ProviderKindBadge } from '@/features/ai-shared';
-import { useMockStore } from '@/api/mock-store';
-import { useAgentList, updateAgent } from '../api';
+import { useProviderList } from '@/features/ai-providers/api';
+import type { ProviderFilter } from '@/features/ai-providers/types';
+import { useAgentList, useUpdateAgent } from '../api';
+
+const EMPTY_PROVIDER_FILTER: ProviderFilter = { search: '', kinds: [] };
 import type { AiAgent, AgentFilter } from '../types';
 
 interface AgentListProps {
-  tenantId: string;
+  /** Tenant slug — passed straight to the daemon URL. */
+  tenant: string;
   filter: AgentFilter;
   onSelect: (agent: AiAgent) => void;
   onEdit: (agent: AiAgent) => void;
@@ -25,29 +29,21 @@ interface AgentListProps {
 }
 
 export function AgentList({
-  tenantId,
+  tenant,
   filter,
   onSelect,
   onEdit,
   onDelete,
   onInvoke,
 }: AgentListProps) {
-  const agents = useAgentList(tenantId, filter);
-  const providers = useMockStore((s) => s.aiProviders);
-  const traces = useMockStore((s) => s.aiTraces);
-
-  // Capture Date.now() once per mount — keeps the memo pure and stable.
-  const [nowMs] = useState<number>(() => Date.now());
-  const recentTraceCounts = useMemo(() => {
-    const cutoff = nowMs - 24 * 60 * 60 * 1000;
-    const counts: Record<string, number> = {};
-    for (const t of Object.values(traces)) {
-      if (new Date(t.at).getTime() >= cutoff) {
-        counts[t.agent_id] = (counts[t.agent_id] ?? 0) + 1;
-      }
-    }
-    return counts;
-  }, [traces, nowMs]);
+  const agents = useAgentList(tenant, filter);
+  const updateMut = useUpdateAgent(tenant);
+  const providerList = useProviderList(tenant, EMPTY_PROVIDER_FILTER);
+  const providers = useMemo(() => {
+    const m: Record<string, (typeof providerList)[number]> = {};
+    for (const p of providerList) m[p.id] = p;
+    return m;
+  }, [providerList]);
 
   const columns = useMemo<ColumnDef<AiAgent>[]>(
     () => [
@@ -77,11 +73,12 @@ export function AgentList({
         size: 200,
         accessorFn: (row) => row.provider_id,
         cell: ({ row }) => {
-          const p = providers[row.original.provider_id];
+          const a = row.original;
+          const p = providers[a.provider_id];
           if (!p) {
             return (
-              <Text size="xs" c="var(--mantine-color-gray-7)">
-                unknown
+              <Text size="xs" ff="monospace" c="var(--mantine-color-gray-7)">
+                {a.provider_id || 'unset'}
               </Text>
             );
           }
@@ -114,17 +111,6 @@ export function AgentList({
         cell: ({ getValue }) => <Text size="sm">{String(getValue<number>())}</Text>,
       },
       {
-        id: 'traces24h',
-        header: '24h traces',
-        size: 100,
-        accessorFn: (row) => recentTraceCounts[row.id] ?? 0,
-        cell: ({ getValue }) => (
-          <Badge size="xs" variant="light" color="gray">
-            {String(getValue<number>())}
-          </Badge>
-        ),
-      },
-      {
         id: 'enabled',
         header: 'Enabled',
         size: 100,
@@ -139,7 +125,10 @@ export function AgentList({
                 e.stopPropagation();
               }}
               onChange={(e) => {
-                void updateAgent(a.id, { enabled: e.currentTarget.checked });
+                updateMut.mutate({
+                  id: a.id,
+                  input: { enabled: e.currentTarget.checked },
+                });
               }}
             />
           );
@@ -200,7 +189,7 @@ export function AgentList({
         },
       },
     ],
-    [providers, recentTraceCounts, onEdit, onInvoke, onDelete],
+    [providers, onEdit, onInvoke, onDelete, updateMut],
   );
 
   return (

@@ -1,9 +1,9 @@
 /**
  * <PermissionSelector> tests.
  *
- * The component reads the permission catalog via usePermissionsCatalog(),
- * which in turn reads from useMockStore(). We mock useMockStore to avoid
- * Zustand persistence side-effects in tests.
+ * The component reads the permission catalog via `usePermissionsCatalog`
+ * (which now hits the daemon's `useListPermissions` hook). We mock the
+ * catalog hook so this suite remains a pure component-rendering test.
  */
 
 import { describe, it, expect, vi } from 'vitest';
@@ -12,7 +12,7 @@ import userEvent from '@testing-library/user-event';
 import { MantineProvider } from '@mantine/core';
 import { axe } from 'jest-axe';
 
-// ── Mock useMockStore ─────────────────────────────────────────────────────────
+// ─── Mock catalog ─────────────────────────────────────────────────────────────
 
 const BUILT_IN_PERM = {
   key: 'service:read',
@@ -32,27 +32,23 @@ const PLUGIN_DYNAMIC_PERM = {
   source: 'plugin-dynamic' as const,
 };
 
-const MOCK_PERMISSIONS = {
-  'service:read': BUILT_IN_PERM,
-  'com.acme.billing:invoice:read': PLUGIN_MANIFEST_PERM,
-  'com.acme.crm:contact:read': PLUGIN_DYNAMIC_PERM,
-};
-
-vi.mock('../../api/mock-store', () => ({
-  useMockStore: (selector: (s: { permissions: typeof MOCK_PERMISSIONS }) => unknown) =>
-    selector({ permissions: MOCK_PERMISSIONS }),
+vi.mock('../../hooks/use-permissions-catalog', () => ({
+  usePermissionsCatalog: () => ({
+    all: [BUILT_IN_PERM, PLUGIN_MANIFEST_PERM, PLUGIN_DYNAMIC_PERM],
+    groups: [
+      { label: 'Built-in', permissions: [BUILT_IN_PERM] },
+      { label: 'Plugin: com.acme.billing', permissions: [PLUGIN_MANIFEST_PERM] },
+      { label: 'Plugin: com.acme.crm', permissions: [PLUGIN_DYNAMIC_PERM] },
+    ],
+  }),
 }));
 
 // Import AFTER mocks
 import { PermissionSelector } from './index';
 
-// ─── Helpers ──────────────────────────────────────────────────────────────────
-
 function wrap(ui: React.ReactElement) {
   return render(<MantineProvider>{ui}</MantineProvider>);
 }
-
-// ─── Tests ────────────────────────────────────────────────────────────────────
 
 describe('<PermissionSelector>', () => {
   it('renders without crashing', () => {
@@ -62,11 +58,8 @@ describe('<PermissionSelector>', () => {
   it('shows built-in permissions in dropdown', async () => {
     const user = userEvent.setup();
     wrap(<PermissionSelector value={[]} onChange={vi.fn()} />);
-
-    // Open the dropdown
     const input = screen.getByRole('combobox');
     await user.click(input);
-
     await waitFor(() => {
       expect(screen.getByText('service:read')).toBeInTheDocument();
     });
@@ -75,10 +68,8 @@ describe('<PermissionSelector>', () => {
   it('shows plugin permissions in dropdown', async () => {
     const user = userEvent.setup();
     wrap(<PermissionSelector value={[]} onChange={vi.fn()} />);
-
     const input = screen.getByRole('combobox');
     await user.click(input);
-
     await waitFor(() => {
       expect(screen.getByText('com.acme.billing:invoice:read')).toBeInTheDocument();
     });
@@ -87,10 +78,8 @@ describe('<PermissionSelector>', () => {
   it('shows "dynamic" badge for plugin-dynamic source permissions', async () => {
     const user = userEvent.setup();
     wrap(<PermissionSelector value={[]} onChange={vi.fn()} />);
-
     const input = screen.getByRole('combobox');
     await user.click(input);
-
     await waitFor(() => {
       expect(screen.getByText('com.acme.crm:contact:read')).toBeInTheDocument();
       expect(screen.getByText('dynamic')).toBeInTheDocument();
@@ -102,10 +91,8 @@ describe('<PermissionSelector>', () => {
     wrap(
       <PermissionSelector value={[]} onChange={vi.fn()} excludePermissions={['service:read']} />,
     );
-
     const input = screen.getByRole('combobox');
     await user.click(input);
-
     await waitFor(() => {
       expect(screen.queryByText('service:read')).not.toBeInTheDocument();
     });
@@ -115,16 +102,12 @@ describe('<PermissionSelector>', () => {
     const handleChange = vi.fn();
     const user = userEvent.setup();
     wrap(<PermissionSelector value={[]} onChange={handleChange} />);
-
     const input = screen.getByRole('combobox');
     await user.click(input);
-
     await waitFor(() => {
       expect(screen.getByText('service:read')).toBeInTheDocument();
     });
-
     await user.click(screen.getByText('service:read'));
-
     expect(handleChange).toHaveBeenCalledWith(['service:read']);
   });
 

@@ -1,12 +1,15 @@
 /**
  * <ToolSelector> — Mantine MultiSelect wrapper for picking agent tools.
  *
- * Pulls all tools for the tenant from the mock store and lets the caller
- * bind the list of selected IDs.
+ * Pulls all tools for the tenant via the real ai-tools list endpoint and
+ * lets the caller bind the list of selected IDs.
  */
 import { useMemo } from 'react';
 import { MultiSelect } from '@mantine/core';
-import { useMockStore } from '@/api/mock-store';
+import { useToolList } from '@/features/ai-tools/api';
+import type { ToolFilter } from '@/features/ai-tools/types';
+
+const EMPTY_TOOL_FILTER: ToolFilter = { search: '', kinds: [] };
 
 interface ToolSelectorProps {
   tenantId: string;
@@ -23,15 +26,11 @@ export function ToolSelector({
   label = 'Tools',
   placeholder = 'Select tools…',
 }: ToolSelectorProps) {
-  const tools = useMockStore((s) => s.aiTools);
-  const options = useMemo(() => {
-    return Object.values(tools)
-      .filter((t) => t.tenant_id === tenantId)
-      .map((t) => ({
-        value: t.id,
-        label: `${t.name} · ${t.kind}`,
-      }));
-  }, [tools, tenantId]);
+  const tools = useToolList(tenantId, EMPTY_TOOL_FILTER);
+  const options = useMemo(
+    () => tools.map((t) => ({ value: t.id, label: `${t.name} · ${t.kind}` })),
+    [tools],
+  );
 
   return (
     <MultiSelect

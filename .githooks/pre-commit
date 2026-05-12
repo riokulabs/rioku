@@ -86,3 +86,24 @@ if [ -n "$STAGED_TS" ] && command -v pnpm &>/dev/null; then
     fi
   done
 fi
+
+# ── Stage-2 worktree shared-file warning (§8.4 file ownership) ────────────────
+# When committing inside a stage-2 plan worktree, warn (don't block) if any
+# staged file is in a known multi-plan-shared location. Hard enforcement
+# happens at PR review.
+if [[ "$PWD" =~ \.worktrees/stage2/(plan-[0-9]+[a-z]?-[a-z0-9-]+) ]]; then
+  PLAN="${BASH_REMATCH[1]}"
+  STAGED=$(git diff --cached --name-only)
+  WARNED=0
+  for f in $STAGED; do
+    case "$f" in
+      packages/web/src/api/mock-store/_internal.ts|packages/web/src/api/mock-seed/_internal.ts|packages/web/src/api/mock-store/index.ts|packages/web/src/api/mock-seed/index.ts|packages/web/src/api/resources/index.ts|packages/web/src/api/legacy-shim.ts)
+        echo "  ⚠ $f is a multi-plan-shared file — confirm $PLAN owns this edit per §8.4" >&2
+        WARNED=1
+        ;;
+    esac
+  done
+  if [ "$WARNED" -eq 1 ]; then
+    echo "  (warnings only; commit allowed. Hard enforcement at PR review.)" >&2
+  fi
+fi

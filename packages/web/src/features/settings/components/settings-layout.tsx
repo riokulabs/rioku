@@ -1,12 +1,3 @@
-/**
- * <SettingsLayout> — settings page with subnav sidebar.
- *
- * Uses ?section=<slug> query param to track active section.
- * Each section renders a placeholder <EmptyState> citing the plan that
- * will populate it.
- *
- * spec / Task 1d.79
- */
 import { useMemo, useState } from 'react';
 import { Box, Button, Group, Stack, Text, Title, useMatches } from '@mantine/core';
 import {
@@ -27,18 +18,20 @@ import { Link, useSearch, useNavigate } from '@tanstack/react-router';
 import type { Icon } from '@tabler/icons-react';
 import { EmptyState } from '@/components/empty-state';
 import { SettingsSearch } from './settings-search';
-import { useMockStore } from '@/api/mock-store';
-import { ProfileSection } from '../sections/profile';
-import { TenantSection } from '../sections/tenant';
-import { AuthenticationSection } from '../sections/authentication';
-import { NetworkSection } from '../sections/network';
-import { PkiSection } from '../sections/pki';
-import { TlsSection } from '../sections/tls';
-import { ObservabilitySection } from '../sections/observability';
-import { IntegrationsSection } from '../sections/integrations';
-import { PluginSettingsSection } from '../sections/plugin-settings';
-import { DangerZoneSection } from '../sections/danger-zone';
-import { NotificationsSection } from '../sections/notifications';
+import { useActiveTenantSlug } from '@/hooks/use-tenant';
+// Real-API section components (stage-2). These read/write directly
+// against the daemon via Orval-generated hooks. Mock-store-backed
+// `sections/*.tsx` were retired in plan 16a part 2.
+import { ProfileRealSection } from '../sections-real/profile-real';
+import { TenantRealSection } from '../sections-real/tenant-real';
+import { AuthPolicyRealSection } from '../sections-real/auth-policy-real';
+import { AuthSsoProvidersRealSection } from '../sections-real/auth-sso-providers-real';
+import { NetworkRealSection } from '../sections-real/network-real';
+import { PkiRealSection } from '../sections-real/pki-real';
+import { TlsRealSection } from '../sections-real/tls-real';
+import { ObservabilityRealSection } from '../sections-real/observability-real';
+import { IntegrationsRealSection } from '../sections-real/integrations-real';
+import { DangerZoneRealSection } from '../sections-real/danger-zone-real';
 
 // ─── Section definitions ──────────────────────────────────────────────────────
 
@@ -68,7 +61,16 @@ const SECTIONS: SettingsSection[] = [
  * <Section> component yet). These render a "Open <page>" anchor instead of
  * the placeholder EmptyState so users can jump straight into the implemented UI.
  */
-const SECTION_ROUTES: Record<string, { to: string; linkLabel: string }> = {};
+const SECTION_ROUTES: Record<string, { to: string; linkLabel: string }> = {
+  notifications: {
+    to: '/t/$tenant/settings/notifications',
+    linkLabel: 'Open notifications page',
+  },
+  plugins: {
+    to: '/t/$tenant/plugins',
+    linkLabel: 'Open plugins page',
+  },
+};
 
 // ─── Component ────────────────────────────────────────────────────────────────
 
@@ -87,13 +89,10 @@ export function SettingsLayout() {
   const [searchQuery, setSearchQuery] = useState('');
   const [focusedIndex, setFocusedIndex] = useState(0);
 
-  // Derive tenant slug from the active mock-store tenant — the layout is
-  // rendered inside a `/t/$tenant` tree, but the test harness stubs the router
-  // so we avoid `useParams()` here.
-  const tenantSlug = useMockStore((s) => {
-    const tenant = s.tenants[s.currentTenantId ?? ''];
-    return tenant?.slug ?? '';
-  });
+  // Derive tenant slug from the URL — the layout is rendered inside a
+  // `/t/$tenant` tree. `useActiveTenantSlug` reads the URL directly so the
+  // test harness's stubbed router doesn't have to provide `useParams()`.
+  const tenantSlug = useActiveTenantSlug() ?? '';
 
   const activeSlug =
     // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
@@ -173,27 +172,26 @@ export function SettingsLayout() {
             <>
               <Title order={3}>{activeSection.label}</Title>
               {activeSection.slug === 'profile' ? (
-                <ProfileSection />
+                <ProfileRealSection tenant={tenantSlug} />
               ) : activeSection.slug === 'tenant' ? (
-                <TenantSection />
+                <TenantRealSection tenant={tenantSlug} />
               ) : activeSection.slug === 'authentication' ? (
-                <AuthenticationSection />
-              ) : activeSection.slug === 'notifications' ? (
-                <NotificationsSection />
+                <Stack gap="xl">
+                  <AuthPolicyRealSection tenant={tenantSlug} />
+                  <AuthSsoProvidersRealSection tenant={tenantSlug} />
+                </Stack>
               ) : activeSection.slug === 'network' ? (
-                <NetworkSection />
+                <NetworkRealSection tenant={tenantSlug} />
               ) : activeSection.slug === 'pki' ? (
-                <PkiSection />
+                <PkiRealSection tenant={tenantSlug} />
               ) : activeSection.slug === 'tls' ? (
-                <TlsSection />
+                <TlsRealSection tenant={tenantSlug} />
               ) : activeSection.slug === 'observability' ? (
-                <ObservabilitySection />
+                <ObservabilityRealSection tenant={tenantSlug} />
               ) : activeSection.slug === 'integrations' ? (
-                <IntegrationsSection />
-              ) : activeSection.slug === 'plugins' ? (
-                <PluginSettingsSection />
+                <IntegrationsRealSection tenant={tenantSlug} />
               ) : activeSection.slug === 'danger-zone' ? (
-                <DangerZoneSection />
+                <DangerZoneRealSection tenant={tenantSlug} tenantSlug={tenantSlug} />
               ) : sectionRoute ? (
                 <Stack gap="sm" align="flex-start">
                   <Text size="sm">

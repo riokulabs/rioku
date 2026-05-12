@@ -1,8 +1,12 @@
-go 1.26.1
+go 1.26.3
+
+toolchain go1.26.3
 
 use (
 	./packages/build-service
 	./packages/daemon
 	./packages/plugins
 	./packages/proto/gen/go
+	./sandbox/tools/cert-gen
+	./sandbox/tools/seedgen
 )

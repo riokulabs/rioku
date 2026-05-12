@@ -1,0 +1,102 @@
+# Stage-2 plan-02 identity: super-admin impersonation lifecycle.
+#
+# Mirrors RegisterWebhooksClusterImpersonationRoutes in
+# packages/daemon/internal/gateway/webhooks_cluster_impersonation_routes.go.
+#
+# Cross-tenant resource — lives under /api/v1/admin/, not /t/{tenant}.
+# Requires user:impersonate permission to start/end/touch and
+# admin:cross-tenant-read to list.
+
+paths:
+  /api/v1/admin/impersonation:
+    get:
+      tags: [impersonation]
+      summary: List active impersonation sessions
+      operationId: listImpersonationSessions
+      responses:
+        "200":
+          description: ok
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  sessions:
+                    type: array
+                    items: { $ref: "#/components/schemas/ImpersonationSession" }
+    post:
+      tags: [impersonation]
+      summary: Start an impersonation session
+      operationId: startImpersonation
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [targetUserId, reason]
+              properties:
+                targetUserId: { type: string }
+                tenantId:
+                  type: string
+                  description: "Tenant id of the target user — required to disambiguate."
+                reason:
+                  type: string
+                  description: "Audit-grade reason for the impersonation; recorded in the audit log."
+                ticketRef:
+                  type: string
+                  description: "Optional support ticket / incident reference."
+                expiresIn:
+                  type: string
+                  description: "Go duration string. Default 1h."
+      responses:
+        "201":
+          description: started
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ImpersonationSession" }
+        "403": { description: not authorized to impersonate target }
+    options:
+      responses: { "204": { description: no content } }
+
+  /api/v1/admin/impersonation/{id}:
+    parameters:
+      - $ref: "#/components/parameters/ID"
+    delete:
+      tags: [impersonation]
+      summary: End an impersonation session
+      operationId: endImpersonation
+      responses: { "204": { description: ended } }
+    options:
+      responses: { "204": { description: no content } }
+
+  /api/v1/admin/impersonation/{id}/touch:
+    parameters:
+      - $ref: "#/components/parameters/ID"
+    post:
+      tags: [impersonation]
+      summary: Refresh the expiry timestamp on an active session
+      operationId: touchImpersonation
+      responses:
+        "200":
+          description: refreshed
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ImpersonationSession" }
+    options:
+      responses: { "204": { description: no content } }
+
+components:
+  schemas:
+    ImpersonationSession:
+      type: object
+      properties:
+        id: { type: string }
+        actorUserId: { type: string }
+        targetUserId: { type: string }
+        tenantId: { type: string }
+        reason: { type: string }
+        ticketRef: { type: string }
+        startedAt: { type: string, format: date-time }
+        expiresAt: { type: string, format: date-time }
+        endedAt: { type: string, format: date-time }

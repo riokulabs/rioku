@@ -5,8 +5,9 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
+import { http, HttpResponse } from 'msw';
 import { renderWithProviders } from '@/test/render';
-import { useMockStore } from '@/api/mock-store';
+import { server } from '@/test/msw-server';
 import { ImpersonationEntryForm } from '../components/entry-form';
 
 // ─── Router mock ──────────────────────────────────────────────────────────────
@@ -40,57 +41,119 @@ vi.mock('@/hooks/use-impersonation', () => ({
   }),
 }));
 
+// ─── Real-API mode flag — flipped per-test ──────────────────────────────────
+
+const realApiMock = vi.hoisted(() => ({ value: false }));
+vi.mock('@/api/mode', () => ({
+  isRealApi: () => realApiMock.value,
+  useMocks: () => !realApiMock.value,
+}));
+
+// ─── Active-impersonation holder mock ────────────────────────────────────────
+
+const setActiveImp = vi.fn();
+vi.mock('@/api/active-impersonation', () => ({
+  setActiveImpersonationId: (id: string | null) => {
+    setActiveImp(id);
+  },
+  getActiveImpersonationId: () => null,
+}));
+
+// ─── Admin-tenants list mock — populates the Target tenant Select ───────────
+
+vi.mock('@/api/generated/admin/admin', () => ({
+  useListAdminTenants: () => ({
+    data: {
+      data: {
+        items: [
+          { id: 'tenant-acme', slug: 'tenant-acme', name: 'Acme Corp' },
+          { id: 'tenant-beta', slug: 'tenant-beta', name: 'Beta Workspace' },
+        ],
+      },
+    },
+    isLoading: false,
+  }),
+}));
+
+// ─── Generated impersonation client mock ────────────────────────────────────
+
+const mockStartMutate = vi.fn().mockResolvedValue({
+  data: { id: 'imp-daemon-001' },
+  status: 201,
+});
+vi.mock('../realApi', () => ({
+  useStartImpersonation: () => ({
+    mutateAsync: mockStartMutate,
+    isPending: false,
+  }),
+  getListImpersonationSessionsQueryKey: () => ['/api/v1/admin/impersonation'],
+  // Other re-exports — present for symmetry. Not used by the entry form.
+  useEndImpersonation: () => ({ mutateAsync: vi.fn(), isPending: false }),
+  useTouchImpersonation: () => ({ mutateAsync: vi.fn(), isPending: false }),
+  useListImpersonationSessions: () => ({ data: undefined }),
+}));
+
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
-function seedStore() {
-  useMockStore.getState().reset();
-  const store = useMockStore.getState();
+const TENANT_ID = 'tenant-acme';
 
-  store.addEntity('tenants', {
-    id: 'tenant-acme',
-    slug: 'acme',
-    name: 'Acme Corp',
-    accent: '#22c55e',
-    plan: 'enterprise',
-    url_mode: 'path',
-    created_at: new Date().toISOString(),
-    updated_at: new Date().toISOString(),
-  });
+/**
+ * Pick a tenant in the Mantine `<Select>` Target tenant field. Mantine's
+ * Combobox renders options as divs with `data-combobox-option` rather
+ * than `role="option"` (jsdom-flavoured query), so use the option's
+ * label text instead of getByRole. The Select opens on focus; type the
+ * tenant slug to filter, then commit with Enter.
+ */
+async function selectTenant(user: ReturnType<typeof userEvent.setup>) {
+  const [combobox] = screen.getAllByLabelText(/target tenant/i);
+  if (!combobox) throw new Error('target tenant combobox not found');
+  await user.click(combobox);
+  await user.keyboard('tenant-acme');
+  // Mock returns slug `tenant-acme` + name `Acme Corp` → label is
+  // `Acme Corp (tenant-acme)`. Filtering should leave one match.
+  const option = await screen.findByText(/Acme Corp \(tenant-acme\)/i);
+  await user.click(option);
+}
 
-  store.addEntity('users', {
-    id: 'user-alice',
-    email: 'alice@acme.com',
-    name: 'Alice Chen',
-    disabled: false,
-    totp_enabled: false,
-    totp_enrolled: false,
-    timezone: 'America/New_York',
-    locale: 'en',
-    reduced_motion: false,
-    notification_preferences: { email: true, in_app: true, categories_muted: [] },
-    created_at: new Date().toISOString(),
-    updated_at: new Date().toISOString(),
-  });
-
-  store.addEntity('memberships', {
-    id: 'mem-alice',
-    tenant_id: 'tenant-acme',
-    user_id: 'user-alice',
-    role_ids: [],
-    state: 'active',
-    invited_at: new Date().toISOString(),
-  });
-
-  useMockStore.setState({ currentUserId: 'user-admin', currentTenantId: 'tenant-acme' });
+/**
+ * Stub the daemon `GET /api/v1/t/{tenant}/users` response so the user-picker
+ * has data once a tenant id is entered. Tests that don't fill in the tenant
+ * field never trigger the request.
+ */
+function seedUsersHandler() {
+  server.use(
+    http.get(`*/api/v1/t/${TENANT_ID}/users`, () =>
+      HttpResponse.json({
+        users: [
+          {
+            id: 'user-alice',
+            email: 'alice@acme.com',
+            name: 'Alice Chen',
+            disabled: false,
+            tenantId: TENANT_ID,
+            totpEnabled: false,
+            totpEnrolled: false,
+            forcePasswordChange: false,
+            createdAt: '2025-01-01T00:00:00Z',
+            updatedAt: '2025-01-01T00:00:00Z',
+          },
+        ],
+      }),
+    ),
+  );
 }
 
 // ─── Tests ────────────────────────────────────────────────────────────────────
 
 describe('ImpersonationEntryForm', () => {
   beforeEach(() => {
-    seedStore();
+    seedUsersHandler();
     mockEntry.mockReset();
     mockEntry.mockResolvedValue(undefined);
+    mockStartMutate.mockReset();
+    mockStartMutate.mockResolvedValue({ data: { id: 'imp-daemon-001' }, status: 201 });
+    setActiveImp.mockReset();
+    realApiMock.value = false;
   });
 
   it('renders all required fields', () => {
@@ -172,15 +235,7 @@ describe('ImpersonationEntryForm', () => {
     const user = userEvent.setup();
     renderWithProviders(<ImpersonationEntryForm />);
 
-    // Select tenant (opens combobox) — use first match since label resolves multiple elements
-    const [tenantSelect] = screen.getAllByLabelText(/target tenant/i);
-    if (!tenantSelect) throw new Error('tenant select not found');
-    await user.click(tenantSelect);
-
-    await waitFor(() => {
-      expect(screen.getByText(/Acme Corp/i)).toBeDefined();
-    });
-    await user.click(screen.getByText(/Acme Corp/i));
+    await selectTenant(user);
 
     // Fill reason
     const [reasonInput] = screen.getAllByLabelText(/reason/i);
@@ -199,13 +254,71 @@ describe('ImpersonationEntryForm', () => {
     await waitFor(() => {
       expect(mockEntry).toHaveBeenCalledWith(
         expect.objectContaining({
-          tenant_id: 'tenant-acme',
+          tenant_id: TENANT_ID,
           reason: 'Investigating support ticket about role assignments',
           totpCode: '123456',
           profile: 'minimal',
         }),
       );
     });
+  });
+
+  it('does NOT call the daemon start mutation in mock-API mode', async () => {
+    realApiMock.value = false;
+    const user = userEvent.setup();
+    renderWithProviders(<ImpersonationEntryForm />);
+
+    await selectTenant(user);
+
+    const [reasonInput] = screen.getAllByLabelText(/reason/i);
+    if (!reasonInput) throw new Error('reason input not found');
+    await user.type(reasonInput, 'Investigating support ticket about role assignments');
+
+    const [totpInput] = screen.getAllByLabelText(/totp code/i);
+    if (!totpInput) throw new Error('totp input not found');
+    await user.type(totpInput, '123456');
+
+    const submitBtn = screen.getByRole('button', { name: /start impersonation/i });
+    await user.click(submitBtn);
+
+    await waitFor(() => {
+      expect(mockEntry).toHaveBeenCalled();
+    });
+    expect(mockStartMutate).not.toHaveBeenCalled();
+    expect(setActiveImp).not.toHaveBeenCalled();
+  });
+
+  it('calls the daemon start mutation in real-API mode with the wire body shape', async () => {
+    realApiMock.value = true;
+    const user = userEvent.setup();
+    renderWithProviders(<ImpersonationEntryForm />);
+
+    await selectTenant(user);
+
+    const [reasonInput] = screen.getAllByLabelText(/reason/i);
+    if (!reasonInput) throw new Error('reason input not found');
+    await user.type(reasonInput, 'Investigating support ticket about role assignments');
+
+    const [totpInput] = screen.getAllByLabelText(/totp code/i);
+    if (!totpInput) throw new Error('totp input not found');
+    await user.type(totpInput, '123456');
+
+    const submitBtn = screen.getByRole('button', { name: /start impersonation/i });
+    await user.click(submitBtn);
+
+    await waitFor(() => {
+      expect(mockStartMutate).toHaveBeenCalled();
+    });
+    const callArg = mockStartMutate.mock.calls[0]?.[0] as
+      | { data: { tenantId: string; targetUserId: string; reason: string } }
+      | undefined;
+    expect(callArg?.data.tenantId).toBe(TENANT_ID);
+    expect(callArg?.data.targetUserId).toBe('');
+    expect(callArg?.data.reason).toBe('Investigating support ticket about role assignments');
+    // Local entry() still called for the audit + local mirror.
+    expect(mockEntry).toHaveBeenCalled();
+    // Active-impersonation holder was updated with the daemon-issued id.
+    expect(setActiveImp).toHaveBeenCalledWith('imp-daemon-001');
   });
 
   it('shows valid ticketRef as URL', async () => {

@@ -1,15 +1,21 @@
 /**
  * <TotpRecoveryForm> — backup-code login.
- * Task 1e.87
+ *
+ * Calls `verifyBackupCode(code)` which routes through `/auth/login` with the
+ * code in the totpCode field; daemon's tryBackupCode burns the matching code.
+ *
+ * Plan 01 — stage 2 wiring.
  */
 import { useState } from 'react';
 import { Stack, TextInput, Button, Alert, Anchor, Text, Notification } from '@mantine/core';
 import { useForm, schemaResolver } from '@mantine/form';
 import { useNavigate } from '@tanstack/react-router';
+import { useQueryClient } from '@tanstack/react-query';
 import { IconAlertCircle, IconCheck } from '@tabler/icons-react';
 import { verifyBackupCode } from '../api';
 import { backupCodeSchema, type BackupCodeFormValues } from '../schemas';
 import { consumeReturnUrl } from '@/api/auth-failure';
+import { currentUserQueryKey } from '../use-current-user';
 
 interface TotpRecoveryFormProps {
   returnUrl?: string | undefined;
@@ -17,9 +23,10 @@ interface TotpRecoveryFormProps {
 
 export function TotpRecoveryForm({ returnUrl }: TotpRecoveryFormProps) {
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [successInfo, setSuccessInfo] = useState<{ remaining: number } | null>(null);
+  const [success, setSuccess] = useState(false);
 
   const form = useForm<BackupCodeFormValues>({
     validate: schemaResolver(backupCodeSchema, { sync: true }),
@@ -29,7 +36,7 @@ export function TotpRecoveryForm({ returnUrl }: TotpRecoveryFormProps) {
   async function handleSubmit(values: BackupCodeFormValues) {
     setSubmitting(true);
     setError(null);
-    setSuccessInfo(null);
+    setSuccess(false);
 
     try {
       const result = await verifyBackupCode(values.code.trim().toUpperCase());
@@ -39,15 +46,12 @@ export function TotpRecoveryForm({ returnUrl }: TotpRecoveryFormProps) {
         return;
       }
 
-      // Show remaining count briefly, then navigate.
-      setSuccessInfo({ remaining: result.remaining });
-
-      await new Promise<void>((resolve) => setTimeout(resolve, 1500));
+      setSuccess(true);
+      await queryClient.invalidateQueries({ queryKey: currentUserQueryKey });
+      await new Promise<void>((resolve) => setTimeout(resolve, 1200));
 
       const saved = consumeReturnUrl();
-      // Fall back to /tenants so multi-tenant users can choose their context.
-      // TODO(stage-2): subdomain routing may change this default destination.
-      const dest = saved ?? returnUrl ?? '/tenants';
+      const dest = saved ?? returnUrl ?? '/';
       await navigate({ to: dest });
     } finally {
       setSubmitting(false);
@@ -68,23 +72,19 @@ export function TotpRecoveryForm({ returnUrl }: TotpRecoveryFormProps) {
           </Alert>
         )}
 
-        {successInfo && (
+        {success && (
           <Notification
             icon={<IconCheck size={18} />}
             color="green"
-            title="Backup code used"
+            title="Backup code accepted"
             withCloseButton={false}
             data-testid="recovery-success"
           >
-            1 backup code used — {successInfo.remaining} code
-            {successInfo.remaining === 1 ? '' : 's'} remaining. Consider regenerating your backup
-            codes in Security settings.
+            Signing you in…
           </Notification>
         )}
 
-        <Text size="sm">
-          Enter one of your 10-character backup codes. Each code can only be used once.
-        </Text>
+        <Text size="sm">Enter one of your backup codes. Each code can only be used once.</Text>
 
         <TextInput
           label="Backup code"
@@ -97,7 +97,7 @@ export function TotpRecoveryForm({ returnUrl }: TotpRecoveryFormProps) {
           {...form.getInputProps('code')}
         />
 
-        <Button type="submit" loading={submitting} fullWidth>
+        <Button type="submit" loading={submitting} fullWidth data-testid="recovery-submit">
           Use backup code
         </Button>
 

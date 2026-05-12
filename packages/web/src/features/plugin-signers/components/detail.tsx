@@ -42,7 +42,8 @@ import {
   IconShieldLock,
 } from '@tabler/icons-react';
 import dayjs from 'dayjs';
-import { useMockStore } from '@/api/mock-store';
+import { useAuditList } from '@/features/audit/api';
+import type { AuditFilter } from '@/features/audit/types';
 import { notify } from '@/hooks/use-notify';
 import { usePermission } from '@/hooks/use-permission';
 import {
@@ -55,7 +56,25 @@ import {
 import { SignerInUseError } from '../types';
 import type { PluginSigner } from '../types';
 
+const SIGNER_AUDIT_FILTER: AuditFilter = {
+  actions: [],
+  outcomes: [],
+  resource_types: ['plugin-signer'],
+  tiers: [],
+  date_from: null,
+  date_to: null,
+  actor_handles: [],
+  resource_id_handles: [],
+  search: '',
+};
+
 interface SignerDetailProps {
+  /**
+   * Tenant slug used to scope audit queries. Pass an empty string for
+   * the global super-admin view; the audit feed is then empty until
+   * cross-tenant audit access lands.
+   */
+  tenantId: string;
   signerId: string;
   onClose: () => void;
   onEdit?: () => void;
@@ -70,10 +89,10 @@ const STATUS_CONFIG: Record<
   pending: { color: 'gray', Icon: IconClock, label: 'pending' },
 };
 
-export function SignerDetail({ signerId, onClose, onEdit }: SignerDetailProps) {
+export function SignerDetail({ tenantId, signerId, onClose, onEdit }: SignerDetailProps) {
   const signer = useSignerDetail(signerId);
   const plugins = useSignerPlugins(signerId);
-  const auditEntries = useMockStore((s) => s.audit);
+  const auditEntries = useAuditList(tenantId, SIGNER_AUDIT_FILTER);
   const canWrite = usePermission('plugin-signer:write');
   const canDelete = usePermission('plugin-signer:delete');
 

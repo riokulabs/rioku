@@ -9,7 +9,6 @@
  * These facades operate on the local in-memory registry; the mock-seed
  * syncs built-ins into the Zustand store at boot.
  *
- * spec §7.1, §9.6.1
  */
 
 import type { Permission } from '../api/resources';
@@ -18,7 +17,7 @@ import type { Permission } from '../api/resources';
 
 export type { Permission };
 
-// ─── Reserved prefixes (spec §9.6.1 rule 3) ──────────────────────────────────
+// ─── Reserved prefixes ──────────────────────────────────
 
 export const RESERVED_PREFIXES: readonly string[] = [
   'admin:',
@@ -57,7 +56,7 @@ export const RESERVED_PREFIXES: readonly string[] = [
   'cluster:',
 ] as const;
 
-// ─── Built-in permission catalog (spec §7.1) ──────────────────────────────────
+// ─── Built-in permission catalog ──────────────────────────────────
 
 export const BUILT_IN_PERMISSIONS: Permission[] = [
   // service:*
@@ -224,7 +223,7 @@ export const BUILT_IN_PERMISSIONS: Permission[] = [
     default_roles: ['admin'],
   },
 
-  // plugin-signer:* (Plan 6)
+  // plugin-signer:*
   {
     key: 'plugin-signer:read',
     description: 'View plugin signer allow-list entries',
@@ -466,6 +465,12 @@ export const BUILT_IN_PERMISSIONS: Permission[] = [
     source: 'built-in',
     default_roles: ['admin'],
   },
+  {
+    key: 'ai-tool:invoke',
+    description: 'Invoke (test/run) AI tools',
+    source: 'built-in',
+    default_roles: ['ops', 'admin'],
+  },
 
   // ai-trace:*
   {
@@ -547,7 +552,7 @@ export const BUILT_IN_PERMISSIONS: Permission[] = [
     default_roles: ['admin'],
   },
 
-  // notification:* (Plan 7 — inbox read + own-item manage)
+  // notification:* (inbox read + own-item manage)
   {
     key: 'notification:read',
     description: 'View notifications in the inbox',
@@ -561,7 +566,7 @@ export const BUILT_IN_PERMISSIONS: Permission[] = [
     default_roles: ['viewer', 'ops', 'admin'],
   },
 
-  // notification-channel:* (Plan 7 — outbound channel CRUD + test)
+  // notification-channel:* (outbound channel CRUD + test)
   {
     key: 'notification-channel:read',
     description: 'View notification delivery channels and their configuration',
@@ -581,7 +586,7 @@ export const BUILT_IN_PERMISSIONS: Permission[] = [
     default_roles: ['ops', 'admin'],
   },
 
-  // notification-routing:* (Plan 7 — routing rules)
+  // notification-routing:* (routing rules)
   {
     key: 'notification-routing:read',
     description: 'View notification routing rules',
@@ -595,7 +600,7 @@ export const BUILT_IN_PERMISSIONS: Permission[] = [
     default_roles: ['ops', 'admin'],
   },
 
-  // notification-log:* (Plan 7 — delivery log, read-only)
+  // notification-log:* (delivery log, read-only)
   {
     key: 'notification-log:read',
     description: 'View the notification delivery log',
@@ -603,7 +608,7 @@ export const BUILT_IN_PERMISSIONS: Permission[] = [
     default_roles: ['viewer', 'ops', 'admin'],
   },
 
-  // notification:admin (Plan 8 — tenant-scoped notification config)
+  // notification:admin (tenant-scoped notification config)
   {
     key: 'notification:admin',
     description:
@@ -612,7 +617,7 @@ export const BUILT_IN_PERMISSIONS: Permission[] = [
     default_roles: ['admin'],
   },
 
-  // network:* (Plan 8b — daemon network configuration)
+  // network:* (daemon network configuration)
   {
     key: 'network:read',
     description: 'View daemon network configuration',
@@ -626,7 +631,7 @@ export const BUILT_IN_PERMISSIONS: Permission[] = [
     default_roles: ['admin'],
   },
 
-  // pki:* (Plan 8b.7 — Certificate Authorities and enrollments)
+  // pki:* (Certificate Authorities and enrollments)
   {
     key: 'pki:read',
     description: 'View Certificate Authorities and enrollments',
@@ -640,7 +645,7 @@ export const BUILT_IN_PERMISSIONS: Permission[] = [
     default_roles: ['admin'],
   },
 
-  // tls:* (Plan 8b.8 — TLS certificates, ACME config, cipher suites)
+  // tls:* (TLS certificates, ACME config, cipher suites)
   {
     key: 'tls:read',
     description: 'View TLS certificates and ACME configuration',
@@ -654,7 +659,7 @@ export const BUILT_IN_PERMISSIONS: Permission[] = [
     default_roles: ['admin'],
   },
 
-  // metrics:* (Plan 8b.9 — Prometheus scrape endpoint config)
+  // metrics:* (Prometheus scrape endpoint config)
   {
     key: 'metrics:read',
     description: 'View metrics scrape config',
@@ -668,7 +673,7 @@ export const BUILT_IN_PERMISSIONS: Permission[] = [
     default_roles: ['admin'],
   },
 
-  // logs:* (Plan 8b.9 — log levels and rotation config)
+  // logs:* (log levels and rotation config)
   {
     key: 'logs:read',
     description: 'View log levels and rotation config',
@@ -682,7 +687,7 @@ export const BUILT_IN_PERMISSIONS: Permission[] = [
     default_roles: ['admin'],
   },
 
-  // traces:* (Plan 8b.9 — trace retention and sampling config)
+  // traces:* (trace retention and sampling config)
   {
     key: 'traces:read',
     description: 'View trace retention and sampling config',
@@ -696,7 +701,7 @@ export const BUILT_IN_PERMISSIONS: Permission[] = [
     default_roles: ['admin'],
   },
 
-  // integrations:* (Plan 8c.11 — external OAuth connectors + inbound webhooks)
+  // integrations:* (external OAuth connectors + inbound webhooks)
   {
     key: 'integrations:read',
     description: 'View external integrations (OAuth connectors, inbound webhooks)',
@@ -710,7 +715,7 @@ export const BUILT_IN_PERMISSIONS: Permission[] = [
     default_roles: ['admin'],
   },
 
-  // cluster:* (Plan 10 — cluster management)
+  // cluster:* (cluster management)
   {
     key: 'cluster:read',
     description: 'View cluster nodes and their status',
@@ -730,7 +735,7 @@ export const BUILT_IN_PERMISSIONS: Permission[] = [
     default_roles: ['admin'],
   },
 
-  // tenant danger-zone (Plan 8c.13 — hard reset, export, delete)
+  // tenant danger-zone (hard reset, export, delete)
   {
     key: 'tenant:hard-reset',
     description: 'Hard-reset all data for the current tenant (triple-confirm)',
@@ -770,7 +775,7 @@ export function isReservedPermission(key: string): boolean {
 /**
  * Validate that a plugin-declared permission key is well-formed.
  *
- * Rules (spec §9.6.1):
+ * Rules:
  *   1. Must contain at least one ':' (namespace separator).
  *   2. Must contain at least one '.' before the first ':' (reverse-DNS namespace).
  *   3. Must NOT start with a reserved prefix.

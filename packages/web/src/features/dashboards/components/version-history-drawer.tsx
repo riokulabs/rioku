@@ -57,7 +57,8 @@ import dayjs from 'dayjs';
 import relativeTime from 'dayjs/plugin/relativeTime';
 import { notify } from '@/hooks/use-notify';
 import { usePermission } from '@/hooks/use-permission';
-import { useMockStore } from '@/api/mock-store';
+import { useUserList } from '@/features/security/users/api';
+import { useActiveTenantSlug } from '@/hooks/use-tenant';
 import type { Dashboard, DashboardVersion } from '@/api/resources';
 import { restoreDashboardVersion, useDashboardVersions } from '../api';
 
@@ -108,7 +109,13 @@ export function VersionHistoryDrawer({
 }: VersionHistoryDrawerProps) {
   const canWrite = usePermission('dashboard:write');
   const versions = useDashboardVersions(dashboard.id);
-  const users = useMockStore((s) => s.users);
+  const tenantId = useActiveTenantSlug() ?? '';
+  const userList = useUserList(tenantId, { search: '', status: 'all' });
+  const users = useMemo(() => {
+    const m: Record<string, { name: string }> = {};
+    for (const { user } of userList.items) m[user.id] = { name: user.name };
+    return m;
+  }, [userList.items]);
 
   // Up to two version ids (versionA is "older-clicked", versionB is "newer-clicked").
   const [selected, setSelected] = useState<string[]>([]);

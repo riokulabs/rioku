@@ -1,4 +1,4 @@
-// Package gateway: Middleware REST endpoints (stage-2).
+// Package gateway: Middleware REST endpoints.
 //
 // "Middleware" here means a per-tenant reusable handler-stack
 // component (rate-limit, auth, transform, cors, cache, logging,
@@ -155,6 +155,7 @@ func handleCreateMiddleware(st store.Driver) http.HandlerFunc {
 			writeInternalError(w, r, "commit")
 			return
 		}
+		_ = triggerCaddyReload(r.Context(), "middleware.create")
 		writeJSON(w, http.StatusCreated, middlewareToResponse(created))
 	}
 }
@@ -234,6 +235,7 @@ func handleUpdateMiddleware(st store.Driver) http.HandlerFunc {
 			writeInternalError(w, r, "commit")
 			return
 		}
+		_ = triggerCaddyReload(r.Context(), "middleware.update")
 		writeJSON(w, http.StatusOK, middlewareToResponse(updated))
 	}
 }
@@ -264,6 +266,7 @@ func handleDeleteMiddleware(st store.Driver) http.HandlerFunc {
 			writeInternalError(w, r, "commit")
 			return
 		}
+		_ = triggerCaddyReload(r.Context(), "middleware.delete")
 		w.WriteHeader(http.StatusNoContent)
 	}
 }

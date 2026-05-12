@@ -152,8 +152,8 @@ func handleSettingsCaddy(cfg *config.Config) http.HandlerFunc {
 
 // ─── PATCH handlers ─────────────────────────────────────────────────────────
 //
-// Stage-1 PATCH targets a curated subset of fields that downstream code
-// reads on every request — log level (LevelVar.Set is atomic), auth
+// PATCH targets a curated subset of fields that downstream code reads on
+// every request — log level (LevelVar.Set is atomic), auth
 // password/lockout/rate-limit policies, and trace sampling rate.
 //
 // Restart-bound fields (listen addresses, store driver, Caddy binary path)

@@ -1,4 +1,4 @@
-// Package gateway: Webhooks + Cluster enrollment + Impersonation REST (stage-2).
+// Package gateway: Webhooks + Cluster enrollment + Impersonation REST.
 //
 // Routes:
 //
@@ -481,7 +481,13 @@ func handleListImpersonationSessions(st store.Driver) http.HandlerFunc {
 		for _, s := range items {
 			out = append(out, impersonationToResponse(s))
 		}
-		writeJSON(w, http.StatusOK, map[string]any{"items": out, "total": len(out)})
+		// OpenAPI: ListImpersonationSessions200 = `{sessions: [...]}`.
+		// Emitting `{items}` made the SPA's `useImpersonationSession`
+		// read `data.data.sessions → undefined → []`, which kept the
+		// banner permanently hidden even with a live session.
+		writeJSON(w, http.StatusOK, map[string]any{
+			"sessions": out,
+		})
 	}
 }
 

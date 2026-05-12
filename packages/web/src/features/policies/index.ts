@@ -10,11 +10,14 @@
  * "Policy"-prefixed names that the API-management UI can adopt without
  * duplicating the resource layer.
  *
- * Plus one new helper: `usePoliciesAttachedToRoute(routeId)` which reads
- * `state.routes[routeId].policies` and resolves the AccessPolicy records.
+ * Plus one helper: `usePoliciesAttachedToRoute(tenantId, routeId)` which
+ * fetches the route via the real daemon endpoint and resolves its
+ * `policies` array against the access-policy list.
  */
-import { useMockStore } from '@/api/mock-store';
+import { useMemo } from 'react';
 import type { AccessPolicy } from '@/api/resources';
+import { useAccessPolicyList } from '@/features/security/access-policies';
+import { useRouteDetailReal } from '@/features/routes/api.stage2';
 
 export {
   useAccessPolicyList as usePolicyList,
@@ -28,21 +31,23 @@ export type { AccessPolicy as Policy } from '@/api/resources';
 export type { AccessPolicyPayload as PolicyPayload } from '@/features/security/access-policies';
 
 /**
- * Returns the AccessPolicy records attached to a route.
- * Selectors pull raw records; the resolve-to-array happens in the hook body
- * so the returned reference is stable between re-renders unless the route's
- * `policies` array or the underlying AccessPolicy map changes.
+ * Returns the AccessPolicy records attached to a route. Resolves
+ * route → policy IDs → AccessPolicy records via the tenant-scoped real
+ * endpoints. Filters out unresolved IDs.
  */
-export function usePoliciesAttachedToRoute(routeId: string): AccessPolicy[] {
-  const routes = useMockStore((s) => s.routes);
-  const policies = useMockStore((s) => s.accessPolicies);
-  const route = routes[routeId];
-  if (!route) return [];
+export function usePoliciesAttachedToRoute(tenantId: string, routeId: string): AccessPolicy[] {
+  const route = useRouteDetailReal(tenantId, routeId);
+  const { data: allPolicies } = useAccessPolicyList(tenantId);
 
-  const attached: AccessPolicy[] = [];
-  for (const id of route.policies) {
-    const policy = policies[id];
-    if (policy) attached.push(policy);
-  }
-  return attached;
+  return useMemo(() => {
+    if (!route) return [];
+    const byId = new Map<string, AccessPolicy>();
+    for (const p of allPolicies) byId.set(p.id, p);
+    const attached: AccessPolicy[] = [];
+    for (const id of route.policies) {
+      const p = byId.get(id);
+      if (p) attached.push(p);
+    }
+    return attached;
+  }, [route, allPolicies]);
 }

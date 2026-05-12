@@ -1,21 +1,140 @@
 /**
- * <TenantInventory> — super-admin view of all tenants with create/delete actions.
+ * <TenantInventory> — super-admin view of all tenants.
  *
- * spec §8.1 / Task 1d.78
+ * Features:
+ *   - Filter by plan (community / pro / enterprise)
+ *   - Search by slug or name
+ *   - Tenant detail drawer (quick info + "Open in tenant" button)
+ *   - Create tenant drawer
+ *   - Delete tenant drawer (slug-confirmed destructive action)
  */
 import { useState, useMemo } from 'react';
 import { type ColumnDef } from '@tanstack/react-table';
-import { Stack, Title, Group, Button, Drawer, TextInput, Text, Alert } from '@mantine/core';
-import { useDisclosure } from '@mantine/hooks';
+import { useQueryClient } from '@tanstack/react-query';
+import {
+  Stack,
+  Title,
+  Group,
+  Button,
+  Drawer,
+  TextInput,
+  Select,
+  Text,
+  Alert,
+  Badge,
+  Divider,
+  SimpleGrid,
+  Box,
+  Loader,
+} from '@mantine/core';
+import { useDisclosure, useDebouncedValue } from '@mantine/hooks';
 import { useForm } from '@mantine/form';
-import { IconBuilding, IconPlus, IconTrash, IconAlertTriangle } from '@tabler/icons-react';
+import {
+  IconBuilding,
+  IconPlus,
+  IconTrash,
+  IconAlertTriangle,
+  IconSearch,
+  IconExternalLink,
+} from '@tabler/icons-react';
 import { DataTable } from '@/components/data-table';
 import { EmptyState } from '@/components/empty-state';
-import { useMockStore } from '@/api/mock-store';
-import { makeIdFactory } from '@/lib/id-generator';
-import type { Tenant } from '@/api/resources';
+import {
+  useListAdminTenants,
+  useCreateAdminTenant,
+  useDeleteAdminTenant,
+  getListAdminTenantsQueryKey,
+} from '@/api/generated/admin/admin';
+import type { AdminTenant } from '@/api/generated/schemas';
 
-const nextTenantId = makeIdFactory('tenant-new');
+const PLAN_COLORS: Record<string, string> = {
+  community: 'blue',
+  pro: 'violet',
+  enterprise: 'orange',
+};
+
+// ─── Detail drawer ────────────────────────────────────────────────────────────
+
+function TenantDetailDrawer({
+  tenant,
+  onClose,
+}: {
+  tenant: AdminTenant | null;
+  onClose: () => void;
+}) {
+  if (!tenant) return null;
+
+  const slug = tenant.slug ?? '';
+  const adminUrl =
+    tenant.urlMode === 'subdomain' ? `https://${slug}.example.com/admin` : `/t/${slug}/admin`;
+
+  return (
+    <>
+      <SimpleGrid cols={2} spacing="xs" mb="md">
+        <Box>
+          <Text size="xs" c="dimmed">
+            Slug
+          </Text>
+          <Text size="sm" ff="monospace">
+            {slug}
+          </Text>
+        </Box>
+        <Box>
+          <Text size="xs" c="dimmed">
+            Name
+          </Text>
+          <Text size="sm">{tenant.name ?? '—'}</Text>
+        </Box>
+        <Box>
+          <Text size="xs" c="dimmed">
+            Plan
+          </Text>
+          <Badge color={PLAN_COLORS[tenant.plan ?? ''] ?? 'gray'} variant="light" size="sm">
+            {tenant.plan ?? '—'}
+          </Badge>
+        </Box>
+        <Box>
+          <Text size="xs" c="dimmed">
+            URL mode
+          </Text>
+          <Badge variant="outline" size="sm">
+            {tenant.urlMode ?? '—'}
+          </Badge>
+        </Box>
+        <Box>
+          <Text size="xs" c="dimmed">
+            ID
+          </Text>
+          <Text size="xs" ff="monospace">
+            {tenant.id ?? '—'}
+          </Text>
+        </Box>
+        <Box>
+          <Text size="xs" c="dimmed">
+            Created
+          </Text>
+          <Text size="sm">
+            {tenant.createdAt ? new Date(tenant.createdAt).toLocaleDateString() : '—'}
+          </Text>
+        </Box>
+      </SimpleGrid>
+      <Divider mb="md" />
+      <Button
+        leftSection={<IconExternalLink size={14} />}
+        component="a"
+        href={adminUrl}
+        variant="light"
+        fullWidth
+        data-testid="open-in-tenant-btn"
+      >
+        Open in tenant
+      </Button>
+      <Button variant="default" fullWidth mt="xs" onClick={onClose}>
+        Close
+      </Button>
+    </>
+  );
+}
 
 // ─── Create form ──────────────────────────────────────────────────────────────
 
@@ -32,7 +151,19 @@ function CreateTenantForm({
   onSuccess: () => void;
   onCancel: () => void;
 }) {
-  const [saving, setSaving] = useState(false);
+  const queryClient = useQueryClient();
+  const [errorMsg, setErrorMsg] = useState<string | null>(null);
+  const createMut = useCreateAdminTenant({
+    mutation: {
+      onSuccess: () => {
+        void queryClient.invalidateQueries({ queryKey: getListAdminTenantsQueryKey() });
+        onSuccess();
+      },
+      onError: (err: unknown) => {
+        setErrorMsg(err instanceof Error ? err.message : 'Failed to create tenant');
+      },
+    },
+  });
 
   const form = useForm<CreateTenantFormValues>({
     initialValues: { slug: '', name: '', plan: 'community' },
@@ -43,21 +174,14 @@ function CreateTenantForm({
   });
 
   function handleSubmit(values: CreateTenantFormValues) {
-    setSaving(true);
-    const slug = values.slug.toLowerCase().trim();
-    const tenant: Tenant = {
-      id: nextTenantId(),
-      slug,
-      name: values.name.trim(),
-      accent: '#22c55e',
-      plan: values.plan,
-      url_mode: 'path',
-      created_at: new Date().toISOString(),
-      updated_at: new Date().toISOString(),
-    };
-    useMockStore.getState().addEntity('tenants', tenant);
-    setSaving(false);
-    onSuccess();
+    setErrorMsg(null);
+    createMut.mutate({
+      data: {
+        slug: values.slug.toLowerCase().trim(),
+        name: values.name.trim(),
+        plan: values.plan,
+      },
+    });
   }
 
   return (
@@ -76,11 +200,25 @@ function CreateTenantForm({
           required
           {...form.getInputProps('name')}
         />
+        <Select
+          label="Plan"
+          data={[
+            { value: 'community', label: 'Community' },
+            { value: 'pro', label: 'Pro' },
+            { value: 'enterprise', label: 'Enterprise' },
+          ]}
+          {...form.getInputProps('plan')}
+        />
+        {errorMsg !== null && (
+          <Alert color="red" icon={<IconAlertTriangle size={16} />}>
+            {errorMsg}
+          </Alert>
+        )}
         <Group justify="flex-end" gap="xs" mt="xs">
-          <Button variant="default" onClick={onCancel} disabled={saving}>
+          <Button variant="default" onClick={onCancel} disabled={createMut.isPending}>
             Cancel
           </Button>
-          <Button type="submit" loading={saving}>
+          <Button type="submit" loading={createMut.isPending}>
             Create tenant
           </Button>
         </Group>
@@ -96,41 +234,66 @@ function DeleteTenantConfirm({
   onSuccess,
   onCancel,
 }: {
-  tenant: Tenant;
+  tenant: AdminTenant;
   onSuccess: () => void;
   onCancel: () => void;
 }) {
+  const queryClient = useQueryClient();
   const [typed, setTyped] = useState('');
+  const [errorMsg, setErrorMsg] = useState<string | null>(null);
+  const deleteMut = useDeleteAdminTenant({
+    mutation: {
+      onSuccess: () => {
+        void queryClient.invalidateQueries({ queryKey: getListAdminTenantsQueryKey() });
+        onSuccess();
+      },
+      onError: (err: unknown) => {
+        setErrorMsg(err instanceof Error ? err.message : 'Failed to delete tenant');
+      },
+    },
+  });
 
-  const match = typed === tenant.slug;
+  const slug = tenant.slug ?? '';
+  const id = tenant.id ?? '';
+  const match = typed === slug && id !== '';
 
   function handleDelete() {
     if (!match) return;
-    useMockStore.getState().deleteEntity('tenants', tenant.id);
-    onSuccess();
+    setErrorMsg(null);
+    deleteMut.mutate({ id });
   }
 
   return (
     <Stack gap="md">
       <Alert color="red" icon={<IconAlertTriangle size={16} />} title="Delete tenant">
-        This action is irreversible. All tenant data will be removed from the mock store.
+        This action is irreversible. All tenant data will be removed.
       </Alert>
       <Text size="sm">
-        Type <strong>{tenant.slug}</strong> to confirm deletion.
+        Type <strong>{slug}</strong> to confirm deletion.
       </Text>
       <TextInput
-        placeholder={tenant.slug}
+        placeholder={slug}
         value={typed}
         onChange={(e) => {
           setTyped(e.currentTarget.value);
         }}
         data-testid="delete-confirm-input"
       />
+      {errorMsg !== null && (
+        <Alert color="red" icon={<IconAlertTriangle size={16} />}>
+          {errorMsg}
+        </Alert>
+      )}
       <Group justify="flex-end" gap="xs">
-        <Button variant="default" onClick={onCancel}>
+        <Button variant="default" onClick={onCancel} disabled={deleteMut.isPending}>
           Cancel
         </Button>
-        <Button color="red.8" disabled={!match} onClick={handleDelete}>
+        <Button
+          color="red.8"
+          disabled={!match}
+          loading={deleteMut.isPending}
+          onClick={handleDelete}
+        >
           Delete tenant
         </Button>
       </Group>
@@ -141,71 +304,110 @@ function DeleteTenantConfirm({
 // ─── Main component ───────────────────────────────────────────────────────────
 
 export function TenantInventory() {
-  const tenants = useMockStore((s) => s.tenants);
-  const memberships = useMockStore((s) => s.memberships);
-
-  const tenantList = useMemo(() => Object.values(tenants), [tenants]);
+  const { data, isLoading, isError, error } = useListAdminTenants();
 
   const [createOpened, { open: openCreate, close: closeCreate }] = useDisclosure(false);
-  const [deleteTarget, setDeleteTarget] = useState<Tenant | null>(null);
+  const [deleteTarget, setDeleteTarget] = useState<AdminTenant | null>(null);
+  const [detailTarget, setDetailTarget] = useState<AdminTenant | null>(null);
 
-  // Compute member counts per tenant
-  const memberCounts = useMemo(() => {
-    const counts: Record<string, number> = {};
-    for (const m of Object.values(memberships)) {
-      if (m.state === 'active') {
-        counts[m.tenant_id] = (counts[m.tenant_id] ?? 0) + 1;
+  // ── Filters ──────────────────────────────────────────────────────────────────
+  const [planFilter, setPlanFilter] = useState<string>('all');
+  const [searchInput, setSearchInput] = useState('');
+  const [debouncedSearch] = useDebouncedValue(searchInput, 250);
+
+  const tenants = useMemo<AdminTenant[]>(() => data?.data.items ?? [], [data]);
+
+  const tenantList = useMemo(() => {
+    return tenants.filter((t) => {
+      if (planFilter !== 'all' && t.plan !== planFilter) return false;
+      if (debouncedSearch) {
+        const q = debouncedSearch.toLowerCase();
+        const slug = (t.slug ?? '').toLowerCase();
+        const name = (t.name ?? '').toLowerCase();
+        if (!slug.includes(q) && !name.includes(q)) return false;
       }
-    }
-    return counts;
-  }, [memberships]);
+      return true;
+    });
+  }, [tenants, planFilter, debouncedSearch]);
 
-  const columns: ColumnDef<Tenant>[] = [
+  const columns: ColumnDef<AdminTenant>[] = [
     {
       accessorKey: 'slug',
       header: 'Slug',
       cell: (info) => (
         <Text size="sm" ff="monospace">
-          {info.getValue<string>()}
+          {info.getValue<string | undefined>() ?? '—'}
         </Text>
       ),
     },
     {
       accessorKey: 'name',
       header: 'Name',
+      cell: (info) => info.getValue<string | undefined>() ?? '—',
     },
     {
       accessorKey: 'plan',
       header: 'Plan',
+      cell: (info) => {
+        const v = info.getValue<string | undefined>() ?? '';
+        return (
+          <Badge color={PLAN_COLORS[v] ?? 'gray'} variant="light" size="sm">
+            {v || '—'}
+          </Badge>
+        );
+      },
     },
     {
-      accessorKey: 'created_at',
+      accessorKey: 'urlMode',
+      header: 'URL mode',
+      cell: (info) => (
+        <Badge variant="outline" size="sm">
+          {info.getValue<string | undefined>() ?? '—'}
+        </Badge>
+      ),
+    },
+    {
+      accessorKey: 'createdAt',
       header: 'Created',
-      cell: (info) => new Date(info.getValue<string>()).toLocaleDateString(),
-    },
-    {
-      id: 'members',
-      header: 'Members',
-      cell: (info) => memberCounts[info.row.original.id] ?? 0,
+      cell: (info) => {
+        const v = info.getValue<string | undefined>();
+        return v ? new Date(v).toLocaleDateString() : '—';
+      },
     },
     {
       id: 'actions',
       header: '',
-      cell: (info) => (
-        <Button
-          size="xs"
-          variant="subtle"
-          color="red.8"
-          leftSection={<IconTrash size={12} />}
-          onClick={(e) => {
-            e.stopPropagation();
-            setDeleteTarget(info.row.original);
-          }}
-          aria-label={`Delete ${info.row.original.slug}`}
-        >
-          Delete
-        </Button>
-      ),
+      cell: (info) => {
+        const slug = info.row.original.slug ?? '';
+        return (
+          <Group gap={4} wrap="nowrap">
+            <Button
+              size="xs"
+              variant="subtle"
+              onClick={(e) => {
+                e.stopPropagation();
+                setDetailTarget(info.row.original);
+              }}
+              aria-label={`View ${slug}`}
+            >
+              View
+            </Button>
+            <Button
+              size="xs"
+              variant="subtle"
+              color="red.8"
+              leftSection={<IconTrash size={12} />}
+              onClick={(e) => {
+                e.stopPropagation();
+                setDeleteTarget(info.row.original);
+              }}
+              aria-label={`Delete ${slug}`}
+            >
+              Delete
+            </Button>
+          </Group>
+        );
+      },
     },
   ];
 
@@ -218,13 +420,59 @@ export function TenantInventory() {
         </Button>
       </Group>
 
-      {tenantList.length === 0 ? (
-        <EmptyState
-          icon={IconBuilding}
-          title="No tenants"
-          description="Create a tenant to get started."
-          action={{ label: 'Create tenant', onClick: openCreate }}
+      {/* Filters */}
+      <Group gap="sm">
+        <TextInput
+          placeholder="Search by slug or name…"
+          leftSection={<IconSearch size={14} />}
+          value={searchInput}
+          onChange={(e) => {
+            setSearchInput(e.currentTarget.value);
+          }}
+          style={{ flex: 1 }}
+          data-testid="tenant-search"
         />
+        <Select
+          placeholder="Filter by plan"
+          data={[
+            { value: 'all', label: 'All plans' },
+            { value: 'community', label: 'Community' },
+            { value: 'pro', label: 'Pro' },
+            { value: 'enterprise', label: 'Enterprise' },
+          ]}
+          value={planFilter}
+          onChange={(v) => {
+            setPlanFilter(v ?? 'all');
+          }}
+          clearable={false}
+          style={{ minWidth: 150 }}
+          data-testid="plan-filter"
+        />
+      </Group>
+
+      {isLoading ? (
+        <Group justify="center" p="xl">
+          <Loader data-testid="tenant-list-loading" />
+        </Group>
+      ) : isError ? (
+        <Alert color="red" icon={<IconAlertTriangle size={16} />} title="Failed to load tenants">
+          {error instanceof Error ? error.message : 'Unknown error'}
+        </Alert>
+      ) : tenantList.length === 0 ? (
+        !debouncedSearch && planFilter === 'all' ? (
+          <EmptyState
+            icon={IconBuilding}
+            title="No tenants"
+            description="Create a tenant to get started."
+            action={{ label: 'Create tenant', onClick: openCreate }}
+          />
+        ) : (
+          <EmptyState
+            icon={IconBuilding}
+            title="No tenants"
+            description="No tenants match the current filters."
+          />
+        )
       ) : (
         <DataTable columns={columns} data={tenantList} />
       )}
@@ -239,6 +487,25 @@ export function TenantInventory() {
         padding="md"
       >
         <CreateTenantForm onSuccess={closeCreate} onCancel={closeCreate} />
+      </Drawer>
+
+      {/* Detail drawer */}
+      <Drawer
+        opened={detailTarget !== null}
+        onClose={() => {
+          setDetailTarget(null);
+        }}
+        title={detailTarget ? `Tenant: ${detailTarget.slug ?? ''}` : 'Tenant detail'}
+        position="right"
+        size="md"
+        padding="md"
+      >
+        <TenantDetailDrawer
+          tenant={detailTarget}
+          onClose={() => {
+            setDetailTarget(null);
+          }}
+        />
       </Drawer>
 
       {/* Delete drawer */}

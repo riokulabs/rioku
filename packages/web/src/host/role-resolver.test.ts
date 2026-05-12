@@ -269,11 +269,11 @@ describe('resolveRolePermissions', () => {
   });
 
   // ── Seed-level regression: super-admin must inherit admin grants ───────────
-  // This test would have caught Issue 3: if superAdminGrants in mock-seed.ts
-  // stopped spreading adminGrants, Derrick (super-admin) would lose
+  // This test would have caught Issue 3: if super-admin grants stopped
+  // spreading admin grants, Derrick (super-admin) would lose
   // notification:read and hit the access-denied page.
   it('super-admin with spread adminGrants has notification:read and all admin perms', () => {
-    // Replicate the grant structure from mock-seed.ts: adminGrants + super-admin extras.
+    // Replicate the legacy grant structure: adminGrants + super-admin extras.
     const adminGrantPerms = [
       'user:read',
       'user:invite',

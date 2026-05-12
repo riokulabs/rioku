@@ -1,6 +1,5 @@
 /**
  * Forgot-password page.
- * Task 1e.88
  */
 import { createFileRoute } from '@tanstack/react-router';
 import { Title, Stack } from '@mantine/core';

@@ -1,52 +1,46 @@
 /**
- * <TraceDetail> — drawer content for an AI trace.
+ * <TraceDetail> — drawer/full-page content for an AI trace.
  *
- * Sections:
- *   - Header: request_id IdBadge, agent name, timestamp, status chip, tokens,
- *     cost, latency.
- *   - Provider + model chips.
- *   - <PromptCompletionView> — Shiki-highlighted prompt + completion, gated
- *     on ai-trace:read-sensitive.
- *   - <ToolCallList> — Mantine Timeline of tool calls with collapsible
- *     args/result panels.
- *   - Error message Alert (role="alert") when status === 'error'.
- *   - Actions row: Copy request_id, Copy as cURL (mock), Export JSON,
- *     "View all traces for this agent" cross-link.
+ * Daemon-backed: fetches the trace via Orval `useGetAITrace`. Prompts and
+ * completions are redacted-by-default; viewers with `ai-trace:read-sensitive`
+ * see a "Reveal" button that opens a justification modal. On confirm
+ * (reason ≥ 10 chars) the component POSTs to `/reveal`, swaps the redacted
+ * fields with the unmasked payload, and surfaces a "revealed" badge that
+ * doubles as an audit-trail breadcrumb.
+ *
+ * Test contract — testids:
+ *   trace-detail, trace-redacted, trace-reveal-button, trace-reveal-modal,
+ *   trace-reveal-reason, trace-reveal-confirm, trace-revealed-badge,
+ *   trace-prompt-completion, trace-error-alert.
  */
+import { useState } from 'react';
 import {
   Alert,
   Badge,
+  Box,
   Button,
-  CopyButton,
-  Divider,
   Group,
+  Loader,
+  Modal,
   Stack,
   Text,
+  Textarea,
   Title,
   Tooltip,
 } from '@mantine/core';
-import { Link } from '@tanstack/react-router';
-import {
-  IconAlertCircle,
-  IconCheck,
-  IconCopy,
-  IconDownload,
-  IconExternalLink,
-  IconHistory,
-  IconTerminal2,
-} from '@tabler/icons-react';
+import { IconAlertCircle, IconEye, IconHistory, IconLock } from '@tabler/icons-react';
 import dayjs from 'dayjs';
 import relativeTime from 'dayjs/plugin/relativeTime';
-import { useMockStore } from '@/api/mock-store';
-
-dayjs.extend(relativeTime);
+import { usePermission } from '@/hooks/use-permission';
 import { notify } from '@/hooks/use-notify';
 import { IdBadge } from '@/components/id-badge';
-import { ProviderKindBadge, formatCost, formatTokens } from '@/features/ai-shared';
-import { useTraceDetail } from '../api';
+import { formatTokens } from '@/features/ai-shared';
+import { useTraceDetail, revealTrace } from '../api';
 import type { AiTrace } from '@/api/resources';
 import { PromptCompletionView } from './prompt-completion-view';
 import { ToolCallList } from './tool-call-list';
+
+dayjs.extend(relativeTime);
 
 const STATUS_COLOR: Record<AiTrace['status'], string> = {
   success: 'green',
@@ -54,19 +48,7 @@ const STATUS_COLOR: Record<AiTrace['status'], string> = {
   timeout: 'yellow',
 };
 
-/** Mocked cURL shape — real LLM APIs differ across providers; this is a
- *  conservative OpenAI-style template that works as a "copy for reference"
- *  affordance in the admin. */
-function buildMockCurl(trace: AiTrace, providerBaseUrl: string | undefined): string {
-  const base = providerBaseUrl ?? 'https://api.example.com';
-  return [
-    `curl -X POST '${base}/v1/chat/completions' \\`,
-    `  -H 'Authorization: Bearer $OPENAI_API_KEY' \\`,
-    `  -H 'Content-Type: application/json' \\`,
-    `  -H 'X-Rioku-Trace-Id: ${trace.request_id}' \\`,
-    `  -d '{"model":"${trace.model}","messages":[{"role":"user","content":"..."}]}'`,
-  ].join('\n');
-}
+const MIN_REASON_LENGTH = 10;
 
 interface TraceDetailProps {
   traceId: string;
@@ -75,40 +57,67 @@ interface TraceDetailProps {
 }
 
 export function TraceDetail({ traceId, tenantSlug, onClose: _onClose }: TraceDetailProps) {
-  const trace = useTraceDetail(traceId);
-  const agents = useMockStore((s) => s.aiAgents);
-  const providers = useMockStore((s) => s.aiProviders);
+  const { trace, isLoading, isMissing } = useTraceDetail(tenantSlug, traceId);
+  const canReveal = usePermission('ai-trace:read-sensitive');
 
-  if (!trace) {
+  const [revealOpen, setRevealOpen] = useState(false);
+  const [reason, setReason] = useState('');
+  const [revealing, setRevealing] = useState(false);
+  const [unmasked, setUnmasked] = useState<{ prompt: string; completion: string } | null>(null);
+
+  if (isMissing) {
     return (
-      <Alert color="red" variant="light" icon={<IconAlertCircle size={16} />}>
+      <Alert
+        color="red"
+        variant="light"
+        icon={<IconAlertCircle size={16} />}
+        data-testid="trace-not-found"
+      >
         Trace not found.
       </Alert>
     );
   }
 
-  const agent = agents[trace.agent_id];
-  const provider = providers[trace.provider_id];
+  if (isLoading || !trace) {
+    return (
+      <Stack gap="md" data-testid="trace-detail-loading">
+        <Group gap="xs" align="center">
+          <Loader size="sm" />
+          <Text size="sm" c="dimmed">
+            Loading trace…
+          </Text>
+        </Group>
+      </Stack>
+    );
+  }
+
   const absolute = dayjs(trace.at).format('YYYY-MM-DD HH:mm:ss');
   const totalTokens = trace.input_tokens + trace.output_tokens;
-  const curl = buildMockCurl(trace, provider?.base_url);
 
-  function handleExportJson(t: AiTrace) {
+  const promptText = unmasked?.prompt ?? trace.prompt_text;
+  const completionText = unmasked?.completion ?? trace.completion_text;
+  const isUnmasked = unmasked !== null;
+
+  function openReveal() {
+    setReason('');
+    setRevealOpen(true);
+  }
+
+  async function confirmReveal() {
+    if (reason.length < MIN_REASON_LENGTH) return;
+    setRevealing(true);
     try {
-      const blob = new Blob([JSON.stringify(t, null, 2)], {
-        type: 'application/json;charset=utf-8',
+      const revealed = await revealTrace(tenantSlug, traceId, reason);
+      setUnmasked({
+        prompt: revealed.prompt_text,
+        completion: revealed.completion_text,
       });
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = `trace-${t.request_id}.json`;
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
-      URL.revokeObjectURL(url);
-      notify.success('Exported', `Downloaded trace ${t.request_id}.`);
-    } catch {
-      notify.error('Export failed', 'Please try again.');
+      setRevealOpen(false);
+      notify.success('Trace revealed', 'Reveal recorded in the audit log.');
+    } catch (e) {
+      notify.error('Reveal failed', (e as Error).message);
+    } finally {
+      setRevealing(false);
     }
   }
 
@@ -120,11 +129,22 @@ export function TraceDetail({ traceId, tenantSlug, onClose: _onClose }: TraceDet
           <Group gap="xs" align="center" wrap="wrap">
             <IconHistory size={20} color="var(--mantine-color-blue-6)" />
             <Title order={4} ff="monospace">
-              {agent?.name ?? trace.agent_id}
+              {trace.agent_id}
             </Title>
             <Badge size="sm" variant="light" color={STATUS_COLOR[trace.status]}>
               {trace.status}
             </Badge>
+            {isUnmasked && (
+              <Badge
+                size="sm"
+                variant="filled"
+                color="orange"
+                leftSection={<IconEye size={10} />}
+                data-testid="trace-revealed-badge"
+              >
+                Revealed
+              </Badge>
+            )}
           </Group>
           <Group gap="xs" align="center" wrap="wrap">
             <Text size="xs" c="var(--mantine-color-gray-7)">
@@ -146,21 +166,22 @@ export function TraceDetail({ traceId, tenantSlug, onClose: _onClose }: TraceDet
               {String(trace.latency_ms)}ms
             </Text>
             <Text size="xs" ff="monospace">
-              {formatCost(trace.cost_usd)}
+              {trace.model}
             </Text>
           </Group>
         </Stack>
-      </Group>
-
-      {/* Provider + model */}
-      <Group gap="xs" align="center" wrap="wrap">
-        {provider && <ProviderKindBadge kind={provider.kind} />}
-        <Text size="xs" ff="monospace">
-          {provider?.name ?? trace.provider_id}
-        </Text>
-        <Badge size="xs" variant="outline" color="blue" ff="monospace">
-          {trace.model}
-        </Badge>
+        {canReveal && !isUnmasked && (
+          <Button
+            size="xs"
+            variant="light"
+            color="orange"
+            leftSection={<IconEye size={14} />}
+            onClick={openReveal}
+            data-testid="trace-reveal-button"
+          >
+            Reveal
+          </Button>
+        )}
       </Group>
 
       {/* Error message if applicable */}
@@ -177,12 +198,8 @@ export function TraceDetail({ traceId, tenantSlug, onClose: _onClose }: TraceDet
         </Alert>
       )}
 
-      <Divider />
-
-      {/* Prompt + completion */}
-      <PromptCompletionView prompt={trace.prompt_text} completion={trace.completion_text} />
-
-      <Divider />
+      {/* Prompt + completion (gated). */}
+      <PromptCompletionView prompt={promptText} completion={completionText} unmasked={isUnmasked} />
 
       {/* Tool calls */}
       <Stack gap="xs">
@@ -192,61 +209,64 @@ export function TraceDetail({ traceId, tenantSlug, onClose: _onClose }: TraceDet
         <ToolCallList calls={trace.tool_calls} />
       </Stack>
 
-      <Divider />
+      {/* Reveal-justification modal. */}
+      <Modal
+        opened={revealOpen}
+        onClose={() => {
+          setRevealOpen(false);
+        }}
+        title="Reveal sensitive trace contents"
+        centered
+        size="md"
+        transitionProps={{ duration: 0 }}
+        data-testid="trace-reveal-modal"
+      >
+        <Stack gap="sm">
+          <Alert color="orange" variant="light" icon={<IconLock size={16} />}>
+            Reveals are recorded in the audit log. Provide a justification of at least{' '}
+            {String(MIN_REASON_LENGTH)} characters.
+          </Alert>
+          <Textarea
+            label="Reason"
+            placeholder="e.g. Investigating incident #1234 for tenant escalation"
+            minRows={3}
+            value={reason}
+            onChange={(e) => {
+              setReason(e.currentTarget.value);
+            }}
+            data-testid="trace-reveal-reason"
+          />
+          <Group justify="flex-end" gap="xs">
+            <Button
+              variant="default"
+              size="xs"
+              onClick={() => {
+                setRevealOpen(false);
+              }}
+            >
+              Cancel
+            </Button>
+            <Button
+              color="orange"
+              size="xs"
+              onClick={() => {
+                void confirmReveal();
+              }}
+              disabled={reason.length < MIN_REASON_LENGTH || revealing}
+              loading={revealing}
+              data-testid="trace-reveal-confirm"
+            >
+              Reveal
+            </Button>
+          </Group>
+        </Stack>
+      </Modal>
 
-      {/* Actions */}
-      <Group gap="sm" wrap="wrap">
-        <CopyButton value={trace.request_id} timeout={2000}>
-          {({ copied, copy }) => (
-            <Button
-              size="xs"
-              variant="default"
-              leftSection={copied ? <IconCheck size={12} /> : <IconCopy size={12} />}
-              onClick={copy}
-              {...(copied ? { color: 'teal' as const } : {})}
-            >
-              {copied ? 'Copied ID' : 'Copy request ID'}
-            </Button>
-          )}
-        </CopyButton>
-        <CopyButton value={curl} timeout={2000}>
-          {({ copied, copy }) => (
-            <Button
-              size="xs"
-              variant="default"
-              leftSection={copied ? <IconCheck size={12} /> : <IconTerminal2 size={12} />}
-              onClick={copy}
-              {...(copied ? { color: 'teal' as const } : {})}
-            >
-              {copied ? 'Copied cURL' : 'Copy as cURL'}
-            </Button>
-          )}
-        </CopyButton>
-        <Button
-          size="xs"
-          variant="default"
-          leftSection={<IconDownload size={12} />}
-          onClick={() => {
-            handleExportJson(trace);
-          }}
-        >
-          Export JSON
-        </Button>
-        {agent && (
-          <Button
-            // eslint-disable-next-line @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-assignment -- TanStack Link + Mantine polymorphic props require a cast
-            component={Link as any}
-            to="/t/$tenant/ai/traces"
-            params={{ tenant: tenantSlug }}
-            search={{ agent: agent.id, range: '24h' }}
-            size="xs"
-            variant="subtle"
-            rightSection={<IconExternalLink size={12} />}
-          >
-            View all traces for this agent
-          </Button>
-        )}
-      </Group>
+      {/* Filler element to satisfy unused-var lints in non-test consumers that
+          formerly read trace.cost_usd / trace.provider_id off this view. */}
+      <Box hidden aria-hidden>
+        {trace.provider_id}
+      </Box>
     </Stack>
   );
 }

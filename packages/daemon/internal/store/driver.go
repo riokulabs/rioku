@@ -182,7 +182,10 @@ type Tx interface {
 	// --- API Keys ---
 
 	// CreateAPIKey stores a new API key and returns its generated ID.
-	CreateAPIKey(ctx context.Context, name, keyHash string, scopes []string, expiresAt *time.Time, ownerID string) (string, error)
+	// `prefix` is the non-secret display fragment of the raw token
+	// (e.g. `rku_tok_AbCd`); pass "" for system / refresh / bootstrap
+	// keys whose raw form is never shown to humans.
+	CreateAPIKey(ctx context.Context, name, keyHash, prefix string, scopes []string, expiresAt *time.Time, ownerID string) (string, error)
 	GetAPIKey(ctx context.Context, id string) (*APIKey, error)
 	// GetAPIKeyByHash looks up a key by its hash (used during authentication).
 	GetAPIKeyByHash(ctx context.Context, keyHash string) (*APIKey, error)
@@ -239,8 +242,26 @@ type Tx interface {
 	GetUser(ctx context.Context, id string) (*User, error)
 	GetUserByUsername(ctx context.Context, username string) (*User, error)
 	ListUsers(ctx context.Context) ([]*User, error)
+	// CountUsers returns the total number of users in the store.
+	// Used by the bootstrap-status endpoint to determine if any admin
+	// account exists.
+	CountUsers(ctx context.Context) (int, error)
+	// GetUserByEmail looks up a user by email address (case-insensitive).
+	// Returns sql.ErrNoRows when not found.
+	GetUserByEmail(ctx context.Context, email string) (*User, error)
 	UpdateUser(ctx context.Context, u *User) (*User, error)
 	DeleteUser(ctx context.Context, id string) error
+
+	// --- Password Reset Tokens ---
+
+	// CreatePasswordResetToken stores a hashed token for the given user
+	// that expires at expiresAt. The raw token is never stored.
+	CreatePasswordResetToken(ctx context.Context, tokenHash, userID string, expiresAt time.Time) error
+	// GetPasswordResetToken returns the token row for a given hash.
+	// Returns sql.ErrNoRows when not found.
+	GetPasswordResetToken(ctx context.Context, tokenHash string) (*PasswordResetToken, error)
+	// ConsumePasswordResetToken marks the token as consumed (sets consumed_at).
+	ConsumePasswordResetToken(ctx context.Context, tokenHash string) error
 
 	// IncrementFailedAttempts increments failed_attempts and optionally sets
 	// locked_until + status='locked' if threshold is reached.
@@ -292,6 +313,24 @@ type Tx interface {
 
 	// ListPermissions returns all available atomic permissions.
 	ListPermissions(ctx context.Context) ([]*Permission, error)
+	// RegisterPluginPermissions inserts permissions declared by a plugin
+	// manifest into the catalog. Each permission is keyed on its `id`
+	// (resource:action). Existing rows with the same id are upserted in
+	// place so re-installs are idempotent. The `source` column is set
+	// to "plugin-manifest" and `source_plugin_id` to the supplied id.
+	//
+	// Permission ids must be unique across the entire catalog;
+	// returning ErrPermissionConflict signals a clash with a built-in
+	// permission of the same id (which the caller should treat as a
+	// validation error).
+	RegisterPluginPermissions(ctx context.Context, pluginID string, perms []*Permission) error
+	// UnregisterPluginPermissions removes catalog rows that originated
+	// from a given plugin. Per the source-handling rule from migration
+	// 000049, plugin-sourced rows are deleted outright on uninstall —
+	// they were never built-in, so no fallback target exists.
+	//
+	// Returns the count of removed rows.
+	UnregisterPluginPermissions(ctx context.Context, pluginID string) (int, error)
 	// GetUserScopes returns all granted scope strings for a user (may include wildcards).
 	GetUserScopes(ctx context.Context, userID string) ([]string, error)
 
@@ -438,7 +477,7 @@ type Tx interface {
 	UpdateMCPRoute(ctx context.Context, id string, params UpdateMCPRouteParams) (*MCPRoute, error)
 	DeleteMCPRoute(ctx context.Context, id string) error
 
-	// --- Tenants (stage-2) ---
+	// --- Tenants ---
 
 	// CreateTenant persists a new tenant. The supplied Tenant must have
 	// Slug + Name set; ID is generated if empty. Returns ErrTenantSlugTaken
@@ -461,7 +500,7 @@ type Tx interface {
 	// default tenant cannot be deleted; ErrTenantImmutable is returned.
 	DeleteTenant(ctx context.Context, id string) error
 
-	// --- Memberships (stage-2) ---
+	// --- Memberships ---
 
 	// CreateMembership persists a new (tenant_id, user_id, state) tuple.
 	// Returns ErrMembershipExists if the pair already has a membership
@@ -482,12 +521,18 @@ type Tx interface {
 	// machine (pending -> active -> deactivated -> removed). Invalid
 	// transitions return ErrMembershipInvalidState.
 	UpdateMembershipState(ctx context.Context, id, state string) (*Membership, error)
+	// GetMembershipByInviteToken looks up a pending membership by its hashed
+	// invite token. Returns ErrMembershipNotFound when not found.
+	GetMembershipByInviteToken(ctx context.Context, tokenHash string) (*Membership, error)
+	// AcceptInvite activates a pending membership: sets user_id, clears
+	// invite_token_hash, sets state=active, and sets joined_at=now.
+	AcceptInvite(ctx context.Context, membershipID, userID string) error
 	// DeleteMembership hard-deletes a membership. Prefer
 	// UpdateMembershipState("removed") for audit retention; this is for
 	// administrative cleanup.
 	DeleteMembership(ctx context.Context, id string) error
 
-	// --- Membership Roles (stage-2) ---
+	// --- Membership Roles ---
 
 	// AssignMembershipRole grants `roleID` to the membership. Idempotent.
 	AssignMembershipRole(ctx context.Context, membershipID, roleID, grantedBy string) error
@@ -496,7 +541,7 @@ type Tx interface {
 	// ListMembershipRoles returns every role granted to a membership.
 	ListMembershipRoles(ctx context.Context, membershipID string) ([]Role, error)
 
-	// --- Dashboards (stage-2) ---
+	// --- Dashboards ---
 
 	CreateDashboard(ctx context.Context, d *Dashboard) (*Dashboard, error)
 	GetDashboard(ctx context.Context, tenantID, id string) (*Dashboard, error)
@@ -512,7 +557,7 @@ type Tx interface {
 	// any other dashboard's home list in the same tenant. Per-user.
 	SetDashboardHomeForUser(ctx context.Context, tenantID, id, userID string) (*Dashboard, error)
 
-	// --- Widgets (stage-2) ---
+	// --- Widgets ---
 
 	CreateWidget(ctx context.Context, w *Widget) (*Widget, error)
 	GetWidget(ctx context.Context, id string) (*Widget, error)
@@ -524,19 +569,19 @@ type Tx interface {
 	// are left unchanged.
 	UpdateDashboardLayout(ctx context.Context, dashboardID string, layouts map[string]string) error
 
-	// --- Dashboard versions (stage-2) ---
+	// --- Dashboard versions ---
 
 	CreateDashboardVersion(ctx context.Context, v *DashboardVersion) (*DashboardVersion, error)
 	GetDashboardVersion(ctx context.Context, id string) (*DashboardVersion, error)
 	ListDashboardVersions(ctx context.Context, dashboardID string) ([]*DashboardVersion, error)
 
-	// --- Dashboard shares (stage-2 admin completion chunk 8) ---
+	// --- Dashboard shares ---
 
 	CreateDashboardShare(ctx context.Context, s *DashboardShare) (*DashboardShare, error)
 	ListDashboardShares(ctx context.Context, dashboardID string) ([]*DashboardShare, error)
 	DeleteDashboardShare(ctx context.Context, id string) error
 
-	// --- Webhooks (stage-2) ---
+	// --- Webhooks ---
 
 	CreateWebhookEndpoint(ctx context.Context, e *WebhookEndpoint) (*WebhookEndpoint, error)
 	GetWebhookEndpoint(ctx context.Context, tenantID, id string) (*WebhookEndpoint, error)
@@ -544,7 +589,7 @@ type Tx interface {
 	UpdateWebhookEndpoint(ctx context.Context, tenantID, id string, params UpdateWebhookEndpointParams) (*WebhookEndpoint, error)
 	DeleteWebhookEndpoint(ctx context.Context, tenantID, id string) error
 
-	// --- Cluster enrollment tokens (stage-2) ---
+	// --- Cluster enrollment tokens ---
 
 	CreateEnrollmentToken(ctx context.Context, t *ClusterEnrollmentToken) (*ClusterEnrollmentToken, error)
 	GetEnrollmentTokenByHash(ctx context.Context, hash string) (*ClusterEnrollmentToken, error)
@@ -552,7 +597,7 @@ type Tx interface {
 	ConsumeEnrollmentToken(ctx context.Context, hash, nodeID string) (*ClusterEnrollmentToken, error)
 	RevokeEnrollmentToken(ctx context.Context, id string) error
 
-	// --- Impersonation sessions (stage-2) ---
+	// --- Impersonation sessions ---
 
 	CreateImpersonationSession(ctx context.Context, s *ImpersonationSession) (*ImpersonationSession, error)
 	GetImpersonationSession(ctx context.Context, id string) (*ImpersonationSession, error)
@@ -560,7 +605,7 @@ type Tx interface {
 	EndImpersonationSession(ctx context.Context, id, reason string) (*ImpersonationSession, error)
 	TouchImpersonationSession(ctx context.Context, id string) error
 
-	// --- Settings configs (stage-2): singleton-per-tenant ---
+	// --- Settings configs: singleton-per-tenant ---
 
 	GetNetworkConfig(ctx context.Context, tenantID string) (*NetworkConfig, error)
 	UpsertNetworkConfig(ctx context.Context, c *NetworkConfig) (*NetworkConfig, error)
@@ -591,7 +636,7 @@ type Tx interface {
 	GetAuditRetentionConfig(ctx context.Context, tenantID string) (*AuditRetentionConfig, error)
 	UpsertAuditRetentionConfig(ctx context.Context, c *AuditRetentionConfig) (*AuditRetentionConfig, error)
 
-	// --- PKI/TLS (stage-2) ---
+	// --- PKI/TLS ---
 
 	CreateCertAuthority(ctx context.Context, ca *CertAuthority) (*CertAuthority, error)
 	GetCertAuthority(ctx context.Context, tenantID, id string) (*CertAuthority, error)
@@ -614,7 +659,7 @@ type Tx interface {
 	GetTLSConfig(ctx context.Context, tenantID string) (*TLSConfig, error)
 	UpsertTLSConfig(ctx context.Context, c *TLSConfig) (*TLSConfig, error)
 
-	// --- Plugins (stage-2) ---
+	// --- Plugins ---
 
 	CreatePlugin(ctx context.Context, p *Plugin) (*Plugin, error)
 	GetPlugin(ctx context.Context, tenantID, id string) (*Plugin, error)
@@ -629,7 +674,7 @@ type Tx interface {
 	DeletePluginSigner(ctx context.Context, tenantID, id string) error
 	ListPluginsBySigner(ctx context.Context, signerID string) ([]*Plugin, error)
 
-	// --- Notifications (stage-2) ---
+	// --- Notifications ---
 
 	// Items (per-user inbox)
 	AppendNotificationItem(ctx context.Context, n *NotificationItem) (*NotificationItem, error)
@@ -637,6 +682,7 @@ type Tx interface {
 	ListNotificationItemsByUser(ctx context.Context, tenantID, userID string, q NotificationItemQuery) ([]*NotificationItem, error)
 	CountUnreadNotifications(ctx context.Context, tenantID, userID string) (int, error)
 	MarkNotificationRead(ctx context.Context, id string) error
+	MarkNotificationUnread(ctx context.Context, id string) error
 	MarkAllNotificationsRead(ctx context.Context, tenantID, userID string) error
 	ArchiveNotification(ctx context.Context, id string, archived bool) error
 
@@ -664,7 +710,7 @@ type Tx interface {
 	GetTenantNotificationConfig(ctx context.Context, tenantID string) (*TenantNotificationConfig, error)
 	UpsertTenantNotificationConfig(ctx context.Context, c *TenantNotificationConfig) (*TenantNotificationConfig, error)
 
-	// --- AI subsystem (stage-2) ---
+	// --- AI subsystem ---
 
 	// Providers
 	CreateAIProvider(ctx context.Context, p *AIProvider) (*AIProvider, error)
@@ -721,7 +767,7 @@ type Tx interface {
 	ListAITracesByTenant(ctx context.Context, tenantID string, query AITraceQuery) ([]*AITrace, error)
 	ListAITracesByAgent(ctx context.Context, agentID string, query AITraceQuery) ([]*AITrace, error)
 
-	// --- Sites (stage-2) ---
+	// --- Sites ---
 
 	CreateSite(ctx context.Context, s *Site) (*Site, error)
 	GetSite(ctx context.Context, tenantID, id string) (*Site, error)
@@ -730,7 +776,7 @@ type Tx interface {
 	ToggleSite(ctx context.Context, tenantID, id string, enabled bool) (*Site, error)
 	DeleteSite(ctx context.Context, tenantID, id string) error
 
-	// --- Middlewares (stage-2) ---
+	// --- Middlewares ---
 
 	CreateMiddleware(ctx context.Context, m *Middleware) (*Middleware, error)
 	GetMiddleware(ctx context.Context, tenantID, id string) (*Middleware, error)
@@ -738,7 +784,7 @@ type Tx interface {
 	UpdateMiddleware(ctx context.Context, tenantID, id string, params UpdateMiddlewareParams) (*Middleware, error)
 	DeleteMiddleware(ctx context.Context, tenantID, id string) error
 
-	// --- RBAC Policies (stage-2 admin completion chunk 7b) ---
+	// --- RBAC Policies ---
 
 	// CreateRbacPolicy persists a new rbac policy.
 	CreateRbacPolicy(ctx context.Context, p *RbacPolicy) (*RbacPolicy, error)
@@ -767,6 +813,33 @@ type Tx interface {
 	// DeleteAccessPolicy removes a policy. Returns ErrAccessPolicyNotFound
 	// if no row matched.
 	DeleteAccessPolicy(ctx context.Context, id string) error
+
+	// --- Opaque handles ---
+
+	// GetOpaqueHandle returns the handle for a (tenantID, handle) pair.
+	// Returns (nil, nil) when not found.
+	GetOpaqueHandle(ctx context.Context, tenantID, handle string) (*OpaqueHandle, error)
+	// GetOpaqueHandleByValueHash returns the handle for a (tenantID, valueHash) pair.
+	// Returns (nil, nil) when not found.
+	GetOpaqueHandleByValueHash(ctx context.Context, tenantID, valueHash string) (*OpaqueHandle, error)
+	// UpsertOpaqueHandle inserts or replaces an opaque handle row.
+	UpsertOpaqueHandle(ctx context.Context, h OpaqueHandle) error
+
+	// --- SSO providers ---
+
+	// CreateSsoProvider inserts a tenant-scoped provider config. Returns
+	// ErrSsoProviderTaken when (tenant_id, name) collides.
+	CreateSsoProvider(ctx context.Context, p *SsoProvider) (*SsoProvider, error)
+	// GetSsoProvider returns a provider by id within a tenant, or
+	// ErrSsoProviderNotFound.
+	GetSsoProvider(ctx context.Context, tenantID, id string) (*SsoProvider, error)
+	// ListSsoProvidersByTenant returns all providers wired to a tenant
+	// ordered by name.
+	ListSsoProvidersByTenant(ctx context.Context, tenantID string) ([]*SsoProvider, error)
+	// UpdateSsoProvider applies a partial update; nil fields preserved.
+	UpdateSsoProvider(ctx context.Context, tenantID, id string, params UpdateSsoProviderParams) (*SsoProvider, error)
+	// DeleteSsoProvider removes a provider; ErrSsoProviderNotFound on miss.
+	DeleteSsoProvider(ctx context.Context, tenantID, id string) error
 }
 
 // ---------------------------------------------------------------------------
@@ -776,13 +849,18 @@ type Tx interface {
 // Tenant represents a logical workspace boundary. Every tenant-scoped
 // entity carries a tenant_id FK referencing tenants(id). The default
 // tenant (slug "default") is seeded by migration 13 and is the parent
-// of all data created before stage-2.
+// tenant for legacy data.
 type Tenant struct {
-	ID                 string
-	Slug               string
-	Name               string
-	Plan               string  // community | pro | enterprise
-	URLMode            string  // path | subdomain
+	ID      string
+	Slug    string
+	Name    string
+	Plan    string // community | pro | enterprise
+	URLMode string // path | subdomain
+	// ParentDomain is the base domain used for subdomain routing cookie scoping.
+	// When URLMode=subdomain, session cookies are issued with Domain=.<ParentDomain>
+	// and SameSite=Lax. E.g. "localhost" for dev, "mycompany.com" for prod.
+	// Empty string means fall back to host-scoped cookies.
+	ParentDomain       string
 	Accent             *string // hex color, nullable
 	LogoURL            *string
 	DefaultDashboardID *string
@@ -793,12 +871,24 @@ type Tenant struct {
 // UpdateTenantParams is the partial-update payload for UpdateTenant.
 // nil pointers leave the field unchanged.
 type UpdateTenantParams struct {
-	Name               *string
-	Plan               *string
-	URLMode            *string
+	Name    *string
+	Plan    *string
+	URLMode *string
+	// ParentDomain, when non-nil, sets the parent domain for subdomain cookie scoping.
+	ParentDomain       *string
 	Accent             *string
 	LogoURL            *string
 	DefaultDashboardID *string
+}
+
+// PasswordResetToken represents a single-use token for password reset.
+// The raw token is never stored; only its SHA-256 hex hash is persisted.
+type PasswordResetToken struct {
+	TokenHash  string
+	UserID     string
+	CreatedAt  time.Time
+	ExpiresAt  time.Time
+	ConsumedAt *time.Time
 }
 
 // Membership ties a User to a Tenant with a state machine
@@ -1248,6 +1338,38 @@ type NotificationItemQuery struct {
 	Offset   int
 }
 
+// SsoProvider is the per-tenant config for an SSO provider wired to a
+// tenant. The runtime data-plane plugin (#170) consumes this config.
+// Only `kind="oidc"` is supported today; "saml" is reserved.
+type SsoProvider struct {
+	ID                  string
+	TenantID            string
+	Name                string
+	Kind                string // oidc (saml reserved)
+	OIDCIssuer          *string
+	OIDCClientID        *string
+	OIDCClientSecretRef *string // resolves through #169 secret indirection
+	OIDCScopes          string  // JSON array of strings
+	ClaimsMapping       string  // JSON object: daemon_claim -> provider_claim
+	Enabled             bool
+	CreatedAt           time.Time
+	UpdatedAt           time.Time
+}
+
+// UpdateSsoProviderParams carries a partial-update payload. nil fields
+// are preserved. For optional string fields (issuer / client id / secret
+// ref) an empty string clears the column; non-empty replaces.
+type UpdateSsoProviderParams struct {
+	Name                *string
+	Kind                *string
+	OIDCIssuer          *string
+	OIDCClientID        *string
+	OIDCClientSecretRef *string
+	OIDCScopes          *string
+	ClaimsMapping       *string
+	Enabled             *bool
+}
+
 // NotificationChannel is an outbound delivery destination
 // (email, slack, webhook, ...).
 type NotificationChannel struct {
@@ -1376,6 +1498,14 @@ var (
 	ErrPluginSlugTaken      = fmt.Errorf("store: plugin slug already in use in this scope")
 	ErrPluginSignerNotFound = fmt.Errorf("store: plugin signer not found")
 	ErrPluginSignerFPTaken  = fmt.Errorf("store: plugin signer fingerprint already in use in this scope")
+)
+
+// Permission registry sentinel errors.
+var (
+	// ErrPermissionConflict is returned by RegisterPluginPermissions
+	// when a plugin tries to register an id that's already owned by
+	// another source (built-in or another plugin).
+	ErrPermissionConflict = fmt.Errorf("store: permission id already registered by another source")
 )
 
 // CertAuthority is a per-tenant root or intermediate CA.
@@ -1625,12 +1755,22 @@ var (
 	ErrMCPServerNameTaken      = fmt.Errorf("store: mcp server name already in use")
 )
 
+// SSO provider sentinel errors.
+var (
+	ErrSsoProviderNotFound = fmt.Errorf("store: sso provider not found")
+	ErrSsoProviderTaken    = fmt.Errorf("store: sso provider name already in use in this tenant")
+)
+
 // APIKey represents a stored API key.
 type APIKey struct {
-	ID         string
-	TenantID   string
-	Name       string
-	KeyHash    string
+	ID       string
+	TenantID string
+	Name     string
+	KeyHash  string
+	// Prefix is a non-secret display fragment of the raw key (e.g. the
+	// first 12 chars: `rku_tok_AbCd`). Empty for legacy keys created
+	// before migration #51 and for system / refresh / bootstrap keys.
+	Prefix     string
 	Scopes     []string
 	OwnerID    string // user ID of creator, empty for system keys
 	ExpiresAt  *time.Time
@@ -1834,4 +1974,15 @@ type UpdateAccessPolicyParams struct {
 	Conditions  *[]AccessPolicyCondition
 	Priority    *int
 	Enabled     *bool
+}
+
+// OpaqueHandle maps a short random token (prefix "oh_") to a SHA-256 hash of
+// the original sensitive value. The original value is never stored; callers
+// hash it before calling the store. ExpiresAt is nil for non-expiring handles.
+type OpaqueHandle struct {
+	Handle    string
+	TenantID  string
+	ValueHash string
+	CreatedAt time.Time
+	ExpiresAt *time.Time
 }

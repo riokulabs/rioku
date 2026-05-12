@@ -1,42 +1,29 @@
 /**
  * <ApiKeyCreateDrawer> — form to create a new API key.
  *
- * Flow:
- *   Step 1: Fill in name, scope, optional expiration → submit
- *   Step 2: Show the generated full key value (copy block + warning)
+ * Stage-2 plan-02. Posts via `useApiKeyMutations.createApiKey` to the
+ * real daemon. The plaintext returned in the 201 body is forwarded to
+ * the parent via `onCreated(fullValue)` — the parent renders the
+ * confirm-before-dismiss <SecretCaptureModal>.
  */
 import { useState } from 'react';
-import {
-  Stack,
-  Text,
-  Button,
-  TextInput,
-  Group,
-  Alert,
-  Code,
-  Divider,
-  CopyButton,
-  ActionIcon,
-  Tooltip,
-} from '@mantine/core';
+import { Stack, Button, TextInput, Group, Text } from '@mantine/core';
 import { DatePickerInput } from '@mantine/dates';
 import { useForm, schemaResolver } from '@mantine/form';
-import { IconAlertCircle, IconCheck, IconCopy } from '@tabler/icons-react';
 import { PermissionSelector } from '@/components/permission-selector';
 import { notify } from '@/hooks/use-notify';
-import { createApiKey } from '../api';
+import { useApiKeyMutations } from '../api';
 import { createApiKeySchema, type CreateApiKeyFormValues } from '../schemas';
 
 interface ApiKeyCreateDrawerProps {
   tenantId: string;
-  onSuccess: () => void;
+  onCreated: (fullValue: string) => void;
   onCancel: () => void;
 }
 
-export function ApiKeyCreateDrawer({ tenantId, onSuccess, onCancel }: ApiKeyCreateDrawerProps) {
-  const [step, setStep] = useState<'form' | 'created'>('form');
-  const [fullKeyValue, setFullKeyValue] = useState('');
+export function ApiKeyCreateDrawer({ tenantId, onCreated, onCancel }: ApiKeyCreateDrawerProps) {
   const [submitting, setSubmitting] = useState(false);
+  const mut = useApiKeyMutations(tenantId);
 
   const form = useForm<CreateApiKeyFormValues>({
     initialValues: {
@@ -50,67 +37,18 @@ export function ApiKeyCreateDrawer({ tenantId, onSuccess, onCancel }: ApiKeyCrea
   async function handleSubmit(values: CreateApiKeyFormValues) {
     setSubmitting(true);
     try {
-      const result = await createApiKey(
+      const result = await mut.createApiKey(
         tenantId,
         values.name,
         values.scope,
         values.expires_at ?? undefined,
       );
-      setFullKeyValue(result.fullValue);
-      setStep('created');
+      onCreated(result.fullValue);
     } catch {
       notify.error('Failed to create API key', 'Please try again.');
     } finally {
       setSubmitting(false);
     }
-  }
-
-  if (step === 'created') {
-    return (
-      <Stack gap="md">
-        <Alert
-          icon={<IconAlertCircle size={16} />}
-          color="yellow"
-          variant="light"
-          title="Save this now"
-        >
-          This is the only time you will see the full key value. Copy it before closing.
-        </Alert>
-
-        <Stack gap="xs">
-          <Text size="sm" fw={500}>
-            Your new API key
-          </Text>
-          <Group gap="xs" align="center">
-            <Code
-              block
-              style={{ flex: 1, wordBreak: 'break-all', fontSize: 13 }}
-              data-testid="api-key-full-value"
-            >
-              {fullKeyValue}
-            </Code>
-            <CopyButton value={fullKeyValue} timeout={2000}>
-              {({ copied, copy }) => (
-                <Tooltip label={copied ? 'Copied!' : 'Copy'} withArrow>
-                  <ActionIcon
-                    color={copied ? 'teal' : 'blue'}
-                    variant="light"
-                    onClick={copy}
-                    aria-label="Copy API key"
-                  >
-                    {copied ? <IconCheck size={16} /> : <IconCopy size={16} />}
-                  </ActionIcon>
-                </Tooltip>
-              )}
-            </CopyButton>
-          </Group>
-        </Stack>
-
-        <Divider />
-
-        <Button onClick={onSuccess}>Done</Button>
-      </Stack>
-    );
   }
 
   return (
@@ -152,7 +90,7 @@ export function ApiKeyCreateDrawer({ tenantId, onSuccess, onCancel }: ApiKeyCrea
             <Button variant="default" onClick={onCancel}>
               Cancel
             </Button>
-            <Button type="submit" loading={submitting}>
+            <Button type="submit" loading={submitting} data-testid="api-key-create-submit">
               Create key
             </Button>
           </Group>

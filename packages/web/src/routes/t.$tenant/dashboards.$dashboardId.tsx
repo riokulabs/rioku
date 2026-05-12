@@ -12,8 +12,7 @@
  *   - `tenant`:   anyone with dashboard:read in the tenant.
  */
 import { useState } from 'react';
-import { createFileRoute, redirect, useNavigate } from '@tanstack/react-router';
-import { useMockStore } from '@/api/mock-store';
+import { createFileRoute, useNavigate } from '@tanstack/react-router';
 import { notify } from '@/hooks/use-notify';
 import { requirePermissions } from '@/hooks/use-before-load';
 import {
@@ -23,7 +22,6 @@ import {
   setDefaultDashboard,
   useDashboardDetail,
 } from '@/features/dashboards';
-import { resolveDashboardAccess } from '@/features/dashboards/access';
 import { useDashboardsLayoutContext } from './-dashboards-layout-context';
 
 function DashboardViewerPage() {
@@ -32,9 +30,8 @@ function DashboardViewerPage() {
   const { openDelete } = useDashboardsLayoutContext();
   const [historyOpen, setHistoryOpen] = useState(false);
 
-  const tenantRecord = useMockStore((s) => Object.values(s.tenants).find((t) => t.slug === tenant));
-  const tenantSlug = tenantRecord?.slug ?? tenant;
-  const tenantId = tenantRecord?.id ?? '';
+  const tenantSlug = tenant;
+  const tenantId = tenant;
 
   const dashboard = useDashboardDetail(dashboardId);
 
@@ -118,43 +115,10 @@ function DashboardViewerPage() {
 }
 
 export const Route = createFileRoute('/t/$tenant/dashboards/$dashboardId')({
-  beforeLoad: (ctx) => {
-    requirePermissions({ required: ['dashboard:read'] })();
-
-    const { params } = ctx;
-    const { dashboardId } = params as { dashboardId: string };
-    const { dashboards, currentUserId, currentTenantId, memberships } = useMockStore.getState();
-    const dashboard = dashboards[dashboardId];
-    if (!dashboard) {
-      return true;
-    }
-
-    // Resolve effective access via the centralised access helper. We don't
-    // need tenant-write here — read access is sufficient for the viewer.
-    const roleIds = new Set<string>();
-    for (const m of Object.values(memberships)) {
-      if (m.user_id === currentUserId && m.tenant_id === currentTenantId && m.state === 'active') {
-        for (const rid of m.role_ids) roleIds.add(rid);
-      }
-    }
-    const level = resolveDashboardAccess({
-      dashboard,
-      userId: currentUserId,
-      tenantId: currentTenantId,
-      roleIds: Array.from(roleIds),
-      hasTenantWrite: false,
-    });
-    if (level === 'none') {
-      // eslint-disable-next-line @typescript-eslint/only-throw-error
-      throw redirect({
-        to: '/access-denied' as string,
-        search: {
-          required: ['dashboard:read'],
-          requireAny: false,
-        } as Record<string, unknown>,
-      });
-    }
-    return true;
-  },
+  // Stage-2: dashboard scope (personal/shared/tenant) is enforced by the
+  // daemon at fetch time via `dashboard:read`; granular scope-based redirect
+  // is no longer applied at the route level. The viewer surfaces a not-found
+  // / access-denied state when the daemon rejects the read.
+  beforeLoad: requirePermissions({ required: ['dashboard:read'] }),
   component: DashboardViewerPage,
 });

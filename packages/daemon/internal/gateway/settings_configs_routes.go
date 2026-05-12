@@ -1,4 +1,4 @@
-// Package gateway: Settings config singleton REST endpoints (stage-2).
+// Package gateway: Settings config singleton REST endpoints.
 //
 // Each is a GET (returns defaults if absent) + PUT (upsert) pair.
 //
@@ -111,6 +111,10 @@ func handleUpsertNetworkConfig(st store.Driver) http.HandlerFunc {
 				}
 				return networkConfigToResponse(updated), nil
 			})
+		// Network listen-address / overrides changes need to nudge Caddy
+		// to reload its admin config. Best-effort; failures are logged
+		// inside triggerCaddyReload.
+		_ = triggerCaddyReload(r.Context(), "settings.network")
 	}
 }
 

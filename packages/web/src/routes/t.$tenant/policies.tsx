@@ -1,14 +1,7 @@
 /**
  * Policies page — /t/$tenant/policies (API-management entry point)
  *
- * Per spec §7.4 ("one engine, two UIs"), Access Policies and the per-route
- * Policies list share the same underlying AccessPolicy resource. The only
- * distinction is navigation context — this route surfaces the same UI under
- * the "API management" sidebar group, while the /security/access-policies
- * route keeps an entry under "Security".
- *
- * Implementation: renders the same list+detail+editor composition as the
- * security page.
+ * Wired to real daemon endpoints.
  */
 import { useState } from 'react';
 import { createFileRoute } from '@tanstack/react-router';
@@ -17,13 +10,12 @@ import { useDisclosure } from '@mantine/hooks';
 import { IconPlus } from '@tabler/icons-react';
 import {
   AccessPolicyList,
-  AccessPolicyDetail,
+  AccessPolicyDrawer,
   AccessPolicyEditor,
-  createAccessPolicyMutation,
-  updateAccessPolicyMutation,
-  deleteAccessPolicyMutation,
+  useCreateAccessPolicyMutation,
+  useUpdateAccessPolicyMutation,
+  useDeleteAccessPolicyMutation,
 } from '@/features/security/access-policies';
-import { useMockStore } from '@/api/mock-store';
 import { notify } from '@/hooks/use-notify';
 import { requirePermissions } from '@/hooks/use-before-load';
 import type { AccessPolicy } from '@/features/security/access-policies';
@@ -33,9 +25,9 @@ type DrawerMode = 'detail' | 'create' | 'edit';
 
 function PoliciesPage() {
   const { tenant } = Route.useParams();
-  const tenantId = useMockStore(
-    (s) => Object.values(s.tenants).find((t) => t.slug === tenant)?.id ?? '',
-  );
+  const createMutation = useCreateAccessPolicyMutation(tenant);
+  const updateMutation = useUpdateAccessPolicyMutation(tenant);
+  const deleteMutation = useDeleteAccessPolicyMutation(tenant);
 
   const [drawerOpened, { open: openDrawer, close: closeDrawer }] = useDisclosure(false);
   const [drawerMode, setDrawerMode] = useState<DrawerMode>('detail');
@@ -46,31 +38,27 @@ function PoliciesPage() {
     setDrawerMode('detail');
     openDrawer();
   }
-
   function handleCreate() {
     setSelectedPolicy(null);
     setDrawerMode('create');
     openDrawer();
   }
-
   function handleEdit() {
     setDrawerMode('edit');
   }
-
   async function handleSave(values: AccessPolicyFormValues) {
     if (drawerMode === 'create') {
-      await createAccessPolicyMutation(tenantId, values);
+      await createMutation(values);
       notify.success('Policy created', `"${values.name}" has been created.`);
     } else if (drawerMode === 'edit' && selectedPolicy) {
-      await updateAccessPolicyMutation(selectedPolicy.id, values);
+      await updateMutation(selectedPolicy.id, values);
       notify.success('Policy updated', `"${values.name}" has been updated.`);
     }
     closeDrawer();
   }
-
   async function handleDelete() {
     if (!selectedPolicy) return;
-    await deleteAccessPolicyMutation(selectedPolicy.id);
+    await deleteMutation(selectedPolicy.id);
     notify.success('Policy deleted', `"${selectedPolicy.name}" has been deleted.`);
     closeDrawer();
   }
@@ -91,21 +79,21 @@ function PoliciesPage() {
         </Button>
       </Group>
 
-      <AccessPolicyList onSelect={handleRowClick} />
+      <AccessPolicyList tenant={tenant} onSelect={handleRowClick} />
 
-      {/* duration=0 prevents JSDOM animation hangs in tests */}
       <Drawer
         transitionProps={{ duration: 0 }}
         opened={drawerOpened}
         onClose={closeDrawer}
         title={drawerTitle}
         position="right"
-        size="min(400px, 95vw)"
+        size="min(420px, 95vw)"
         padding="md"
       >
         {drawerMode === 'detail' && selectedPolicy && (
-          <AccessPolicyDetail
+          <AccessPolicyDrawer
             policy={selectedPolicy}
+            tenantSlug={tenant}
             onEdit={handleEdit}
             onDelete={() => void handleDelete()}
           />
@@ -113,7 +101,7 @@ function PoliciesPage() {
         {(drawerMode === 'create' || drawerMode === 'edit') && (
           <AccessPolicyEditor
             {...(drawerMode === 'edit' && selectedPolicy ? { initial: selectedPolicy } : {})}
-            tenantId={tenantId}
+            tenantId={tenant}
             onSave={handleSave}
             onCancel={closeDrawer}
           />

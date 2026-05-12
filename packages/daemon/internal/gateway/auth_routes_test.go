@@ -92,7 +92,7 @@ func setupAuthTestServer(t *testing.T) (*httptest.Server, store.Driver, *auth.Au
 	if err != nil {
 		t.Fatal(err)
 	}
-	_, err = tx2.CreateAPIKey(ctx, "bootstrap", auth.HashToken(bootstrapToken), []string{"admin"}, nil, "")
+	_, err = tx2.CreateAPIKey(ctx, "bootstrap", auth.HashToken(bootstrapToken), "", []string{"admin"}, nil, "")
 	if err != nil {
 		_ = tx2.Rollback()
 		t.Fatal(err)
@@ -776,10 +776,16 @@ func TestAuthRoutes_ListSessions(t *testing.T) {
 		t.Fatalf("expected 200, got %d", resp.StatusCode)
 	}
 
-	var sessions []sessionResponse
-	if err := json.NewDecoder(resp.Body).Decode(&sessions); err != nil {
+	// Response now matches the OpenAPI ListSessions200 shape
+	// (`{sessions: [...]}`) so the SPA's `useSessionList` can read
+	// `data.data.sessions` directly.
+	var wrapper struct {
+		Sessions []sessionResponse `json:"sessions"`
+	}
+	if err := json.NewDecoder(resp.Body).Decode(&wrapper); err != nil {
 		t.Fatalf("decode sessions: %v", err)
 	}
+	sessions := wrapper.Sessions
 	if len(sessions) < 1 {
 		t.Fatalf("expected at least 1 session, got %d", len(sessions))
 	}
@@ -811,10 +817,13 @@ func TestAuthRoutes_RevokeSession(t *testing.T) {
 		t.Fatalf("list sessions: expected 200, got %d", listResp.StatusCode)
 	}
 
-	var sessions []sessionResponse
-	if err := json.NewDecoder(listResp.Body).Decode(&sessions); err != nil {
+	var listWrap struct {
+		Sessions []sessionResponse `json:"sessions"`
+	}
+	if err := json.NewDecoder(listResp.Body).Decode(&listWrap); err != nil {
 		t.Fatalf("decode sessions: %v", err)
 	}
+	sessions := listWrap.Sessions
 	if len(sessions) == 0 {
 		t.Fatal("expected at least 1 session")
 	}
@@ -873,10 +882,13 @@ func TestAuthRoutes_RevokeSession_NotOwned(t *testing.T) {
 	listResp := doJSON(t, rootClient, http.MethodGet, server.URL+"/api/v1/auth/sessions", nil)
 	defer func() { _ = listResp.Body.Close() }()
 
-	var rootSessions []sessionResponse
-	if err := json.NewDecoder(listResp.Body).Decode(&rootSessions); err != nil {
+	var rootWrap struct {
+		Sessions []sessionResponse `json:"sessions"`
+	}
+	if err := json.NewDecoder(listResp.Body).Decode(&rootWrap); err != nil {
 		t.Fatalf("decode sessions: %v", err)
 	}
+	rootSessions := rootWrap.Sessions
 	if len(rootSessions) == 0 {
 		t.Fatal("expected at least 1 root session")
 	}

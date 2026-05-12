@@ -1,258 +1,194 @@
 /**
- * Tests for useImpersonation state machine.
- * spec §8.2 / Task 1d.74
+ * Tests for `useImpersonation` — thin wrapper around the daemon's
+ * super-admin impersonation surface. The audit log + scope builders
+ * live server-side, so this suite focuses on the SPA contract:
+ * mutation dispatch, state transitions, and the active-id mirror.
  */
-import { describe, it, expect, beforeEach, vi, afterEach } from 'vitest';
+import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { renderHook, act } from '@testing-library/react';
+import type { ReactNode } from 'react';
+import { createElement } from 'react';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { useImpersonation } from './use-impersonation';
-import { useMockStore } from '../api/mock-store';
+import type { ImpersonationSession } from '../api/resources';
+import { getActiveImpersonationId, setActiveImpersonationId } from '../api/active-impersonation';
+
+// ─── Mocks ────────────────────────────────────────────────────────────────────
+
+let bridgeSession: ImpersonationSession | null = null;
+const mockStartMutate = vi.fn();
+const mockEndMutate = vi.fn();
+const mockTouchMutate = vi.fn();
+let startPending = false;
+let endPending = false;
+
+vi.mock('../features/security/impersonation/use-impersonation-session', () => ({
+  useImpersonationSession: () => bridgeSession,
+}));
+
+vi.mock('../features/security/impersonation/realApi', () => ({
+  useStartImpersonation: () => ({
+    mutateAsync: mockStartMutate,
+    isPending: startPending,
+  }),
+  useEndImpersonation: () => ({
+    mutateAsync: mockEndMutate,
+    isPending: endPending,
+  }),
+  useTouchImpersonation: () => ({
+    mutateAsync: mockTouchMutate,
+    isPending: false,
+  }),
+  getListImpersonationSessionsQueryKey: () => ['/api/v1/admin/impersonation'],
+}));
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
-function seedStore() {
-  useMockStore.getState().reset();
-  // Set up a current user
-  const store = useMockStore.getState();
-  store.addEntity('users', {
-    id: 'user-test-admin',
-    email: 'admin@rioku.dev',
-    name: 'Test Admin',
-    disabled: false,
-    totp_enabled: true,
-    totp_enrolled: true,
-    timezone: 'America/Los_Angeles',
-    locale: 'en',
-    reduced_motion: false,
-    notification_preferences: { email: true, in_app: true, categories_muted: [] },
-    created_at: new Date().toISOString(),
-    updated_at: new Date().toISOString(),
-  });
-  store.addEntity('tenants', {
-    id: 'tenant-test-01',
-    slug: 'acme',
-    name: 'Acme Corp',
-    accent: '#22c55e',
-    plan: 'enterprise',
-    url_mode: 'path',
-    created_at: new Date().toISOString(),
-    updated_at: new Date().toISOString(),
-  });
-  useMockStore.setState({ currentUserId: 'user-test-admin', currentTenantId: 'tenant-test-01' });
+function wrapper({ children }: { children: ReactNode }) {
+  const qc = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+  return createElement(QueryClientProvider, { client: qc }, children);
 }
 
 const validEntryOpts = {
   tenant_id: 'tenant-test-01',
+  user_id: 'user-target',
   reason: 'Support ticket investigation',
   totpCode: '123456',
   profile: 'minimal' as const,
 };
 
+const fakeSession: ImpersonationSession = {
+  id: 'imp-0001',
+  super_admin_id: 'user-admin',
+  tenant_id: 'tenant-test-01',
+  user_id: 'user-target',
+  reason: validEntryOpts.reason,
+  started_at: new Date().toISOString(),
+  expires_at: new Date(Date.now() + 60 * 60 * 1000).toISOString(),
+  scope: [],
+};
+
+beforeEach(() => {
+  bridgeSession = null;
+  startPending = false;
+  endPending = false;
+  mockStartMutate.mockReset();
+  mockEndMutate.mockReset();
+  mockTouchMutate.mockReset();
+  setActiveImpersonationId(null);
+});
+
 // ─── Tests ────────────────────────────────────────────────────────────────────
 
 describe('useImpersonation', () => {
-  beforeEach(seedStore);
-  afterEach(() => {
-    vi.useRealTimers();
-  });
-
   it('starts in idle state with no session', () => {
-    const { result } = renderHook(() => useImpersonation());
+    const { result } = renderHook(() => useImpersonation(), { wrapper });
     expect(result.current.state).toBe('idle');
     expect(result.current.session).toBeNull();
   });
 
-  it('entry() creates a session and transitions to active', async () => {
-    const { result } = renderHook(() => useImpersonation());
+  it('reflects the daemon-reported session as active state', () => {
+    bridgeSession = fakeSession;
+    const { result } = renderHook(() => useImpersonation(), { wrapper });
+    expect(result.current.state).toBe('active');
+    expect(result.current.session?.id).toBe('imp-0001');
+  });
+
+  it('entry() dispatches the start mutation and mirrors the active id', async () => {
+    mockStartMutate.mockResolvedValue({ data: { id: 'imp-0001' }, status: 201 });
+    const { result } = renderHook(() => useImpersonation(), { wrapper });
 
     await act(async () => {
       await result.current.entry(validEntryOpts);
     });
 
-    expect(result.current.state).toBe('active');
-    expect(result.current.session).not.toBeNull();
-    expect(result.current.session?.tenant_id).toBe('tenant-test-01');
-    expect(result.current.session?.reason).toBe('Support ticket investigation');
-    expect(result.current.session?.super_admin_id).toBe('user-test-admin');
+    expect(mockStartMutate).toHaveBeenCalledWith({
+      data: {
+        tenantId: 'tenant-test-01',
+        targetUserId: 'user-target',
+        reason: validEntryOpts.reason,
+      },
+    });
+    expect(getActiveImpersonationId()).toBe('imp-0001');
   });
 
-  it('entry() throws on invalid TOTP', async () => {
-    const { result } = renderHook(() => useImpersonation());
-
+  it('entry() throws on a malformed TOTP code (still client-side gated)', async () => {
+    const { result } = renderHook(() => useImpersonation(), { wrapper });
     await expect(
       act(async () => {
         await result.current.entry({ ...validEntryOpts, totpCode: '12345' });
       }),
     ).rejects.toThrow('Invalid TOTP code');
+    expect(mockStartMutate).not.toHaveBeenCalled();
   });
 
-  it('entry() emits both admin and tenant audit entries', async () => {
-    const { result } = renderHook(() => useImpersonation());
-
+  it('entry() forwards the optional ticketRef when provided', async () => {
+    mockStartMutate.mockResolvedValue({ data: { id: 'imp-9999' }, status: 201 });
+    const { result } = renderHook(() => useImpersonation(), { wrapper });
     await act(async () => {
-      await result.current.entry(validEntryOpts);
+      await result.current.entry({ ...validEntryOpts, ticketRef: 'OPS-42' });
     });
-
-    const state = useMockStore.getState();
-    const sessionId = result.current.session?.id;
-
-    // Admin audit
-    expect(state.adminAudit.length).toBeGreaterThan(0);
-    const adminEntry = state.adminAudit.find((e) => e.action === 'impersonation:enter');
-    expect(adminEntry).toBeDefined();
-    expect(adminEntry?.impersonation_session_id).toBe(sessionId);
-    expect(adminEntry?.kind).toBe('admin');
-
-    // Tenant audit
-    const tenantEntry = state.audit.find((e) => e.action === 'impersonation:enter');
-    expect(tenantEntry).toBeDefined();
-    expect(tenantEntry?.impersonation_session_id).toBe(sessionId);
-    expect(tenantEntry?.acted_as_admin).toBe(true);
-    expect(tenantEntry?.tenant_id).toBe('tenant-test-01');
+    expect(mockStartMutate).toHaveBeenCalledWith({
+      data: expect.objectContaining({ ticketRef: 'OPS-42' }) as unknown,
+    });
   });
 
-  it('session ID is threaded through both audit entries', async () => {
-    const { result } = renderHook(() => useImpersonation());
+  it('exit() dispatches the end mutation and clears the active id', async () => {
+    bridgeSession = fakeSession;
+    setActiveImpersonationId(fakeSession.id);
+    mockEndMutate.mockResolvedValue({ data: undefined, status: 204 });
 
-    await act(async () => {
-      await result.current.entry(validEntryOpts);
-    });
-
-    const sessionId = result.current.session?.id;
-    const state = useMockStore.getState();
-
-    const adminEntry = state.adminAudit.find((e) => e.action === 'impersonation:enter');
-    const tenantEntry = state.audit.find((e) => e.action === 'impersonation:enter');
-
-    expect(adminEntry?.impersonation_session_id).toBe(sessionId);
-    expect(tenantEntry?.impersonation_session_id).toBe(sessionId);
-  });
-
-  it('exit() clears session and transitions to idle', async () => {
-    const { result } = renderHook(() => useImpersonation());
-
-    await act(async () => {
-      await result.current.entry(validEntryOpts);
-    });
-    expect(result.current.state).toBe('active');
+    const { result } = renderHook(() => useImpersonation(), { wrapper });
 
     await act(async () => {
       await result.current.exit();
     });
 
-    expect(result.current.state).toBe('idle');
-    expect(result.current.session).toBeNull();
+    expect(mockEndMutate).toHaveBeenCalledWith({ id: 'imp-0001' });
+    expect(getActiveImpersonationId()).toBeNull();
   });
 
-  it('exit() emits impersonation:exit audit entries', async () => {
-    const { result } = renderHook(() => useImpersonation());
-
-    await act(async () => {
-      await result.current.entry(validEntryOpts);
-    });
-
+  it('exit() with no active session is a safe no-op', async () => {
+    bridgeSession = null;
+    const { result } = renderHook(() => useImpersonation(), { wrapper });
     await act(async () => {
       await result.current.exit();
     });
-
-    const state = useMockStore.getState();
-    const adminExitEntry = state.adminAudit.find((e) => e.action === 'impersonation:exit');
-    const tenantExitEntry = state.audit.find((e) => e.action === 'impersonation:exit');
-
-    expect(adminExitEntry).toBeDefined();
-    expect(tenantExitEntry).toBeDefined();
-    expect(tenantExitEntry?.acted_as_admin).toBe(true);
+    expect(mockEndMutate).not.toHaveBeenCalled();
+    expect(getActiveImpersonationId()).toBeNull();
   });
 
-  it('minimal profile builds a broader scope than full read-only', async () => {
-    // Seed a role with write grants for the admin user
-    const store = useMockStore.getState();
-    store.addEntity('roles', {
-      id: 'role-admin-test',
-      tenant_id: 'tenant-test-01',
-      name: 'admin',
-      parent_ids: [],
-      grants: [
-        { permission: 'user:read' },
-        { permission: 'service:write' },
-        { permission: 'role:delete' },
-      ],
-      denies: [],
-      system: true,
-    });
-    store.addEntity('memberships', {
-      id: 'mem-admin-test',
-      tenant_id: 'tenant-test-01',
-      user_id: 'user-test-admin',
-      role_ids: ['role-admin-test'],
-      state: 'active',
-      invited_at: new Date().toISOString(),
-    });
+  it('extendSession() dispatches the touch mutation when a session is active', async () => {
+    bridgeSession = fakeSession;
+    mockTouchMutate.mockResolvedValue({ data: undefined, status: 204 });
 
-    const { result: minimalResult } = renderHook(() => useImpersonation());
+    const { result } = renderHook(() => useImpersonation(), { wrapper });
     await act(async () => {
-      await minimalResult.current.entry({ ...validEntryOpts, profile: 'minimal' });
+      await result.current.extendSession();
     });
-    const minimalScope = minimalResult.current.session?.scope ?? [];
 
-    const { result: fullResult } = renderHook(() => useImpersonation());
-    await act(async () => {
-      // Reset for second hook
-      const minimalSessionId = minimalResult.current.session?.id;
-      if (minimalSessionId) {
-        useMockStore.getState().deleteEntity('impersonationSessions', minimalSessionId);
-      }
-      await fullResult.current.entry({ ...validEntryOpts, profile: 'full' });
-    });
-    const fullScope = fullResult.current.session?.scope ?? [];
-
-    // Minimal should include the write grant from the role
-    expect(minimalScope).toContain('service:write');
-    expect(minimalScope).toContain('role:delete');
-
-    // Full (read-only) should NOT include destructive write
-    expect(fullScope).not.toContain('role:delete');
-    expect(fullScope).toContain('user:read');
+    expect(mockTouchMutate).toHaveBeenCalledWith({ id: 'imp-0001' });
   });
 
-  it('idle timer triggers exit after 60 minutes of inactivity', async () => {
-    vi.useFakeTimers();
-
-    const { result } = renderHook(() => useImpersonation());
-
+  it('extendSession() with no active session is a safe no-op', async () => {
+    bridgeSession = null;
+    const { result } = renderHook(() => useImpersonation(), { wrapper });
     await act(async () => {
-      await result.current.entry(validEntryOpts);
+      await result.current.extendSession();
     });
-
-    expect(result.current.state).toBe('active');
-
-    // Advance 60 minutes
-    await act(async () => {
-      vi.advanceTimersByTime(60 * 60 * 1000 + 1000);
-      // flush microtasks
-      await Promise.resolve();
-    });
-
-    expect(result.current.state).toBe('idle');
-    expect(result.current.session).toBeNull();
+    expect(mockTouchMutate).not.toHaveBeenCalled();
   });
 
-  it('wall-clock timer triggers exit after 4 hours', async () => {
-    vi.useFakeTimers();
+  it('reports state="entering" while the start mutation is pending', () => {
+    startPending = true;
+    const { result } = renderHook(() => useImpersonation(), { wrapper });
+    expect(result.current.state).toBe('entering');
+  });
 
-    const { result } = renderHook(() => useImpersonation());
-
-    await act(async () => {
-      await result.current.entry(validEntryOpts);
-    });
-
-    // Simulate activity every 30 minutes to prevent idle timeout
-    // but advance wall clock past 4 hours by ticking the minute interval
-    await act(async () => {
-      // Fire 241 minute intervals (4h01m) — each fires the wall-clock checker
-      vi.advanceTimersByTime(4 * 60 * 60 * 1000 + 2 * 60 * 1000);
-      await Promise.resolve();
-    });
-
-    expect(result.current.state).toBe('idle');
+  it('reports state="exiting" while the end mutation is pending', () => {
+    bridgeSession = fakeSession;
+    endPending = true;
+    const { result } = renderHook(() => useImpersonation(), { wrapper });
+    expect(result.current.state).toBe('exiting');
   });
 });

@@ -10,6 +10,7 @@ import (
 	"log/slog"
 	"os"
 	"path/filepath"
+	"strconv"
 	"time"
 
 	airegistry "github.com/riokulabs/rioku/internal/ai/registry"
@@ -54,6 +55,8 @@ type Daemon struct {
 	keyValidator    *keyvalidator.Server
 	aiGateway       *aigateway.Server
 	notifyDispatch  *notifications.Dispatcher
+	channelDisp     *notifications.ChannelDispatcher
+	eventRouter     *notifications.EventRouter
 	upstreamHealth  *caddy.UpstreamHealthPoller
 	traceStore      tracestore.Driver
 	ringBuffer      *tracestore.RingBuffer
@@ -65,6 +68,7 @@ type Daemon struct {
 	startedAt       time.Time
 	vaultResolver   *vault.CachingResolver
 	jwksRegistry    *observability.JWKSRegistry
+	logTail         *gateway.LogTailBuffer
 }
 
 // DaemonHealth reports the health of the daemon and its subsystems.
@@ -108,6 +112,14 @@ func (d *Daemon) Start(ctx context.Context) error {
 	}
 	d.logLevel = lv
 	d.loggingShutdown = loggingShutdown
+
+	// Attach the in-memory log-tail ring buffer as a fan-out handler on
+	// top of the configured slog default. The buffer drives the SSE
+	// log-tail endpoint exposed by the gateway.
+	d.logTail = gateway.NewLogTailBuffer(1000)
+	if base := slog.Default(); base != nil {
+		slog.SetDefault(slog.New(newMultiHandler(base.Handler(), d.logTail)))
+	}
 
 	// Create component loggers.
 	storeLog := slog.Default().With("component", "store")
@@ -188,6 +200,23 @@ func (d *Daemon) Start(ctx context.Context) error {
 		caddyLog.Info("child process started", "admin_addr", d.cfg.Caddy.AdminAddr)
 	}
 
+	// Register the gateway-side reload hook so settings handlers
+	// (network, TLS manual cert upload/delete, ACME flips) can fire-
+	// and-forget a "please refresh Caddy" notification. The hook is
+	// best-effort: errors from PushConfig are logged inside the
+	// gateway and never propagate back to the request.
+	gateway.SetCaddyReloadHook(func(ctx context.Context, reason string) error {
+		caddyLog.Info("reload requested", "reason", reason)
+		// The full config engine resync is owned by the gRPC layer;
+		// here we only need to confirm Caddy is alive. A no-op is
+		// acceptable when Caddy isn't running (CLI-only invocations,
+		// tests).
+		if d.caddy == nil || !d.caddy.IsRunning() {
+			return nil
+		}
+		return d.caddy.Health(ctx)
+	})
+
 	// 5a. Start log ingester.
 	socketPath := filepath.Join(d.cfg.DataDir, "trace.sock")
 	samplingCfg := tracestore.SamplingConfig{
@@ -231,6 +260,30 @@ func (d *Daemon) Start(ctx context.Context) error {
 		}); ok {
 			setter.SetWebhookEmitter(notificationsAdapter{disp: d.notifyDispatch})
 		}
+
+		// Wire the channel send-side dispatcher and the audit-event router
+		// so config audit emissions fan out to notification channels per
+		// tenant routing rules. The router runs async (per-emit goroutine)
+		// so the originating request never blocks on dispatch.
+		d.channelDisp = notifications.NewChannelDispatcher(d.store, notifyLog)
+		if h := os.Getenv("RIOKU_SMTP_HOST"); h != "" {
+			d.channelDisp.DefaultSMTPHost = h
+		} else {
+			d.channelDisp.DefaultSMTPHost = "localhost"
+		}
+		if p := os.Getenv("RIOKU_SMTP_PORT"); p != "" {
+			if n, perr := strconv.Atoi(p); perr == nil {
+				d.channelDisp.DefaultSMTPPort = n
+			}
+		} else {
+			d.channelDisp.DefaultSMTPPort = 1025
+		}
+		// Share the dispatcher with the gateway's lazy-init slot so the
+		// admin "Test channel" endpoint and the audit-routing path use
+		// the same instance (and the same delivery-log writer).
+		gateway.SetChannelDispatcherForTest(d.channelDisp)
+		d.eventRouter = notifications.NewEventRouter(d.store, d.channelDisp, notifyLog)
+		d.engine.SetAuditDispatcher(notifications.MakeConfigAuditDispatchFn(d.eventRouter))
 	}
 
 	// 6a. Start the Caddy upstream-health poller (#122) when the
@@ -265,7 +318,7 @@ func (d *Daemon) Start(ctx context.Context) error {
 			if d.upstreamHealth != nil {
 				uhSource = d.upstreamHealth
 			}
-			gw, err = gateway.NewGateway(addr, d.grpc.ConfigService(), d.grpc.HealthService(), d.grpc.TrafficService(), d.grpc.APIManagementService(), d.grpc.AIGatewayService(), d.grpc.WAFService(), d.auth, d.sessions, d.engine, d.store, d.cfg, spaFS, d.ringBuffer, d.traceStore, uhSource, d.jwksRegistry, gwLog, d.logLevel)
+			gw, err = gateway.NewGateway(addr, d.grpc.ConfigService(), d.grpc.HealthService(), d.grpc.TrafficService(), d.grpc.APIManagementService(), d.grpc.AIGatewayService(), d.grpc.WAFService(), d.auth, d.sessions, d.engine, d.store, d.cfg, spaFS, d.ringBuffer, d.traceStore, uhSource, d.jwksRegistry, d.logTail, gwLog, d.logLevel)
 			if err == nil {
 				break
 			}
@@ -440,11 +493,30 @@ func (d *Daemon) Start(ctx context.Context) error {
 			AskURL:  "http://" + d.tlsAsk.Addr() + "/tls/ask",
 		})
 	}
+	if d.cfg.Caddy.SubdomainCertFile != "" && d.cfg.Caddy.SubdomainKeyFile != "" {
+		compiler.SetSubdomainCert(caddy.SubdomainCertConfig{
+			CertFile: d.cfg.Caddy.SubdomainCertFile,
+			KeyFile:  d.cfg.Caddy.SubdomainKeyFile,
+		})
+	}
 	if d.keyValidator != nil {
 		compiler.SetWAFAuditEndpoint("http://" + d.keyValidator.Addr() + "/waf-record")
 	}
 	d.engine.SetCompiler(compiler)
 	slog.Info("compiler updated with admin config", "component", "config")
+
+	// Wire the Caddy admin-API reload hook. Every config-mutating REST
+	// handler calls triggerCaddyReload after its transaction commits; the
+	// hook here POSTs the freshly compiled config to Caddy's /load
+	// endpoint. The sync agent below remains responsible for store-watcher
+	// triggered reloads (initial sync + cluster changes); the hook adds
+	// synchronous reloads for direct admin-panel mutations.
+	caddyAdminURL := "http://" + d.cfg.Caddy.AdminAddr
+	gateway.SetCaddyReloadHook(gateway.NewCaddyAdminReloader(gateway.CaddyReloaderConfig{
+		AdminURL: caddyAdminURL,
+		Compile:  d.engine.CompileCaddyConfig,
+		Logger:   slog.Default().With("component", "caddy-reload"),
+	}))
 
 	// 8. Start sync agent (watches config changes, pushes to Caddy).
 	d.syncAgent = riokusync.NewAgent(d.engine, d.caddy, syncLog)

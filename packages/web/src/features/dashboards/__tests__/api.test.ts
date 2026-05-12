@@ -1,203 +1,295 @@
-/* eslint-disable @typescript-eslint/no-non-null-assertion */
 /**
- * Dashboards API tests — covers CRUD, version snapshot/restore, set-default
- * atomicity, set-as-my-home, and JSON export/import.
+ * Dashboards feature `api.ts` — daemon adapter tests (Plan 16b, #235).
+ *
+ * Validates:
+ *   1. Mode / scope mapping daemon → SPA (`advanced` ↔ `grafana`,
+ *      `user` ↔ `personal`).
+ *   2. Widget list flows through and produces a synthesized layout map +
+ *      ordered `widget_ids`.
+ *   3. Mutations issue the correct HTTP verb + path against the daemon.
+ *   4. JSON import / export adapter round-trips a payload in the
+ *      stage-1 `plan4-v1` shape.
+ *
+ * Uses MSW to intercept the live `customFetch` calls — no module mocks.
  */
-import { beforeEach, describe, expect, it } from 'vitest';
-import { useMockStore } from '@/api/mock-store';
-import { seedStore } from '@/api/mock-seed';
+import { afterEach, beforeEach, describe, expect, it } from 'vitest';
+import { http, HttpResponse } from 'msw';
+import { renderHook, waitFor } from '@testing-library/react';
+import React from 'react';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { server } from '@/test/msw-server';
 import {
   createDashboard,
-  deleteDashboard,
-  exportDashboardJson,
+  exportDashboardServerSide,
   importDashboardJson,
-  restoreDashboardVersion,
-  setAsMyHome,
   setDefaultDashboard,
-  snapshotDashboard,
-  updateDashboard,
+  useDashboardList,
 } from '../api';
-import { DASHBOARD_EXPORT_VERSION, DashboardImportError } from '../types';
+import { DASHBOARD_EXPORT_VERSION } from '../types';
+import type { DashboardExport } from '../types';
 
-function acmeTenantId(): string {
-  const acme = Object.values(useMockStore.getState().tenants).find((t) => t.slug === 'acme');
-  if (!acme) throw new Error('No acme tenant seeded');
-  return acme.id;
+const TENANT = 'acme';
+
+interface DaemonDashboardLite {
+  id: string;
+  tenantId: string;
+  name: string;
+  description: string;
+  mode: 'metabase' | 'advanced' | '';
+  scope: 'tenant' | 'user' | '';
+  isDefault: boolean;
+  ownerUserId: string | null;
+  sharedRoleIds: string[];
+  homeForUsers: string[];
+  variables: unknown[];
+  createdAt: string;
+  updatedAt: string;
 }
 
-function firstAcmeDashboardId(): string {
-  const tid = acmeTenantId();
-  const dashboards = Object.values(useMockStore.getState().dashboards).filter(
-    (d) => d.tenant_id === tid,
-  );
-  if (dashboards.length === 0) throw new Error('No acme dashboard seeded');
-  return dashboards[0]!.id;
+function makeDashboard(over: Partial<DaemonDashboardLite> = {}): DaemonDashboardLite {
+  return {
+    id: 'd1',
+    tenantId: 't1',
+    name: 'D1',
+    description: 'first',
+    mode: 'metabase',
+    scope: 'tenant',
+    isDefault: true,
+    ownerUserId: null,
+    sharedRoleIds: [],
+    homeForUsers: [],
+    variables: [],
+    createdAt: '2026-05-07T00:00:00Z',
+    updatedAt: '2026-05-07T00:00:00Z',
+    ...over,
+  };
+}
+
+function makeWidget(id: string, x = 0, y = 0): Record<string, unknown> {
+  return {
+    id,
+    dashboardId: 'd1',
+    kind: 'line-chart',
+    title: id,
+    dataSource: 'promql',
+    config: {},
+    rawQuery: null,
+    lockedAdvanced: false,
+    layout: { x, y, w: 4, h: 3 },
+    createdAt: '2026-05-07T00:00:00Z',
+    updatedAt: '2026-05-07T00:00:00Z',
+  };
+}
+
+function makeQc(): QueryClient {
+  return new QueryClient({
+    defaultOptions: {
+      queries: { retry: false, gcTime: 0, staleTime: 0 },
+      mutations: { retry: false },
+    },
+  });
+}
+
+function makeWrapper(qc: QueryClient): React.FC<{ children: React.ReactNode }> {
+  // eslint-disable-next-line react/display-name
+  return ({ children }) => React.createElement(QueryClientProvider, { client: qc }, children);
 }
 
 beforeEach(() => {
-  useMockStore.getState().reset();
-  seedStore(useMockStore);
-  // Pretend derrick is the current user.
-  const derrick = Object.values(useMockStore.getState().users).find(
-    (u) => u.email === 'derrick@acme.com',
+  server.use(
+    http.get(`*/api/v1/t/${TENANT}/dashboards`, () =>
+      HttpResponse.json(
+        {
+          items: [
+            makeDashboard({ id: 'd1', mode: 'metabase', scope: 'tenant', isDefault: true }),
+            makeDashboard({
+              id: 'd2',
+              name: 'Personal',
+              mode: 'advanced',
+              scope: 'user',
+              isDefault: false,
+              homeForUsers: ['user-1'],
+            }),
+          ],
+          total: 2,
+        },
+        { status: 200 },
+      ),
+    ),
+    http.get(`*/api/v1/t/${TENANT}/dashboards/d1/widgets`, () =>
+      HttpResponse.json(
+        {
+          items: [makeWidget('w1', 0, 0), makeWidget('w2', 4, 0)],
+          total: 2,
+        },
+        { status: 200 },
+      ),
+    ),
+    http.get(`*/api/v1/t/${TENANT}/dashboards/d2/widgets`, () =>
+      HttpResponse.json({ items: [], total: 0 }, { status: 200 }),
+    ),
   );
-  useMockStore.setState({ currentUserId: derrick?.id ?? 'user-0000' });
 });
 
-describe('createDashboard', () => {
-  it('creates a dashboard with defaults', async () => {
-    const tid = acmeTenantId();
-    const d = await createDashboard(tid, { name: 'New one' });
-    expect(d.tenant_id).toBe(tid);
-    expect(d.mode).toBe('metabase');
-    expect(d.scope).toBe('tenant');
-    expect(d.widget_ids).toEqual([]);
-    expect(useMockStore.getState().dashboards[d.id]).toBeDefined();
-  });
-
-  it('emits an audit entry', async () => {
-    const tid = acmeTenantId();
-    const beforeLen = useMockStore.getState().audit.length;
-    await createDashboard(tid, { name: 'Audited' });
-    const after = useMockStore.getState().audit;
-    expect(after.length).toBeGreaterThan(beforeLen);
-    expect(after[after.length - 1]!.action).toBe('dashboard.create');
-  });
+afterEach(() => {
+  server.resetHandlers();
 });
 
-describe('updateDashboard', () => {
-  it('patches fields and bumps updated_at', async () => {
-    const id = firstAcmeDashboardId();
-    const before = useMockStore.getState().dashboards[id]!;
-    const updated = await updateDashboard(id, { name: 'Renamed' });
-    expect(updated.name).toBe('Renamed');
-    expect(updated.updated_at).not.toBe(before.updated_at);
-  });
-
-  it('throws on unknown id', async () => {
-    await expect(updateDashboard('nope', { name: 'x' })).rejects.toThrow();
-  });
-});
-
-describe('deleteDashboard', () => {
-  it('removes the dashboard and its widgets + versions atomically', async () => {
-    const id = firstAcmeDashboardId();
-    const widgetIds = useMockStore.getState().dashboards[id]!.widget_ids;
-    await deleteDashboard(id);
-    const state = useMockStore.getState();
-    expect(state.dashboards[id]).toBeUndefined();
-    for (const wid of widgetIds) {
-      expect(state.widgets[wid]).toBeUndefined();
-    }
-    const orphanVersions = Object.values(state.dashboardVersions).filter(
-      (v) => v.dashboard_id === id,
+describe('useDashboardList — mapping + filtering', () => {
+  it('maps daemon mode/scope into SPA vocabulary', async () => {
+    const qc = makeQc();
+    const { result } = renderHook(
+      () => useDashboardList(TENANT, { search: '', modes: [], scopes: [] }),
+      { wrapper: makeWrapper(qc) },
     );
-    expect(orphanVersions).toHaveLength(0);
+    await waitFor(() => {
+      expect(result.current.length).toBe(2);
+    });
+    const d1 = result.current.find((d) => d.id === 'd1');
+    const d2 = result.current.find((d) => d.id === 'd2');
+    expect(d1?.mode).toBe('metabase');
+    expect(d1?.scope).toBe('tenant');
+    expect(d1?.default).toBe(true);
+    expect(d2?.mode).toBe('grafana');
+    expect(d2?.scope).toBe('personal');
+    expect(d2?.default).toBe(false);
+  });
+
+  it('synthesizes widget_ids + layout from the widgets endpoint', async () => {
+    const qc = makeQc();
+    const { result } = renderHook(
+      () => useDashboardList(TENANT, { search: '', modes: [], scopes: [] }),
+      { wrapper: makeWrapper(qc) },
+    );
+    await waitFor(() => {
+      const d1 = result.current.find((d) => d.id === 'd1');
+      expect(d1?.widget_ids.length).toBe(2);
+    });
+    const d1 = result.current.find((d) => d.id === 'd1');
+    expect(d1?.widget_ids).toEqual(['w1', 'w2']);
+    expect(d1?.layout.w1).toEqual({ x: 0, y: 0, w: 4, h: 3 });
+    expect(d1?.layout.w2).toEqual({ x: 4, y: 0, w: 4, h: 3 });
+  });
+
+  it('applies SPA-side filter for mode + scope + search + defaultOnly', async () => {
+    const qc = makeQc();
+    const { result } = renderHook(
+      () =>
+        useDashboardList(TENANT, {
+          search: '',
+          modes: ['grafana'],
+          scopes: [],
+        }),
+      { wrapper: makeWrapper(qc) },
+    );
+    await waitFor(() => {
+      expect(result.current.length).toBe(1);
+    });
+    expect(result.current[0]?.id).toBe('d2');
   });
 });
 
-describe('setDefaultDashboard', () => {
-  it('flips default on target and clears prior default atomically', async () => {
-    const tid = acmeTenantId();
-    const dashboards = Object.values(useMockStore.getState().dashboards).filter(
-      (d) => d.tenant_id === tid,
+describe('mutations issue correct verbs and paths', () => {
+  it('createDashboard POSTs the create body with mapped fields', async () => {
+    let captured: Record<string, unknown> | null = null;
+    server.use(
+      http.post(`*/api/v1/t/${TENANT}/dashboards`, async ({ request }) => {
+        captured = (await request.json()) as Record<string, unknown>;
+        return HttpResponse.json(
+          makeDashboard({ id: 'd-new', name: 'fresh', mode: 'advanced', scope: 'user' }),
+          { status: 201 },
+        );
+      }),
     );
-    const prevDefault = dashboards.find((d) => d.default);
-    const target = dashboards.find((d) => !d.default);
-    if (!prevDefault || !target) throw new Error('Test requires at least two tenant dashboards');
 
-    await setDefaultDashboard(tid, target.id);
-    const state = useMockStore.getState();
-    expect(state.dashboards[target.id]?.default).toBe(true);
-    expect(state.dashboards[prevDefault.id]?.default).toBe(false);
+    const out = await createDashboard(TENANT, {
+      name: 'fresh',
+      mode: 'grafana',
+      scope: 'personal',
+    });
+
+    expect(captured).not.toBeNull();
+    expect(captured!.name).toBe('fresh');
+    expect(captured!.mode).toBe('advanced');
+    expect(captured!.scope).toBe('user');
+    expect(out.id).toBe('d-new');
+    expect(out.mode).toBe('grafana');
+    expect(out.scope).toBe('personal');
+  });
+
+  it('setDefaultDashboard POSTs to .../set-default', async () => {
+    let hit = false;
+    server.use(
+      http.post(`*/api/v1/t/${TENANT}/dashboards/d1/set-default`, () => {
+        hit = true;
+        return HttpResponse.json(makeDashboard({ id: 'd1', isDefault: true }), { status: 200 });
+      }),
+      http.get(`*/api/v1/t/${TENANT}/dashboards/d1/widgets`, () =>
+        HttpResponse.json({ items: [], total: 0 }, { status: 200 }),
+      ),
+    );
+    const out = await setDefaultDashboard(TENANT, 'd1');
+    expect(hit).toBe(true);
+    expect(out.default).toBe(true);
   });
 });
 
-describe('setAsMyHome', () => {
-  it('writes a per-user home override', async () => {
-    const id = firstAcmeDashboardId();
-    const uid = useMockStore.getState().currentUserId!;
-    await setAsMyHome(uid, id);
-    expect(useMockStore.getState().userHomeDashboards[uid]).toBe(id);
-  });
-});
-
-describe('snapshotDashboard + restoreDashboardVersion', () => {
-  it('snapshots the current dashboard + widgets as a new version entry', async () => {
-    const id = firstAcmeDashboardId();
-    const before = Object.values(useMockStore.getState().dashboardVersions).filter(
-      (v) => v.dashboard_id === id,
-    ).length;
-    const version = await snapshotDashboard(id, 'manual test');
-    expect(version.dashboard_id).toBe(id);
-    const after = Object.values(useMockStore.getState().dashboardVersions).filter(
-      (v) => v.dashboard_id === id,
-    ).length;
-    expect(after).toBe(before + 1);
-    expect(version.snapshot.widgets.length).toBeGreaterThan(0);
-  });
-
-  it('restore replaces dashboard + widgets and records a marker version', async () => {
-    const id = firstAcmeDashboardId();
-    const dashboard = useMockStore.getState().dashboards[id]!;
-    // Rename so restore visibly rolls back.
-    await updateDashboard(id, { name: 'Mutated' });
-    const versions = Object.values(useMockStore.getState().dashboardVersions)
-      .filter((v) => v.dashboard_id === id)
-      .sort((a, b) => a.version - b.version);
-    const firstVersion = versions[0]!;
-    // Restore the first seeded version.
-    await restoreDashboardVersion(firstVersion.id);
-    const after = useMockStore.getState().dashboards[id]!;
-    expect(after.name).toBe(dashboard.name);
-    // A marker version should have been added.
-    const versionsAfter = Object.values(useMockStore.getState().dashboardVersions).filter(
-      (v) => v.dashboard_id === id,
+describe('export / import adapters', () => {
+  it('exportDashboardServerSide hits the GET .../export endpoint', async () => {
+    let hit = false;
+    server.use(
+      http.get(`*/api/v1/t/${TENANT}/dashboards/d1/export`, () => {
+        hit = true;
+        return HttpResponse.json(
+          { dashboard: makeDashboard({ id: 'd1' }), widgets: [makeWidget('w1')] },
+          { status: 200 },
+        );
+      }),
     );
-    expect(versionsAfter.length).toBe(versions.length + 1);
-  });
-});
-
-describe('exportDashboardJson + importDashboardJson', () => {
-  it('round-trips a dashboard via JSON with fresh ids', async () => {
-    const id = firstAcmeDashboardId();
-    const payload = exportDashboardJson(id);
-    expect(payload.version).toBe(DASHBOARD_EXPORT_VERSION);
-
-    const tid = acmeTenantId();
-    const imported = await importDashboardJson(tid, JSON.stringify(payload));
-    expect(imported.id).not.toBe(id);
-    expect(imported.widget_ids.length).toBe(payload.widgets.length);
-    // Every new widget id must appear in the store.
-    const state = useMockStore.getState();
-    for (const wid of imported.widget_ids) {
-      expect(state.widgets[wid]).toBeDefined();
-      expect(state.widgets[wid]?.dashboard_id).toBe(imported.id);
-    }
-    // Layout keys must map to the new ids.
-    for (const newId of Object.keys(imported.layout)) {
-      expect(imported.widget_ids).toContain(newId);
-    }
+    const out = await exportDashboardServerSide(TENANT, 'd1');
+    expect(hit).toBe(true);
+    expect(out.dashboard.id).toBe('d1');
   });
 
-  it('rejects invalid JSON payloads with DashboardImportError', async () => {
-    await expect(importDashboardJson(acmeTenantId(), '{not json')).rejects.toThrow(
-      DashboardImportError,
+  it('importDashboardJson POSTs to /import with the daemon-shaped payload', async () => {
+    let captured: Record<string, unknown> | null = null;
+    server.use(
+      http.post(`*/api/v1/t/${TENANT}/dashboards/import`, async ({ request }) => {
+        captured = (await request.json()) as Record<string, unknown>;
+        return HttpResponse.json(makeDashboard({ id: 'd-imported', name: 'Imported' }), {
+          status: 201,
+        });
+      }),
     );
+    const payload: DashboardExport = {
+      version: DASHBOARD_EXPORT_VERSION,
+      exported_at: '2026-05-07T00:00:00Z',
+      dashboard: {
+        id: 'old-id',
+        tenant_id: 'old-tenant',
+        name: 'Imported',
+        default: false,
+        widget_ids: [],
+        owner_user_id: null,
+        mode: 'metabase',
+        scope: 'tenant',
+        shared_role_ids: [],
+        layout: {},
+        variables: [],
+        created_at: '2026-05-07T00:00:00Z',
+        updated_at: '2026-05-07T00:00:00Z',
+      },
+      widgets: [],
+    };
+    const out = await importDashboardJson(TENANT, payload);
+    expect(captured).not.toBeNull();
+    const dash = (captured as unknown as { dashboard: { mode: string; scope: string } }).dashboard;
+    expect(dash.mode).toBe('metabase');
+    expect(dash.scope).toBe('tenant');
+    expect(out.id).toBe('d-imported');
   });
 
-  it('rejects payloads whose shape does not match the schema', async () => {
-    await expect(importDashboardJson(acmeTenantId(), '{"version":"plan4-v1"}')).rejects.toThrow(
-      DashboardImportError,
-    );
-  });
-
-  it('rejects payloads with an unsupported version literal', async () => {
-    const id = firstAcmeDashboardId();
-    const payload = exportDashboardJson(id);
-    const tampered = JSON.stringify({ ...payload, version: 'not-a-real-version' });
-    await expect(importDashboardJson(acmeTenantId(), tampered)).rejects.toThrow(
-      DashboardImportError,
-    );
+  it('importDashboardJson rejects malformed JSON', async () => {
+    await expect(importDashboardJson(TENANT, '{not json')).rejects.toThrow(/Invalid JSON/);
   });
 });

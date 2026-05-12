@@ -4,8 +4,8 @@
  * List + filter bar + drawer (detail / create-wizard / edit). URL-synced
  * search + tls_mode + enabled + linked_service_ids filters.
  *
- * Per Plan 2 Task 2c.18: tls_mode / enabled / linked_service_ids are all
- * multi-value filters. URL serialization uses CSV
+ * tls_mode / enabled / linked_service_ids are all multi-value filters.
+ * URL serialization uses CSV
  * (e.g. `?tls_mode=auto,manual&enabled=enabled`).
  *
  * Permission guard: site:read to view, site:write for Create/Edit,
@@ -16,7 +16,6 @@ import { createFileRoute, useNavigate } from '@tanstack/react-router';
 import { Button, Drawer, Group, Stack, Title } from '@mantine/core';
 import { useDisclosure } from '@mantine/hooks';
 import { IconPlus } from '@tabler/icons-react';
-import { useMockStore } from '@/api/mock-store';
 import { requirePermissions } from '@/hooks/use-before-load';
 import {
   DeleteSiteModal,
@@ -28,6 +27,7 @@ import {
 } from '@/features/sites';
 import type { SiteEnabledFilter, SiteFilter } from '@/features/sites';
 import type { Site } from '@/api/resources';
+import { useServiceList } from '@/features/services';
 
 type DrawerMode = 'detail' | 'create' | 'edit';
 
@@ -70,20 +70,21 @@ function SitesPage() {
   const search = Route.useSearch();
   const navigate = useNavigate();
 
-  const tenantRecord = useMockStore((s) => Object.values(s.tenants).find((t) => t.slug === tenant));
-  const tenantId = tenantRecord?.id ?? '';
-  const tenantSlug = tenantRecord?.slug ?? tenant;
+  const tenantId = tenant;
+  const tenantSlug = tenant;
 
-  const allServices = useMockStore((s) => s.services);
+  // Stage-2: derive service options from the daemon-backed service list.
+  const allServices = useServiceList(tenantId, {
+    search: '',
+    env: [],
+    health: [],
+    tags: [],
+  });
   const serviceOptions = useMemo(() => {
-    const out: { value: string; label: string }[] = [];
-    for (const svc of Object.values(allServices)) {
-      if (svc.tenant_id === tenantId) {
-        out.push({ value: svc.id, label: svc.name });
-      }
-    }
-    return out.sort((a, b) => a.label.localeCompare(b.label));
-  }, [allServices, tenantId]);
+    return allServices
+      .map((svc) => ({ value: svc.id, label: svc.name }))
+      .sort((a, b) => a.label.localeCompare(b.label));
+  }, [allServices]);
 
   const filter: SiteFilter = {
     search: search.search,

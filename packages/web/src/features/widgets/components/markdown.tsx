@@ -1,12 +1,10 @@
 /**
  * <MarkdownWidget> — text/markdown panel for annotations and documentation.
  *
- * Stage-1: renders plain text with very light markdown-ish formatting
- * (line breaks, **bold**, *italic*, # headings, - bullets) without pulling
- * a real markdown parser. Stage-2 can swap in `react-markdown`.
- *
- * Expected data shape: { content: string }.
- * Falls back to `widget.config.content` when the data shape is empty.
+ * Renders plain text with light markdown-ish formatting (line breaks,
+ * **bold**, *italic*, # headings, - bullets) without pulling a real
+ * markdown parser. Expected data shape: `{ content: string }`. Falls back
+ * to `widget.config.content` when the data shape is empty.
  */
 import { Alert, Box, Skeleton, Stack, Text, Title } from '@mantine/core';
 import type { WidgetRenderProps } from '../types';
@@ -29,10 +27,24 @@ export function MarkdownWidget({ widget, data, loading, error }: WidgetRenderPro
     );
 
   let content = '';
+  let dataInvalid = false;
   if (isMarkdownData(data) && typeof data.content === 'string') {
     content = data.content;
+  } else if (data !== undefined && data !== null) {
+    // Data was supplied but did not include a `content: string`. Surface the
+    // mismatch instead of silently falling back to widget.config — the test
+    // suite + builder both rely on this alert to flag bad data sources.
+    dataInvalid = true;
   } else if (typeof widget.config.content === 'string') {
     content = widget.config.content;
+  }
+
+  if (dataInvalid) {
+    return (
+      <Alert color="yellow" title="Invalid data" variant="light">
+        Expected {'{ content: string }'}
+      </Alert>
+    );
   }
 
   if (content.trim().length === 0) {

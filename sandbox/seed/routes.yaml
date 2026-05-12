@@ -1,0 +1,109 @@
+# Owned by Plan 03 (api-mgmt) — routes seed data. See sandbox/scripts/seed-config.sh for loader.
+
+# Routes (reference services and policies by name)
+routes:
+  - name: users-api
+    enabled: true
+    matchers:
+      - hosts: ["api.local"]
+        paths:
+          - type: TYPE_PREFIX
+            value: /v1/users
+        methods: ["GET", "POST", "PUT", "DELETE"]
+    service: users-upstream
+    policies: [rate-limit-standard, auth-api-key]
+
+  - name: products-api
+    enabled: true
+    matchers:
+      - hosts: ["api.local"]
+        paths:
+          - type: TYPE_PREFIX
+            value: /v1/products
+        methods: ["GET", "POST", "PUT", "DELETE"]
+    service: products-upstream
+    policies: [rate-limit-standard]
+
+  - name: products-search
+    enabled: true
+    matchers:
+      - hosts: ["api.local"]
+        paths:
+          - type: TYPE_PREFIX
+            value: /v1/search
+        methods: ["GET"]
+    service: products-upstream
+    policies: [rate-limit-strict]
+
+  - name: webhooks-inbound
+    enabled: true
+    matchers:
+      - hosts: ["hooks.local"]
+        paths:
+          - type: TYPE_PREFIX
+            value: /
+        methods: ["POST"]
+    service: webhooks-upstream
+    policies: [rate-limit-strict, auth-api-key]
+
+  - name: auth-login
+    enabled: true
+    matchers:
+      - hosts: ["auth.local"]
+        paths:
+          - type: TYPE_EXACT
+            value: /login
+        methods: ["POST"]
+    service: auth-upstream
+    policies: [rate-limit-strict]
+
+  - name: auth-api
+    enabled: true
+    matchers:
+      - hosts: ["auth.local"]
+        paths:
+          - type: TYPE_PREFIX
+            value: /v1/
+        methods: ["GET", "POST", "PUT", "DELETE"]
+    service: auth-upstream
+    policies: [rate-limit-standard, auth-api-key]
+
+  - name: media-assets
+    enabled: true
+    matchers:
+      - hosts: ["media.local", "cdn.local"]
+        paths:
+          - type: TYPE_PREFIX
+            value: /assets/
+    service: media-upstream
+    policies: []
+
+  - name: media-upload
+    enabled: true
+    matchers:
+      - hosts: ["media.local"]
+        paths:
+          - type: TYPE_PREFIX
+            value: /upload
+        methods: ["POST", "PUT"]
+    service: media-upstream
+    policies: [auth-api-key, rate-limit-strict]
+
+  - name: health-check
+    enabled: true
+    matchers:
+      - paths:
+          - type: TYPE_EXACT
+            value: /healthz
+    service: users-upstream
+    policies: []
+
+  - name: legacy-redirect
+    enabled: false
+    matchers:
+      - hosts: ["old.local"]
+        paths:
+          - type: TYPE_PREFIX
+            value: /
+    service: users-upstream
+    policies: []

@@ -15,7 +15,7 @@ import { IconSearch, IconBell } from '@tabler/icons-react';
 import { RiokuLogo } from '@/components/rioku-logo';
 import { spotlight } from '@mantine/spotlight';
 import { useDisclosure } from '@mantine/hooks';
-import { useMockStore } from '@/api/mock-store';
+import { useCurrentUser } from '@/features/auth/use-current-user';
 import { InboxDropdown } from '@/features/notifications/components/inbox-dropdown';
 import { useUnreadCount } from '@/features/notifications/api';
 
@@ -39,7 +39,7 @@ interface TopBarProps {
 }
 
 export function TopBar({ navOpened, onNavToggle }: TopBarProps) {
-  const currentUserId = useMockStore((s) => s.currentUserId);
+  const currentUserId = useCurrentUser().data?.id ?? null;
   const unread = useUnreadCount(currentUserId ?? '');
   const [opened, { toggle, close }] = useDisclosure(false);
 

@@ -1,50 +1,28 @@
+// Use the plain `test` rather than `authedPage`: the latter's
+// addInitScript clears localStorage on EVERY navigation, which wipes
+// the `i18nextLng` value we set below before the reload's
+// LanguageDetector reads it. The base test inherits the global
+// `use.storageState` so we're still authenticated as root.
 import { test, expect } from '@playwright/test';
 
 test('switching to Arabic sets dir="rtl" on html element', async ({ page }) => {
   await page.goto('/t/acme/dashboard');
 
-  // Attempt to change language via the profile menu → Language submenu.
-  //
-  // The sidebar footer profile button (showing "derrick") opens a menu with a
-  // Language sub-menu entry. We click to open, then hover Language to expand
-  // the sub-menu, then click العربية.
-  //
-  // If the nested MenuSub hover is unreliable in headless Chromium, we fall
-  // back to setting i18next language via localStorage + reload (LanguageDetector
-  // reads 'i18nextLng' on initialisation). Document: fallback is used because
-  // Mantine MenuSub requires a hover event that can be flaky in headless mode.
+  // Regression guard for stage-2: the user-menu trigger should be
+  // reachable by stable testid (the prior `derrick` text-filter
+  // belonged to the stage-1 mock-store).
+  await expect(page.getByTestId('user-menu-trigger')).toBeVisible();
 
-  const profileButton = page.getByRole('button').filter({ hasText: 'derrick' });
-  await profileButton.click();
-
-  // Give dropdown time to appear
-  await page.waitForTimeout(200);
-
-  const languageItem = page.getByText('Language');
-  const langVisible = await languageItem.isVisible().catch(() => false);
-
-  if (langVisible) {
-    await languageItem.hover();
-    await page.waitForTimeout(200);
-
-    const arabicItem = page.getByText('العربية');
-    const arabicVisible = await arabicItem.isVisible().catch(() => false);
-
-    if (arabicVisible) {
-      await arabicItem.click();
-      await expect(page.locator('html')).toHaveAttribute('dir', 'rtl');
-      return;
-    }
-  }
-
-  // Fallback: set language via localStorage and reload.
-  // i18next-browser-languagedetector reads 'i18nextLng' from localStorage on init.
+  // `react-i18next` initialises locale from the `i18nextLng`
+  // localStorage key on boot (via `i18next-browser-languagedetector`).
+  // Mantine MenuSub's hover-only trigger flakes in headless render, so
+  // we drive the same code path the menu would: write the key and
+  // reload. The app's `Providers` sets `dir="rtl"` on <html> for `ar`.
   await page.evaluate(() => {
     localStorage.setItem('i18nextLng', 'ar');
   });
   await page.reload();
   await page.waitForLoadState('networkidle');
 
-  // After reload with ar locale, Providers sets dir="rtl" on <html>
-  await expect(page.locator('html')).toHaveAttribute('dir', 'rtl');
+  await expect(page.locator('html')).toHaveAttribute('dir', 'rtl', { timeout: 5_000 });
 });

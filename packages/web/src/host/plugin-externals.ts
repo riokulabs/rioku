@@ -1,6 +1,5 @@
 /**
- * Plugin externals list — spec §9.10.2.
- *
+ * Plugin externals list.
  * Single source of truth for all packages that plugin bundles MUST NOT inline.
  * Used by:
  *   1. The static bundle scanner (`plugin-validate.ts`) — B3 enforcement.

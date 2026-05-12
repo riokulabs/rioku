@@ -14,16 +14,9 @@ import (
 // without hitting 404s or error boundaries.
 //
 // Note: GET /api/v1/cluster moved to RegisterClusterRoutes (#83).
+// Note: GET /api/v1/plugins and GET /api/v1/plugins/manifest are
+// superseded by the tenant-scoped plugin routes in RegisterPluginRoutes.
 func RegisterStubRoutes(mux *http.ServeMux, _ *config.Config) {
-	mux.HandleFunc("GET /api/v1/plugins", handleStubEmptyArray())
-	mux.HandleFunc("GET /api/v1/plugins/manifest", handleStubEmptyArray())
-}
-
-func handleStubEmptyArray() http.HandlerFunc {
-	return func(w http.ResponseWriter, _ *http.Request) {
-		w.Header().Set("Content-Type", "application/json")
-		_, _ = w.Write([]byte("[]"))
-	}
 }
 
 // storeConnection returns a display string for the active store backend.

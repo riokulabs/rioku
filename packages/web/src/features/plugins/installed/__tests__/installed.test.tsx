@@ -1,10 +1,9 @@
 /**
- * Unit tests for the Installed plugins tab.
+ * Unit tests for the Installed plugins list & uninstall modal — Stage-2.
  *
- * Covers:
- *   - List renders 4 seeded plugins
- *   - Enable/disable toggle flips store state + emits audit entry
- *   - Uninstall modal requires slug confirmation, then removes plugin
+ * Hooks talk to the real daemon endpoints; tests intercept with MSW
+ * and assert the wire calls fire (PUT/DELETE) plus the UI state
+ * reflects the post-call refresh.
  */
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 
@@ -17,93 +16,125 @@ vi.mock('@tanstack/react-router', () => ({
   ),
 }));
 
-import { render, screen, fireEvent, waitFor } from '@testing-library/react';
+import { http, HttpResponse } from 'msw';
+import { screen, waitFor, fireEvent } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { MantineProvider } from '@mantine/core';
 import { ModalsProvider } from '@mantine/modals';
 import { Notifications } from '@mantine/notifications';
-import { useMockStore } from '@/api/mock-store';
-import { seedStore } from '@/api/mock-seed';
+import { server } from '@/test/msw-server';
+import { renderWithProviders } from '@/test/render';
 import { InstalledPluginList } from '../components/list';
 import { UninstallPluginModal } from '../components/uninstall-modal';
 
+interface DaemonPlugin {
+  id: string;
+  tenantScope: string | null;
+  slug: string;
+  name: string;
+  version: string;
+  enabled: boolean;
+  buildState: string;
+  cosignVerified: boolean;
+  signerId: string | null;
+  config: unknown;
+  metadata: unknown;
+  installedAt: string;
+  updatedAt: string;
+}
+
+function makeDaemonPlugin(overrides: Partial<DaemonPlugin> = {}): DaemonPlugin {
+  return {
+    id: overrides.id ?? 'plugin-1',
+    tenantScope: overrides.tenantScope ?? 'tenant-1',
+    slug: overrides.slug ?? 'com.acme.billing',
+    name: overrides.name ?? 'Acme Billing',
+    version: overrides.version ?? '1.0.0',
+    enabled: overrides.enabled ?? true,
+    buildState: overrides.buildState ?? 'stable',
+    cosignVerified: overrides.cosignVerified ?? true,
+    signerId: overrides.signerId ?? null,
+    config: {},
+    metadata: {},
+    installedAt: '2026-01-01T00:00:00Z',
+    updatedAt: '2026-01-01T00:00:00Z',
+  };
+}
+
+const SAMPLE: DaemonPlugin[] = [
+  makeDaemonPlugin({ id: 'p-1', slug: 'com.acme.billing', name: 'Acme Billing', enabled: true }),
+  makeDaemonPlugin({
+    id: 'p-2',
+    slug: 'com.dashboards.custom',
+    name: 'Custom Dashboards',
+    enabled: true,
+  }),
+  makeDaemonPlugin({
+    id: 'p-3',
+    slug: 'com.rioku.slack',
+    name: 'Rioku Slack Connector',
+    enabled: false,
+  }),
+];
+
+beforeEach(() => {
+  server.resetHandlers();
+  server.use(
+    http.get(/\/api\/v1\/t\/[^/]+\/plugins$/, () =>
+      HttpResponse.json({ items: SAMPLE, total: SAMPLE.length }),
+    ),
+  );
+});
+
 function wrap(ui: React.ReactNode) {
-  return render(
-    <MantineProvider>
+  return renderWithProviders(
+    <ModalsProvider>
       <Notifications />
-      <ModalsProvider>{ui}</ModalsProvider>
-    </MantineProvider>,
+      {ui}
+    </ModalsProvider>,
   );
 }
 
-beforeEach(() => {
-  useMockStore.getState().reset();
-  seedStore(useMockStore);
-});
-
-describe('InstalledPluginList', () => {
-  it('renders all seeded installed plugins', () => {
-    const onSelect = vi.fn();
-    const onUninstall = vi.fn();
-    wrap(
-      <InstalledPluginList tenantId="any-tenant" onSelect={onSelect} onUninstall={onUninstall} />,
-    );
-
-    // 4 seeded plugins — names should all be present
-    expect(screen.getByText('Acme Billing')).toBeTruthy();
+describe('InstalledPluginList (real daemon)', () => {
+  it('renders plugins fetched from the daemon', async () => {
+    wrap(<InstalledPluginList tenantId="tenant-1" onSelect={vi.fn()} onUninstall={vi.fn()} />);
+    await waitFor(() => {
+      expect(screen.getByText('Acme Billing')).toBeTruthy();
+    });
     expect(screen.getByText('Custom Dashboards')).toBeTruthy();
     expect(screen.getByText('Rioku Slack Connector')).toBeTruthy();
-    expect(screen.getByText('Broken Plugin (Demo)')).toBeTruthy();
   });
 
-  it('shows the stage-1 tenant-scope note', () => {
-    wrap(<InstalledPluginList tenantId="any-tenant" onSelect={vi.fn()} onUninstall={vi.fn()} />);
-    expect(screen.getByText(/Stage 1 shows all installed plugins/i)).toBeTruthy();
-  });
-
-  it('enable/disable switch toggles the plugin in the store', async () => {
-    wrap(<InstalledPluginList tenantId="any-tenant" onSelect={vi.fn()} onUninstall={vi.fn()} />);
-
-    // Acme Billing starts enabled — find the switch by aria-label
-    const initialState = useMockStore.getState();
-    const acmePlugin = Object.values(initialState.plugins).find(
-      (p) => p.slug === 'com.acme.billing',
+  it('toggles enable/disable via PUT /enable & /disable', async () => {
+    let enableCallCount = 0;
+    server.use(
+      http.post(/\/api\/v1\/t\/tenant-1\/plugins\/p-1\/disable$/, () => {
+        enableCallCount++;
+        return new HttpResponse(null, { status: 204 });
+      }),
     );
-    expect(acmePlugin?.enabled).toBe(true);
+
+    wrap(<InstalledPluginList tenantId="tenant-1" onSelect={vi.fn()} onUninstall={vi.fn()} />);
+    await waitFor(() => screen.getByText('Acme Billing'));
 
     const toggle = screen.getByLabelText(/Disable Acme Billing/i);
     fireEvent.click(toggle);
 
-    await waitFor(
-      () => {
-        const state = useMockStore.getState();
-        const acmeAfter = Object.values(state.plugins).find((p) => p.slug === 'com.acme.billing');
-        expect(acmeAfter?.enabled).toBe(false);
-      },
-      { timeout: 2000 },
-    );
-
-    const after = useMockStore.getState();
-    const recent = after.audit.slice(-1)[0];
-    expect(recent?.action).toBe('plugin:disable');
-    expect(recent?.resource_type).toBe('plugin');
+    await waitFor(() => {
+      expect(enableCallCount).toBe(1);
+    });
   });
 
   it('calls onUninstall when menu → Uninstall is clicked', async () => {
     const user = userEvent.setup();
     const onUninstall = vi.fn();
-    wrap(
-      <InstalledPluginList tenantId="any-tenant" onSelect={vi.fn()} onUninstall={onUninstall} />,
-    );
+    wrap(<InstalledPluginList tenantId="tenant-1" onSelect={vi.fn()} onUninstall={onUninstall} />);
+    await waitFor(() => screen.getByText('Acme Billing'));
 
-    // Open the actions menu for the first plugin
     const actionButtons = screen.getAllByLabelText(/Actions for /i);
-    expect(actionButtons.length).toBeGreaterThan(0);
     const firstAction = actionButtons[0];
     if (!firstAction) throw new Error('No action buttons');
     await user.click(firstAction);
 
-    // Menu item should be rendered — use findByRole for portaled dropdown
     const uninstallItem = await screen.findByRole('menuitem', { name: /Uninstall/i });
     await user.click(uninstallItem);
 
@@ -111,12 +142,30 @@ describe('InstalledPluginList', () => {
   });
 });
 
-describe('UninstallPluginModal', () => {
-  it('disables the Uninstall button until the slug is typed exactly', async () => {
-    const plugin = Object.values(useMockStore.getState().plugins).find(
-      (p) => p.slug === 'com.acme.billing',
+describe('UninstallPluginModal (real daemon)', () => {
+  it('disables the Uninstall button until the slug is typed exactly, then DELETEs', async () => {
+    let deleteCallCount = 0;
+    server.use(
+      http.delete(/\/api\/v1\/t\/tenant-1\/plugins\/p-1$/, () => {
+        deleteCallCount++;
+        return new HttpResponse(null, { status: 204 });
+      }),
     );
-    if (!plugin) throw new Error('No seeded plugin');
+
+    const plugin = {
+      id: 'p-1',
+      tenant_scope: 'tenant-1',
+      slug: 'com.acme.billing',
+      display_name: 'Acme Billing',
+      version: '1.0.0',
+      enabled: true,
+      parts: ['daemon' as const],
+      declared_permissions: [],
+      manifest: {},
+      has_errors: false,
+      build_state: 'stable' as const,
+      cosign_verified: true,
+    };
 
     const onClose = vi.fn();
     const onSuccess = vi.fn();
@@ -124,13 +173,13 @@ describe('UninstallPluginModal', () => {
       <UninstallPluginModal
         plugin={plugin}
         opened={true}
+        tenantId="tenant-1"
         onClose={onClose}
         onSuccess={onSuccess}
       />,
     );
 
     const submit = screen.getByRole('button', { name: /Uninstall permanently/i });
-    // Disabled while slug mismatches
     expect((submit as HTMLButtonElement).disabled).toBe(true);
 
     const input = screen.getByLabelText(/Confirm plugin slug/i);
@@ -142,18 +191,9 @@ describe('UninstallPluginModal', () => {
 
     fireEvent.click(submit);
 
-    await waitFor(
-      () => {
-        const state = useMockStore.getState();
-        const stillThere = Object.values(state.plugins).find((p) => p.id === plugin.id);
-        expect(stillThere).toBeUndefined();
-      },
-      { timeout: 2000 },
-    );
-
-    const after = useMockStore.getState();
-    const recent = after.audit.slice(-1)[0];
-    expect(recent?.action).toBe('plugin:uninstall');
-    expect(onSuccess).toHaveBeenCalled();
+    await waitFor(() => {
+      expect(deleteCallCount).toBe(1);
+      expect(onSuccess).toHaveBeenCalled();
+    });
   });
 });

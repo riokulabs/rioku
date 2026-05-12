@@ -1,134 +1,256 @@
 /**
- * Cluster API — backed by the Zustand mock store.
+ * Cluster API — Stage 2: backed by the daemon REST endpoints.
  *
- * Selectors pull from the store; mutations simulate latency and emit
- * audit + host events.
+ *   GET  /api/v1/cluster/nodes                                  list nodes
+ *   POST /api/v1/cluster/nodes/{id}/remove                      remove a node
+ *   GET  /api/v1/t/{tenant}/cluster/enrollment-tokens           list active tokens
+ *   POST /api/v1/t/{tenant}/cluster/enrollment-tokens           create a token
+ *   DELETE /api/v1/t/{tenant}/cluster/enrollment-tokens/{id}    revoke a token
+ *
+ * Tokens are tenant-scoped at the URL layer even though the underlying
+ * resource is global — that's the contract from
+ * `webhooks_cluster_impersonation_routes.go`.
  */
 import { useMemo } from 'react';
-import { useMockStore } from '@/api/mock-store';
-import { simulateLatency } from '@/api/mock-latency';
-import { makeIdFactory } from '@/lib/id-generator';
-import { emitHostEvent } from '@/host/events';
-import type { AuditEntry, ClusterNode, ClusterEnrollmentToken } from '@/api/resources';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { customFetch } from '@/api/mutator';
+import type { ClusterNode, ClusterEnrollmentToken } from '@/api/resources';
 
-const nextNodeAuditId = makeIdFactory('audit-cluster');
-const nextTokenId = makeIdFactory('enroll-token-new');
+// ─── Daemon shapes ────────────────────────────────────────────────────────────
 
-// ─── Helpers ──────────────────────────────────────────────────────────────────
-
-function now(): string {
-  return new Date().toISOString();
+interface DaemonNodeInfo {
+  id: string;
+  name: string;
+  role: string;
+  health: string;
+  daemonVersion?: string;
+  goVersion?: string;
+  storeMode?: string;
+  raftAddr?: string;
+  isSelf?: boolean;
+  isLeader?: boolean;
+  lastSeen?: string;
+  metrics?: Record<string, string>;
 }
 
-function futureISO(days: number): string {
-  const d = new Date();
-  d.setDate(d.getDate() + days);
-  return d.toISOString();
+interface ListNodesResponse {
+  items?: DaemonNodeInfo[];
+  total?: number;
 }
 
-function getCurrentActorId(): string {
-  return useMockStore.getState().currentUserId ?? 'unknown';
+// ─── Adapter ──────────────────────────────────────────────────────────────────
+
+function mapRole(role: string): ClusterNode['role'] {
+  switch (role) {
+    case 'primary':
+    case 'replica':
+    case 'witness':
+      return role;
+    default:
+      return 'replica';
+  }
 }
 
-function makeAuditEntry(actorId: string, action: string, resourceId?: string): AuditEntry {
+function mapStatus(health: string): ClusterNode['status'] {
+  switch (health) {
+    case 'healthy':
+    case 'degraded':
+    case 'unreachable':
+    case 'joining':
+    case 'leaving':
+      return health;
+    default:
+      return 'healthy';
+  }
+}
+
+function num(value: string | undefined): number {
+  if (value === undefined) return 0;
+  const n = Number(value);
+  return Number.isFinite(n) ? n : 0;
+}
+
+function adaptNode(info: DaemonNodeInfo): ClusterNode {
+  const lastSeen = info.lastSeen ?? new Date().toISOString();
   return {
-    id: nextNodeAuditId(),
-    tenant_id: useMockStore.getState().currentTenantId,
-    actor_id: actorId,
-    action,
-    resource_type: 'cluster',
-    ...(resourceId ? { resource_id: resourceId } : {}),
-    outcome: 'success',
-    at: now(),
-    tier: 'write',
+    id: info.id,
+    name: info.name,
+    role: mapRole(info.role),
+    status: mapStatus(info.health),
+    address: info.raftAddr ?? '',
+    version: info.daemonVersion ?? '',
+    joined_at: lastSeen,
+    last_heartbeat_at: lastSeen,
+    metrics: {
+      cpu_percent: num(info.metrics?.cpu_percent),
+      memory_percent: num(info.metrics?.memory_percent),
+      requests_per_second: num(info.metrics?.requests_per_second),
+      latency_p95_ms: num(info.metrics?.latency_p95_ms),
+    },
   };
+}
+
+// ─── Fetchers ─────────────────────────────────────────────────────────────────
+
+const CLUSTER_NODES_KEY = ['cluster', 'nodes'] as const;
+
+async function fetchClusterNodes(signal?: AbortSignal): Promise<ClusterNode[]> {
+  const init: RequestInit = signal ? { method: 'GET', signal } : { method: 'GET' };
+  const wrapped = await customFetch<{ data: ListNodesResponse }>('/cluster/nodes', init);
+  const body = wrapped.data;
+  return (body.items ?? []).map(adaptNode);
+}
+
+async function postRemoveNode(nodeId: string): Promise<void> {
+  await customFetch<{ data: unknown }>(`/cluster/nodes/${encodeURIComponent(nodeId)}/remove`, {
+    method: 'POST',
+  });
 }
 
 // ─── Selectors ────────────────────────────────────────────────────────────────
 
 /** Returns all cluster nodes. */
 export function useClusterNodes(): ClusterNode[] {
-  const nodes = useMockStore((s) => s.clusterNodes);
-  return Object.values(nodes);
+  const { data } = useQuery({
+    queryKey: CLUSTER_NODES_KEY,
+    queryFn: ({ signal }) => fetchClusterNodes(signal),
+  });
+  return data ?? [];
 }
 
-/** Returns a single cluster node by ID. */
+/** Returns a single cluster node by ID. Derived from the list query. */
 export function useClusterNode(id: string): ClusterNode | undefined {
-  return useMockStore((s) => s.clusterNodes[id]);
+  const nodes = useClusterNodes();
+  return useMemo(() => nodes.find((n) => n.id === id), [nodes, id]);
 }
 
-/** Returns all enrollment tokens. */
+// ─── Enrollment-token shapes ──────────────────────────────────────────────────
+
+interface DaemonEnrollmentToken {
+  id: string;
+  tokenHash?: string;
+  notes?: string;
+  createdBy?: string;
+  createdAt?: string;
+  expiresAt?: string;
+  consumedAt?: string;
+  revokedAt?: string;
+}
+
+interface DaemonCreateEnrollmentTokenResponse extends DaemonEnrollmentToken {
+  // Plaintext token — only returned on create, never again.
+  token?: string;
+}
+
+function adaptEnrollmentToken(
+  t: DaemonEnrollmentToken,
+  plaintext?: string,
+): ClusterEnrollmentToken {
+  const now = new Date().toISOString();
+  // The SPA type doesn't model `revoked_at` separately — the daemon's
+  // revoke step deletes the row, so any token returned by the GET is
+  // still active. We surface `consumed_by_node_id` once the daemon
+  // exposes it; for now leave it unset.
+  return {
+    id: t.id,
+    token: plaintext ?? '',
+    created_at: t.createdAt ?? now,
+    created_by: t.createdBy ?? '',
+    expires_at: t.expiresAt ?? now,
+  };
+}
+
+const ENROLLMENT_TOKENS_KEY = ['cluster', 'enrollment-tokens'] as const;
+
+function resolveTenantSlugFromPath(): string {
+  if (typeof window === 'undefined') return 'default';
+  const m = /\/t\/([^/]+)/.exec(window.location.pathname);
+  return m?.[1] ?? 'default';
+}
+
+async function fetchEnrollmentTokens(signal?: AbortSignal): Promise<ClusterEnrollmentToken[]> {
+  const tenant = resolveTenantSlugFromPath();
+  const init: RequestInit = signal ? { method: 'GET', signal } : { method: 'GET' };
+  const wrapped = await customFetch<{ data: { items?: DaemonEnrollmentToken[] } }>(
+    `/t/${encodeURIComponent(tenant)}/cluster/enrollment-tokens`,
+    init,
+  );
+  return (wrapped.data.items ?? []).map((t) => adaptEnrollmentToken(t));
+}
+
+/** Returns all enrollment tokens for the active tenant. */
 export function useEnrollmentTokens(): ClusterEnrollmentToken[] {
-  const tokens = useMockStore((s) => s.clusterEnrollmentTokens);
-  return Object.values(tokens);
+  const { data } = useQuery({
+    queryKey: ENROLLMENT_TOKENS_KEY,
+    queryFn: ({ signal }) => fetchEnrollmentTokens(signal),
+  });
+  return data ?? [];
 }
 
-/** Returns only active (not consumed, not expired) enrollment tokens. */
+/** Returns only unexpired enrollment tokens. Revoked/consumed tokens are
+ * removed server-side, so any row the daemon returns is considered live
+ * until its expiry passes. */
 export function useActiveEnrollmentTokens(): ClusterEnrollmentToken[] {
-  const tokens = useMockStore((s) => s.clusterEnrollmentTokens);
+  const tokens = useEnrollmentTokens();
+  // Filter out expired tokens. `Date.now()` is impure per react-rules,
+  // but the comparison is intentionally time-dependent and the value
+  // is stable for the lifetime of a single render — the eslint disable
+  // is local + narrow.
+  // eslint-disable-next-line react-hooks/purity
+  const now = Date.now();
   return useMemo(
     () =>
-      Object.values(tokens).filter(
-        (t) => !t.consumed_by_node_id && new Date(t.expires_at) > new Date(),
-      ),
-    [tokens],
+      tokens.filter((t) => {
+        if (t.consumed_by_node_id) return false;
+        if (t.expires_at && new Date(t.expires_at).getTime() < now) return false;
+        return true;
+      }),
+    [tokens, now],
   );
 }
 
 // ─── Mutations ────────────────────────────────────────────────────────────────
 
-/** Remove a cluster node by ID. */
+/** Remove a cluster node by ID. Invalidates the list query on success. */
 export async function removeNode(nodeId: string): Promise<void> {
-  await simulateLatency('mutation');
-
-  const state = useMockStore.getState();
-  const node = state.clusterNodes[nodeId];
-  if (!node) throw new Error(`Cluster node ${nodeId} not found`);
-
-  state.deleteEntity('clusterNodes', nodeId);
-  state.appendAudit({
-    ...makeAuditEntry(getCurrentActorId(), 'cluster.node.remove', nodeId),
-    tier: 'destructive',
-  });
-  emitHostEvent('cluster.node.removed', { node_id: nodeId, node_name: node.name });
+  await postRemoveNode(nodeId);
 }
 
-/** Generate a new enrollment token. Token expires in 7 days. */
+/**
+ * React-Query-aware variant. Components that want automatic cache
+ * invalidation should use this hook instead of calling `removeNode`
+ * directly. Existing direct callers continue to work; they just need
+ * to invalidate the list themselves if they want it to refresh.
+ */
+export function useRemoveNodeMutation() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (nodeId: string) => postRemoveNode(nodeId),
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: CLUSTER_NODES_KEY });
+    },
+  });
+}
+
+/**
+ * Generate a new enrollment token. Returns the token (plaintext) plus
+ * its metadata — the daemon only emits the plaintext on create, never
+ * again, so the caller must capture it before the modal closes.
+ */
 export async function generateEnrollmentToken(): Promise<ClusterEnrollmentToken> {
-  await simulateLatency('mutation');
-
-  const id = nextTokenId();
-  const actorId = getCurrentActorId();
-
-  // Fake a random-looking token string (deterministic for tests — just id-based).
-  const fakeRandom = Math.random().toString(36).slice(2, 18).padEnd(16, '0');
-  const token: ClusterEnrollmentToken = {
-    id,
-    token: `rkjoin_${fakeRandom}${id.replace(/[^a-z0-9]/g, '')}`,
-    created_by: actorId,
-    expires_at: futureISO(7),
-    created_at: now(),
-  };
-
-  const state = useMockStore.getState();
-  state.addEntity('clusterEnrollmentTokens', token);
-  state.appendAudit(makeAuditEntry(actorId, 'cluster.enrollment_token.generate', id));
-  emitHostEvent('cluster.enrollment_token.generated', { token_id: id });
-  return token;
+  const tenant = resolveTenantSlugFromPath();
+  const wrapped = await customFetch<{ data: DaemonCreateEnrollmentTokenResponse }>(
+    `/t/${encodeURIComponent(tenant)}/cluster/enrollment-tokens`,
+    { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({}) },
+  );
+  return adaptEnrollmentToken(wrapped.data, wrapped.data.token);
 }
 
-/** Revoke (delete) an enrollment token by ID. */
+/** Revoke an enrollment token by ID. */
 export async function revokeEnrollmentToken(tokenId: string): Promise<void> {
-  await simulateLatency('mutation');
-
-  const state = useMockStore.getState();
-  const token = state.clusterEnrollmentTokens[tokenId];
-  if (!token) throw new Error(`Enrollment token ${tokenId} not found`);
-
-  state.deleteEntity('clusterEnrollmentTokens', tokenId);
-  state.appendAudit({
-    ...makeAuditEntry(getCurrentActorId(), 'cluster.enrollment_token.revoke', tokenId),
-    tier: 'destructive',
-  });
-  emitHostEvent('cluster.enrollment_token.revoked', { token_id: tokenId });
+  const tenant = resolveTenantSlugFromPath();
+  await customFetch<{ data: unknown }>(
+    `/t/${encodeURIComponent(tenant)}/cluster/enrollment-tokens/${encodeURIComponent(tokenId)}`,
+    { method: 'DELETE' },
+  );
 }

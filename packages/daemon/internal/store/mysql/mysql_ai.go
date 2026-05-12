@@ -1,4 +1,4 @@
-// Package mysql — AI subsystem CRUD (stage-2).
+// Package mysql — AI subsystem CRUD.
 //
 // Seven entities: Providers, ProviderModels, MCPServers, Tools,
 // Agents, ToolBindings, RateLimits, Traces.

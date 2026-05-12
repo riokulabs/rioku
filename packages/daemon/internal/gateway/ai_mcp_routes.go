@@ -1,12 +1,15 @@
-// Package gateway: AI MCP server handlers (stage-2).
+// Package gateway: AI MCP server handlers.
 //
 // See `ai_routes.go` for the full route registration table.
 package gateway
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"net/http"
+	"strconv"
+	"time"
 
 	"github.com/riokulabs/rioku/internal/store"
 )
@@ -201,15 +204,28 @@ func handleDeleteMCPServer(st store.Driver) http.HandlerFunc {
 	}
 }
 
+// handleTestMCPServer issues a live(ish) connectivity probe against the MCP
+// server's configured URL. Performs a best-effort HTTP HEAD/GET against the
+// registered URL, with a short timeout. The shape is stable:
+//
+//	{ ok: bool, latencyMs: number, error?: string, serverVersion?: string,
+//	  mcpServerId: string }
+//
+// `latencyMs` is always populated (probe duration). `error` is set on failure
+// (timeout, non-2xx, network error). `serverVersion` is populated from the
+// upstream `Server` response header when present (typical for HTTP servers).
 func handleTestMCPServer(st store.Driver) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		// Stage-2 stub like provider /test.
 		tenant, ok := tenantOrError(w, r)
 		if !ok {
 			return
 		}
 		id := r.PathValue("id")
-		tx, _ := st.Begin(r.Context(), store.TxOptions{ReadOnly: true})
+		tx, err := st.Begin(r.Context(), store.TxOptions{ReadOnly: true})
+		if err != nil {
+			writeInternalError(w, r, "begin tx")
+			return
+		}
 		defer func() { _ = tx.Rollback() }()
 		s, err := tx.GetMCPServer(r.Context(), tenant.ID, id)
 		if err != nil {
@@ -217,9 +233,69 @@ func handleTestMCPServer(st store.Driver) http.HandlerFunc {
 				"No mcp_server with id "+id, r.URL.Path, nil)
 			return
 		}
-		writeJSON(w, http.StatusOK, map[string]any{
-			"mcpServerId": s.ID, "ok": true,
-			"note": "live MCP connectivity check is stubbed in stage-2",
-		})
+
+		probe := probeMCPConnectivity(r.Context(), s.URL)
+		resp := map[string]any{
+			"mcpServerId": s.ID,
+			"ok":          probe.ok,
+			"latencyMs":   probe.latencyMs,
+		}
+		if probe.err != "" {
+			resp["error"] = probe.err
+		}
+		if probe.serverVersion != "" {
+			resp["serverVersion"] = probe.serverVersion
+		}
+		writeJSON(w, http.StatusOK, resp)
 	}
+}
+
+// mcpProbeResult captures the outcome of a connectivity probe.
+type mcpProbeResult struct {
+	ok            bool
+	latencyMs     int64
+	err           string
+	serverVersion string
+}
+
+// probeMCPConnectivity runs a short HTTP probe and returns a structured result.
+// Any non-network failure (parse errors, non-2xx) is reported via `err` with
+// `ok=false`. Successful probes set `ok=true` and capture `Server` header when
+// the upstream advertises one.
+func probeMCPConnectivity(ctx context.Context, rawURL string) mcpProbeResult {
+	if rawURL == "" {
+		return mcpProbeResult{ok: false, latencyMs: 0, err: "no URL configured"}
+	}
+
+	probeCtx, cancel := context.WithTimeout(ctx, 5*time.Second)
+	defer cancel()
+
+	req, rerr := http.NewRequestWithContext(probeCtx, http.MethodGet, rawURL, nil)
+	if rerr != nil {
+		return mcpProbeResult{ok: false, latencyMs: 0, err: "invalid URL: " + rerr.Error()}
+	}
+	req.Header.Set("Accept", "application/json")
+
+	client := &http.Client{Timeout: 5 * time.Second}
+	start := time.Now()
+	res, herr := client.Do(req)
+	latency := time.Since(start).Milliseconds()
+	if herr != nil {
+		return mcpProbeResult{ok: false, latencyMs: latency, err: herr.Error()}
+	}
+	defer func() { _ = res.Body.Close() }()
+
+	out := mcpProbeResult{
+		latencyMs:     latency,
+		serverVersion: res.Header.Get("Server"),
+	}
+	if res.StatusCode >= 200 && res.StatusCode < 500 {
+		// Treat 2xx/3xx/4xx as "reachable" — many MCP endpoints return 401/404
+		// to a bare GET but are still up.
+		out.ok = true
+	} else {
+		out.ok = false
+		out.err = "upstream returned status " + strconv.Itoa(res.StatusCode)
+	}
+	return out
 }

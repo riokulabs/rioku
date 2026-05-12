@@ -25,10 +25,16 @@ import {
 } from '@mantine/core';
 import { useForm, schemaResolver } from '@mantine/form';
 import { IconAlertCircle } from '@tabler/icons-react';
-import { useMockStore } from '@/api/mock-store';
+import { useAgentList } from '@/features/ai-agents/api';
+import type { AgentFilter } from '@/features/ai-agents/types';
+import { useToolList } from '@/features/ai-tools/api';
+import type { ToolFilter } from '@/features/ai-tools/types';
 import { notify } from '@/hooks/use-notify';
 import type { AiSemanticRateLimit } from '@/api/resources';
 import { createRateLimit, updateRateLimit } from '../api';
+
+const EMPTY_AGENT_FILTER: AgentFilter = { search: '', provider_ids: [], role_ids: [] };
+const EMPTY_TOOL_FILTER: ToolFilter = { search: '', kinds: [] };
 import { createRateLimitSchema, updateRateLimitSchema } from '../schemas';
 
 type Scope = AiSemanticRateLimit['scope'];
@@ -82,15 +88,11 @@ export function RateLimitForm({
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const agents = useMockStore((s) => s.aiAgents);
-  const tools = useMockStore((s) => s.aiTools);
+  const agents = useAgentList(tenantId, EMPTY_AGENT_FILTER);
+  const tools = useToolList(tenantId, EMPTY_TOOL_FILTER);
 
-  const agentOptions = Object.values(agents)
-    .filter((a) => a.tenant_id === tenantId)
-    .map((a) => ({ value: a.id, label: a.name }));
-  const toolOptions = Object.values(tools)
-    .filter((t) => t.tenant_id === tenantId)
-    .map((t) => ({ value: t.id, label: t.name }));
+  const agentOptions = agents.map((a) => ({ value: a.id, label: a.name }));
+  const toolOptions = tools.map((t) => ({ value: t.id, label: t.name }));
 
   const schema = mode === 'create' ? createRateLimitSchema : updateRateLimitSchema;
 
@@ -124,7 +126,7 @@ export function RateLimitForm({
         notify.success('Rate limit created', `${rule.name} is active.`);
         onSuccess(rule);
       } else if (initialValues) {
-        const rule = await updateRateLimit(initialValues.id, base);
+        const rule = await updateRateLimit(tenantId, initialValues.id, base);
         notify.success('Rate limit updated', `${rule.name} saved.`);
         onSuccess(rule);
       }

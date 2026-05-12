@@ -1,59 +1,35 @@
 /**
  * requirePermissions tests.
  *
- * useMockStore.getState() is mocked so the beforeLoad callback can run outside
- * of a React context (matching real TanStack Router usage).
- *
- * Zustand's persist middleware complicates direct module mocking, so we mock
- * the entire mock-store module to return a controllable getState().
+ * Mocks the query-client cache + the redirect helper so the guard's
+ * branches can run synchronously outside of any React tree.
  */
 
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import type { Membership, Role } from '../api/resources';
 
-// ─── Fixtures ─────────────────────────────────────────────────────────────────
+// ─── Mocks ────────────────────────────────────────────────────────────────────
 
-const ROLE_VIEWER: Role = {
-  id: 'role-viewer',
-  tenant_id: 'tenant-1',
-  name: 'Viewer',
-  parent_ids: [],
-  grants: [{ permission: 'service:read' }],
-  denies: [],
-  system: false,
-};
-
-const MEMBERSHIP_ACTIVE: Membership = {
-  id: 'mbr-1',
-  tenant_id: 'tenant-1',
-  user_id: 'user-1',
-  role_ids: ['role-viewer'],
-  state: 'active',
-  invited_at: '2025-01-01T00:00:00Z',
-};
-
-// ─── Mock state ───────────────────────────────────────────────────────────────
-
-interface StoreState {
-  currentUserId: string | null;
-  currentTenantId: string | null;
-  memberships: Record<string, Membership>;
-  roles: Record<string, Role>;
+interface FakeUser {
+  id: string;
+  permissions: string[];
 }
 
-let mockGetState: () => StoreState;
+let cached: FakeUser | null = null;
 
-vi.mock('../api/mock-store', () => ({
-  useMockStore: vi.fn(),
+vi.mock('@/features/auth/use-current-user', () => ({
+  fetchCurrentUser: vi.fn(() => Promise.resolve(cached)),
+  currentUserQueryKey: ['current-user'],
 }));
 
-// useMockStore.getState is the non-hook path used by requirePermissions
-import { useMockStore } from '../api/mock-store';
-
-// ─── Redirect capture ─────────────────────────────────────────────────────────
+vi.mock('@/api/query-client', () => ({
+  queryClient: {
+    getQueryData: vi.fn(() => cached),
+    fetchQuery: vi.fn(() => Promise.resolve(cached)),
+  },
+}));
 
 // TanStack Router's redirect() throws a Redirect object.
-// Mock it so we can capture and inspect the throw.
+// Mock so we can capture and inspect the throw.
 vi.mock('@tanstack/react-router', () => ({
   redirect: (opts: unknown) => {
     const err = new Error('Redirect') as Error & { isRedirect: true; opts: unknown };
@@ -77,35 +53,21 @@ function getRedirectOpts(err: unknown): { to: string; search: Record<string, unk
 
 describe('requirePermissions', () => {
   beforeEach(() => {
-    vi.clearAllMocks();
-    // Wire getState on the mocked useMockStore function object
-    (useMockStore as unknown as { getState: () => StoreState }).getState = () => mockGetState();
+    cached = null;
   });
 
-  it('returns true when user has the required permission', () => {
-    mockGetState = () => ({
-      currentUserId: 'user-1',
-      currentTenantId: 'tenant-1',
-      memberships: { 'mbr-1': MEMBERSHIP_ACTIVE },
-      roles: { 'role-viewer': ROLE_VIEWER },
-    });
-
+  it('returns true when user has the required permission', async () => {
+    cached = { id: 'user-1', permissions: ['service:read'] };
     const guard = requirePermissions({ required: ['service:read'] });
-    expect(guard()).toBe(true);
+    await expect(guard()).resolves.toBe(true);
   });
 
-  it('throws redirect to /access-denied when user is missing a required permission', () => {
-    mockGetState = () => ({
-      currentUserId: 'user-1',
-      currentTenantId: 'tenant-1',
-      memberships: { 'mbr-1': MEMBERSHIP_ACTIVE },
-      roles: { 'role-viewer': ROLE_VIEWER },
-    });
-
+  it('throws redirect to /access-denied when user is missing a required permission', async () => {
+    cached = { id: 'user-1', permissions: ['service:read'] };
     const guard = requirePermissions({ required: ['admin:cross-tenant-read'] });
     let thrown: unknown;
     try {
-      guard();
+      await guard();
     } catch (err) {
       thrown = err;
     }
@@ -114,18 +76,12 @@ describe('requirePermissions', () => {
     expect((opts.search as { required: string[] }).required).toContain('admin:cross-tenant-read');
   });
 
-  it('throws redirect to /login when currentUserId is null', () => {
-    mockGetState = () => ({
-      currentUserId: null,
-      currentTenantId: 'tenant-1',
-      memberships: {},
-      roles: {},
-    });
-
+  it('throws redirect to /login when no user is cached', async () => {
+    cached = null;
     const guard = requirePermissions({ required: ['service:read'] });
     let thrown: unknown;
     try {
-      guard();
+      await guard();
     } catch (err) {
       thrown = err;
     }
@@ -133,38 +89,24 @@ describe('requirePermissions', () => {
     expect(opts.to).toBe('/login');
   });
 
-  it('passes with requireAny=true when the user has any one required perm', () => {
-    mockGetState = () => ({
-      currentUserId: 'user-1',
-      currentTenantId: 'tenant-1',
-      memberships: { 'mbr-1': MEMBERSHIP_ACTIVE },
-      roles: { 'role-viewer': ROLE_VIEWER },
-    });
-
-    // user has service:read but not admin:write
+  it('passes with requireAny=true when the user has any one required perm', async () => {
+    cached = { id: 'user-1', permissions: ['service:read'] };
     const guard = requirePermissions({
       required: ['service:read', 'admin:write'],
       requireAny: true,
     });
-    expect(guard()).toBe(true);
+    await expect(guard()).resolves.toBe(true);
   });
 
-  it('fails with requireAny=false when user is missing any required perm (ALL logic)', () => {
-    mockGetState = () => ({
-      currentUserId: 'user-1',
-      currentTenantId: 'tenant-1',
-      memberships: { 'mbr-1': MEMBERSHIP_ACTIVE },
-      roles: { 'role-viewer': ROLE_VIEWER },
-    });
-
-    // user has service:read but not admin:write → fails ALL logic
+  it('fails with requireAny=false when user is missing any required perm (ALL logic)', async () => {
+    cached = { id: 'user-1', permissions: ['service:read'] };
     const guard = requirePermissions({
       required: ['service:read', 'admin:write'],
       requireAny: false,
     });
     let thrown: unknown;
     try {
-      guard();
+      await guard();
     } catch (err) {
       thrown = err;
     }

@@ -1,0 +1,137 @@
+# Owned by Plan 08 (dashboards) — dashboards seed data. See sandbox/scripts/seed-config.sh for loader.
+#
+# 5 dashboards × 4-8 widgets each, exercising every widget kind in
+# packages/web/src/features/widgets/registry.ts. The first dashboard is
+# marked default so /t/$tenant/dashboard resolves it for users without a
+# personal home override.
+
+dashboards:
+  - name: Overview
+    description: "Cross-service traffic + AI usage at a glance"
+    mode: metabase
+    scope: tenant
+    default: true
+    widgets:
+      - kind: single-stat
+        title: "Requests / minute"
+        data_source: "promql"
+        raw_query: "sum(rate(rioku_http_requests_total[1m]))"
+        config: { unit: "req/min" }
+      - kind: time-series
+        title: "Error rate"
+        data_source: "promql"
+        raw_query: "sum(rate(rioku_http_requests_total{status=~\"5..\"}[1m]))"
+      - kind: top-n
+        title: "Top routes by volume"
+        data_source: "promql"
+        raw_query: "topk(10, sum by (route) (rate(rioku_http_requests_total[5m])))"
+        config: { n: 10 }
+      - kind: pie
+        title: "Status code distribution"
+        data_source: "promql"
+        raw_query: "sum by (status) (rate(rioku_http_requests_total[5m]))"
+      - kind: gauge
+        title: "Cache hit ratio"
+        data_source: "promql"
+        raw_query: "rioku_cache_hit_ratio"
+        config: { min: 0, max: 1 }
+      - kind: kpi-card
+        title: "Active sites"
+        data_source: "promql"
+        raw_query: "rioku_sites_active"
+        config: { unit: "sites" }
+
+  - name: AI Usage
+    description: "Per-agent token consumption + latency"
+    mode: metabase
+    scope: tenant
+    widgets:
+      - kind: stacked-bar
+        title: "Tokens by agent"
+        data_source: "promql"
+        raw_query: "sum by (agent) (rate(rioku_ai_tokens_total[5m]))"
+      - kind: time-series
+        title: "p95 latency"
+        data_source: "promql"
+        raw_query: "histogram_quantile(0.95, sum by (le) (rate(rioku_ai_request_duration_seconds_bucket[5m])))"
+      - kind: traces-recent
+        title: "Recent traces"
+        data_source: "ai-traces"
+      - kind: heatmap
+        title: "Latency heatmap"
+        data_source: "promql"
+        raw_query: "sum by (le, agent) (rate(rioku_ai_request_duration_seconds_bucket[5m]))"
+      - kind: bar-chart
+        title: "Tool calls by name"
+        data_source: "promql"
+        raw_query: "sum by (tool) (rate(rioku_ai_tool_calls_total[5m]))"
+
+  - name: Health
+    description: "Service health + service map topology"
+    mode: metabase
+    scope: tenant
+    widgets:
+      - kind: status-grid
+        title: "Service health"
+        data_source: "promql"
+        raw_query: "rioku_service_health"
+      - kind: service-map
+        title: "Topology"
+        data_source: "service-map"
+      - kind: progress
+        title: "Quota usage"
+        data_source: "promql"
+        raw_query: "rioku_tenant_quota_used / rioku_tenant_quota_total"
+      - kind: donut
+        title: "Upstream protocols"
+        data_source: "promql"
+        raw_query: "sum by (protocol) (rioku_services_total)"
+
+  - name: Audit & Logs
+    description: "Recent audit entries + log tail + notification stream"
+    mode: advanced
+    scope: tenant
+    widgets:
+      - kind: audit-log
+        title: "Recent audit"
+        data_source: "audit"
+        config: { limit: 25 }
+      - kind: audit-tail
+        title: "Audit tail (live)"
+        data_source: "audit"
+      - kind: log-viewer
+        title: "Caddy access log"
+        data_source: "logs"
+      - kind: notification-stream
+        title: "Notifications"
+        data_source: "notifications"
+      - kind: markdown
+        title: "Operator notes"
+        data_source: "static"
+        config: { content: "# Operator notes\n\nUse this dashboard to triage incidents." }
+
+  - name: Performance
+    description: "Throughput, latency funnel, percentiles"
+    mode: metabase
+    scope: tenant
+    widgets:
+      - kind: sparkline
+        title: "Last hour throughput"
+        data_source: "promql"
+        raw_query: "sum(rate(rioku_http_requests_total[1m]))"
+      - kind: line-chart
+        title: "p50 / p95 / p99 latency"
+        data_source: "promql"
+        raw_query: "histogram_quantile(0.99, sum by (le) (rate(rioku_http_request_duration_seconds_bucket[5m])))"
+      - kind: funnel
+        title: "Request funnel"
+        data_source: "promql"
+        raw_query: "sum by (stage) (rate(rioku_http_pipeline_total[5m]))"
+      - kind: area-chart
+        title: "Bandwidth in/out"
+        data_source: "promql"
+        raw_query: "sum by (direction) (rate(rioku_http_bytes_total[1m]))"
+      - kind: table
+        title: "Top tenants by RPS"
+        data_source: "promql"
+        raw_query: "topk(10, sum by (tenant) (rate(rioku_http_requests_total[5m])))"

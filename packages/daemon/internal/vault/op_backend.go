@@ -5,19 +5,29 @@ import (
 	"context"
 	"fmt"
 	"os/exec"
+	"regexp"
 	"strings"
 	"time"
 )
+
+// opResourcePattern restricts the characters allowed in an op:// resource
+// path. It defends against argument injection (a leading `-` would otherwise
+// be interpreted by `op` as a flag) and shell-special character smuggling even
+// though exec.CommandContext bypasses the shell. The set covers the vault /
+// item / field / section identifiers `op` accepts in practice: alphanumerics,
+// `-`, `_`, `.`, `/`, `%`, and ` ` (encoded in real op paths but allowed here
+// for hand-written references).
+var opResourcePattern = regexp.MustCompile(`^[A-Za-z0-9_./%\- ]+$`)
 
 // OnePasswordBackend resolves references via the 1Password CLI (`op`).
 // Reference syntax: {vault://op/<vault>/<item>/<field>} — the resource
 // segment is passed verbatim to `op read op://<resource>`.
 //
-// The plan treats this backend as `file://` shaped indirection: the
-// secret lives in 1Password, the daemon reads it once per cache TTL
-// via the operator-installed CLI, and the plaintext never leaves the
-// daemon process. The CLI handles authentication itself (typically
-// via a session token populated by `op signin` or by a Connect
+// This backend is `file://` shaped indirection: the secret lives in
+// 1Password, the daemon reads it once per cache TTL via the
+// operator-installed CLI, and the plaintext never leaves the daemon
+// process. The CLI handles authentication itself (typically via a
+// session token populated by `op signin` or by a Connect
 // service-account environment variable like OP_SERVICE_ACCOUNT_TOKEN).
 //
 // OnePasswordBackend is **not** Sync — `op read` shells out to a
@@ -62,6 +72,9 @@ func (*OnePasswordBackend) Sync() bool { return false }
 func (b *OnePasswordBackend) Resolve(ctx context.Context, resource string) (string, error) {
 	if resource == "" {
 		return "", fmt.Errorf("%w: empty op resource", ErrResolveFailed)
+	}
+	if !opResourcePattern.MatchString(resource) {
+		return "", fmt.Errorf("%w: op resource contains disallowed characters", ErrResolveFailed)
 	}
 	binary := b.Binary
 	if binary == "" {

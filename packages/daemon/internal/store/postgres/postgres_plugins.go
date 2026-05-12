@@ -1,4 +1,4 @@
-// Package postgres — Plugins + PluginSigners CRUD (stage-2).
+// Package postgres — Plugins + PluginSigners CRUD.
 //
 // Both support per-tenant + global scope: tenant_id = NULL marks
 // a global resource visible to every tenant.

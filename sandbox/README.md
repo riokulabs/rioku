@@ -1,13 +1,13 @@
 # Rioku Sandbox
 
-Self-contained development environment with 5 fake upstream applications for testing and validation. Includes auth system with test users, RBAC roles, smoke test scripts, container support, and a unified seed system.
+Self-contained development environment with 5 fake upstream applications for testing and validation. Includes auth system with test users, RBAC roles, smoke test scripts, container support (Podman canonical; Docker supported as fallback), and a unified seed system.
 
 ## Quick Start
 
 ### Native (requires Go, Node, curl, gettext)
 
 ```bash
-make sandbox                    # Build + start + seed
+make sandbox                    # Build + start + seed (rich mode by default)
 make sandbox-stop               # Stop all processes
 make sandbox-reset              # Wipe data + restart fresh
 ```
@@ -19,6 +19,18 @@ make sandbox-container          # Build images + start in containers
 make sandbox-container-stop     # Stop containers
 make sandbox-container-logs     # Stream container logs
 make sandbox-container-clean    # Remove containers, volumes, and local images
+```
+
+`make sandbox-container` brings up the full container stack (sandbox apps + daemon + Mailpit + Prometheus + Grafana + OTel + Tempo + Pebble). The `postgres` service in `compose.yaml` is gated by a compose profile and not started by default; to include it, run compose directly with `--profile postgres`:
+
+```bash
+cd sandbox && podman-compose --profile postgres --env-file .env.example up --build -d
+```
+
+Podman is the canonical engine. The Makefile auto-detects `podman-compose` first and falls back to `docker compose` or `docker-compose`. To force a specific tool:
+
+```bash
+COMPOSE_CMD="docker compose" make sandbox-container
 ```
 
 ### Web Admin Development (HMR)
@@ -61,11 +73,45 @@ SANDBOX_ROOT_PASSWORD=MyPassword1! make sandbox
 
 If not set, a random password is generated and saved to `sandbox/.data/root-password`.
 
+## Stage-2 Services
+
+Stage-2 containers extend the sandbox with observability, email, and optional SQL persistence:
+
+| Service | Image | Default Port | Env Override |
+| --- | --- | --- | --- |
+| Mailpit (SMTP) | axllent/mailpit:v1.21 | 11025 | `SANDBOX_PORT_MAILPIT_SMTP` |
+| Mailpit (UI) | axllent/mailpit:v1.21 | 18025 | `SANDBOX_PORT_MAILPIT_UI` |
+| Postgres (opt) | postgres:16-alpine | 15432 | `SANDBOX_PORT_POSTGRES` |
+| Prometheus | prom/prometheus:v3.0.1 | 19090 | `SANDBOX_PORT_PROMETHEUS` |
+| Grafana | grafana/grafana:11.4.0 | 13000 | `SANDBOX_PORT_GRAFANA` |
+| OTel (gRPC) | otel/opentelemetry-collector-contrib:0.115.1 | 14317 | `SANDBOX_PORT_OTEL_GRPC` |
+| OTel (HTTP) | otel/opentelemetry-collector-contrib:0.115.1 | 14318 | `SANDBOX_PORT_OTEL_HTTP` |
+| Tempo | grafana/tempo:2.7.0 | 13200 | `SANDBOX_PORT_TEMPO` |
+| Pebble (ACME) | letsencrypt/pebble:v2.7.0 | 14000 | `SANDBOX_PORT_PEBBLE_ACME` |
+| Pebble (mgmt) | letsencrypt/pebble:v2.7.0 | 15000 | `SANDBOX_PORT_PEBBLE_MGMT` |
+
+**Note**: Default ports use a +10000 shift (e.g., Prometheus on 19090 instead of 9090) to avoid host collisions with native mode services.
+
+### Troubleshooting Port Collisions
+
+If a service port conflicts with existing processes, override the port via `sandbox/.env`:
+
+```bash
+# sandbox/.env
+SANDBOX_PORT_PROMETHEUS=9091
+SANDBOX_PORT_GRAFANA=3001
+SANDBOX_PORT_POSTGRES=5433
+```
+
+See `sandbox/.env.example` for all available port variables.
+
 ## All Make Targets
+
+### Native (Process) Targets
 
 | Target | Description |
 | --- | --- |
-| `sandbox` | Build all binaries (parallel), start all services, seed data |
+| `sandbox` | Build all binaries (parallel), start all services, seed data (rich mode) |
 | `sandbox-stop` | Stop all sandbox processes (via PID files) |
 | `sandbox-reset` | Stop + wipe `sandbox/.data/` + restart fresh |
 | `sandbox-clean` | Stop + wipe `sandbox/.data/` (same as reset without restart) |
@@ -80,10 +126,22 @@ If not set, a random password is generated and saved to `sandbox/.data/root-pass
 | `sandbox-logs-<name>` | Stream logs for a specific service, e.g. `make sandbox-logs-daemon` |
 | `sandbox-test-auth` | Run auth smoke tests (login, logout, RBAC, locked/suspended users) |
 | `sandbox-test-smoke` | Run full-stack smoke tests (auth + config CRUD + API keys + audit) |
-| `sandbox-container` | Build + start sandbox in containers (Podman or Docker) |
+
+### Container Targets (Podman/Docker)
+
+| Target | Description |
+| --- | --- |
+| `sandbox-container` | Build + start sandbox in containers (apps + daemon + Mailpit + Prometheus + Grafana + OTel + Tempo + Pebble) |
 | `sandbox-container-stop` | Stop container sandbox |
 | `sandbox-container-logs` | Stream container logs |
 | `sandbox-container-clean` | Remove containers, volumes, and local images |
+
+PostgreSQL is gated behind a compose profile. To run with Postgres instead of SQLite, invoke compose directly: `cd sandbox && podman-compose --profile postgres --env-file .env.example up --build -d`.
+
+### Load Testing Targets
+
+| Target | Description |
+| --- | --- |
 | `sandbox-load` | Run standard load profile (requires running sandbox) |
 | `sandbox-load-monitor` | Run soak load profile with resource monitoring |
 | `sandbox-load-compare` | Compare load results against baseline |
@@ -104,14 +162,37 @@ Logs are written to `sandbox/.data/logs/<name>.log`. Color-coded output:
 
 ## Seeding
 
-The sandbox uses a unified YAML seed file. On first `make sandbox`, data is seeded automatically. To re-apply or modify:
+### Modular Seed Files
+
+The sandbox supports modular per-feature seed files in `sandbox/seed/<feature>.yaml`. Approximately 20 feature-specific YAML files are provided, one per domain area.
+
+The loader uses `rioku seed --dir sandbox/seed`, which walks the directory in alphabetical order, env-substitutes each file, and merges the results: slice fields are appended (later files extend earlier ones) and pointer/singleton fields use last-write-wins semantics.
+
+### Applying Seeds
 
 ```bash
-make sandbox-seed               # Re-apply seed data from seed.yaml
-# Edit sandbox/config/seed.yaml to modify routes, policies, services, users, and API keys
+make sandbox-seed               # Re-apply seed data from concatenated feature files
+# Edit sandbox/seed/*.yaml or sandbox/config/seed.yaml to customize
 ```
 
-`seed.yaml` supports env-variable substitution (`${SANDBOX_PORT_USERS:-9001}`) so port changes in `.env` propagate automatically.
+Seed files support env-variable substitution (`${SANDBOX_PORT_USERS:-9001}`) so port changes in `.env` propagate automatically.
+
+## Test Isolation: Snapshot / Restore
+
+The sandbox supports capturing and restoring VM snapshots to isolate test runs:
+
+```bash
+# Capture a baseline after initial seeding
+make sandbox-baseline           # Start sandbox + run rich seedgen + capture baseline snapshot
+
+# Capture current state at any time
+make sandbox-snapshot NAME=mytest  # Save snapshot to sandbox/.data/snapshots/mytest.tar.gz
+
+# Restore to a previous state (wipes current data)
+make sandbox-restore SNAPSHOT=mytest  # Restore from sandbox/.data/snapshots/mytest.tar.gz
+```
+
+Snapshots are stored in `sandbox/.data/snapshots/<name>.tar.gz` and can be shared between developers for deterministic test reproduction.
 
 ## Authentication
 
@@ -281,6 +362,46 @@ sandbox/.data/
   traces/             Trace store
   bin/                Compiled sandbox app binaries
 ```
+
+## Sandbox Tools
+
+### cert-gen
+
+Located in `sandbox/tools/cert-gen`, this utility generates self-signed CA and leaf certificates for TLS testing:
+
+```bash
+make sandbox-certs              # Regenerate CA + leaf certs (stored in sandbox/.data/pki/)
+```
+
+The generated certificates are valid for 10 years and are used by Pebble (ACME test server) and Rioku's HTTPS support.
+
+### seedgen
+
+Located in `sandbox/tools/seedgen`, this Go binary generates deterministic fixture data with a seeded random generator:
+
+```bash
+make sandbox-seedgen            # Build and run seedgen (outputs to sandbox/.data/seedgen-output)
+```
+
+Seedgen produces high-volume realistic test data (users, products, API keys, routes, policies) for performance and integration testing.
+
+## Subdomain mode TLS
+
+For local subdomain testing on `*.localhost`, the sandbox generates a
+self-signed CA + wildcard leaf via `make sandbox-certs`. The daemon is
+launched with `--subdomain-cert sandbox/certs/wildcard.pem
+--subdomain-key sandbox/certs/wildcard.key`, which the Caddy compiler
+emits as `apps.tls.certificates.load_files` so Caddy serves the leaf
+for any `*.localhost` SNI without ACME.
+
+Install the CA in your OS trust store so browsers and `curl` accept the
+leaf:
+
+- macOS: `sudo security add-trusted-cert -d -r trustRoot -k /Library/Keychains/System.keychain sandbox/certs/ca.pem`
+- Linux (Debian/Ubuntu): `sudo cp sandbox/certs/ca.pem /usr/local/share/ca-certificates/rioku-sandbox.crt && sudo update-ca-certificates`
+- Windows: `certutil -addstore -f "ROOT" sandbox/certs/ca.pem`
+
+Then `https://t1.localhost:7778` resolves with a valid cert.
 
 ## Troubleshooting
 

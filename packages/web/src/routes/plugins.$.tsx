@@ -11,7 +11,6 @@
  * under /plugins/*.  This is a deliberate constraint — static first-party
  * routes are generated at build time; runtime registration only works here.
  *
- * spec §9.5.2 / Task 1f.106
  */
 
 import { createFileRoute, useParams } from '@tanstack/react-router';

@@ -44,8 +44,8 @@ func TestOpen(t *testing.T) {
 	if err != nil {
 		t.Fatalf("CurrentVersion: %v", err)
 	}
-	if v != 47 {
-		t.Fatalf("expected version 47, got %d", v)
+	if v != 101 {
+		t.Fatalf("expected version 101, got %d", v)
 	}
 
 	h := d.Health(ctx)
@@ -509,7 +509,7 @@ func TestAPIKeyCRUD(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Begin: %v", err)
 	}
-	id, err := tx1.CreateAPIKey(ctx, "my-key", "sha256:abc123", []string{"read", "write"}, &expires, "")
+	id, err := tx1.CreateAPIKey(ctx, "my-key", "sha256:abc123", "", []string{"read", "write"}, &expires, "")
 	if err != nil {
 		t.Fatalf("CreateAPIKey: %v", err)
 	}
@@ -1593,8 +1593,12 @@ func TestRBACRolesAndPermissions(t *testing.T) {
 	if err != nil {
 		t.Fatalf("ListPermissions: %v", err)
 	}
-	if len(perms) != 26 {
-		t.Fatalf("expected 26 atomic permissions, got %d", len(perms))
+	// 26 legacy permissions from migrations 000003/000008 + 101 net-new v2 permissions
+	// from migration 000049 (103 inserted minus 2 that overlap with legacy: audit:read, cluster:read)
+	// + 2 opaque permissions from migration 000050 (opaque:read, opaque:write)
+	// + 2 sso permissions from migration 000055 (sso:read, sso:write).
+	if len(perms) != 131 {
+		t.Fatalf("expected 131 atomic permissions, got %d", len(perms))
 	}
 	_ = tx2.Rollback()
 
@@ -3414,7 +3418,7 @@ func TestRecordAPIKeyUse_BumpsCounterAndTimestamp(t *testing.T) {
 
 	// Create the key.
 	tx1, _ := d.Begin(ctx, store.TxOptions{})
-	id, err := tx1.CreateAPIKey(ctx, "test-key", "hash-abc", []string{"keys:own"}, nil, "")
+	id, err := tx1.CreateAPIKey(ctx, "test-key", "hash-abc", "", []string{"keys:own"}, nil, "")
 	if err != nil {
 		t.Fatalf("CreateAPIKey: %v", err)
 	}

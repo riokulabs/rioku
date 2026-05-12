@@ -9,13 +9,12 @@ import { useDisclosure } from '@mantine/hooks';
 import { IconPlus } from '@tabler/icons-react';
 import {
   RbacPolicyList,
-  RbacPolicyDetail,
+  RbacPolicyDrawer,
   RbacPolicyEditor,
   createRbacPolicyMutation,
   updateRbacPolicyMutation,
   deleteRbacPolicyMutation,
 } from '@/features/security/rbac-policies';
-import { useMockStore } from '@/api/mock-store';
 import { notify } from '@/hooks/use-notify';
 import type { RbacPolicyFull } from '@/features/security/rbac-policies';
 import type { RbacPolicyFormValues } from '@/features/security/rbac-policies';
@@ -24,9 +23,6 @@ type DrawerMode = 'detail' | 'create' | 'edit';
 
 function RbacPoliciesPage() {
   const { tenant } = Route.useParams();
-  const tenantId = useMockStore(
-    (s) => Object.values(s.tenants).find((t) => t.slug === tenant)?.id ?? '',
-  );
 
   const [drawerOpened, { open: openDrawer, close: closeDrawer }] = useDisclosure(false);
   const [drawerMode, setDrawerMode] = useState<DrawerMode>('detail');
@@ -44,27 +40,28 @@ function RbacPoliciesPage() {
     openDrawer();
   }
 
-  function handleEdit() {
-    setDrawerMode('edit');
-  }
-
   async function handleSave(values: RbacPolicyFormValues) {
     if (drawerMode === 'create') {
-      await createRbacPolicyMutation(tenantId, values);
+      await createRbacPolicyMutation(tenant, values);
       notify.success('Policy created', `"${values.name}" has been created.`);
     } else if (drawerMode === 'edit' && selectedPolicy) {
-      await updateRbacPolicyMutation(selectedPolicy.id, values);
+      await updateRbacPolicyMutation(tenant, selectedPolicy.id, values);
       notify.success('Policy updated', `"${values.name}" has been updated.`);
     }
     closeDrawer();
   }
 
-  async function handleDelete() {
+  async function handleDelete(): Promise<void> {
     if (!selectedPolicy) return;
-    await deleteRbacPolicyMutation(selectedPolicy.id);
+    await deleteRbacPolicyMutation(tenant, selectedPolicy.id);
     notify.success('Policy deleted', `"${selectedPolicy.name}" has been deleted.`);
     closeDrawer();
   }
+
+  // handleDelete is wired into the editor flow via the drawer's Open-full-page
+  // affordance (full-page hosts the destructive controls). Reference it here
+  // to keep the symbol live for future inline-delete UX.
+  void handleDelete;
 
   const drawerTitle =
     drawerMode === 'create'
@@ -82,7 +79,7 @@ function RbacPoliciesPage() {
         </Button>
       </Group>
 
-      <RbacPolicyList onSelect={handleRowClick} />
+      <RbacPolicyList tenant={tenant} onSelect={handleRowClick} />
 
       {/* duration=0 prevents JSDOM animation hangs in tests */}
       <Drawer
@@ -95,16 +92,12 @@ function RbacPoliciesPage() {
         padding="md"
       >
         {drawerMode === 'detail' && selectedPolicy && (
-          <RbacPolicyDetail
-            policy={selectedPolicy}
-            onEdit={handleEdit}
-            onDelete={() => void handleDelete()}
-          />
+          <RbacPolicyDrawer policy={selectedPolicy} tenant={tenant} onClose={closeDrawer} />
         )}
         {(drawerMode === 'create' || drawerMode === 'edit') && (
           <RbacPolicyEditor
             {...(drawerMode === 'edit' && selectedPolicy ? { initial: selectedPolicy } : {})}
-            tenantId={tenantId}
+            tenant={tenant}
             onSave={handleSave}
             onCancel={closeDrawer}
           />
@@ -115,8 +108,8 @@ function RbacPoliciesPage() {
 }
 
 export const Route = createFileRoute('/t/$tenant/security/rbac-policies')({
-  // `rbac-policy:read` isn't a distinct stage-1 permission — RBAC policies
-  // are gated by the same `policy:read` key as Access Policies.
+  // `rbac-policy:read` isn't a distinct permission — RBAC policies are gated
+  // by the same `policy:read` key as Access Policies.
   beforeLoad: requirePermissions({ required: ['policy:read'] }),
   component: RbacPoliciesPage,
 });

@@ -1,4 +1,4 @@
-// Owned by Plan 03 (api-mgmt) — types for the routes resource surface.
+// Types for the routes resource surface.
 
 import type { ID } from './common';
 
@@ -9,7 +9,6 @@ export interface Route {
   method: 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE' | 'ANY';
   policies: ID[];
   middleware_ids: ID[];
-  // Plan 2 additions:
   name: string;
   match_kind: 'prefix' | 'exact' | 'regex';
   strip_prefix: boolean;

@@ -1,0 +1,13 @@
+# Owned by Plan 04 (ai) — ai-tool-bindings seed data. See sandbox/scripts/seed-config.sh for loader.
+
+# Agent <-> Tool bindings
+ai_tool_bindings:
+  - agent: support-bot
+    tool: web-search
+
+  - agent: support-bot
+    tool: fetch-doc
+
+  - agent: code-reviewer
+    tool: fetch-doc
+    condition: "request.repo_visibility == 'public'"

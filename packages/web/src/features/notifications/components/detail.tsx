@@ -39,8 +39,8 @@ import relativeTime from 'dayjs/plugin/relativeTime';
 import { IdBadge } from '@/components/id-badge';
 import { notify } from '@/hooks/use-notify';
 import { usePermission } from '@/hooks/use-permission';
-import { useMockStore } from '@/api/mock-store';
-import { archive, markRead, unarchive } from '../api';
+import { useTenantIdentity } from '@/lib/tenant-identity';
+import { archive, markRead, markUnread, resolveTenant, unarchive } from '../api';
 import type { NotificationItem } from '../types';
 
 dayjs.extend(relativeTime);
@@ -79,26 +79,31 @@ export function NotificationDetail({ item, onClose: _onClose }: NotificationDeta
   const absolute = dayjs(item.at).format('YYYY-MM-DD HH:mm:ss');
   const relative = dayjs(item.at).fromNow();
 
-  // Look up tenant slug for nicer display; falls back to the raw id.
-  const tenants = useMockStore((s) => s.tenants);
-  const tenantSlug = item.tenant_id ? tenants[item.tenant_id]?.slug : null;
+  // Resolve the current tenant's identity (issue #239). The notification
+  // owns a tenant *id* (UUID); the URL holds the *slug*. We fetch identity
+  // once for the slug we're inside and compare ids: when they match (the
+  // common case), we display the resolved slug instead of the raw UUID.
+  const urlSlug = resolveTenant();
+  const identity = useTenantIdentity(urlSlug || null);
+  const tenantSlug =
+    identity && item.tenant_id && identity.id === item.tenant_id ? identity.slug : null;
 
   async function handleToggleRead() {
     if (!canManageOwn) return;
     try {
       if (item.read_at === null) {
-        await markRead(item.id);
+        const result = await markRead(item.id);
+        if (result === undefined) {
+          notify.error('Failed', 'Please try again.');
+          return;
+        }
         notify.success('Marked as read');
       } else {
-        // No first-class "mark unread" mutation — the store already exposes
-        // the field; we flip it directly for stage 1. Stage 2 wires this to
-        // a real endpoint.
-        useMockStore.setState((s) => ({
-          notifications: {
-            ...s.notifications,
-            [item.id]: { ...item, read_at: null, read: false },
-          },
-        }));
+        const ok = await markUnread(item.id);
+        if (!ok) {
+          notify.error('Failed', 'Please try again.');
+          return;
+        }
         notify.success('Marked as unread');
       }
     } catch {

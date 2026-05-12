@@ -1,0 +1,31 @@
+# Owned by Plan 03 (api-mgmt) — policies seed data. See sandbox/scripts/seed-config.sh for loader.
+
+# Traffic policies
+policies:
+  - name: rate-limit-standard
+    type: POLICY_TYPE_RATE_LIMIT
+    config:
+      requests_per_second: 100
+      burst: 20
+      scope: per_ip
+
+  - name: rate-limit-strict
+    type: POLICY_TYPE_RATE_LIMIT
+    config:
+      requests_per_second: 10
+      burst: 5
+      scope: per_ip
+
+  - name: auth-api-key
+    type: POLICY_TYPE_AUTH_API_KEY
+    config:
+      header: X-API-Key
+      validation_url: "http://localhost:${SANDBOX_PORT_AUTH:-9004}/validate"
+
+  - name: cors-allow-all
+    type: POLICY_TYPE_CORS
+    config:
+      allowed_origins: ["*"]
+      allowed_methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"]
+      allowed_headers: ["Content-Type", "Authorization", "X-API-Key"]
+      max_age_seconds: 3600

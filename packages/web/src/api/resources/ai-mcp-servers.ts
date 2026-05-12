@@ -1,4 +1,4 @@
-// Owned by Plan 04 (ai) — types for the ai-mcp-servers resource surface.
+// Types for the ai-mcp-servers resource surface.
 
 import type { ID } from './common';
 
@@ -9,7 +9,6 @@ export interface McpServer {
   url: string;
   auth_kind: 'none' | 'bearer' | 'api-key';
   enabled: boolean;
-  // New in Plan 3:
   description?: string;
   /** Auth credential ref — stored prefix-only. */
   auth_credential_ref?: { prefix: string; created_at: string };

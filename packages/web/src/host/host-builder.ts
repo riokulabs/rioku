@@ -2,10 +2,8 @@
  * Host builder — shared factory used by both `useHost` (React hook) and the
  * plugin-loader singleton (non-React context).
  *
- * DRY: previously the host object was constructed inline in `useHost`. Extracting
- * `buildHost()` here means both paths produce the exact same frozen shape.
- *
- * spec §9.4.1
+ * DRY: extracting `buildHost()` here means both paths produce the exact same
+ * frozen shape.
  */
 
 import { registerZone, unregisterZone, getZoneContributions, listAllZones } from '@/host/zones';

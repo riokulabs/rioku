@@ -1,4 +1,4 @@
-// Package gateway: AI tool handlers (stage-2).
+// Package gateway: AI tool handlers.
 //
 // See `ai_routes.go` for the full route registration table.
 package gateway
@@ -211,7 +211,7 @@ func handleTestAITool(st store.Driver) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		writeJSON(w, http.StatusOK, map[string]any{
 			"toolId": r.PathValue("id"), "ok": true,
-			"note": "live tool invocation is stubbed in stage-2",
+			"note": "live tool invocation is stubbed",
 		})
 	}
 }

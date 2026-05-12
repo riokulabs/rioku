@@ -1,4 +1,4 @@
-// Owned by Plan 10 (cluster) — types for the cluster resource surface.
+// Types for the cluster resource surface.
 
 import type { ID } from './common';
 

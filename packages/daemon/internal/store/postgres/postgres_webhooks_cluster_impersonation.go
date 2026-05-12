@@ -1,5 +1,5 @@
 // Package postgres — Webhooks + Cluster Enrollment Tokens +
-// Impersonation Sessions (stage-2).
+// Impersonation Sessions.
 package postgres
 
 import (

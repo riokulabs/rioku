@@ -7,7 +7,7 @@
  * effective set.
  *
  * `path` in ResolvedPermission carries the chain of role IDs that contributed
- * the grant, for display in PermissionPathTrace UI (spec §7).
+ * the grant, for display in PermissionPathTrace UI.
  *
  * This module only imports from `lib/` and `api/resources` (type-only).
  * It has no side-effects at module load time.

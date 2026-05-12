@@ -101,8 +101,18 @@ func handleListRoles(st store.Driver) http.HandlerFunc {
 			result = append(result, toRoleResponse(role))
 		}
 
+		// OpenAPI declares this endpoint returns
+		// `{roles: [...], nextPageToken: ""}` (see ListRoles200 in
+		// packages/proto/gen/openapi). Returning a bare array made the
+		// admin SPA's `useRoleList` read `data.data.roles` and silently
+		// resolve to `undefined → []`, so the Roles page rendered
+		// "No roles" on every tenant. Pagination is not implemented yet
+		// — emit an empty `nextPageToken` placeholder.
 		w.Header().Set("Content-Type", "application/json")
-		_ = json.NewEncoder(w).Encode(result)
+		_ = json.NewEncoder(w).Encode(map[string]any{
+			"roles":         result,
+			"nextPageToken": "",
+		})
 	}
 }
 
@@ -378,11 +388,20 @@ func handleDeleteRole(st store.Driver) http.HandlerFunc {
 // Permissions
 // ---------------------------------------------------------------------------
 
+// permissionResponse is the JSON shape returned by GET /api/v1/permissions.
+// The source field indicates permission origin: "built-in", "plugin-manifest",
+// or "plugin-dynamic". sourcePluginId is omitted when empty (built-in perms).
+//
+// TODO(plugins): permissionRegistry.Register interface for plugin-side
+// permission registration — plugins will call Register at init time and the
+// daemon will persist source="plugin-manifest" rows on first boot.
 type permissionResponse struct {
-	ID          string `json:"id"`
-	Resource    string `json:"resource"`
-	Action      string `json:"action"`
-	Description string `json:"description"`
+	ID             string `json:"id"`
+	Resource       string `json:"resource"`
+	Action         string `json:"action"`
+	Description    string `json:"description"`
+	Source         string `json:"source"`
+	SourcePluginID string `json:"sourcePluginId,omitempty"`
 }
 
 func handleListPermissions(st store.Driver) http.HandlerFunc {
@@ -405,10 +424,12 @@ func handleListPermissions(st store.Driver) http.HandlerFunc {
 		result := make([]permissionResponse, 0, len(perms))
 		for _, p := range perms {
 			result = append(result, permissionResponse{
-				ID:          p.ID,
-				Resource:    p.Resource,
-				Action:      p.Action,
-				Description: p.Description,
+				ID:             p.ID,
+				Resource:       p.Resource,
+				Action:         p.Action,
+				Description:    p.Description,
+				Source:         p.Source,
+				SourcePluginID: p.SourcePluginID,
 			})
 		}
 

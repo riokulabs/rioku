@@ -28,7 +28,29 @@ import { useDisclosure } from '@mantine/hooks';
 import { IconAlertCircle, IconRefresh, IconServer } from '@tabler/icons-react';
 import dayjs from 'dayjs';
 import relativeTime from 'dayjs/plugin/relativeTime';
-import { useMockStore } from '@/api/mock-store';
+import { useAuditList } from '@/features/audit/api';
+import type { AuditFilter } from '@/features/audit/types';
+import { useMiddlewareListReal } from '@/features/middlewares/api.stage2';
+import type { MiddlewareFilter } from '@/features/middlewares/types';
+import { useAccessPolicyList } from '@/features/security/access-policies';
+
+const SERVICE_AUDIT_FILTER: AuditFilter = {
+  actions: [],
+  outcomes: [],
+  resource_types: ['service'],
+  tiers: [],
+  date_from: null,
+  date_to: null,
+  actor_handles: [],
+  resource_id_handles: [],
+  search: '',
+};
+
+const EMPTY_MIDDLEWARE_FILTER: MiddlewareFilter = {
+  search: '',
+  kind: 'all',
+  enabled: 'all',
+};
 import { notify } from '@/hooks/use-notify';
 import { HealthChip, ProtocolBadge } from '@/features/api-mgmt-shared';
 import { RouteList } from '@/features/routes/components/list';
@@ -63,11 +85,21 @@ export function ServiceDetail({
   onDeleteRoute,
   onClose,
 }: ServiceDetailProps) {
-  const service = useServiceDetail(serviceId);
-  const routes = useServiceRoutes(serviceId);
-  const auditEntries = useMockStore((s) => s.audit);
-  const middlewares = useMockStore((s) => s.middlewares);
-  const accessPolicies = useMockStore((s) => s.accessPolicies);
+  const service = useServiceDetail(tenantId, serviceId);
+  const routes = useServiceRoutes(tenantId, serviceId);
+  const auditEntries = useAuditList(tenantId, SERVICE_AUDIT_FILTER);
+  const { middlewares: middlewareList } = useMiddlewareListReal(tenantId, EMPTY_MIDDLEWARE_FILTER);
+  const middlewares = useMemo(() => {
+    const m: Record<string, (typeof middlewareList)[number]> = {};
+    for (const mw of middlewareList) m[mw.id] = mw;
+    return m;
+  }, [middlewareList]);
+  const { data: accessPolicyList } = useAccessPolicyList(tenantId);
+  const accessPolicies = useMemo(() => {
+    const m: Record<string, (typeof accessPolicyList)[number]> = {};
+    for (const p of accessPolicyList) m[p.id] = p;
+    return m;
+  }, [accessPolicyList]);
 
   const usedMiddlewareIds = useMemo(() => {
     const set = new Set<string>();
@@ -125,7 +157,7 @@ export function ServiceDetail({
     if (!service) return;
     setReloading(true);
     try {
-      await forceReloadService(service.id);
+      await forceReloadService(tenantId, service.id);
       notify.success('Service reloaded', `${service.name} reloaded.`);
     } catch {
       notify.error('Failed to reload service', 'Please try again.');
@@ -139,7 +171,7 @@ export function ServiceDetail({
     if (deleteInput !== service.name) return;
     setDeleting(true);
     try {
-      await deleteService(service.id);
+      await deleteService(tenantId, service.id);
       notify.success('Service deleted', `${service.name} was removed.`);
       closeDelete();
       onClose();

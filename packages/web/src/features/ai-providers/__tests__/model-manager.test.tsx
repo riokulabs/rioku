@@ -9,50 +9,66 @@ vi.mock('@tanstack/react-router', () => ({
   useRouter: () => ({ navigate: vi.fn() }),
 }));
 
-import { render, screen, fireEvent } from '@testing-library/react';
+import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { MantineProvider } from '@mantine/core';
 import { ModalsProvider } from '@mantine/modals';
 import { Notifications } from '@mantine/notifications';
-import { useMockStore } from '@/api/mock-store';
-import { seedStore } from '@/api/mock-seed';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { server } from '@/test/msw-server';
 import { ModelManager } from '../components/model-manager';
+import { aiProviderHandlers, resetProviderStore, makeProvider } from './msw-handlers';
+
+const SEED_PROVIDER = makeProvider({
+  id: 'prov-mm-1',
+  name: 'ModelHost',
+  models: [
+    {
+      upstream_id: 'gpt-4o',
+      alias: 'gpt4o',
+      rate_limit_rpm: 60,
+      daily_quota_tokens: null,
+      enabled: true,
+    },
+  ],
+});
 
 function wrap(ui: React.ReactNode) {
+  const qc = new QueryClient({
+    defaultOptions: { queries: { retry: false }, mutations: { retry: false } },
+  });
   return render(
-    <MantineProvider>
-      <Notifications />
-      <ModalsProvider>{ui}</ModalsProvider>
-    </MantineProvider>,
+    <QueryClientProvider client={qc}>
+      <MantineProvider>
+        <Notifications />
+        <ModalsProvider>{ui}</ModalsProvider>
+      </MantineProvider>
+    </QueryClientProvider>,
   );
 }
 
 beforeEach(() => {
-  useMockStore.getState().reset();
-  seedStore(useMockStore);
+  resetProviderStore([SEED_PROVIDER]);
+  server.use(...aiProviderHandlers);
 });
 
-function firstProviderId(): string {
-  const state = useMockStore.getState();
-  const acme = Object.values(state.tenants).find((t) => t.slug === 'acme');
-  if (!acme) throw new Error('No acme tenant seeded');
-  const p = Object.values(state.aiProviders).find((pr) => pr.tenant_id === acme.id);
-  if (!p) throw new Error('No provider seeded');
-  return p.id;
-}
-
 describe('ModelManager', () => {
-  it('renders the models table for a seeded provider', () => {
-    wrap(<ModelManager providerId={firstProviderId()} />);
-    expect(screen.getAllByText(/Models/i).length).toBeGreaterThan(0);
+  it('renders the models table for a seeded provider', async () => {
+    wrap(<ModelManager tenant="acme" providerId="prov-mm-1" />);
+    await waitFor(() => {
+      expect(screen.getAllByText(/Models/i).length).toBeGreaterThan(0);
+    });
   });
 
-  it('toggles the add-model form via the Add model button', () => {
-    wrap(<ModelManager providerId={firstProviderId()} />);
-    const buttons = screen.getAllByText(/Add model/);
-    // First match is the toggle button in the header.
-    const first = buttons[0];
-    if (!first) throw new Error('missing Add model button');
-    fireEvent.click(first);
-    expect(screen.getAllByText(/Upstream ID/).length).toBeGreaterThan(0);
+  it('toggles the add-model form via the Add model button', async () => {
+    wrap(<ModelManager tenant="acme" providerId="prov-mm-1" />);
+    await waitFor(() => {
+      const buttons = screen.getAllByText(/Add model/);
+      const first = buttons[0];
+      if (!first) throw new Error('missing Add model button');
+      fireEvent.click(first);
+    });
+    await waitFor(() => {
+      expect(screen.getAllByText(/Upstream ID/).length).toBeGreaterThan(0);
+    });
   });
 });

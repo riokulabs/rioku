@@ -227,9 +227,68 @@ func (t *tx) DeleteRole(ctx context.Context, id string) error {
 // Permissions
 // ---------------------------------------------------------------------------
 
+// RegisterPluginPermissions inserts plugin-declared permissions into
+// the catalog. Re-registering rows owned by the same plugin is
+// idempotent; re-registering rows owned by a different source returns
+// ErrPermissionConflict.
+func (t *tx) RegisterPluginPermissions(ctx context.Context, pluginID string, perms []*store.Permission) error {
+	if pluginID == "" {
+		return fmt.Errorf("postgres: register plugin permissions: pluginID required")
+	}
+	for _, p := range perms {
+		if p == nil || p.ID == "" {
+			continue
+		}
+		var existingSource, existingPluginID string
+		err := t.sqlTx.QueryRowContext(ctx, rewritePlaceholders(
+			`SELECT source, COALESCE(source_plugin_id, '') FROM permissions WHERE id = ?`),
+			p.ID,
+		).Scan(&existingSource, &existingPluginID)
+		if err == nil {
+			if existingSource != "plugin-manifest" || existingPluginID != pluginID {
+				return store.ErrPermissionConflict
+			}
+			if _, err := t.sqlTx.ExecContext(ctx, rewritePlaceholders(
+				`UPDATE permissions SET description = ? WHERE id = ?`),
+				p.Description, p.ID); err != nil {
+				return fmt.Errorf("postgres: update plugin permission: %w", err)
+			}
+			continue
+		}
+		if _, err := t.sqlTx.ExecContext(ctx, rewritePlaceholders(
+			`INSERT INTO permissions (id, resource, action, description, source, source_plugin_id)
+			 VALUES (?, ?, ?, ?, 'plugin-manifest', ?)`),
+			p.ID, p.Resource, p.Action, p.Description, pluginID,
+		); err != nil {
+			return fmt.Errorf("postgres: insert plugin permission %q: %w", p.ID, err)
+		}
+	}
+	return nil
+}
+
+// UnregisterPluginPermissions deletes plugin-sourced rows for the
+// supplied plugin id. See sqlite implementation for semantics.
+func (t *tx) UnregisterPluginPermissions(ctx context.Context, pluginID string) (int, error) {
+	if pluginID == "" {
+		return 0, fmt.Errorf("postgres: unregister plugin permissions: pluginID required")
+	}
+	res, err := t.sqlTx.ExecContext(ctx, rewritePlaceholders(
+		`DELETE FROM permissions WHERE source = 'plugin-manifest' AND source_plugin_id = ?`),
+		pluginID,
+	)
+	if err != nil {
+		return 0, fmt.Errorf("postgres: unregister plugin permissions: %w", err)
+	}
+	n, err := res.RowsAffected()
+	if err != nil {
+		return 0, err
+	}
+	return int(n), nil
+}
+
 func (t *tx) ListPermissions(ctx context.Context) ([]*store.Permission, error) {
 	rows, err := t.sqlTx.QueryContext(ctx,
-		`SELECT id, resource, action, description FROM permissions
+		`SELECT id, resource, action, description, source, COALESCE(source_plugin_id, '') FROM permissions
 		 WHERE id NOT LIKE '%:*' AND id != '*'
 		 ORDER BY resource, action`,
 	)
@@ -240,7 +299,7 @@ func (t *tx) ListPermissions(ctx context.Context) ([]*store.Permission, error) {
 	var perms []*store.Permission
 	for rows.Next() {
 		p := &store.Permission{}
-		if err := rows.Scan(&p.ID, &p.Resource, &p.Action, &p.Description); err != nil {
+		if err := rows.Scan(&p.ID, &p.Resource, &p.Action, &p.Description, &p.Source, &p.SourcePluginID); err != nil {
 			return nil, err
 		}
 		perms = append(perms, p)

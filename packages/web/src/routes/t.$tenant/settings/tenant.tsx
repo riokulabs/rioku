@@ -1,0 +1,46 @@
+/**
+ * Tenant general settings — /t/$tenant/settings/tenant.
+ *
+ * Tenant name, default theme, and logo upload. URL mode is excluded
+ * (owned by its own dedicated page). Wraps the <TenantSection> component.
+ *
+ * Guard: tenant:write (write access; readers see disabled form inside
+ * the section component).
+ */
+import { createFileRoute, Link, useParams } from '@tanstack/react-router';
+import { Anchor, Group, Stack } from '@mantine/core';
+import { IconArrowLeft } from '@tabler/icons-react';
+import { requirePermissions } from '@/hooks/use-before-load';
+import { TenantRealSection } from '@/features/settings/sections-real/tenant-real';
+
+function TenantSettingsPage() {
+  const { tenant } = useParams({ strict: false });
+  const tenantSlug = tenant ?? '';
+  const activeTenant: string = tenantSlug;
+
+  return (
+    <Stack gap="md" p="md" data-testid="settings-tenant-page">
+      <Group gap="xs">
+        <Anchor
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-assignment
+          component={Link as any}
+          to="/t/$tenant/settings"
+          params={{ tenant: tenantSlug }}
+          size="sm"
+          data-testid="settings-tenant-back"
+        >
+          <Group gap={4} align="center">
+            <IconArrowLeft size={14} />
+            <span>Back to settings</span>
+          </Group>
+        </Anchor>
+      </Group>
+      <TenantRealSection tenant={activeTenant} />
+    </Stack>
+  );
+}
+
+export const Route = createFileRoute('/t/$tenant/settings/tenant')({
+  beforeLoad: requirePermissions({ required: ['tenant:read'] }),
+  component: TenantSettingsPage,
+});

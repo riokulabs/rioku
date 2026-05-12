@@ -53,6 +53,18 @@ export interface TestToolResult {
   error?: string;
 }
 
+export interface InvokeToolResult {
+  ok: boolean;
+  /** Pretty-printable JSON output returned by the tool. */
+  output?: unknown;
+  /** Wall-clock duration in milliseconds. */
+  duration_ms?: number;
+  /** Total tokens consumed (LLM-backed tools only). */
+  tokens_used?: number;
+  /** Human-readable error string when ok=false. */
+  error?: string;
+}
+
 export class ToolInUseError extends Error {
   readonly code = 'TOOL_IN_USE';
   readonly agentIds: string[];

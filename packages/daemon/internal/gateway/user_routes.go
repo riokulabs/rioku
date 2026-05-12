@@ -181,8 +181,15 @@ func handleListUsers(st store.Driver) http.HandlerFunc {
 			result = append(result, toUserResponse(u, roles, permissions))
 		}
 
+		// OpenAPI: ListUsers200 = `{users: [...], nextPageToken: ""}`.
+		// Returning a bare array made the SPA's `useUserList` resolve
+		// `data.data.users → undefined → []`, breaking the Users page
+		// across every tenant.
 		w.Header().Set("Content-Type", "application/json")
-		_ = json.NewEncoder(w).Encode(result)
+		_ = json.NewEncoder(w).Encode(map[string]any{
+			"users":         result,
+			"nextPageToken": "",
+		})
 	}
 }
 

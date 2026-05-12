@@ -63,9 +63,13 @@ func NewGateway(
 	traceStore tracestore.Driver,
 	upstreamHealth UpstreamHealthSource,
 	jwksRegistry *observability.JWKSRegistry,
+	logTail *LogTailBuffer,
 	logger *slog.Logger,
 	levelVar *slog.LevelVar,
 ) (*Gateway, error) {
+	if cfg == nil {
+		return nil, fmt.Errorf("gateway: cfg is required")
+	}
 	ctx := context.Background()
 
 	// Create grpc-gateway mux with custom error handler.
@@ -115,8 +119,51 @@ func NewGateway(
 	// Build the HTTP handler chain.
 	topMux := http.NewServeMux()
 
+	// OpenAPI spec (unauthenticated; compile-time embed with ETag caching).
+	RegisterOpenAPIRoute(topMux)
+
+	// PromQL proxy with tenant label injection.
+	RegisterPromQLRoutes(topMux, st)
+
+	// Dashboard widget query engine (#236).
+	RegisterWidgetQueryRoutes(topMux, st)
+
+	// Opaque-handle store: PII → short token mapping.
+	RegisterOpaqueRoutes(topMux, st)
+
 	// Auth routes (unauthenticated).
 	RegisterAuthRoutes(topMux, a, sm, st, cfg, enc)
+
+	// Bootstrap routes — GET /bootstrap-status + POST /bootstrap (unauthenticated).
+	RegisterBootstrapRoutes(topMux, st, sm, cfg)
+
+	// Password reset routes — request/validate/apply (unauthenticated).
+	// BaseURL for reset links defaults to the configured public URL; callers
+	// that know the real public URL should override via NewGateway options in
+	// a future refactor. For now a sensible localhost default is used.
+	resetBaseURL := cfg.Auth.PublicURL
+	if resetBaseURL == "" {
+		resetBaseURL = "http://localhost:7778"
+	}
+	// Construct outbound mailer from config: SMTP when host is configured,
+	// nop otherwise (silently discards messages).
+	var outboundMailer auth.Mailer
+	if cfg.Auth.SMTP.Host != "" {
+		outboundMailer = auth.NewSMTPMailer(auth.MailerConfig{
+			Host:     cfg.Auth.SMTP.Host,
+			Port:     cfg.Auth.SMTP.Port,
+			From:     cfg.Auth.SMTP.From,
+			Username: cfg.Auth.SMTP.Username,
+			Password: cfg.Auth.SMTP.Password,
+			StartTLS: cfg.Auth.SMTP.StartTLS,
+		})
+	} else {
+		outboundMailer = auth.NewNopMailer()
+	}
+	RegisterPasswordResetRoutes(topMux, st, outboundMailer, cfg, resetBaseURL)
+
+	// Invite routes — POST /t/{tenant}/users/invite + POST /auth/invite/accept (unauthenticated accept).
+	RegisterInviteRoutes(topMux, st, sm, outboundMailer, cfg)
 
 	// Key management routes.
 	RegisterKeyRoutes(topMux, st)
@@ -136,11 +183,10 @@ func NewGateway(
 	// Audit log endpoint (hand-written because gRPC-gateway cannot
 	// translate server-streaming RPCs in in-process mode).
 	RegisterAuditRoutes(topMux, st)
-	// Stage-2 admin completion chunk 6: detail / stream / export /
-	// typeahead.
+	// Audit detail / stream / export / typeahead.
 	RegisterAuditExtraRoutes(topMux, st)
 
-	// Access policy CRUD (#80).
+	// Access policy CRUD (#80) — includes test-cel endpoint.
 	RegisterAccessPolicyRoutes(topMux, st)
 
 	// Settings endpoints (replaces old monolithic GET /api/v1/settings stub).
@@ -161,8 +207,8 @@ func NewGateway(
 	})
 	RegisterClusterRoutes(topMux, clusterSvc)
 
-	// Certificate management (#84). Stub-backed in stage-1 — real Caddy
-	// filesystem scan + admin-API renew/revoke lands alongside #77.
+	// Certificate management (#84). Stub-backed — real Caddy filesystem
+	// scan + admin-API renew/revoke lands alongside #77.
 	certSvc := caddy.NewStubCertService()
 	RegisterCertificateRoutes(topMux, certSvc)
 
@@ -174,57 +220,71 @@ func NewGateway(
 	// JWKS rotation observability (#191). Registry may be nil when
 	// no rioku_jwt route is configured — handler returns an empty
 	// "unavailable" payload in that case.
-	RegisterObservabilityRoutes(topMux, jwksRegistry)
+	RegisterObservabilityRoutes(topMux, jwksRegistry, logTail)
 
-	// Tenant + membership management (stage-2).
+	// Tenant + membership management.
 	RegisterTenantRoutes(topMux, st)
+	// Tenant identity resolver — lean {id, slug, name, parentDomain?}
+	// for any caller already authenticated within the tenant.
+	RegisterTenantIdentityRoutes(topMux, st)
 
-	// Sites + Middlewares (stage-2 leaf).
+	// Sites + Middlewares.
 	RegisterSiteRoutes(topMux, st)
 	RegisterMiddlewareRoutes(topMux, st)
 
-	// Tenant-scoped Services + Routes (stage-2 admin completion chunk 4).
-	// These coexist with the legacy gRPC-gateway-derived `/api/v1/services`
-	// and `/api/v1/routes` paths, which keep working for the default
-	// tenant via `store.TenantIDFromContext`'s fallback.
+	// Tenant-scoped Services + Routes. These coexist with the legacy
+	// gRPC-gateway-derived `/api/v1/services` and `/api/v1/routes` paths,
+	// which keep working for the default tenant via
+	// `store.TenantIDFromContext`'s fallback.
 	RegisterServicesRoutes(topMux, st)
 	RegisterRoutesRoutes(topMux, st)
+	RegisterRouteMiddlewareOrderRoutes(topMux, st)
 
-	// RBAC policies (chunk 7b): subject ↔ role mappings per tenant.
+	// RBAC policies: subject ↔ role mappings per tenant.
 	RegisterRbacPolicyRoutes(topMux, st)
 
-	// Stage-2 admin completion chunks 10-15: notifications stream +
-	// channel test, PKI/TLS PATCH/OPTIONS, webhook test, tenant-
-	// scoped cluster aliases, settings singleton OPTIONS coverage.
+	// Extras: notifications stream + channel test, PKI/TLS PATCH/OPTIONS,
+	// webhook test, tenant-scoped cluster aliases, settings singleton
+	// OPTIONS coverage.
 	RegisterStage2ExtrasRoutes(topMux, st)
 
-	// Stage-2 admin completion chunks 12, 16-19: plugins install
-	// alias, /settings/me profile family, super-admin surface,
-	// auth flow recovery, danger-zone.
+	// Finals: plugins install alias, /settings/me profile family,
+	// super-admin surface, auth flow recovery, danger-zone.
+	if cfg.DataDir != "" {
+		SetPluginStagingDir(cfg.DataDir)
+	}
+	SetCapabilities(cfg)
 	RegisterStage2FinalsRoutes(topMux, st)
 
-	// Dashboards + Widgets + Versions (stage-2).
+	// Dashboards + Widgets + Versions.
 	RegisterDashboardRoutes(topMux, st)
 
-	// AI subsystem (stage-2): providers, agents, tools, bindings, rate limits, traces, MCP.
+	// AI subsystem: providers, agents, tools, bindings, rate limits, traces, MCP.
 	RegisterAIRoutes(topMux, st)
-	// Stage-2 admin completion chunk 9: PATCH / OPTIONS / actions /
-	// sub-collections / traces stream + export.
+	// AI PATCH / OPTIONS / actions / sub-collections / traces stream + export.
 	RegisterAIExtraRoutes(topMux, st)
 
-	// Notifications subsystem (stage-2): inbox, channels, routing, delivery log, tenant config.
+	// Notifications subsystem: inbox, channels, routing, delivery log, tenant config.
 	RegisterNotificationsRoutes(topMux, st)
 
-	// Plugins + PluginSigners (stage-2): per-tenant + global scopes.
+	// SSO providers (#240): per-tenant CRUD for OIDC/SAML configs.
+	RegisterSsoRoutes(topMux, st)
+
+	// Plugins + PluginSigners: per-tenant + global scopes.
 	RegisterPluginRoutes(topMux, st)
 
-	// PKI/TLS (stage-2): CAs, enrollments, certificates, config.
+	// PKI/TLS: CAs, enrollments, certificates, config.
 	RegisterPKIRoutes(topMux, st)
 
-	// Settings config singletons (stage-2): network, auth-policy, observability, audit retention.
+	// Manual TLS cert PEM upload + delete.
+	RegisterSettingsTLSRoutes(topMux, st)
+	// PKI revocation list + create endpoints.
+	RegisterSettingsPKIRoutes(topMux, st)
+
+	// Settings config singletons: network, auth-policy, observability, audit retention.
 	RegisterSettingsConfigRoutes(topMux, st)
 
-	// Webhooks + Cluster enrollment + Impersonation (stage-2).
+	// Webhooks + Cluster enrollment + Impersonation.
 	RegisterWebhooksClusterImpersonationRoutes(topMux, st)
 
 	// Remaining stub routes for endpoints the frontend calls but that

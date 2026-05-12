@@ -1,5 +1,5 @@
 // Builds Content Security Policy headers for dev and prod.
-// See spec §10.4. Dev relaxes 'unsafe-eval' + 'unsafe-inline' for Vite HMR.
+// Dev relaxes 'unsafe-eval' + 'unsafe-inline' for Vite HMR.
 
 const common = [
   "default-src 'self'",

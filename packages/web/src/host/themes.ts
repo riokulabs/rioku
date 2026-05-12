@@ -1,9 +1,9 @@
 /**
- * Plugin-theme registry — spec §9.5.5
+ * Plugin-theme registry.
  *
  * Complements `src/theme/index.ts` which owns BUILTIN_THEMES.
  * Plugins call `host.themes.register(...)` to add themes discoverable by the
- * theme picker (wired in Task 1f.108).
+ * theme picker.
  *
  * Duplicate-name policy: overwrite with a warning in dev.
  * Theme names are natural keys — no id factory needed.

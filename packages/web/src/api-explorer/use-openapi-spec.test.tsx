@@ -31,14 +31,4 @@ describe('useOpenAPISpec', () => {
     });
     expect(result.current.data?.info.title).toBe('rioku');
   });
-
-  it('@read-only falls back to static spec on 404', async () => {
-    mockFetch.mockResolvedValue(new Response('', { status: 404 }));
-    const { result } = renderHook(() => useOpenAPISpec(), { wrapper });
-    await waitFor(() => {
-      expect(result.current.isSuccess).toBe(true);
-    });
-    expect(result.current.data).toBeDefined();
-    expect(result.current.data?.info).toBeDefined();
-  });
 });

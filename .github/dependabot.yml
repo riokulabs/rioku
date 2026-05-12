@@ -1,0 +1,195 @@
+version: 2
+
+# Conventions:
+# - Weekly cadence on Monday so review work batches naturally.
+# - rebase-strategy: auto so when develop moves, Dependabot rebases its
+#   own PRs and bumps the lockfile. Combined with the lockfile-refresh
+#   workflow this keeps merge conflicts rare.
+# - Group minor + patch bumps to keep PR volume sane. Ecosystem-specific
+#   groups (mantine, tanstack, golang-x, …) keep semantically-related
+#   bumps together so a single review covers a coherent change.
+
+updates:
+  # ─── Web (pnpm) ────────────────────────────────────────────────────
+  - package-ecosystem: "npm"
+    directory: "/packages/web"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+    open-pull-requests-limit: 10
+    rebase-strategy: "auto"
+    commit-message:
+      prefix: "chore(web)"
+      include: "scope"
+    groups:
+      mantine:
+        patterns: ["@mantine/*"]
+      tanstack:
+        patterns: ["@tanstack/*"]
+      eslint:
+        patterns: ["eslint*", "@typescript-eslint/*"]
+      typescript:
+        patterns: ["typescript", "ts-*", "tsx"]
+      vitest:
+        patterns: ["vitest", "@vitest/*"]
+      playwright:
+        patterns: ["playwright", "@playwright/*"]
+      orval:
+        patterns: ["orval", "@orval/*"]
+      types:
+        patterns: ["@types/*"]
+      minor-and-patch:
+        applies-to: version-updates
+        update-types: ["minor", "patch"]
+      security:
+        applies-to: security-updates
+        patterns: ["*"]
+
+  # ─── User docs (Docusaurus, npm) ───────────────────────────────────
+  - package-ecosystem: "npm"
+    directory: "/docs"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+    open-pull-requests-limit: 5
+    rebase-strategy: "auto"
+    commit-message:
+      prefix: "docs"
+      include: "scope"
+    groups:
+      docusaurus:
+        patterns: ["@docusaurus/*", "docusaurus*"]
+      mdx:
+        patterns: ["@mdx-js/*", "remark-*", "rehype-*"]
+      types:
+        patterns: ["@types/*"]
+      minor-and-patch:
+        applies-to: version-updates
+        update-types: ["minor", "patch"]
+      security:
+        applies-to: security-updates
+        patterns: ["*"]
+
+  # ─── Contributor docs (Docusaurus, npm) ────────────────────────────
+  - package-ecosystem: "npm"
+    directory: "/contrib-docs"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+    open-pull-requests-limit: 5
+    rebase-strategy: "auto"
+    commit-message:
+      prefix: "docs(contrib)"
+      include: "scope"
+    groups:
+      docusaurus:
+        patterns: ["@docusaurus/*", "docusaurus*"]
+      mdx:
+        patterns: ["@mdx-js/*", "remark-*", "rehype-*"]
+      types:
+        patterns: ["@types/*"]
+      minor-and-patch:
+        applies-to: version-updates
+        update-types: ["minor", "patch"]
+      security:
+        applies-to: security-updates
+        patterns: ["*"]
+
+  # ─── Daemon (gomod) ────────────────────────────────────────────────
+  - package-ecosystem: "gomod"
+    directory: "/packages/daemon"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+    open-pull-requests-limit: 10
+    rebase-strategy: "auto"
+    commit-message:
+      prefix: "chore(daemon)"
+      include: "scope"
+    groups:
+      golang-x:
+        patterns: ["golang.org/x/*"]
+      grpc-ecosystem:
+        patterns:
+          - "google.golang.org/grpc*"
+          - "google.golang.org/protobuf"
+          - "github.com/grpc-ecosystem/*"
+      caddy:
+        patterns: ["github.com/caddyserver/*"]
+      otel:
+        patterns: ["go.opentelemetry.io/*"]
+      aws:
+        patterns: ["github.com/aws/*"]
+      prometheus:
+        patterns: ["github.com/prometheus/*"]
+      minor-and-patch:
+        applies-to: version-updates
+        update-types: ["minor", "patch"]
+      security:
+        applies-to: security-updates
+        patterns: ["*"]
+
+  # ─── Build service (gomod) ─────────────────────────────────────────
+  - package-ecosystem: "gomod"
+    directory: "/packages/build-service"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+    open-pull-requests-limit: 5
+    rebase-strategy: "auto"
+    commit-message:
+      prefix: "chore(build-service)"
+      include: "scope"
+    groups:
+      golang-x:
+        patterns: ["golang.org/x/*"]
+      minor-and-patch:
+        applies-to: version-updates
+        update-types: ["minor", "patch"]
+
+  # ─── Plugins (gomod) ───────────────────────────────────────────────
+  - package-ecosystem: "gomod"
+    directory: "/packages/plugins"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+    open-pull-requests-limit: 5
+    rebase-strategy: "auto"
+    commit-message:
+      prefix: "chore(plugins)"
+      include: "scope"
+    groups:
+      minor-and-patch:
+        applies-to: version-updates
+        update-types: ["minor", "patch"]
+
+  # ─── Proto-generated module (gomod) ────────────────────────────────
+  - package-ecosystem: "gomod"
+    directory: "/packages/proto/gen/go"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+    open-pull-requests-limit: 3
+    rebase-strategy: "auto"
+    commit-message:
+      prefix: "chore(proto)"
+      include: "scope"
+    groups:
+      minor-and-patch:
+        applies-to: version-updates
+        update-types: ["minor", "patch"]
+
+  # ─── GitHub Actions ─────────────────────────────────────────────────
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+    open-pull-requests-limit: 5
+    rebase-strategy: "auto"
+    commit-message:
+      prefix: "ci"
+      include: "scope"
+    groups:
+      actions:
+        patterns: ["*"]
