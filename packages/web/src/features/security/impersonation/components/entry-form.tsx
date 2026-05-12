@@ -35,6 +35,7 @@ import { useNavigate } from '@tanstack/react-router';
 import { setActiveImpersonationId } from '@/api/active-impersonation';
 import { isRealApi } from '@/api/mode';
 import { useListUsers } from '@/api/generated/users/users';
+import { useListAdminTenants } from '@/api/generated/admin/admin';
 import { useDirtyForm } from '@/hooks/use-dirty-form';
 import { useImpersonation } from '@/hooks/use-impersonation';
 import { useStartImpersonation, getListImpersonationSessionsQueryKey } from '../realApi';
@@ -77,6 +78,18 @@ export function ImpersonationEntryForm() {
   useDirtyForm(form);
 
   const selectedTenantId = form.values.tenant_id;
+
+  // Stage-2: tenant directory now lives at /api/v1/admin/tenants. Drive
+  // the Target-tenant Select off that list so super-admins pick from
+  // real tenants rather than pasting an id by hand.
+  const tenantsQuery = useListAdminTenants();
+  // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
+  const tenantOptions = (tenantsQuery.data?.data?.items ?? [])
+    .filter((t): t is { id: string; slug?: string; name?: string } => typeof t.id === 'string')
+    .map((t) => ({
+      value: t.slug ?? t.id,
+      label: t.name ? `${t.name} (${t.slug ?? t.id})` : (t.slug ?? t.id),
+    }));
 
   // Fetch users for the selected tenant from the daemon. Disabled until a
   // tenant id is entered; per-tenant scope mirrors the daemon's auth model.
@@ -165,14 +178,19 @@ export function ImpersonationEntryForm() {
           </Text>
         </Alert>
 
-        <TextInput
+        <Select
           label="Target tenant"
-          placeholder="Enter the tenant id (e.g. tenant-acme)"
+          placeholder={
+            tenantsQuery.isLoading ? 'Loading tenants…' : 'Pick the tenant to impersonate into…'
+          }
+          data={tenantOptions}
           required
-          description="The tenant directory lands in plan-11; until then, paste the tenant id directly."
+          searchable
+          disabled={tenantsQuery.isLoading}
+          description="Tenants visible to your super-admin role. Switch from the directory at /admin/tenants if a tenant is missing here."
           {...form.getInputProps('tenant_id')}
-          onChange={(e) => {
-            form.setFieldValue('tenant_id', e.currentTarget.value);
+          onChange={(value) => {
+            form.setFieldValue('tenant_id', value ?? '');
             form.setFieldValue('user_id', undefined);
           }}
         />

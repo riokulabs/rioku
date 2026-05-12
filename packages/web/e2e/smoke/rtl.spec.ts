@@ -1,50 +1,29 @@
-import { test, expect } from '@playwright/test';
+import { expect } from '@playwright/test';
+import { test } from '../fixtures/auth';
 
-test('switching to Arabic sets dir="rtl" on html element', async ({ page }) => {
+test('switching to Arabic sets dir="rtl" on html element', async ({ authedPage: page }) => {
   await page.goto('/t/acme/dashboard');
 
-  // Attempt to change language via the profile menu → Language submenu.
-  //
-  // The sidebar footer profile button (showing "derrick") opens a menu with a
-  // Language sub-menu entry. We click to open, then hover Language to expand
-  // the sub-menu, then click العربية.
-  //
-  // If the nested MenuSub hover is unreliable in headless Chromium, we fall
-  // back to setting i18next language via localStorage + reload (LanguageDetector
-  // reads 'i18nextLng' on initialisation). Document: fallback is used because
-  // Mantine MenuSub requires a hover event that can be flaky in headless mode.
+  // Open the sidebar user menu via its stable testid. The previous version
+  // of this spec targeted a hard-coded `derrick` profile button that only
+  // existed on the stage-1 mock-store; stage-2 logs in as `root`, so the
+  // menu trigger now carries `data-testid="user-menu-trigger"` instead.
+  await page.getByTestId('user-menu-trigger').click();
 
-  const profileButton = page.getByRole('button').filter({ hasText: 'derrick' });
-  await profileButton.click();
+  // Hover the Language sub-menu so its children mount, then click the
+  // Arabic option by stable testid (Mantine renders language strings
+  // localised, so matching by text would break if the active locale
+  // already differs).
+  const languageItem = page.getByRole('menuitem', { name: /^language$/i });
+  await expect(languageItem).toBeVisible({ timeout: 5_000 });
+  await languageItem.hover();
 
-  // Give dropdown time to appear
-  await page.waitForTimeout(200);
+  const arabicItem = page.getByTestId('language-option-ar');
+  await expect(arabicItem).toBeVisible({ timeout: 5_000 });
+  await arabicItem.click();
 
-  const languageItem = page.getByText('Language');
-  const langVisible = await languageItem.isVisible().catch(() => false);
-
-  if (langVisible) {
-    await languageItem.hover();
-    await page.waitForTimeout(200);
-
-    const arabicItem = page.getByText('العربية');
-    const arabicVisible = await arabicItem.isVisible().catch(() => false);
-
-    if (arabicVisible) {
-      await arabicItem.click();
-      await expect(page.locator('html')).toHaveAttribute('dir', 'rtl');
-      return;
-    }
-  }
-
-  // Fallback: set language via localStorage and reload.
-  // i18next-browser-languagedetector reads 'i18nextLng' from localStorage on init.
-  await page.evaluate(() => {
-    localStorage.setItem('i18nextLng', 'ar');
-  });
-  await page.reload();
-  await page.waitForLoadState('networkidle');
-
-  // After reload with ar locale, Providers sets dir="rtl" on <html>
-  await expect(page.locator('html')).toHaveAttribute('dir', 'rtl');
+  // i18next + React-i18next sets `dir="rtl"` on <html> for `ar` via the
+  // app's `Providers` component. Wait up to a tick for the attribute
+  // update to land.
+  await expect(page.locator('html')).toHaveAttribute('dir', 'rtl', { timeout: 5_000 });
 });

@@ -86,10 +86,7 @@ test('row click opens detail drawer with context block', async ({ authedPage: pa
   await expect(drawer.getByText(/resource:/i)).toBeVisible();
 });
 
-// SKIPPED: daemon's /api/v1/t/{tenant}/audit/export/csv endpoint is
-// not wired up yet — the SPA's Export-CSV button calls a path that
-// returns 404. Tracked in tmp/skipped-e2e-tests.md.
-test.skip('Export CSV triggers a download', async ({ authedPage: page }) => {
+test('Export CSV triggers a download', async ({ authedPage: page }) => {
   await page.goto('/t/acme/security/audit');
 
   // Wait for rows to hydrate so the export has data.
@@ -106,11 +103,7 @@ test.skip('Export CSV triggers a download', async ({ authedPage: page }) => {
   expect(download.suggestedFilename()).toMatch(/^audit-acme-\d{4}-\d{2}-\d{2}\.csv$/);
 });
 
-// SKIPPED: live-tail uses SSE; the daemon-served SPA exposes
-// /api/v1/t/{tenant}/audit/stream but the SSE handler is not yet
-// wired to the tenant audit stream for non-default tenants, so the
-// LIVE badge doesn't mount. Tracked in tmp/skipped-e2e-tests.md.
-test.skip('Live tail switch mounts/unmounts the LIVE badge', async ({ authedPage: page }) => {
+test('Live tail switch mounts/unmounts the LIVE badge', async ({ authedPage: page }) => {
   await page.goto('/t/acme/security/audit');
 
   await expect(page.locator('tbody tr[role="row"]').first()).toBeVisible({ timeout: 10_000 });
@@ -131,10 +124,7 @@ test.skip('Live tail switch mounts/unmounts the LIVE badge', async ({ authedPage
   await expect(badge).toHaveCount(0);
 });
 
-// SKIPPED: /t/{tenant}/settings/audit-retention is not yet mounted in
-// the stage-2 SPA — the audit-retention form lives behind the older
-// /settings stage-1 route. Tracked in tmp/skipped-e2e-tests.md.
-test.skip('retention settings form updates and surfaces a success toast', async ({
+test('retention settings form updates and surfaces a success toast', async ({
   authedPage: page,
 }) => {
   await page.goto('/t/acme/settings/audit-retention');

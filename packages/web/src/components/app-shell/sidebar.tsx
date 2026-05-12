@@ -110,6 +110,13 @@ function Rail({
     <Stack
       gap={4}
       py="xs"
+      // `data-collapsed` is the stable signal for e2e: the Mantine width
+      // transition fights pixel-level assertions in headless render, so
+      // tests assert on the attribute instead. `aria-expanded` mirrors
+      // it for assistive tech.
+      data-testid="sidebar-rail"
+      data-collapsed={collapsed ? 'true' : 'false'}
+      aria-expanded={!collapsed}
       style={{
         width: collapsed ? 60 : 190,
         flexShrink: 0,

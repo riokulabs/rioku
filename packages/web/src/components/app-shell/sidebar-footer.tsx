@@ -201,6 +201,7 @@ export function SidebarFooter({ collapsed = false }: SidebarFooterProps = {}) {
             <Tooltip label={userDisplayName} position="right" withArrow>
               <UnstyledButton
                 aria-label={`User menu (${userDisplayName})`}
+                data-testid="user-menu-trigger"
                 style={{ borderRadius: 999, padding: 2 }}
               >
                 <Avatar color="blue" size="md" radius="xl">
@@ -209,7 +210,12 @@ export function SidebarFooter({ collapsed = false }: SidebarFooterProps = {}) {
               </UnstyledButton>
             </Tooltip>
           ) : (
-            <Box role="button" style={{ cursor: 'pointer', padding: '4px 8px', borderRadius: 4 }}>
+            <Box
+              role="button"
+              aria-label={`User menu (${userDisplayName})`}
+              data-testid="user-menu-trigger"
+              style={{ cursor: 'pointer', padding: '4px 8px', borderRadius: 4 }}
+            >
               <Group justify="space-between" gap="xs">
                 <Group gap="xs">
                   <Avatar color="blue" size="sm" radius="xl">
@@ -315,6 +321,7 @@ export function SidebarFooter({ collapsed = false }: SidebarFooterProps = {}) {
               {LANGUAGES.map((lang) => (
                 <MenuSub.Item
                   key={lang.code}
+                  data-testid={`language-option-${lang.code}`}
                   leftSection={
                     i18n.language === lang.code ? (
                       <IconCheck size={14} />

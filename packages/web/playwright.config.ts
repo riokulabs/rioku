@@ -59,23 +59,6 @@ export default defineConfig({
     // before re-enabling.
     '**/smoke/plugin-dev-sideload.spec.ts',
     '**/smoke/plugin-install-flow.spec.ts',
-    '**/smoke/impersonation.spec.ts',
-    // RTL spec was authored against the stage-1 mock-store with a
-    // hard-coded `derrick` profile button. Stage-2 logs in as `root`,
-    // so the button-filter never matches and the i18next-localStorage
-    // fallback also fails on the authedPage fixture's localStorage
-    // wipe. Re-enable after rewriting against the real profile menu.
-    '**/smoke/rtl.spec.ts',
-    // Cluster nodes can only be added via raft enrollment from a
-    // real second daemon. The single-host sandbox surfaces only the
-    // bootstrap node, and the spec expects `primary`/`replica` role
-    // chips that only appear in a multi-node deployment.
-    '**/smoke/cluster.spec.ts',
-    // Sidebar-collapse asserts pixel-level box geometry after a
-    // Mantine CSS transition. Needs a deterministic mock of the
-    // Navbar width transition or a screenshot threshold tolerance —
-    // either way, scope creep for this PR.
-    '**/smoke/sidebar-collapse.spec.ts',
     // audit-flow polls /api/v1/t/default/audit for an entry where
     // `operation === 'create'`, but the daemon emits uppercase
     // operations (`UPDATE`, `CREATE`) for legacy /config-driven
