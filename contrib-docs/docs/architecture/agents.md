@@ -4,7 +4,7 @@ sidebar_position: 1
 
 # Daemon Components
 
-This page describes the internal components of the Rioku daemon — the long-running Go binary that manages Caddy, serves the admin API, and owns all configuration state. These are architectural components of the software, not AI assistants.
+This page describes the internal components of the Rioku daemon: the long-running Go binary that manages Caddy, serves the admin API, and owns all configuration state. These are architectural components of the software, not AI assistants.
 
 For a visual overview of how these components connect, see the architecture diagrams (D3).
 
@@ -91,11 +91,12 @@ For a visual overview of how these components connect, see the architecture diag
 **Responsibility:** The daemon's policy enforcement point for AI requests. Resolves the inbound virtual key, selects an upstream provider via the configured routing strategy, vault-resolves the upstream credential, reverse-proxies the request, and emits a spend-log entry. Runs as a separate HTTP server on a loopback address (default `127.0.0.1:7792`); Caddy edge-proxies to it after auth.
 
 **Packages:**
-- `github.com/riokulabs/rioku/internal/aigateway` — HTTP server and proxy logic
-- `github.com/riokulabs/rioku/internal/ai/registry` — model price and capability registry (vendored LiteLLM data + Rioku overlays)
-- `github.com/riokulabs/rioku/internal/ai/router/strategies` — routing strategy registry
-- `github.com/riokulabs/rioku/internal/tracestore` — request trace ring buffer + persistent store
-- `github.com/riokulabs/rioku/internal/mcp` — MCP (Model Context Protocol) server exposing daemon capabilities as tools
+
+- `github.com/riokulabs/rioku/internal/aigateway`: HTTP server and proxy logic
+- `github.com/riokulabs/rioku/internal/ai/registry`: model price and capability registry (vendored LiteLLM data + Rioku overlays)
+- `github.com/riokulabs/rioku/internal/ai/router/strategies`: routing strategy registry
+- `github.com/riokulabs/rioku/internal/tracestore`: request trace ring buffer + persistent store
+- `github.com/riokulabs/rioku/internal/mcp`: MCP (Model Context Protocol) server exposing daemon capabilities as tools
 
 **Key types:** `aigateway.Server`, `registry.Registry`, `strategies.Registry`, `tracestore.Driver` (interface), `tracestore.Ingester`
 
@@ -109,13 +110,14 @@ For a visual overview of how these components connect, see the architecture diag
 
 ## Settings and Identity
 
-**Responsibility:** Owns authentication (sessions, JWTs, TOTP, SSO/OIDC, password lifecycle), RBAC (roles, permissions, scopes), API key management, multi-tenancy, and super-admin impersonation. These are not independent services — they are packages consumed by the gateway and the store.
+**Responsibility:** Owns authentication (sessions, JWTs, TOTP, SSO/OIDC, password lifecycle), RBAC (roles, permissions, scopes), API key management, multi-tenancy, and super-admin impersonation. These are not independent services; they are packages consumed by the gateway and the store.
 
 **Packages:**
-- `github.com/riokulabs/rioku/internal/auth` — session creation, JWT signing/validation, TOTP, password hashing, RBAC scope resolution
-- `github.com/riokulabs/rioku/internal/keyring` — credential storage backends (OS keyring, env, file)
-- `github.com/riokulabs/rioku/internal/vault` — virtual-key-to-credential resolver used by the AI router
-- `github.com/riokulabs/rioku/internal/pki` — certificate authority for internal mTLS
+
+- `github.com/riokulabs/rioku/internal/auth`: session creation, JWT signing/validation, TOTP, password hashing, RBAC scope resolution
+- `github.com/riokulabs/rioku/internal/keyring`: credential storage backends (OS keyring, env, file)
+- `github.com/riokulabs/rioku/internal/vault`: virtual-key-to-credential resolver used by the AI router
+- `github.com/riokulabs/rioku/internal/pki`: certificate authority for internal mTLS
 
 **Key types:** `auth.SessionClaims`, `auth.Manager` (session store), `vault.Resolver`
 
