@@ -3,8 +3,14 @@ name: Web
 on:
   pull_request:
     branches: [develop, main]
+    paths-ignore:
+      - 'contrib-docs/**'
+      - 'docs/**'
   push:
     branches: [develop]
+    paths-ignore:
+      - 'contrib-docs/**'
+      - 'docs/**'
 
 concurrency:
   group: web-${{ github.ref }}

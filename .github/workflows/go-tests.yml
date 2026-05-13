@@ -3,8 +3,14 @@ name: Go Tests
 on:
   pull_request:
     branches: [develop, main]
+    paths-ignore:
+      - 'contrib-docs/**'
+      - 'docs/**'
   push:
     branches: [develop]
+    paths-ignore:
+      - 'contrib-docs/**'
+      - 'docs/**'
 
 concurrency:
   group: go-tests-${{ github.ref }}
