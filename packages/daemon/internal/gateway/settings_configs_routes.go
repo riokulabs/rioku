@@ -16,37 +16,38 @@ import (
 	"encoding/json"
 	"net/http"
 
+	"github.com/riokulabs/rioku/internal/rerr"
 	"github.com/riokulabs/rioku/internal/store"
 )
 
 func RegisterSettingsConfigRoutes(mux *http.ServeMux, st store.Driver) {
 	// Network
 	mux.Handle("GET /api/v1/t/{tenant}/settings/network",
-		RequirePermission("network:read")(http.HandlerFunc(handleGetNetworkConfig(st))))
+		RequirePermission("network:read")(rerr.H(handleGetNetworkConfig(st))))
 	mux.Handle("PUT /api/v1/t/{tenant}/settings/network",
-		RequirePermission("network:write")(http.HandlerFunc(handleUpsertNetworkConfig(st))))
+		RequirePermission("network:write")(rerr.H(handleUpsertNetworkConfig(st))))
 
 	// Auth policy
 	mux.Handle("GET /api/v1/t/{tenant}/settings/auth-policy",
-		RequirePermission("tenant-auth:read")(http.HandlerFunc(handleGetAuthPolicy(st))))
+		RequirePermission("tenant-auth:read")(rerr.H(handleGetAuthPolicy(st))))
 	mux.Handle("PUT /api/v1/t/{tenant}/settings/auth-policy",
-		RequirePermission("tenant-auth:write")(http.HandlerFunc(handleUpsertAuthPolicy(st))))
+		RequirePermission("tenant-auth:write")(rerr.H(handleUpsertAuthPolicy(st))))
 
 	// Observability (one GET + three section PUTs)
 	mux.Handle("GET /api/v1/t/{tenant}/settings/observability",
-		RequirePermission("metrics:read")(http.HandlerFunc(handleGetObservability(st))))
+		RequirePermission("metrics:read")(rerr.H(handleGetObservability(st))))
 	mux.Handle("PUT /api/v1/t/{tenant}/settings/observability/metrics",
-		RequirePermission("metrics:write")(http.HandlerFunc(handleUpsertObservabilityMetrics(st))))
+		RequirePermission("metrics:write")(rerr.H(handleUpsertObservabilityMetrics(st))))
 	mux.Handle("PUT /api/v1/t/{tenant}/settings/observability/logs",
-		RequirePermission("logs:write")(http.HandlerFunc(handleUpsertObservabilityLogs(st))))
+		RequirePermission("logs:write")(rerr.H(handleUpsertObservabilityLogs(st))))
 	mux.Handle("PUT /api/v1/t/{tenant}/settings/observability/traces",
-		RequirePermission("traces:write")(http.HandlerFunc(handleUpsertObservabilityTraces(st))))
+		RequirePermission("traces:write")(rerr.H(handleUpsertObservabilityTraces(st))))
 
 	// Audit retention
 	mux.Handle("GET /api/v1/t/{tenant}/audit/retention",
-		RequirePermission("audit:retention:read")(http.HandlerFunc(handleGetAuditRetention(st))))
+		RequirePermission("audit:retention:read")(rerr.H(handleGetAuditRetention(st))))
 	mux.Handle("PUT /api/v1/t/{tenant}/audit/retention",
-		RequirePermission("audit:retention:write")(http.HandlerFunc(handleUpsertAuditRetention(st))))
+		RequirePermission("audit:retention:write")(rerr.H(handleUpsertAuditRetention(st))))
 }
 
 // ─── Network ────────────────────────────────────────────────────────────────
@@ -72,9 +73,9 @@ func networkConfigToResponse(c *store.NetworkConfig) networkConfigResponse {
 	}
 }
 
-func handleGetNetworkConfig(st store.Driver) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
-		handleReadConfig(w, r, st, "get network_config",
+func handleGetNetworkConfig(st store.Driver) rerr.Handler {
+	return func(w http.ResponseWriter, r *http.Request) error {
+		return handleReadConfig(w, r, st, "get network_config",
 			func(ctx context.Context, tx store.Tx, tenantID string) (any, error) {
 				c, err := tx.GetNetworkConfig(ctx, tenantID)
 				if err != nil {
@@ -85,8 +86,8 @@ func handleGetNetworkConfig(st store.Driver) http.HandlerFunc {
 	}
 }
 
-func handleUpsertNetworkConfig(st store.Driver) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
+func handleUpsertNetworkConfig(st store.Driver) rerr.Handler {
+	return func(w http.ResponseWriter, r *http.Request) error {
 		var req struct {
 			ListenAddresses      json.RawMessage `json:"listenAddresses,omitempty"`
 			HTTP3Enabled         bool            `json:"http3Enabled"`
@@ -95,7 +96,7 @@ func handleUpsertNetworkConfig(st store.Driver) http.HandlerFunc {
 			WriteTimeoutSeconds  int32           `json:"writeTimeoutSeconds"`
 			IdleTimeoutSeconds   int32           `json:"idleTimeoutSeconds"`
 		}
-		handleUpsertConfig(w, r, st, "upsert network_config", &req,
+		if err := handleUpsertConfig(w, r, st, "upsert network_config", &req,
 			func(ctx context.Context, tx store.Tx, tenantID string) (any, error) {
 				updated, err := tx.UpsertNetworkConfig(ctx, &store.NetworkConfig{
 					TenantID:             tenantID,
@@ -110,11 +111,14 @@ func handleUpsertNetworkConfig(st store.Driver) http.HandlerFunc {
 					return nil, err
 				}
 				return networkConfigToResponse(updated), nil
-			})
+			}); err != nil {
+			return err
+		}
 		// Network listen-address / overrides changes need to nudge Caddy
 		// to reload its admin config. Best-effort; failures are logged
 		// inside triggerCaddyReload.
 		_ = triggerCaddyReload(r.Context(), "settings.network")
+		return nil
 	}
 }
 
@@ -146,9 +150,9 @@ func authPolicyToResponse(c *store.TenantAuthPolicy) authPolicyResponse {
 	}
 }
 
-func handleGetAuthPolicy(st store.Driver) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
-		handleReadConfig(w, r, st, "get auth_policy",
+func handleGetAuthPolicy(st store.Driver) rerr.Handler {
+	return func(w http.ResponseWriter, r *http.Request) error {
+		return handleReadConfig(w, r, st, "get auth_policy",
 			func(ctx context.Context, tx store.Tx, tenantID string) (any, error) {
 				c, err := tx.GetTenantAuthPolicy(ctx, tenantID)
 				if err != nil {
@@ -159,8 +163,8 @@ func handleGetAuthPolicy(st store.Driver) http.HandlerFunc {
 	}
 }
 
-func handleUpsertAuthPolicy(st store.Driver) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
+func handleUpsertAuthPolicy(st store.Driver) rerr.Handler {
+	return func(w http.ResponseWriter, r *http.Request) error {
 		var req struct {
 			TOTPPolicy        string `json:"totpPolicy"`
 			MinLength         int32  `json:"minLength"`
@@ -173,7 +177,7 @@ func handleUpsertAuthPolicy(st store.Driver) http.HandlerFunc {
 			MaxFailedAttempts int32  `json:"maxFailedAttempts"`
 			LockoutMinutes    int32  `json:"lockoutMinutes"`
 		}
-		handleUpsertConfig(w, r, st, "upsert auth_policy", &req,
+		return handleUpsertConfig(w, r, st, "upsert auth_policy", &req,
 			func(ctx context.Context, tx store.Tx, tenantID string) (any, error) {
 				updated, err := tx.UpsertTenantAuthPolicy(ctx, &store.TenantAuthPolicy{
 					TenantID: tenantID, TOTPPolicy: req.TOTPPolicy, MinLength: req.MinLength,
@@ -218,9 +222,9 @@ func observabilityToResponse(c *store.ObservabilityConfig) observabilityResponse
 	}
 }
 
-func handleGetObservability(st store.Driver) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
-		handleReadConfig(w, r, st, "get observability_config",
+func handleGetObservability(st store.Driver) rerr.Handler {
+	return func(w http.ResponseWriter, r *http.Request) error {
+		return handleReadConfig(w, r, st, "get observability_config",
 			func(ctx context.Context, tx store.Tx, tenantID string) (any, error) {
 				c, err := tx.GetObservabilityConfig(ctx, tenantID)
 				if err != nil {
@@ -231,14 +235,14 @@ func handleGetObservability(st store.Driver) http.HandlerFunc {
 	}
 }
 
-func handleUpsertObservabilityMetrics(st store.Driver) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
+func handleUpsertObservabilityMetrics(st store.Driver) rerr.Handler {
+	return func(w http.ResponseWriter, r *http.Request) error {
 		var req struct {
 			ScrapeEndpoint string          `json:"scrapeEndpoint"`
 			ScrapeAuth     json.RawMessage `json:"scrapeAuth,omitempty"`
 			RetentionDays  int32           `json:"retentionDays"`
 		}
-		handleUpsertConfig(w, r, st, "upsert metrics", &req,
+		return handleUpsertConfig(w, r, st, "upsert metrics", &req,
 			func(ctx context.Context, tx store.Tx, tenantID string) (any, error) {
 				current, _ := tx.GetObservabilityConfig(ctx, tenantID)
 				current.TenantID = tenantID
@@ -254,14 +258,14 @@ func handleUpsertObservabilityMetrics(st store.Driver) http.HandlerFunc {
 	}
 }
 
-func handleUpsertObservabilityLogs(st store.Driver) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
+func handleUpsertObservabilityLogs(st store.Driver) rerr.Handler {
+	return func(w http.ResponseWriter, r *http.Request) error {
 		var req struct {
 			Levels   json.RawMessage `json:"levels,omitempty"`
 			Format   string          `json:"format"`
 			Rotation json.RawMessage `json:"rotation,omitempty"`
 		}
-		handleUpsertConfig(w, r, st, "upsert logs", &req,
+		return handleUpsertConfig(w, r, st, "upsert logs", &req,
 			func(ctx context.Context, tx store.Tx, tenantID string) (any, error) {
 				current, _ := tx.GetObservabilityConfig(ctx, tenantID)
 				current.TenantID = tenantID
@@ -277,13 +281,13 @@ func handleUpsertObservabilityLogs(st store.Driver) http.HandlerFunc {
 	}
 }
 
-func handleUpsertObservabilityTraces(st store.Driver) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
+func handleUpsertObservabilityTraces(st store.Driver) rerr.Handler {
+	return func(w http.ResponseWriter, r *http.Request) error {
 		var req struct {
 			RetentionDays int32   `json:"retentionDays"`
 			SampleRate    float64 `json:"sampleRate"`
 		}
-		handleUpsertConfig(w, r, st, "upsert traces", &req,
+		return handleUpsertConfig(w, r, st, "upsert traces", &req,
 			func(ctx context.Context, tx store.Tx, tenantID string) (any, error) {
 				current, _ := tx.GetObservabilityConfig(ctx, tenantID)
 				current.TenantID = tenantID
@@ -321,9 +325,9 @@ func auditRetentionToResponse(c *store.AuditRetentionConfig) auditRetentionRespo
 	}
 }
 
-func handleGetAuditRetention(st store.Driver) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
-		handleReadConfig(w, r, st, "get audit_retention",
+func handleGetAuditRetention(st store.Driver) rerr.Handler {
+	return func(w http.ResponseWriter, r *http.Request) error {
+		return handleReadConfig(w, r, st, "get audit_retention",
 			func(ctx context.Context, tx store.Tx, tenantID string) (any, error) {
 				c, err := tx.GetAuditRetentionConfig(ctx, tenantID)
 				if err != nil {
@@ -334,8 +338,8 @@ func handleGetAuditRetention(st store.Driver) http.HandlerFunc {
 	}
 }
 
-func handleUpsertAuditRetention(st store.Driver) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
+func handleUpsertAuditRetention(st store.Driver) rerr.Handler {
+	return func(w http.ResponseWriter, r *http.Request) error {
 		var req struct {
 			RetentionDaysRead        int32   `json:"retentionDaysRead"`
 			RetentionDaysWrite       int32   `json:"retentionDaysWrite"`
@@ -344,7 +348,7 @@ func handleUpsertAuditRetention(st store.Driver) http.HandlerFunc {
 			AutoExportFormat         string  `json:"autoExportFormat"`
 			AutoExportDestination    *string `json:"autoExportDestination,omitempty"`
 		}
-		handleUpsertConfig(w, r, st, "upsert audit_retention", &req,
+		return handleUpsertConfig(w, r, st, "upsert audit_retention", &req,
 			func(ctx context.Context, tx store.Tx, tenantID string) (any, error) {
 				updated, err := tx.UpsertAuditRetentionConfig(ctx, &store.AuditRetentionConfig{
 					TenantID:                 tenantID,

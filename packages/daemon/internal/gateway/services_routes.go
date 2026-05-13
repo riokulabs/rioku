@@ -24,6 +24,7 @@ import (
 
 	"github.com/riokulabs/rioku/internal/gateway/links"
 	"github.com/riokulabs/rioku/internal/gateway/optionsutil"
+	"github.com/riokulabs/rioku/internal/rerr"
 	"github.com/riokulabs/rioku/internal/store"
 	riokuv1 "github.com/riokulabs/rioku/proto/gen/go/rioku/v1"
 	"google.golang.org/protobuf/encoding/protojson"
@@ -32,13 +33,13 @@ import (
 
 // RegisterServicesRoutes wires the tenant-scoped services REST surface.
 func RegisterServicesRoutes(mux *http.ServeMux, st store.Driver) {
-	list := RequirePermission("service:read")(http.HandlerFunc(handleListServices(st)))
-	create := RequirePermission("service:write")(http.HandlerFunc(handleCreateService(st)))
-	get := RequirePermission("service:read")(http.HandlerFunc(handleGetService(st)))
-	update := RequirePermission("service:write")(http.HandlerFunc(handleUpdateServiceREST(st)))
-	del := RequirePermission("service:delete")(http.HandlerFunc(handleDeleteServiceREST(st)))
-	forceReload := RequirePermission("service:reload")(http.HandlerFunc(handleForceReloadService(st)))
-	listRoutes := RequirePermission("route:read")(http.HandlerFunc(handleListRoutesByService(st)))
+	list := RequirePermission("service:read")(rerr.H(handleListServices(st)))
+	create := RequirePermission("service:write")(rerr.H(handleCreateService(st)))
+	get := RequirePermission("service:read")(rerr.H(handleGetService(st)))
+	update := RequirePermission("service:write")(rerr.H(handleUpdateServiceREST(st)))
+	del := RequirePermission("service:delete")(rerr.H(handleDeleteServiceREST(st)))
+	forceReload := RequirePermission("service:reload")(rerr.H(handleForceReloadService(st)))
+	listRoutes := RequirePermission("route:read")(rerr.H(handleListRoutesByService(st)))
 
 	mux.Handle("GET /api/v1/t/{tenant}/services", list)
 	mux.Handle("POST /api/v1/t/{tenant}/services", create)
@@ -93,29 +94,27 @@ func protoToMap(m proto.Message) map[string]any {
 	return out
 }
 
-func handleListServices(st store.Driver) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
+func handleListServices(st store.Driver) rerr.Handler {
+	return func(w http.ResponseWriter, r *http.Request) error {
 		tenant, ok := tenantOrError(w, r)
 		if !ok {
-			return
+			return nil
 		}
 		tx, err := st.Begin(r.Context(), store.TxOptions{ReadOnly: true})
 		if err != nil {
-			writeInternalError(w, r, "begin tx")
-			return
+			return rerr.Wrap(err, "begin tx")
 		}
 		defer func() { _ = tx.Rollback() }()
 		services, err := tx.ListServices(r.Context())
 		if err != nil {
-			writeInternalError(w, r, "list services")
-			return
+			return rerr.Wrap(err, "list services")
 		}
 		b := links.NewTenantBuilder(tenant.Slug)
 		out := make([]serviceDTO, 0, len(services))
 		for _, svc := range services {
 			out = append(out, serviceToDTO(svc, b))
 		}
-		writeJSON(w, http.StatusOK, map[string]any{
+		return rerr.JSON(w, map[string]any{
 			"items":  out,
 			"total":  len(out),
 			"_links": links.Set{"self": b.Collection("services")},
@@ -123,61 +122,53 @@ func handleListServices(st store.Driver) http.HandlerFunc {
 	}
 }
 
-func handleCreateService(st store.Driver) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
+func handleCreateService(st store.Driver) rerr.Handler {
+	return func(w http.ResponseWriter, r *http.Request) error {
 		tenant, ok := tenantOrError(w, r)
 		if !ok {
-			return
+			return nil
 		}
 		var svc riokuv1.Service
 		if err := unmarshalProtoJSON(r.Body, &svc); err != nil {
-			writeBadRequest(w, r, "invalid JSON body: "+err.Error())
-			return
+			return rerr.Validation(map[string]string{"body": "invalid JSON body: " + err.Error()})
 		}
 		if strings.TrimSpace(svc.GetName()) == "" {
-			writeBadRequest(w, r, "name is required")
-			return
+			return rerr.Validation(map[string]string{"name": "name is required"})
 		}
 		tx, err := st.Begin(r.Context(), store.TxOptions{})
 		if err != nil {
-			writeInternalError(w, r, "begin tx")
-			return
+			return rerr.Wrap(err, "begin tx")
 		}
 		created, err := tx.CreateService(r.Context(), &svc)
 		if err != nil {
 			_ = tx.Rollback()
-			writeInternalError(w, r, "create service")
-			return
+			return rerr.Wrap(err, "create service")
 		}
 		if err := tx.Commit(); err != nil {
-			writeInternalError(w, r, "commit")
-			return
+			return rerr.Wrap(err, "commit")
 		}
 		_ = triggerCaddyReload(r.Context(), "service.create")
-		writeJSON(w, http.StatusCreated, serviceToDTO(created, links.NewTenantBuilder(tenant.Slug)))
+		return rerr.JSONStatus(w, http.StatusCreated, serviceToDTO(created, links.NewTenantBuilder(tenant.Slug)))
 	}
 }
 
-func handleGetService(st store.Driver) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
+func handleGetService(st store.Driver) rerr.Handler {
+	return func(w http.ResponseWriter, r *http.Request) error {
 		tenant, ok := tenantOrError(w, r)
 		if !ok {
-			return
+			return nil
 		}
 		id := r.PathValue("id")
 		tx, err := st.Begin(r.Context(), store.TxOptions{ReadOnly: true})
 		if err != nil {
-			writeInternalError(w, r, "begin tx")
-			return
+			return rerr.Wrap(err, "begin tx")
 		}
 		defer func() { _ = tx.Rollback() }()
 		svc, err := tx.GetService(r.Context(), id)
 		if err != nil {
-			writeProblem(w, http.StatusNotFound, errTypeNotFound, "Service not found",
-				"No service with id "+id, r.URL.Path, nil)
-			return
+			return rerr.NotFound("service", id)
 		}
-		writeJSON(w, http.StatusOK, serviceToDTO(svc, links.NewTenantBuilder(tenant.Slug)))
+		return rerr.JSON(w, serviceToDTO(svc, links.NewTenantBuilder(tenant.Slug)))
 	}
 }
 
@@ -187,18 +178,17 @@ func handleGetService(st store.Driver) http.HandlerFunc {
 // fields will see them reset to zero. This is a v1 simplification;
 // strict PUT semantics with required-field validation are a future
 // follow-up.
-func handleUpdateServiceREST(st store.Driver) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
+func handleUpdateServiceREST(st store.Driver) rerr.Handler {
+	return func(w http.ResponseWriter, r *http.Request) error {
 		tenant, ok := tenantOrError(w, r)
 		if !ok {
-			return
+			return nil
 		}
 		id := r.PathValue("id")
 
 		tx, err := st.Begin(r.Context(), store.TxOptions{})
 		if err != nil {
-			writeInternalError(w, r, "begin tx")
-			return
+			return rerr.Wrap(err, "begin tx")
 		}
 		// For PATCH we read the existing record and overlay the body
 		// on top so omitted fields stay intact.
@@ -207,9 +197,7 @@ func handleUpdateServiceREST(st store.Driver) http.HandlerFunc {
 			existing, err := tx.GetService(r.Context(), id)
 			if err != nil {
 				_ = tx.Rollback()
-				writeProblem(w, http.StatusNotFound, errTypeNotFound, "Service not found",
-					"No service with id "+id, r.URL.Path, nil)
-				return
+				return rerr.NotFound("service", id)
 			}
 			// protojson.Unmarshal clears the destination first, so we
 			// decode the patch into a fresh message and proto.Merge
@@ -219,8 +207,7 @@ func handleUpdateServiceREST(st store.Driver) http.HandlerFunc {
 			patch := &riokuv1.Service{}
 			if err := unmarshalProtoJSON(r.Body, patch); err != nil {
 				_ = tx.Rollback()
-				writeBadRequest(w, r, "invalid JSON body: "+err.Error())
-				return
+				return rerr.Validation(map[string]string{"body": "invalid JSON body: " + err.Error()})
 			}
 			proto.Merge(existing, patch)
 			svc = existing
@@ -228,8 +215,7 @@ func handleUpdateServiceREST(st store.Driver) http.HandlerFunc {
 			svc = &riokuv1.Service{}
 			if err := unmarshalProtoJSON(r.Body, svc); err != nil {
 				_ = tx.Rollback()
-				writeBadRequest(w, r, "invalid JSON body: "+err.Error())
-				return
+				return rerr.Validation(map[string]string{"body": "invalid JSON body: " + err.Error()})
 			}
 		}
 		svc.Id = id
@@ -238,47 +224,39 @@ func handleUpdateServiceREST(st store.Driver) http.HandlerFunc {
 		if err != nil {
 			_ = tx.Rollback()
 			if strings.Contains(err.Error(), "not found") {
-				writeProblem(w, http.StatusNotFound, errTypeNotFound, "Service not found",
-					"No service with id "+id, r.URL.Path, nil)
-				return
+				return rerr.NotFound("service", id)
 			}
-			writeInternalError(w, r, "update service")
-			return
+			return rerr.Wrap(err, "update service")
 		}
 		if err := tx.Commit(); err != nil {
-			writeInternalError(w, r, "commit")
-			return
+			return rerr.Wrap(err, "commit")
 		}
 		_ = triggerCaddyReload(r.Context(), "service.update")
-		writeJSON(w, http.StatusOK, serviceToDTO(updated, links.NewTenantBuilder(tenant.Slug)))
+		return rerr.JSON(w, serviceToDTO(updated, links.NewTenantBuilder(tenant.Slug)))
 	}
 }
 
-func handleDeleteServiceREST(st store.Driver) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
+func handleDeleteServiceREST(st store.Driver) rerr.Handler {
+	return func(w http.ResponseWriter, r *http.Request) error {
 		_ = TenantFromContext(r.Context()) // resolved by middleware
 		id := r.PathValue("id")
 		tx, err := st.Begin(r.Context(), store.TxOptions{})
 		if err != nil {
-			writeInternalError(w, r, "begin tx")
-			return
+			return rerr.Wrap(err, "begin tx")
 		}
 		if err := tx.DeleteService(r.Context(), id); err != nil {
 			_ = tx.Rollback()
 			if strings.Contains(err.Error(), "not found") {
-				writeProblem(w, http.StatusNotFound, errTypeNotFound, "Service not found",
-					"No service with id "+id, r.URL.Path, nil)
-				return
+				return rerr.NotFound("service", id)
 			}
-			writeInternalError(w, r, "delete service")
-			return
+			return rerr.Wrap(err, "delete service")
 		}
 		if err := tx.Commit(); err != nil {
-			writeInternalError(w, r, "commit")
-			return
+			return rerr.Wrap(err, "commit")
 		}
 		_ = triggerCaddyReload(r.Context(), "service.delete")
 		w.WriteHeader(http.StatusNoContent)
+		return nil
 	}
 }
 
@@ -286,28 +264,25 @@ func handleDeleteServiceREST(st store.Driver) http.HandlerFunc {
 // returns 202. The real Caddy admin-API hook lands when the
 // per-service reload path is wired up; for v1 we accept the request,
 // audit it, and return.
-func handleForceReloadService(st store.Driver) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
+func handleForceReloadService(st store.Driver) rerr.Handler {
+	return func(w http.ResponseWriter, r *http.Request) error {
 		tenant, ok := tenantOrError(w, r)
 		if !ok {
-			return
+			return nil
 		}
 		id := r.PathValue("id")
 		tx, err := st.Begin(r.Context(), store.TxOptions{ReadOnly: true})
 		if err != nil {
-			writeInternalError(w, r, "begin tx")
-			return
+			return rerr.Wrap(err, "begin tx")
 		}
 		defer func() { _ = tx.Rollback() }()
 		if _, err := tx.GetService(r.Context(), id); err != nil {
-			writeProblem(w, http.StatusNotFound, errTypeNotFound, "Service not found",
-				"No service with id "+id, r.URL.Path, nil)
-			return
+			return rerr.NotFound("service", id)
 		}
 		// Trigger the registered Caddy reload hook (no-op in production
 		// until decisions-needed.md item 005 wires the real helper).
 		_ = triggerCaddyReload(r.Context(), "service.force-reload")
-		writeJSON(w, http.StatusAccepted, map[string]any{
+		return rerr.JSONStatus(w, http.StatusAccepted, map[string]any{
 			"id":     id,
 			"status": "queued",
 			"_links": links.Set{
@@ -319,23 +294,21 @@ func handleForceReloadService(st store.Driver) http.HandlerFunc {
 
 // handleListRoutesByService returns every route whose target_service_id
 // is the path's service id.
-func handleListRoutesByService(st store.Driver) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
+func handleListRoutesByService(st store.Driver) rerr.Handler {
+	return func(w http.ResponseWriter, r *http.Request) error {
 		tenant, ok := tenantOrError(w, r)
 		if !ok {
-			return
+			return nil
 		}
 		serviceID := r.PathValue("id")
 		tx, err := st.Begin(r.Context(), store.TxOptions{ReadOnly: true})
 		if err != nil {
-			writeInternalError(w, r, "begin tx")
-			return
+			return rerr.Wrap(err, "begin tx")
 		}
 		defer func() { _ = tx.Rollback() }()
 		all, err := tx.ListRoutes(r.Context())
 		if err != nil {
-			writeInternalError(w, r, "list routes")
-			return
+			return rerr.Wrap(err, "list routes")
 		}
 		b := links.NewTenantBuilder(tenant.Slug)
 		out := make([]routeDTO, 0)
@@ -346,7 +319,7 @@ func handleListRoutesByService(st store.Driver) http.HandlerFunc {
 			}
 			out = append(out, routeToDTO(rt, b))
 		}
-		writeJSON(w, http.StatusOK, map[string]any{
+		return rerr.JSON(w, map[string]any{
 			"items": out,
 			"total": len(out),
 			"_links": links.Set{

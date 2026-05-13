@@ -27,6 +27,7 @@ import (
 	"github.com/riokulabs/rioku/internal/gateway/links"
 	"github.com/riokulabs/rioku/internal/gateway/optionsutil"
 	"github.com/riokulabs/rioku/internal/gateway/stream"
+	"github.com/riokulabs/rioku/internal/rerr"
 	"github.com/riokulabs/rioku/internal/store"
 	storeaudit "github.com/riokulabs/rioku/internal/store/audit"
 	riokuv1 "github.com/riokulabs/rioku/proto/gen/go/rioku/v1"
@@ -35,13 +36,13 @@ import (
 // RegisterAuditExtraRoutes wires the new chunk-6 audit endpoints
 // alongside the existing /audit list + /audit/entity surfaces.
 func RegisterAuditExtraRoutes(mux *http.ServeMux, st store.Driver) {
-	detail := RequirePermission("audit:read")(http.HandlerFunc(handleAuditDetail(st)))
-	streamH := RequirePermission("audit:read")(http.HandlerFunc(handleAuditStream(st)))
-	csv := RequirePermission("audit:read")(http.HandlerFunc(handleAuditExportCSV(st)))
-	jsonl := RequirePermission("audit:read")(http.HandlerFunc(handleAuditExportJSONL(st)))
-	actors := RequirePermission("audit:read")(http.HandlerFunc(handleAuditActors(st)))
-	resourceIDs := RequirePermission("audit:read")(http.HandlerFunc(handleAuditResourceIDs(st)))
-	reveal := RequirePermission("audit:read-sensitive")(http.HandlerFunc(handleAuditReveal(st)))
+	detail := RequirePermission("audit:read")(rerr.H(handleAuditDetail(st)))
+	streamH := RequirePermission("audit:read")(http.HandlerFunc(handleAuditStream(st))) // rerr-skip: SSE via stream.Stream.Handler()
+	csv := RequirePermission("audit:read")(rerr.H(handleAuditExportCSV(st)))
+	jsonl := RequirePermission("audit:read")(rerr.H(handleAuditExportJSONL(st)))
+	actors := RequirePermission("audit:read")(rerr.H(handleAuditActors(st)))
+	resourceIDs := RequirePermission("audit:read")(rerr.H(handleAuditResourceIDs(st)))
+	reveal := RequirePermission("audit:read-sensitive")(rerr.H(handleAuditReveal(st)))
 
 	mux.Handle("GET /api/v1/t/{tenant}/audit/{id}", detail)
 	mux.Handle("POST /api/v1/t/{tenant}/audit/{id}/reveal", reveal)
@@ -63,8 +64,8 @@ func RegisterAuditExtraRoutes(mux *http.ServeMux, st store.Driver) {
 	optionsutil.Register(mux, "/api/v1/t/{tenant}/audit/resource-ids", []string{"GET"})
 }
 
-func handleAuditDetail(st store.Driver) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
+func handleAuditDetail(st store.Driver) rerr.Handler {
+	return func(w http.ResponseWriter, r *http.Request) error {
 		tenant := TenantFromContext(r.Context())
 		id := r.PathValue("id")
 		// The legacy `/audit/entity/...` route also matches `/audit/{id}`
@@ -74,22 +75,19 @@ func handleAuditDetail(st store.Driver) http.HandlerFunc {
 		switch id {
 		case "entity", "stream", "export", "actors", "resource-ids":
 			http.NotFound(w, r)
-			return
+			return nil
 		}
 		tx, err := st.Begin(r.Context(), store.TxOptions{ReadOnly: true})
 		if err != nil {
-			writeInternalError(w, r, "begin tx")
-			return
+			return rerr.Wrap(err, "begin tx")
 		}
 		defer func() { _ = tx.Rollback() }()
 		entry, err := tx.GetAuditEntry(r.Context(), id)
 		if err != nil {
-			writeProblem(w, http.StatusNotFound, errTypeNotFound, "Audit entry not found",
-				"No audit entry with id "+id, r.URL.Path, nil)
-			return
+			return rerr.NotFound("audit_entry", id)
 		}
 		b := tenantBuilderOrRoot(tenant)
-		writeJSON(w, http.StatusOK, map[string]any{
+		return rerr.JSON(w, map[string]any{
 			"id":            entry.GetId(),
 			"actor":         entry.GetActor(),
 			"entityType":    entry.GetEntityType(),
@@ -119,8 +117,8 @@ func auditEntryLinks(e *riokuv1.AuditEntry, b *links.Builder) links.Set {
 // `audit:read-sensitive`. The caller-supplied reason is persisted
 // verbatim with the new audit row so subsequent compliance reviewers
 // can verify the bypass was justified.
-func handleAuditReveal(st store.Driver) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
+func handleAuditReveal(st store.Driver) rerr.Handler {
+	return func(w http.ResponseWriter, r *http.Request) error {
 		ctx := r.Context()
 		id := r.PathValue("id")
 
@@ -128,13 +126,11 @@ func handleAuditReveal(st store.Driver) http.HandlerFunc {
 			Reason string `json:"reason"`
 		}
 		if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
-			writeBadRequest(w, r, "request body must be JSON with a `reason` field")
-			return
+			return rerr.Validation(map[string]string{"body": "request body must be JSON with a `reason` field"})
 		}
 		reason := strings.TrimSpace(body.Reason)
 		if len(reason) < 4 {
-			writeBadRequest(w, r, "reason must be at least 4 characters")
-			return
+			return rerr.Validation(map[string]string{"reason": "reason must be at least 4 characters"})
 		}
 
 		actor := "system"
@@ -145,15 +141,12 @@ func handleAuditReveal(st store.Driver) http.HandlerFunc {
 		// 1) read the original entry
 		txr, err := st.Begin(ctx, store.TxOptions{ReadOnly: true})
 		if err != nil {
-			writeInternalError(w, r, "begin tx")
-			return
+			return rerr.Wrap(err, "begin tx")
 		}
 		entry, err := txr.GetAuditEntry(ctx, id)
 		_ = txr.Rollback()
 		if err != nil {
-			writeProblem(w, http.StatusNotFound, errTypeNotFound, "Audit entry not found",
-				"No audit entry with id "+id, r.URL.Path, nil)
-			return
+			return rerr.NotFound("audit_entry", id)
 		}
 
 		// 2) build + persist the follow-up reveal entry
@@ -169,26 +162,22 @@ func handleAuditReveal(st store.Driver) http.HandlerFunc {
 			},
 		)
 		if err != nil {
-			writeInternalError(w, r, "build reveal audit entry")
-			return
+			return rerr.Wrap(err, "build reveal audit entry")
 		}
 
 		txw, err := st.Begin(ctx, store.TxOptions{})
 		if err != nil {
-			writeInternalError(w, r, "begin tx")
-			return
+			return rerr.Wrap(err, "begin tx")
 		}
 		if err := txw.AppendAuditEntry(ctx, revealEntry); err != nil {
 			_ = txw.Rollback()
-			writeInternalError(w, r, "persist reveal audit entry")
-			return
+			return rerr.Wrap(err, "persist reveal audit entry")
 		}
 		if err := txw.Commit(); err != nil {
-			writeInternalError(w, r, "commit reveal audit entry")
-			return
+			return rerr.Wrap(err, "commit reveal audit entry")
 		}
 
-		writeJSON(w, http.StatusOK, map[string]any{
+		return rerr.JSON(w, map[string]any{
 			"entry":       auditEntryToMap(entry),
 			"revealEntry": auditEntryToMap(revealEntry),
 		})
@@ -278,24 +267,21 @@ func handleAuditStream(st store.Driver) http.HandlerFunc {
 	return s.Handler()
 }
 
-func handleAuditExportCSV(st store.Driver) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
+func handleAuditExportCSV(st store.Driver) rerr.Handler {
+	return func(w http.ResponseWriter, r *http.Request) error {
 		query, err := buildAuditQueryFromRequest(r)
 		if err != nil {
-			writeBadRequest(w, r, err.Error())
-			return
+			return rerr.Validation(map[string]string{"query": err.Error()})
 		}
 		query.Limit = 0 // export pulls everything matching the filter
 		tx, err := st.Begin(r.Context(), store.TxOptions{ReadOnly: true})
 		if err != nil {
-			writeInternalError(w, r, "begin tx")
-			return
+			return rerr.Wrap(err, "begin tx")
 		}
 		defer func() { _ = tx.Rollback() }()
 		entries, err := tx.QueryAuditLog(r.Context(), query)
 		if err != nil {
-			writeInternalError(w, r, "query audit")
-			return
+			return rerr.Wrap(err, "query audit")
 		}
 		rows := make([]map[string]any, 0, len(entries))
 		for _, e := range entries {
@@ -310,30 +296,29 @@ func handleAuditExportCSV(st store.Driver) http.HandlerFunc {
 				"occurredAt":    e.GetOccurredAt().AsTime(),
 			})
 		}
+		// rerr-skip: export.WriteCSV sets its own Content-Type/Content-Disposition headers
 		_ = export.WriteCSV(w, r, "audit.csv",
 			[]string{"id", "occurredAt", "actor", "entityType", "entityId", "operation", "configVersion", "diff"},
 			export.FromSlice(r.Context(), rows))
+		return nil
 	}
 }
 
-func handleAuditExportJSONL(st store.Driver) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
+func handleAuditExportJSONL(st store.Driver) rerr.Handler {
+	return func(w http.ResponseWriter, r *http.Request) error {
 		query, err := buildAuditQueryFromRequest(r)
 		if err != nil {
-			writeBadRequest(w, r, err.Error())
-			return
+			return rerr.Validation(map[string]string{"query": err.Error()})
 		}
 		query.Limit = 0
 		tx, err := st.Begin(r.Context(), store.TxOptions{ReadOnly: true})
 		if err != nil {
-			writeInternalError(w, r, "begin tx")
-			return
+			return rerr.Wrap(err, "begin tx")
 		}
 		defer func() { _ = tx.Rollback() }()
 		entries, err := tx.QueryAuditLog(r.Context(), query)
 		if err != nil {
-			writeInternalError(w, r, "query audit")
-			return
+			return rerr.Wrap(err, "query audit")
 		}
 		rows := make([]map[string]any, 0, len(entries))
 		for _, e := range entries {
@@ -348,12 +333,14 @@ func handleAuditExportJSONL(st store.Driver) http.HandlerFunc {
 				"occurredAt":    e.GetOccurredAt().AsTime().Format(time.RFC3339Nano),
 			})
 		}
+		// rerr-skip: export.WriteJSONL sets its own Content-Type/Content-Disposition headers
 		_ = export.WriteJSONL(w, r, "audit.jsonl", export.FromSlice(r.Context(), rows))
+		return nil
 	}
 }
 
-func handleAuditActors(st store.Driver) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
+func handleAuditActors(st store.Driver) rerr.Handler {
+	return func(w http.ResponseWriter, r *http.Request) error {
 		q := r.URL.Query()
 		prefix := q.Get("q")
 		limit := 50
@@ -364,24 +351,22 @@ func handleAuditActors(st store.Driver) http.HandlerFunc {
 		}
 		tx, err := st.Begin(r.Context(), store.TxOptions{ReadOnly: true})
 		if err != nil {
-			writeInternalError(w, r, "begin tx")
-			return
+			return rerr.Wrap(err, "begin tx")
 		}
 		defer func() { _ = tx.Rollback() }()
 		actors, err := tx.ListAuditActors(r.Context(), prefix, limit)
 		if err != nil {
-			writeInternalError(w, r, "list audit actors")
-			return
+			return rerr.Wrap(err, "list audit actors")
 		}
-		writeJSON(w, http.StatusOK, map[string]any{
+		return rerr.JSON(w, map[string]any{
 			"items": actors,
 			"total": len(actors),
 		})
 	}
 }
 
-func handleAuditResourceIDs(st store.Driver) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
+func handleAuditResourceIDs(st store.Driver) rerr.Handler {
+	return func(w http.ResponseWriter, r *http.Request) error {
 		q := r.URL.Query()
 		entityType := q.Get("entity_type")
 		prefix := q.Get("q")
@@ -393,16 +378,14 @@ func handleAuditResourceIDs(st store.Driver) http.HandlerFunc {
 		}
 		tx, err := st.Begin(r.Context(), store.TxOptions{ReadOnly: true})
 		if err != nil {
-			writeInternalError(w, r, "begin tx")
-			return
+			return rerr.Wrap(err, "begin tx")
 		}
 		defer func() { _ = tx.Rollback() }()
 		ids, err := tx.ListAuditResourceIDs(r.Context(), entityType, prefix, limit)
 		if err != nil {
-			writeInternalError(w, r, "list audit resource_ids")
-			return
+			return rerr.Wrap(err, "list audit resource_ids")
 		}
-		writeJSON(w, http.StatusOK, map[string]any{
+		return rerr.JSON(w, map[string]any{
 			"items":      ids,
 			"total":      len(ids),
 			"entityType": entityType,

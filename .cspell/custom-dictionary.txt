@@ -173,6 +173,7 @@ Finalizer
 fingerprint
 flapping
 flusher
+forbidigo
 formalise
 formalised
 formatf

@@ -390,8 +390,8 @@ func TestAuditRoutes_ListAudit_InvalidRange(t *testing.T) {
 	resp := doJSON(t, client, http.MethodGet, server.URL+"/api/v1/audit?range=invalid", nil)
 	defer func() { _ = resp.Body.Close() }()
 
-	if resp.StatusCode != http.StatusBadRequest {
-		t.Fatalf("expected 400, got %d", resp.StatusCode)
+	if resp.StatusCode != http.StatusUnprocessableEntity {
+		t.Fatalf("expected 422, got %d", resp.StatusCode)
 	}
 }
 
@@ -416,8 +416,8 @@ func TestAuditRoutes_ListAudit_InvalidLimit(t *testing.T) {
 	resp := doJSON(t, client, http.MethodGet, server.URL+"/api/v1/audit?limit=abc", nil)
 	defer func() { _ = resp.Body.Close() }()
 
-	if resp.StatusCode != http.StatusBadRequest {
-		t.Fatalf("expected 400, got %d", resp.StatusCode)
+	if resp.StatusCode != http.StatusUnprocessableEntity {
+		t.Fatalf("expected 422, got %d", resp.StatusCode)
 	}
 }
 
@@ -442,8 +442,8 @@ func TestAuditRoutes_ListAudit_InvalidOffset(t *testing.T) {
 	resp := doJSON(t, client, http.MethodGet, server.URL+"/api/v1/audit?offset=-1", nil)
 	defer func() { _ = resp.Body.Close() }()
 
-	if resp.StatusCode != http.StatusBadRequest {
-		t.Fatalf("expected 400, got %d", resp.StatusCode)
+	if resp.StatusCode != http.StatusUnprocessableEntity {
+		t.Fatalf("expected 422, got %d", resp.StatusCode)
 	}
 }
 
@@ -540,8 +540,8 @@ func TestAuditRoutes_PerEntityRoute_QueryConflictRejected(t *testing.T) {
 	// Path says route/r1 but query says service — must reject.
 	resp := doJSON(t, client, http.MethodGet, server.URL+"/api/v1/audit/entity/route/r1?entity_type=service", nil)
 	defer func() { _ = resp.Body.Close() }()
-	if resp.StatusCode != http.StatusBadRequest {
-		t.Errorf("expected 400 on path/query conflict, got %d", resp.StatusCode)
+	if resp.StatusCode != http.StatusUnprocessableEntity {
+		t.Errorf("expected 422 on path/query conflict, got %d", resp.StatusCode)
 	}
 }
 
@@ -586,8 +586,8 @@ func TestAuditRoutes_UntilParam_InvalidRejected(t *testing.T) {
 
 	resp := doJSON(t, client, http.MethodGet, server.URL+"/api/v1/audit?until=not-a-timestamp", nil)
 	defer func() { _ = resp.Body.Close() }()
-	if resp.StatusCode != http.StatusBadRequest {
-		t.Errorf("expected 400 for malformed until, got %d", resp.StatusCode)
+	if resp.StatusCode != http.StatusUnprocessableEntity {
+		t.Errorf("expected 422 for malformed until, got %d", resp.StatusCode)
 	}
 }
 

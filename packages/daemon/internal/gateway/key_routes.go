@@ -2,7 +2,6 @@ package gateway
 
 import (
 	"encoding/json"
-	"fmt"
 	"net/http"
 	"strings"
 	"time"
@@ -10,6 +9,7 @@ import (
 	"github.com/riokulabs/rioku/internal/auth"
 	"github.com/riokulabs/rioku/internal/gateway/links"
 	"github.com/riokulabs/rioku/internal/gateway/optionsutil"
+	"github.com/riokulabs/rioku/internal/rerr"
 	"github.com/riokulabs/rioku/internal/store"
 )
 
@@ -20,13 +20,13 @@ import (
 // form is resolved by `TenantMiddleware` and operates on whichever
 // tenant the slug points to.
 func RegisterKeyRoutes(mux *http.ServeMux, st store.Driver) {
-	create := RequirePermission("keys:own")(http.HandlerFunc(handleKeyCreate(st)))
-	list := RequirePermission("keys:own")(http.HandlerFunc(handleKeyList(st)))
-	get := RequirePermission("keys:own")(http.HandlerFunc(handleKeyGet(st)))
-	update := RequirePermission("keys:own")(http.HandlerFunc(handleKeyUpdate(st)))
-	revoke := RequirePermission("keys:own")(http.HandlerFunc(handleKeyRevoke(st)))
-	rotate := RequirePermission("keys:own")(http.HandlerFunc(handleKeyRotate(st)))
-	usage := RequirePermission("keys:own")(http.HandlerFunc(handleKeyUsage(st)))
+	create := RequirePermission("keys:own")(rerr.H(handleKeyCreate(st)))
+	list := RequirePermission("keys:own")(rerr.H(handleKeyList(st)))
+	get := RequirePermission("keys:own")(rerr.H(handleKeyGet(st)))
+	update := RequirePermission("keys:own")(rerr.H(handleKeyUpdate(st)))
+	revoke := RequirePermission("keys:own")(rerr.H(handleKeyRevoke(st)))
+	rotate := RequirePermission("keys:own")(rerr.H(handleKeyRotate(st)))
+	usage := RequirePermission("keys:own")(rerr.H(handleKeyUsage(st)))
 
 	mux.Handle("POST /api/v1/keys", create)
 	mux.Handle("GET /api/v1/keys", list)
@@ -76,34 +76,15 @@ type keyResponse struct {
 	CreatedAt string   `json:"createdAt"`
 }
 
-func handleKeyCreate(st store.Driver) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
+func handleKeyCreate(st store.Driver) rerr.Handler {
+	return func(w http.ResponseWriter, r *http.Request) error {
 		r.Body = http.MaxBytesReader(w, r.Body, maxAuthBodySize)
 		var req keyCreateRequest
 		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-			w.Header().Set("Content-Type", "application/problem+json")
-			w.WriteHeader(http.StatusBadRequest)
-			_ = json.NewEncoder(w).Encode(ProblemDetail{
-				Type:     errTypeValidation,
-				Title:    "Invalid request",
-				Status:   400,
-				Detail:   "Request must be valid JSON with a 'name' field",
-				Instance: r.URL.Path,
-			})
-			return
+			return rerr.Validation(map[string]string{"body": "Request must be valid JSON with a 'name' field"})
 		}
 		if req.Name == "" {
-			w.Header().Set("Content-Type", "application/problem+json")
-			w.WriteHeader(http.StatusBadRequest)
-			_ = json.NewEncoder(w).Encode(ProblemDetail{
-				Type:     errTypeValidation,
-				Title:    "Validation failed",
-				Status:   400,
-				Detail:   "Key name is required",
-				Instance: r.URL.Path,
-				Errors:   []ValidationError{{Field: "name", Reason: "must not be empty"}},
-			})
-			return
+			return rerr.Validation(map[string]string{"name": "must not be empty"})
 		}
 
 		// Determine creator identity and scopes.
@@ -131,8 +112,7 @@ func handleKeyCreate(st store.Driver) http.HandlerFunc {
 
 		rawKey, err := auth.GenerateBootstrapToken() // generates rku_tok_ prefixed key
 		if err != nil {
-			writeInternalError(w, r, "generate key")
-			return
+			return rerr.Wrap(err, "generate key")
 		}
 		hash := auth.HashToken(rawKey)
 		prefix := auth.KeyPrefix(rawKey)
@@ -145,16 +125,7 @@ func handleKeyCreate(st store.Driver) http.HandlerFunc {
 		// Validate that requested scopes don't exceed creator's permissions.
 		if !canSkipValidation {
 			if err := auth.ValidateKeyScopes(scopes, creatorScopes); err != nil {
-				w.Header().Set("Content-Type", "application/problem+json")
-				w.WriteHeader(http.StatusForbidden)
-				_ = json.NewEncoder(w).Encode(ProblemDetail{
-					Type:     errTypeForbidden,
-					Title:    "Scope escalation denied",
-					Status:   403,
-					Detail:   err.Error(),
-					Instance: r.URL.Path,
-				})
-				return
+				return rerr.Forbidden(err.Error())
 			}
 		}
 
@@ -162,17 +133,7 @@ func handleKeyCreate(st store.Driver) http.HandlerFunc {
 		if req.Expires != "" {
 			d, err := time.ParseDuration(req.Expires)
 			if err != nil {
-				w.Header().Set("Content-Type", "application/problem+json")
-				w.WriteHeader(http.StatusBadRequest)
-				_ = json.NewEncoder(w).Encode(ProblemDetail{
-					Type:     errTypeValidation,
-					Title:    "Validation failed",
-					Status:   400,
-					Detail:   fmt.Sprintf("Invalid expiration duration: %v", err),
-					Instance: r.URL.Path,
-					Errors:   []ValidationError{{Field: "expires", Reason: "must be a valid Go duration (e.g. 720h, 30d)", Value: req.Expires}},
-				})
-				return
+				return rerr.Validation(map[string]string{"expires": "must be a valid Go duration (e.g. 720h, 30d)"})
 			}
 			t := time.Now().Add(d)
 			expiresAt = &t
@@ -180,25 +141,19 @@ func handleKeyCreate(st store.Driver) http.HandlerFunc {
 
 		tx, err := st.Begin(ctx, store.TxOptions{})
 		if err != nil {
-			writeInternalError(w, r, "begin tx")
-			return
+			return rerr.Wrap(err, "begin tx")
 		}
+		defer func() { _ = tx.Rollback() }()
 
 		id, err := tx.CreateAPIKey(ctx, req.Name, hash, prefix, scopes, expiresAt, ownerID)
 		if err != nil {
-			_ = tx.Rollback()
-			writeProblem(w, http.StatusInternalServerError, errTypeInternal,
-				"create key failed", err.Error(), r.URL.Path, nil)
-			return
+			return rerr.Wrap(err, "create api key")
 		}
 		if err := tx.Commit(); err != nil {
-			writeInternalError(w, r, "commit")
-			return
+			return rerr.Wrap(err, "commit")
 		}
 
-		w.Header().Set("Content-Type", "application/json")
-		w.WriteHeader(http.StatusCreated)
-		_ = json.NewEncoder(w).Encode(map[string]any{
+		return rerr.JSONStatus(w, http.StatusCreated, map[string]any{
 			"id":     id,
 			"key":    rawKey,
 			"prefix": prefix,
@@ -206,8 +161,8 @@ func handleKeyCreate(st store.Driver) http.HandlerFunc {
 	}
 }
 
-func handleKeyList(st store.Driver) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
+func handleKeyList(st store.Driver) rerr.Handler {
+	return func(w http.ResponseWriter, r *http.Request) error {
 		ctx := r.Context()
 
 		// Determine user identity and whether they can see all keys.
@@ -230,8 +185,7 @@ func handleKeyList(st store.Driver) http.HandlerFunc {
 
 		tx, err := st.Begin(ctx, store.TxOptions{ReadOnly: true})
 		if err != nil {
-			writeInternalError(w, r, "begin tx")
-			return
+			return rerr.Wrap(err, "begin tx")
 		}
 		defer func() { _ = tx.Rollback() }()
 
@@ -242,11 +196,10 @@ func handleKeyList(st store.Driver) http.HandlerFunc {
 			keys, err = tx.ListAPIKeysByOwner(ctx, userID)
 		}
 		if err != nil {
-			writeInternalError(w, r, "list keys")
-			return
+			return rerr.Wrap(err, "list keys")
 		}
 
-		var result []keyResponse
+		result := []keyResponse{}
 		for _, k := range keys {
 			if strings.HasPrefix(k.Name, "refresh:") || k.Name == "bootstrap" {
 				continue // hide internal tokens
@@ -266,19 +219,15 @@ func handleKeyList(st store.Driver) http.HandlerFunc {
 		// `data.data.apiKeys`) resolve to `undefined → []`, so the
 		// Security › API keys page was empty even when keys existed.
 		// Pagination is unimplemented — emit an empty token.
-		if result == nil {
-			result = []keyResponse{}
-		}
-		w.Header().Set("Content-Type", "application/json")
-		_ = json.NewEncoder(w).Encode(map[string]any{
+		return rerr.JSON(w, map[string]any{
 			"apiKeys":       result,
 			"nextPageToken": "",
 		})
 	}
 }
 
-func handleKeyRevoke(st store.Driver) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
+func handleKeyRevoke(st store.Driver) rerr.Handler {
+	return func(w http.ResponseWriter, r *http.Request) error {
 		// Tenant-scoped path uses `{id}` pattern variable; legacy path
 		// embeds the id straight after `/api/v1/keys/`.
 		id := r.PathValue("id")
@@ -286,16 +235,7 @@ func handleKeyRevoke(st store.Driver) http.HandlerFunc {
 			id = strings.TrimPrefix(r.URL.Path, "/api/v1/keys/")
 		}
 		if id == "" {
-			w.Header().Set("Content-Type", "application/problem+json")
-			w.WriteHeader(http.StatusBadRequest)
-			_ = json.NewEncoder(w).Encode(ProblemDetail{
-				Type:     errTypeValidation,
-				Title:    "Validation failed",
-				Status:   400,
-				Detail:   "Key ID is required in the URL path",
-				Instance: r.URL.Path,
-			})
-			return
+			return rerr.Validation(map[string]string{"id": "Key ID is required in the URL path"})
 		}
 
 		ctx := r.Context()
@@ -319,60 +259,30 @@ func handleKeyRevoke(st store.Driver) http.HandlerFunc {
 
 		tx, err := st.Begin(ctx, store.TxOptions{})
 		if err != nil {
-			writeInternalError(w, r, "begin tx")
-			return
+			return rerr.Wrap(err, "begin tx")
 		}
+		defer func() { _ = tx.Rollback() }()
 
 		// If the user doesn't have keys:manage, verify ownership first.
 		if !hasManage {
 			key, err := tx.GetAPIKey(ctx, id)
 			if err != nil {
-				_ = tx.Rollback()
-				w.Header().Set("Content-Type", "application/problem+json")
-				w.WriteHeader(http.StatusNotFound)
-				_ = json.NewEncoder(w).Encode(ProblemDetail{
-					Type:     errTypeNotFound,
-					Title:    "Key not found",
-					Status:   404,
-					Detail:   fmt.Sprintf("API key %q not found or already revoked", id),
-					Instance: r.URL.Path,
-				})
-				return
+				return rerr.NotFound("api key", id)
 			}
 			if key.OwnerID != userID {
-				_ = tx.Rollback()
-				w.Header().Set("Content-Type", "application/problem+json")
-				w.WriteHeader(http.StatusForbidden)
-				_ = json.NewEncoder(w).Encode(ProblemDetail{
-					Type:     errTypeForbidden,
-					Title:    "Forbidden",
-					Status:   403,
-					Detail:   "You can only revoke your own API keys",
-					Instance: r.URL.Path,
-				})
-				return
+				return rerr.Forbidden("You can only revoke your own API keys")
 			}
 		}
 
 		if err := tx.RevokeAPIKey(ctx, id); err != nil {
-			_ = tx.Rollback()
-			w.Header().Set("Content-Type", "application/problem+json")
-			w.WriteHeader(http.StatusNotFound)
-			_ = json.NewEncoder(w).Encode(ProblemDetail{
-				Type:     errTypeNotFound,
-				Title:    "Key not found",
-				Status:   404,
-				Detail:   fmt.Sprintf("API key %q not found or already revoked", id),
-				Instance: r.URL.Path,
-			})
-			return
+			return rerr.NotFound("api key", id)
 		}
 		if err := tx.Commit(); err != nil {
-			writeInternalError(w, r, "commit")
-			return
+			return rerr.Wrap(err, "commit")
 		}
 
 		w.WriteHeader(http.StatusNoContent)
+		return nil
 	}
 }
 
@@ -386,12 +296,11 @@ func handleKeyRevoke(st store.Driver) http.HandlerFunc {
 // only their own keys; keys:manage / admin / * users see any key.
 // Returns 404 (not 403) for keys that exist but the caller can't
 // view, to avoid leaking key-id existence to unprivileged callers.
-func handleKeyUsage(st store.Driver) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
+func handleKeyUsage(st store.Driver) rerr.Handler {
+	return func(w http.ResponseWriter, r *http.Request) error {
 		id := r.PathValue("id")
 		if id == "" {
-			writeBadRequest(w, r, "key id is required")
-			return
+			return rerr.Validation(map[string]string{"id": "key id is required"})
 		}
 
 		ctx := r.Context()
@@ -412,22 +321,17 @@ func handleKeyUsage(st store.Driver) http.HandlerFunc {
 
 		tx, err := st.Begin(ctx, store.TxOptions{ReadOnly: true})
 		if err != nil {
-			writeInternalError(w, r, "begin tx")
-			return
+			return rerr.Wrap(err, "begin tx")
 		}
 		defer func() { _ = tx.Rollback() }()
 
 		key, err := tx.GetAPIKey(ctx, id)
 		if err != nil {
-			writeProblem(w, http.StatusNotFound, errTypeNotFound, "Key not found",
-				fmt.Sprintf("API key %q not found", id), r.URL.Path, nil)
-			return
+			return rerr.NotFound("api key", id)
 		}
 		// Hide existence of keys the caller can't see (return 404 not 403).
 		if !hasManage && key.OwnerID != userID {
-			writeProblem(w, http.StatusNotFound, errTypeNotFound, "Key not found",
-				fmt.Sprintf("API key %q not found", id), r.URL.Path, nil)
-			return
+			return rerr.NotFound("api key", id)
 		}
 
 		resp := map[string]any{
@@ -446,28 +350,8 @@ func handleKeyUsage(st store.Driver) http.HandlerFunc {
 			resp["expiresAt"] = key.ExpiresAt.Format(time.RFC3339)
 		}
 
-		w.Header().Set("Content-Type", "application/json")
-		_ = json.NewEncoder(w).Encode(resp)
+		return rerr.JSON(w, resp)
 	}
-}
-
-func writeInternalError(w http.ResponseWriter, r *http.Request, context string) {
-	requestID := r.Header.Get("X-Request-ID")
-	w.Header().Set("Content-Type", "application/problem+json")
-	w.WriteHeader(http.StatusInternalServerError)
-	_ = json.NewEncoder(w).Encode(ProblemDetail{
-		Type:     errTypeInternal,
-		Title:    "Internal server error",
-		Status:   500,
-		Detail:   "An unexpected error occurred. Reference: " + requestID,
-		Instance: r.URL.Path,
-	})
-}
-
-// writeBadRequest writes a 400 ProblemDetail with the supplied detail message.
-// Used for invalid JSON bodies and validation failures on PATCH/POST endpoints.
-func writeBadRequest(w http.ResponseWriter, r *http.Request, detail string) {
-	writeProblem(w, http.StatusBadRequest, errTypeValidation, "Bad request", detail, r.URL.Path, nil)
 }
 
 // keyDetailDTO is the wire shape returned for an API key. Includes
@@ -524,13 +408,12 @@ func keyToDetailDTO(k *store.APIKey, b *links.Builder) keyDetailDTO {
 }
 
 // handleKeyGet returns one API key by id.
-func handleKeyGet(st store.Driver) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
+func handleKeyGet(st store.Driver) rerr.Handler {
+	return func(w http.ResponseWriter, r *http.Request) error {
 		tenant := TenantFromContext(r.Context())
 		id := r.PathValue("id")
 		if id == "" {
-			writeBadRequest(w, r, "key id is required")
-			return
+			return rerr.Validation(map[string]string{"id": "key id is required"})
 		}
 
 		ctx := r.Context()
@@ -544,24 +427,19 @@ func handleKeyGet(st store.Driver) http.HandlerFunc {
 
 		tx, err := st.Begin(ctx, store.TxOptions{ReadOnly: true})
 		if err != nil {
-			writeInternalError(w, r, "begin tx")
-			return
+			return rerr.Wrap(err, "begin tx")
 		}
 		defer func() { _ = tx.Rollback() }()
 		key, err := tx.GetAPIKey(ctx, id)
 		if err != nil {
-			writeProblem(w, http.StatusNotFound, errTypeNotFound, "Key not found",
-				fmt.Sprintf("API key %q not found", id), r.URL.Path, nil)
-			return
+			return rerr.NotFound("api key", id)
 		}
 		if !hasManage && key.OwnerID != userID {
-			writeProblem(w, http.StatusNotFound, errTypeNotFound, "Key not found",
-				fmt.Sprintf("API key %q not found", id), r.URL.Path, nil)
-			return
+			return rerr.NotFound("api key", id)
 		}
 
 		b := tenantBuilderOrRoot(tenant)
-		writeJSON(w, http.StatusOK, keyToDetailDTO(key, b))
+		return rerr.JSON(w, keyToDetailDTO(key, b))
 	}
 }
 
@@ -581,19 +459,17 @@ type keyUpdateRequest struct {
 
 // handleKeyUpdate handles PUT and PATCH; semantics are identical for
 // API keys (no required-field replace path).
-func handleKeyUpdate(st store.Driver) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
+func handleKeyUpdate(st store.Driver) rerr.Handler {
+	return func(w http.ResponseWriter, r *http.Request) error {
 		tenant := TenantFromContext(r.Context())
 		id := r.PathValue("id")
 		if id == "" {
-			writeBadRequest(w, r, "key id is required")
-			return
+			return rerr.Validation(map[string]string{"id": "key id is required"})
 		}
 
 		var req keyUpdateRequest
 		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-			writeBadRequest(w, r, "invalid JSON body")
-			return
+			return rerr.Validation(map[string]string{"body": "invalid JSON body"})
 		}
 
 		params := store.UpdateAPIKeyParams{
@@ -606,8 +482,7 @@ func handleKeyUpdate(st store.Driver) http.HandlerFunc {
 		} else if req.ExpiresAt != nil {
 			t, err := time.Parse(time.RFC3339, *req.ExpiresAt)
 			if err != nil {
-				writeBadRequest(w, r, "expiresAt must be RFC3339")
-				return
+				return rerr.Validation(map[string]string{"expiresAt": "must be RFC3339"})
 			}
 			tt := &t
 			params.ExpiresAt = &tt
@@ -615,39 +490,33 @@ func handleKeyUpdate(st store.Driver) http.HandlerFunc {
 
 		tx, err := st.Begin(r.Context(), store.TxOptions{})
 		if err != nil {
-			writeInternalError(w, r, "begin tx")
-			return
+			return rerr.Wrap(err, "begin tx")
 		}
+		defer func() { _ = tx.Rollback() }()
 		updated, err := tx.UpdateAPIKey(r.Context(), id, params)
 		if err != nil {
-			_ = tx.Rollback()
 			if strings.Contains(err.Error(), "not found") {
-				writeProblem(w, http.StatusNotFound, errTypeNotFound, "Key not found",
-					fmt.Sprintf("API key %q not found", id), r.URL.Path, nil)
-				return
+				return rerr.NotFound("api key", id)
 			}
-			writeInternalError(w, r, "update api key")
-			return
+			return rerr.Wrap(err, "update api key")
 		}
 		if err := tx.Commit(); err != nil {
-			writeInternalError(w, r, "commit")
-			return
+			return rerr.Wrap(err, "commit")
 		}
 		b := tenantBuilderOrRoot(tenant)
-		writeJSON(w, http.StatusOK, keyToDetailDTO(updated, b))
+		return rerr.JSON(w, keyToDetailDTO(updated, b))
 	}
 }
 
 // handleKeyRotate revokes the existing key and issues a new one with
 // the same name + scopes + owner + expiry. The plaintext secret is
 // returned ONCE on the response — the caller must capture it now.
-func handleKeyRotate(st store.Driver) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
+func handleKeyRotate(st store.Driver) rerr.Handler {
+	return func(w http.ResponseWriter, r *http.Request) error {
 		tenant := TenantFromContext(r.Context())
 		id := r.PathValue("id")
 		if id == "" {
-			writeBadRequest(w, r, "key id is required")
-			return
+			return rerr.Validation(map[string]string{"id": "key id is required"})
 		}
 
 		ctx := r.Context()
@@ -661,57 +530,41 @@ func handleKeyRotate(st store.Driver) http.HandlerFunc {
 
 		tx, err := st.Begin(ctx, store.TxOptions{})
 		if err != nil {
-			writeInternalError(w, r, "begin tx")
-			return
+			return rerr.Wrap(err, "begin tx")
 		}
+		defer func() { _ = tx.Rollback() }()
 
 		old, err := tx.GetAPIKey(ctx, id)
 		if err != nil {
-			_ = tx.Rollback()
-			writeProblem(w, http.StatusNotFound, errTypeNotFound, "Key not found",
-				fmt.Sprintf("API key %q not found", id), r.URL.Path, nil)
-			return
+			return rerr.NotFound("api key", id)
 		}
 		if !hasManage && old.OwnerID != userID {
-			_ = tx.Rollback()
-			writeProblem(w, http.StatusForbidden, errTypeForbidden, "Forbidden",
-				"You can only rotate your own API keys", r.URL.Path, nil)
-			return
+			return rerr.Forbidden("You can only rotate your own API keys")
 		}
 		if old.RevokedAt != nil {
-			_ = tx.Rollback()
-			writeProblem(w, http.StatusConflict, errTypeConflict, "Already revoked",
-				"Cannot rotate an already-revoked key", r.URL.Path, nil)
-			return
+			return rerr.Conflict("Cannot rotate an already-revoked key", nil)
 		}
 
 		// Mint a new secret + hash, persist as a fresh key, revoke the old.
 		raw, err := auth.GenerateBootstrapToken()
 		if err != nil {
-			_ = tx.Rollback()
-			writeInternalError(w, r, "mint api key")
-			return
+			return rerr.Wrap(err, "mint api key")
 		}
 		hash := auth.HashToken(raw)
 		newPrefix := auth.KeyPrefix(raw)
 		newID, err := tx.CreateAPIKey(ctx, old.Name, hash, newPrefix, old.Scopes, old.ExpiresAt, old.OwnerID)
 		if err != nil {
-			_ = tx.Rollback()
-			writeInternalError(w, r, "create rotated key")
-			return
+			return rerr.Wrap(err, "create rotated key")
 		}
 		if err := tx.RevokeAPIKey(ctx, id); err != nil {
-			_ = tx.Rollback()
-			writeInternalError(w, r, "revoke old key")
-			return
+			return rerr.Wrap(err, "revoke old key")
 		}
 		if err := tx.Commit(); err != nil {
-			writeInternalError(w, r, "commit")
-			return
+			return rerr.Wrap(err, "commit")
 		}
 
 		b := tenantBuilderOrRoot(tenant)
-		writeJSON(w, http.StatusOK, map[string]any{
+		return rerr.JSON(w, map[string]any{
 			"id":     newID,
 			"key":    raw,
 			"prefix": newPrefix,

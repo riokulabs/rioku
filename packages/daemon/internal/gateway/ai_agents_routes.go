@@ -15,6 +15,7 @@ import (
 	"net/http"
 	"time"
 
+	"github.com/riokulabs/rioku/internal/rerr"
 	"github.com/riokulabs/rioku/internal/store"
 )
 
@@ -44,32 +45,31 @@ func aiAgentToResponse(a *store.AIAgent) aiAgentResponse {
 	}
 }
 
-func handleListAIAgents(st store.Driver) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
+func handleListAIAgents(st store.Driver) rerr.Handler {
+	return func(w http.ResponseWriter, r *http.Request) error {
 		tenant, ok := tenantOrError(w, r)
 		if !ok {
-			return
+			return nil
 		}
 		tx, _ := st.Begin(r.Context(), store.TxOptions{ReadOnly: true})
 		defer func() { _ = tx.Rollback() }()
 		items, err := tx.ListAIAgentsByTenant(r.Context(), tenant.ID)
 		if err != nil {
-			writeInternalError(w, r, "list ai_agents")
-			return
+			return rerr.Wrap(err, "list ai_agents")
 		}
 		out := make([]aiAgentResponse, 0, len(items))
 		for _, a := range items {
 			out = append(out, aiAgentToResponse(a))
 		}
-		writeJSON(w, http.StatusOK, map[string]any{"items": out, "total": len(out)})
+		return rerr.JSON(w, map[string]any{"items": out, "total": len(out)})
 	}
 }
 
-func handleCreateAIAgent(st store.Driver) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
+func handleCreateAIAgent(st store.Driver) rerr.Handler {
+	return func(w http.ResponseWriter, r *http.Request) error {
 		tenant, ok := tenantOrError(w, r)
 		if !ok {
-			return
+			return nil
 		}
 		var req struct {
 			ProviderID   *string         `json:"providerId,omitempty"`
@@ -80,12 +80,10 @@ func handleCreateAIAgent(st store.Driver) http.HandlerFunc {
 			Guardrails   json.RawMessage `json:"guardrails,omitempty"`
 		}
 		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-			writeBadRequest(w, r, "invalid JSON body")
-			return
+			return rerr.Validation(map[string]string{"body": "invalid JSON body"})
 		}
 		if req.Name == "" {
-			writeBadRequest(w, r, "name is required")
-			return
+			return rerr.Validation(map[string]string{"name": "required"})
 		}
 		tx, _ := st.Begin(r.Context(), store.TxOptions{})
 		created, err := tx.CreateAIAgent(r.Context(), &store.AIAgent{
@@ -95,26 +93,22 @@ func handleCreateAIAgent(st store.Driver) http.HandlerFunc {
 		if err != nil {
 			_ = tx.Rollback()
 			if errors.Is(err, store.ErrAIAgentNameTaken) {
-				writeProblem(w, http.StatusConflict, errTypeConflict, "Name already in use",
-					"An agent with that name already exists in this tenant", r.URL.Path, nil)
-				return
+				return rerr.Conflict("an agent with that name already exists in this tenant", err)
 			}
-			writeInternalError(w, r, "create ai_agent")
-			return
+			return rerr.Wrap(err, "create ai_agent")
 		}
 		if err := tx.Commit(); err != nil {
-			writeInternalError(w, r, "commit")
-			return
+			return rerr.Wrap(err, "commit")
 		}
-		writeJSON(w, http.StatusCreated, aiAgentToResponse(created))
+		return rerr.JSONStatus(w, http.StatusCreated, aiAgentToResponse(created))
 	}
 }
 
-func handleGetAIAgent(st store.Driver) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
+func handleGetAIAgent(st store.Driver) rerr.Handler {
+	return func(w http.ResponseWriter, r *http.Request) error {
 		tenant, ok := tenantOrError(w, r)
 		if !ok {
-			return
+			return nil
 		}
 		id := r.PathValue("id")
 		tx, _ := st.Begin(r.Context(), store.TxOptions{ReadOnly: true})
@@ -122,22 +116,19 @@ func handleGetAIAgent(st store.Driver) http.HandlerFunc {
 		a, err := tx.GetAIAgent(r.Context(), tenant.ID, id)
 		if err != nil {
 			if errors.Is(err, store.ErrAIAgentNotFound) {
-				writeProblem(w, http.StatusNotFound, errTypeNotFound, "Agent not found",
-					"No agent with id "+id, r.URL.Path, nil)
-				return
+				return rerr.NotFound("agent", id)
 			}
-			writeInternalError(w, r, "get ai_agent")
-			return
+			return rerr.Wrap(err, "get ai_agent")
 		}
-		writeJSON(w, http.StatusOK, aiAgentToResponse(a))
+		return rerr.JSON(w, aiAgentToResponse(a))
 	}
 }
 
-func handleUpdateAIAgent(st store.Driver) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
+func handleUpdateAIAgent(st store.Driver) rerr.Handler {
+	return func(w http.ResponseWriter, r *http.Request) error {
 		tenant, ok := tenantOrError(w, r)
 		if !ok {
-			return
+			return nil
 		}
 		id := r.PathValue("id")
 		var req struct {
@@ -150,8 +141,7 @@ func handleUpdateAIAgent(st store.Driver) http.HandlerFunc {
 			Enabled      *bool            `json:"enabled,omitempty"`
 		}
 		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-			writeBadRequest(w, r, "invalid JSON body")
-			return
+			return rerr.Validation(map[string]string{"body": "invalid JSON body"})
 		}
 		params := store.UpdateAIAgentParams{
 			ProviderID: req.ProviderID, Name: req.Name, Description: req.Description,
@@ -166,111 +156,98 @@ func handleUpdateAIAgent(st store.Driver) http.HandlerFunc {
 		if err != nil {
 			_ = tx.Rollback()
 			if errors.Is(err, store.ErrAIAgentNotFound) {
-				writeProblem(w, http.StatusNotFound, errTypeNotFound, "Agent not found",
-					"No agent with id "+id, r.URL.Path, nil)
-				return
+				return rerr.NotFound("agent", id)
 			}
-			writeInternalError(w, r, "update ai_agent")
-			return
+			return rerr.Wrap(err, "update ai_agent")
 		}
 		if err := tx.Commit(); err != nil {
-			writeInternalError(w, r, "commit")
-			return
+			return rerr.Wrap(err, "commit")
 		}
-		writeJSON(w, http.StatusOK, aiAgentToResponse(updated))
+		return rerr.JSON(w, aiAgentToResponse(updated))
 	}
 }
 
-func handleDeleteAIAgent(st store.Driver) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
+func handleDeleteAIAgent(st store.Driver) rerr.Handler {
+	return func(w http.ResponseWriter, r *http.Request) error {
 		tenant, ok := tenantOrError(w, r)
 		if !ok {
-			return
+			return nil
 		}
 		id := r.PathValue("id")
 		tx, _ := st.Begin(r.Context(), store.TxOptions{})
 		if err := tx.DeleteAIAgent(r.Context(), tenant.ID, id); err != nil {
 			_ = tx.Rollback()
 			if errors.Is(err, store.ErrAIAgentNotFound) {
-				writeProblem(w, http.StatusNotFound, errTypeNotFound, "Agent not found",
-					"No agent with id "+id, r.URL.Path, nil)
-				return
+				return rerr.NotFound("agent", id)
 			}
-			writeInternalError(w, r, "delete ai_agent")
-			return
+			return rerr.Wrap(err, "delete ai_agent")
 		}
 		if err := tx.Commit(); err != nil {
-			writeInternalError(w, r, "commit")
-			return
+			return rerr.Wrap(err, "commit")
 		}
 		w.WriteHeader(http.StatusNoContent)
+		return nil
 	}
 }
 
-func handleListAgentBindings(st store.Driver) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
+func handleListAgentBindings(st store.Driver) rerr.Handler {
+	return func(w http.ResponseWriter, r *http.Request) error {
 		tenant, ok := tenantOrError(w, r)
 		if !ok {
-			return
+			return nil
 		}
 		agentID := r.PathValue("id")
 		tx, _ := st.Begin(r.Context(), store.TxOptions{ReadOnly: true})
 		defer func() { _ = tx.Rollback() }()
 		// Cross-tenant guard.
 		if _, err := tx.GetAIAgent(r.Context(), tenant.ID, agentID); err != nil {
-			writeProblem(w, http.StatusNotFound, errTypeNotFound, "Agent not found",
-				"No agent with id "+agentID, r.URL.Path, nil)
-			return
+			return rerr.NotFound("agent", agentID)
 		}
 		items, err := tx.ListAIToolBindingsByAgent(r.Context(), agentID)
 		if err != nil {
-			writeInternalError(w, r, "list bindings")
-			return
+			return rerr.Wrap(err, "list bindings")
 		}
 		out := make([]aiToolBindingResponse, 0, len(items))
 		for _, b := range items {
 			out = append(out, aiToolBindingToResponse(b))
 		}
-		writeJSON(w, http.StatusOK, map[string]any{"items": out, "total": len(out)})
+		return rerr.JSON(w, map[string]any{"items": out, "total": len(out)})
 	}
 }
 
-func handleListAgentTraces(st store.Driver) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
+func handleListAgentTraces(st store.Driver) rerr.Handler {
+	return func(w http.ResponseWriter, r *http.Request) error {
 		tenant, ok := tenantOrError(w, r)
 		if !ok {
-			return
+			return nil
 		}
 		agentID := r.PathValue("id")
 		tx, _ := st.Begin(r.Context(), store.TxOptions{ReadOnly: true})
 		defer func() { _ = tx.Rollback() }()
 		if _, err := tx.GetAIAgent(r.Context(), tenant.ID, agentID); err != nil {
-			writeProblem(w, http.StatusNotFound, errTypeNotFound, "Agent not found",
-				"No agent with id "+agentID, r.URL.Path, nil)
-			return
+			return rerr.NotFound("agent", agentID)
 		}
 		q := traceQueryFromRequest(r)
 		items, err := tx.ListAITracesByAgent(r.Context(), agentID, q)
 		if err != nil {
-			writeInternalError(w, r, "list traces")
-			return
+			return rerr.Wrap(err, "list traces")
 		}
 		out := make([]aiTraceResponse, 0, len(items))
 		for _, tr := range items {
 			out = append(out, aiTraceToResponse(tr, false))
 		}
-		writeJSON(w, http.StatusOK, map[string]any{"items": out, "total": len(out)})
+		return rerr.JSON(w, map[string]any{"items": out, "total": len(out)})
 	}
 }
 
-func handleRotateAgentCredential(st store.Driver) http.HandlerFunc {
+func handleRotateAgentCredential(_ store.Driver) rerr.Handler {
 	// Stub — real implementation generates a new scoped credential.
-	return func(w http.ResponseWriter, r *http.Request) {
+	return func(w http.ResponseWriter, r *http.Request) error {
 		// Generate a stub rotation credential whose prefix is what the
 		// admin UI displays once. Treated as opaque by the panel.
 		now := time.Now().UTC().Format("20060102T150405")
 		newCred := "sk-rot-" + now + "-" + r.PathValue("id")
-		writeJSON(w, http.StatusOK, map[string]any{
+		return rerr.JSON(w, map[string]any{
 			"agentId":       r.PathValue("id"),
 			"ok":            true,
 			"newCredential": newCred,
@@ -291,20 +268,18 @@ func handleRotateAgentCredential(st store.Driver) http.HandlerFunc {
 //
 // Currently a stub; real implementations will route through the configured
 // provider's streaming completion API.
-func handleInvokeAIAgent(st store.Driver) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
+func handleInvokeAIAgent(st store.Driver) rerr.Handler {
+	return func(w http.ResponseWriter, r *http.Request) error {
 		tenant, ok := tenantOrError(w, r)
 		if !ok {
-			return
+			return nil
 		}
 		agentID := r.PathValue("id")
 		tx, _ := st.Begin(r.Context(), store.TxOptions{ReadOnly: true})
 		agent, err := tx.GetAIAgent(r.Context(), tenant.ID, agentID)
 		_ = tx.Rollback()
 		if err != nil {
-			writeProblem(w, http.StatusNotFound, errTypeNotFound, "Agent not found",
-				"No agent with id "+agentID, r.URL.Path, nil)
-			return
+			return rerr.NotFound("agent", agentID)
 		}
 
 		var req struct {
@@ -312,18 +287,17 @@ func handleInvokeAIAgent(st store.Driver) http.HandlerFunc {
 			Variables json.RawMessage `json:"variables,omitempty"`
 		}
 		if err := json.NewDecoder(r.Body).Decode(&req); err != nil && !errors.Is(err, io.EOF) {
-			writeBadRequest(w, r, "invalid JSON body")
-			return
+			return rerr.Validation(map[string]string{"body": "invalid JSON body"})
 		}
 		if req.Prompt == "" {
-			writeBadRequest(w, r, "prompt is required")
-			return
+			return rerr.Validation(map[string]string{"prompt": "required"})
 		}
 
 		flusher, fok := w.(http.Flusher)
 		if !fok {
-			http.Error(w, "streaming not supported", http.StatusInternalServerError)
-			return
+			// rerr-skip: non-SSE environment; cannot use rerr after http.Error
+			http.Error(w, "streaming not supported", http.StatusInternalServerError) //nolint:forbidigo // SSE fallback path
+			return nil
 		}
 		w.Header().Set("Content-Type", "text/event-stream")
 		w.Header().Set("Cache-Control", "no-cache")
@@ -332,6 +306,7 @@ func handleInvokeAIAgent(st store.Driver) http.HandlerFunc {
 		w.WriteHeader(http.StatusOK)
 		flusher.Flush()
 
+		// rerr-skip: response already started; errors below cannot be returned.
 		chunks := []string{
 			"Routing prompt to ",
 			agent.Model,
@@ -345,7 +320,7 @@ func handleInvokeAIAgent(st store.Driver) http.HandlerFunc {
 		for i, c := range chunks {
 			select {
 			case <-r.Context().Done():
-				return
+				return nil
 			default:
 			}
 			payload, _ := json.Marshal(map[string]any{
@@ -365,5 +340,6 @@ func handleInvokeAIAgent(st store.Driver) http.HandlerFunc {
 		})
 		_, _ = fmt.Fprintf(w, "event: done\ndata: %s\n\n", done)
 		flusher.Flush()
+		return nil
 	}
 }

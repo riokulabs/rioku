@@ -150,8 +150,8 @@ func TestClusterRoutes_RemoveNodeError(t *testing.T) {
 	rec := httptest.NewRecorder()
 	mux.ServeHTTP(rec, req)
 
-	if rec.Code != http.StatusBadRequest {
-		t.Fatalf("expected 400, got %d", rec.Code)
+	if rec.Code != http.StatusUnprocessableEntity {
+		t.Fatalf("expected 422, got %d", rec.Code)
 	}
 }
 
@@ -242,8 +242,8 @@ func TestClusterRoutes_LocalOnlyServiceIntegration(t *testing.T) {
 	// Remove → must error (single-node).
 	rec2 := httptest.NewRecorder()
 	mux.ServeHTTP(rec2, authedRequest(http.MethodPost, "/api/v1/cluster/nodes/the-node/remove", nil))
-	if rec2.Code != http.StatusBadRequest {
-		t.Errorf("expected 400 for single-node remove, got %d", rec2.Code)
+	if rec2.Code != http.StatusUnprocessableEntity {
+		t.Errorf("expected 422 for single-node remove, got %d", rec2.Code)
 	}
 
 	// Sync → fires the CaddyReload hook.

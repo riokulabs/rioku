@@ -8,6 +8,7 @@ import (
 	"errors"
 	"net/http"
 
+	"github.com/riokulabs/rioku/internal/rerr"
 	"github.com/riokulabs/rioku/internal/store"
 )
 
@@ -40,32 +41,31 @@ func aiProviderToResponse(p *store.AIProvider) aiProviderResponse {
 	}
 }
 
-func handleListAIProviders(st store.Driver) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
+func handleListAIProviders(st store.Driver) rerr.Handler {
+	return func(w http.ResponseWriter, r *http.Request) error {
 		tenant, ok := tenantOrError(w, r)
 		if !ok {
-			return
+			return nil
 		}
 		tx, _ := st.Begin(r.Context(), store.TxOptions{ReadOnly: true})
 		defer func() { _ = tx.Rollback() }()
 		items, err := tx.ListAIProvidersByTenant(r.Context(), tenant.ID)
 		if err != nil {
-			writeInternalError(w, r, "list ai_providers")
-			return
+			return rerr.Wrap(err, "list ai_providers")
 		}
 		out := make([]aiProviderResponse, 0, len(items))
 		for _, p := range items {
 			out = append(out, aiProviderToResponse(p))
 		}
-		writeJSON(w, http.StatusOK, map[string]any{"items": out, "total": len(out)})
+		return rerr.JSON(w, map[string]any{"items": out, "total": len(out)})
 	}
 }
 
-func handleCreateAIProvider(st store.Driver) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
+func handleCreateAIProvider(st store.Driver) rerr.Handler {
+	return func(w http.ResponseWriter, r *http.Request) error {
 		tenant, ok := tenantOrError(w, r)
 		if !ok {
-			return
+			return nil
 		}
 		var req struct {
 			Name       string          `json:"name"`
@@ -76,12 +76,10 @@ func handleCreateAIProvider(st store.Driver) http.HandlerFunc {
 			Metadata   json.RawMessage `json:"metadata,omitempty"`
 		}
 		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-			writeBadRequest(w, r, "invalid JSON body")
-			return
+			return rerr.Validation(map[string]string{"body": "invalid JSON body"})
 		}
 		if req.Name == "" || req.Kind == "" {
-			writeBadRequest(w, r, "name and kind are required")
-			return
+			return rerr.Validation(map[string]string{"name": "required", "kind": "required"})
 		}
 		tx, _ := st.Begin(r.Context(), store.TxOptions{})
 		created, err := tx.CreateAIProvider(r.Context(), &store.AIProvider{
@@ -91,26 +89,22 @@ func handleCreateAIProvider(st store.Driver) http.HandlerFunc {
 		if err != nil {
 			_ = tx.Rollback()
 			if errors.Is(err, store.ErrAIProviderNameTaken) {
-				writeProblem(w, http.StatusConflict, errTypeConflict, "Name already in use",
-					"A provider with that name already exists in this tenant", r.URL.Path, nil)
-				return
+				return rerr.Conflict("a provider with that name already exists in this tenant", err)
 			}
-			writeInternalError(w, r, "create ai_provider")
-			return
+			return rerr.Wrap(err, "create ai_provider")
 		}
 		if err := tx.Commit(); err != nil {
-			writeInternalError(w, r, "commit")
-			return
+			return rerr.Wrap(err, "commit")
 		}
-		writeJSON(w, http.StatusCreated, aiProviderToResponse(created))
+		return rerr.JSONStatus(w, http.StatusCreated, aiProviderToResponse(created))
 	}
 }
 
-func handleGetAIProvider(st store.Driver) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
+func handleGetAIProvider(st store.Driver) rerr.Handler {
+	return func(w http.ResponseWriter, r *http.Request) error {
 		tenant, ok := tenantOrError(w, r)
 		if !ok {
-			return
+			return nil
 		}
 		id := r.PathValue("id")
 		tx, _ := st.Begin(r.Context(), store.TxOptions{ReadOnly: true})
@@ -118,22 +112,19 @@ func handleGetAIProvider(st store.Driver) http.HandlerFunc {
 		p, err := tx.GetAIProvider(r.Context(), tenant.ID, id)
 		if err != nil {
 			if errors.Is(err, store.ErrAIProviderNotFound) {
-				writeProblem(w, http.StatusNotFound, errTypeNotFound, "Provider not found",
-					"No provider with id "+id, r.URL.Path, nil)
-				return
+				return rerr.NotFound("provider", id)
 			}
-			writeInternalError(w, r, "get ai_provider")
-			return
+			return rerr.Wrap(err, "get ai_provider")
 		}
-		writeJSON(w, http.StatusOK, aiProviderToResponse(p))
+		return rerr.JSON(w, aiProviderToResponse(p))
 	}
 }
 
-func handleUpdateAIProvider(st store.Driver) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
+func handleUpdateAIProvider(st store.Driver) rerr.Handler {
+	return func(w http.ResponseWriter, r *http.Request) error {
 		tenant, ok := tenantOrError(w, r)
 		if !ok {
-			return
+			return nil
 		}
 		id := r.PathValue("id")
 		var req struct {
@@ -145,8 +136,7 @@ func handleUpdateAIProvider(st store.Driver) http.HandlerFunc {
 			Metadata   *json.RawMessage `json:"metadata,omitempty"`
 		}
 		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-			writeBadRequest(w, r, "invalid JSON body")
-			return
+			return rerr.Validation(map[string]string{"body": "invalid JSON body"})
 		}
 		params := store.UpdateAIProviderParams{
 			Name: req.Name, Kind: req.Kind, BaseURL: req.BaseURL, Credential: req.Credential, Enabled: req.Enabled,
@@ -161,71 +151,62 @@ func handleUpdateAIProvider(st store.Driver) http.HandlerFunc {
 			_ = tx.Rollback()
 			switch {
 			case errors.Is(err, store.ErrAIProviderNotFound):
-				writeProblem(w, http.StatusNotFound, errTypeNotFound, "Provider not found",
-					"No provider with id "+id, r.URL.Path, nil)
+				return rerr.NotFound("provider", id)
 			case errors.Is(err, store.ErrAIProviderNameTaken):
-				writeProblem(w, http.StatusConflict, errTypeConflict, "Name already in use",
-					"Another provider already uses that name", r.URL.Path, nil)
+				return rerr.Conflict("another provider already uses that name", err)
 			default:
-				writeInternalError(w, r, "update ai_provider")
+				return rerr.Wrap(err, "update ai_provider")
 			}
-			return
 		}
 		if err := tx.Commit(); err != nil {
-			writeInternalError(w, r, "commit")
-			return
+			return rerr.Wrap(err, "commit")
 		}
-		writeJSON(w, http.StatusOK, aiProviderToResponse(updated))
+		return rerr.JSON(w, aiProviderToResponse(updated))
 	}
 }
 
-func handleDeleteAIProvider(st store.Driver) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
+func handleDeleteAIProvider(st store.Driver) rerr.Handler {
+	return func(w http.ResponseWriter, r *http.Request) error {
 		tenant, ok := tenantOrError(w, r)
 		if !ok {
-			return
+			return nil
 		}
 		id := r.PathValue("id")
 		tx, _ := st.Begin(r.Context(), store.TxOptions{})
 		if err := tx.DeleteAIProvider(r.Context(), tenant.ID, id); err != nil {
 			_ = tx.Rollback()
 			if errors.Is(err, store.ErrAIProviderNotFound) {
-				writeProblem(w, http.StatusNotFound, errTypeNotFound, "Provider not found",
-					"No provider with id "+id, r.URL.Path, nil)
-				return
+				return rerr.NotFound("provider", id)
 			}
-			writeInternalError(w, r, "delete ai_provider")
-			return
+			return rerr.Wrap(err, "delete ai_provider")
 		}
 		if err := tx.Commit(); err != nil {
-			writeInternalError(w, r, "commit")
-			return
+			return rerr.Wrap(err, "commit")
 		}
 		w.WriteHeader(http.StatusNoContent)
+		return nil
 	}
 }
 
 // handleTestAIProvider is a placeholder — real implementation calls
 // out to the upstream provider with a tiny prompt and reports the
 // observed latency / status. For now it just verifies the row exists.
-func handleTestAIProvider(st store.Driver) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
+func handleTestAIProvider(st store.Driver) rerr.Handler {
+	return func(w http.ResponseWriter, r *http.Request) error {
 		tenant, ok := tenantOrError(w, r)
 		if !ok {
-			return
+			return nil
 		}
 		id := r.PathValue("id")
 		tx, _ := st.Begin(r.Context(), store.TxOptions{ReadOnly: true})
 		defer func() { _ = tx.Rollback() }()
 		p, err := tx.GetAIProvider(r.Context(), tenant.ID, id)
 		if err != nil {
-			writeProblem(w, http.StatusNotFound, errTypeNotFound, "Provider not found",
-				"No provider with id "+id, r.URL.Path, nil)
-			return
+			return rerr.NotFound("provider", id)
 		}
 		// Stub: always returns ok=true. Real check lands with the LLM proxy
 		// work (#101).
-		writeJSON(w, http.StatusOK, map[string]any{
+		return rerr.JSON(w, map[string]any{
 			"providerId": p.ID,
 			"ok":         true,
 			"note":       "live connectivity check is stubbed; lands with #101",
@@ -256,11 +237,11 @@ func providerModelToResponse(m *store.AIProviderModel) providerModelResponse {
 	}
 }
 
-func handleAddProviderModel(st store.Driver) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
+func handleAddProviderModel(st store.Driver) rerr.Handler {
+	return func(w http.ResponseWriter, r *http.Request) error {
 		tenant, ok := tenantOrError(w, r)
 		if !ok {
-			return
+			return nil
 		}
 		providerID := r.PathValue("id")
 		var req struct {
@@ -270,20 +251,16 @@ func handleAddProviderModel(st store.Driver) http.HandlerFunc {
 			DailyQuotaTokens int64  `json:"dailyQuotaTokens,omitempty"`
 		}
 		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-			writeBadRequest(w, r, "invalid JSON body")
-			return
+			return rerr.Validation(map[string]string{"body": "invalid JSON body"})
 		}
 		if req.UpstreamModelID == "" || req.Alias == "" {
-			writeBadRequest(w, r, "upstreamModelId and alias are required")
-			return
+			return rerr.Validation(map[string]string{"upstreamModelId": "required", "alias": "required"})
 		}
 		tx, _ := st.Begin(r.Context(), store.TxOptions{})
 		// Cross-tenant guard: confirm provider belongs to this tenant.
 		if _, err := tx.GetAIProvider(r.Context(), tenant.ID, providerID); err != nil {
 			_ = tx.Rollback()
-			writeProblem(w, http.StatusNotFound, errTypeNotFound, "Provider not found",
-				"No provider with id "+providerID, r.URL.Path, nil)
-			return
+			return rerr.NotFound("provider", providerID)
 		}
 		created, err := tx.AddProviderModel(r.Context(), &store.AIProviderModel{
 			ProviderID: providerID, UpstreamModelID: req.UpstreamModelID, Alias: req.Alias,
@@ -291,22 +268,20 @@ func handleAddProviderModel(st store.Driver) http.HandlerFunc {
 		})
 		if err != nil {
 			_ = tx.Rollback()
-			writeInternalError(w, r, "add model")
-			return
+			return rerr.Wrap(err, "add model")
 		}
 		if err := tx.Commit(); err != nil {
-			writeInternalError(w, r, "commit")
-			return
+			return rerr.Wrap(err, "commit")
 		}
-		writeJSON(w, http.StatusCreated, providerModelToResponse(created))
+		return rerr.JSONStatus(w, http.StatusCreated, providerModelToResponse(created))
 	}
 }
 
-func handleUpdateProviderModel(st store.Driver) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
+func handleUpdateProviderModel(st store.Driver) rerr.Handler {
+	return func(w http.ResponseWriter, r *http.Request) error {
 		tenant, ok := tenantOrError(w, r)
 		if !ok {
-			return
+			return nil
 		}
 		providerID := r.PathValue("id")
 		modelID := r.PathValue("modelId")
@@ -317,15 +292,12 @@ func handleUpdateProviderModel(st store.Driver) http.HandlerFunc {
 			Enabled          *bool   `json:"enabled,omitempty"`
 		}
 		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-			writeBadRequest(w, r, "invalid JSON body")
-			return
+			return rerr.Validation(map[string]string{"body": "invalid JSON body"})
 		}
 		tx, _ := st.Begin(r.Context(), store.TxOptions{})
 		if _, err := tx.GetAIProvider(r.Context(), tenant.ID, providerID); err != nil {
 			_ = tx.Rollback()
-			writeProblem(w, http.StatusNotFound, errTypeNotFound, "Provider not found",
-				"No provider with id "+providerID, r.URL.Path, nil)
-			return
+			return rerr.NotFound("provider", providerID)
 		}
 		updated, err := tx.UpdateProviderModel(r.Context(), providerID, modelID, store.UpdateAIProviderModelParams{
 			Alias: req.Alias, RateLimitRPM: req.RateLimitRPM, DailyQuotaTokens: req.DailyQuotaTokens, Enabled: req.Enabled,
@@ -333,50 +305,41 @@ func handleUpdateProviderModel(st store.Driver) http.HandlerFunc {
 		if err != nil {
 			_ = tx.Rollback()
 			if errors.Is(err, store.ErrAIProviderModelNotFound) {
-				writeProblem(w, http.StatusNotFound, errTypeNotFound, "Model not found",
-					"No model with id "+modelID, r.URL.Path, nil)
-				return
+				return rerr.NotFound("model", modelID)
 			}
-			writeInternalError(w, r, "update model")
-			return
+			return rerr.Wrap(err, "update model")
 		}
 		if err := tx.Commit(); err != nil {
-			writeInternalError(w, r, "commit")
-			return
+			return rerr.Wrap(err, "commit")
 		}
-		writeJSON(w, http.StatusOK, providerModelToResponse(updated))
+		return rerr.JSON(w, providerModelToResponse(updated))
 	}
 }
 
-func handleRemoveProviderModel(st store.Driver) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
+func handleRemoveProviderModel(st store.Driver) rerr.Handler {
+	return func(w http.ResponseWriter, r *http.Request) error {
 		tenant, ok := tenantOrError(w, r)
 		if !ok {
-			return
+			return nil
 		}
 		providerID := r.PathValue("id")
 		modelID := r.PathValue("modelId")
 		tx, _ := st.Begin(r.Context(), store.TxOptions{})
 		if _, err := tx.GetAIProvider(r.Context(), tenant.ID, providerID); err != nil {
 			_ = tx.Rollback()
-			writeProblem(w, http.StatusNotFound, errTypeNotFound, "Provider not found",
-				"No provider with id "+providerID, r.URL.Path, nil)
-			return
+			return rerr.NotFound("provider", providerID)
 		}
 		if err := tx.RemoveProviderModel(r.Context(), providerID, modelID); err != nil {
 			_ = tx.Rollback()
 			if errors.Is(err, store.ErrAIProviderModelNotFound) {
-				writeProblem(w, http.StatusNotFound, errTypeNotFound, "Model not found",
-					"No model with id "+modelID, r.URL.Path, nil)
-				return
+				return rerr.NotFound("model", modelID)
 			}
-			writeInternalError(w, r, "remove model")
-			return
+			return rerr.Wrap(err, "remove model")
 		}
 		if err := tx.Commit(); err != nil {
-			writeInternalError(w, r, "commit")
-			return
+			return rerr.Wrap(err, "commit")
 		}
 		w.WriteHeader(http.StatusNoContent)
+		return nil
 	}
 }

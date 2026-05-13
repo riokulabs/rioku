@@ -1,0 +1,29 @@
+# golangci-lint v2 configuration for Rioku monorepo.
+# Docs: https://golangci-lint.run/usage/configuration/
+
+version: "2"
+
+linters:
+  enable:
+    - forbidigo
+
+  settings:
+    forbidigo:
+      forbid:
+        # Gateway handlers must use rerr.H / rerr.JSON instead of http.Error.
+        - pattern: "^http\\.Error$"
+          msg: "use rerr.Validation / rerr.Wrap / rerr.NotFound instead of http.Error in gateway handlers"
+        # Gateway package must use logging.From(ctx) instead of slog.Default().
+        - pattern: "^slog\\.Default$"
+          msg: "use logging.From(r.Context()) instead of slog.Default() in gateway handlers"
+
+  # Enforce forbidigo only inside the gateway package (non-test code).
+  # Test files, build-service, plugins, and other daemon packages are exempt.
+  exclusions:
+    rules:
+      - path-except: "packages/daemon/internal/gateway/"
+        linters:
+          - forbidigo
+      - path: "_test\\.go"
+        linters:
+          - forbidigo

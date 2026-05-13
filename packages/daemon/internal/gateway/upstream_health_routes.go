@@ -18,6 +18,7 @@ import (
 	"time"
 
 	"github.com/riokulabs/rioku/internal/caddy"
+	"github.com/riokulabs/rioku/internal/rerr"
 )
 
 // UpstreamHealthSource is the read interface the gateway needs from
@@ -46,24 +47,23 @@ type upstreamHealthResponse struct {
 // show a graceful empty state.
 func RegisterUpstreamHealthRoutes(mux *http.ServeMux, src UpstreamHealthSource) {
 	mux.Handle("GET /api/v1/upstreams/health",
-		RequirePermission("traffic:read")(http.HandlerFunc(handleUpstreamHealth(src))))
+		RequirePermission("traffic:read")(rerr.H(handleUpstreamHealth(src))))
 }
 
-func handleUpstreamHealth(src UpstreamHealthSource) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
+func handleUpstreamHealth(src UpstreamHealthSource) rerr.Handler {
+	return func(w http.ResponseWriter, r *http.Request) error {
 		if src == nil {
-			writeJSON(w, http.StatusOK, upstreamHealthResponse{
+			return rerr.JSON(w, upstreamHealthResponse{
 				Upstreams: []caddy.UpstreamHealth{},
 				Available: false,
 			})
-			return
 		}
 		snap := src.Snapshot()
 		ups := snap.Upstreams
 		if ups == nil {
 			ups = []caddy.UpstreamHealth{}
 		}
-		writeJSON(w, http.StatusOK, upstreamHealthResponse{
+		return rerr.JSON(w, upstreamHealthResponse{
 			PolledAt:  snap.PolledAt,
 			Upstreams: ups,
 			Available: true,

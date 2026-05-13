@@ -11,6 +11,7 @@ import (
 	"strconv"
 	"time"
 
+	"github.com/riokulabs/rioku/internal/rerr"
 	"github.com/riokulabs/rioku/internal/store"
 )
 
@@ -45,32 +46,31 @@ func mcpServerToResponse(s *store.AIMCPServer) mcpServerResponse {
 	return r
 }
 
-func handleListMCPServers(st store.Driver) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
+func handleListMCPServers(st store.Driver) rerr.Handler {
+	return func(w http.ResponseWriter, r *http.Request) error {
 		tenant, ok := tenantOrError(w, r)
 		if !ok {
-			return
+			return nil
 		}
 		tx, _ := st.Begin(r.Context(), store.TxOptions{ReadOnly: true})
 		defer func() { _ = tx.Rollback() }()
 		items, err := tx.ListMCPServersByTenant(r.Context(), tenant.ID)
 		if err != nil {
-			writeInternalError(w, r, "list mcp_servers")
-			return
+			return rerr.Wrap(err, "list mcp_servers")
 		}
 		out := make([]mcpServerResponse, 0, len(items))
 		for _, s := range items {
 			out = append(out, mcpServerToResponse(s))
 		}
-		writeJSON(w, http.StatusOK, map[string]any{"items": out, "total": len(out)})
+		return rerr.JSON(w, map[string]any{"items": out, "total": len(out)})
 	}
 }
 
-func handleCreateMCPServer(st store.Driver) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
+func handleCreateMCPServer(st store.Driver) rerr.Handler {
+	return func(w http.ResponseWriter, r *http.Request) error {
 		tenant, ok := tenantOrError(w, r)
 		if !ok {
-			return
+			return nil
 		}
 		var req struct {
 			Name           string  `json:"name"`
@@ -79,12 +79,10 @@ func handleCreateMCPServer(st store.Driver) http.HandlerFunc {
 			AuthCredential *string `json:"authCredential,omitempty"`
 		}
 		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-			writeBadRequest(w, r, "invalid JSON body")
-			return
+			return rerr.Validation(map[string]string{"body": "invalid JSON body"})
 		}
 		if req.Name == "" || req.URL == "" {
-			writeBadRequest(w, r, "name and url are required")
-			return
+			return rerr.Validation(map[string]string{"name": "required", "url": "required"})
 		}
 		tx, _ := st.Begin(r.Context(), store.TxOptions{})
 		created, err := tx.CreateMCPServer(r.Context(), &store.AIMCPServer{
@@ -94,26 +92,22 @@ func handleCreateMCPServer(st store.Driver) http.HandlerFunc {
 		if err != nil {
 			_ = tx.Rollback()
 			if errors.Is(err, store.ErrMCPServerNameTaken) {
-				writeProblem(w, http.StatusConflict, errTypeConflict, "Name already in use",
-					"An MCP server with that name already exists in this tenant", r.URL.Path, nil)
-				return
+				return rerr.Conflict("an MCP server with that name already exists in this tenant", err)
 			}
-			writeInternalError(w, r, "create mcp_server")
-			return
+			return rerr.Wrap(err, "create mcp_server")
 		}
 		if err := tx.Commit(); err != nil {
-			writeInternalError(w, r, "commit")
-			return
+			return rerr.Wrap(err, "commit")
 		}
-		writeJSON(w, http.StatusCreated, mcpServerToResponse(created))
+		return rerr.JSONStatus(w, http.StatusCreated, mcpServerToResponse(created))
 	}
 }
 
-func handleGetMCPServer(st store.Driver) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
+func handleGetMCPServer(st store.Driver) rerr.Handler {
+	return func(w http.ResponseWriter, r *http.Request) error {
 		tenant, ok := tenantOrError(w, r)
 		if !ok {
-			return
+			return nil
 		}
 		id := r.PathValue("id")
 		tx, _ := st.Begin(r.Context(), store.TxOptions{ReadOnly: true})
@@ -121,22 +115,19 @@ func handleGetMCPServer(st store.Driver) http.HandlerFunc {
 		s, err := tx.GetMCPServer(r.Context(), tenant.ID, id)
 		if err != nil {
 			if errors.Is(err, store.ErrMCPServerNotFound) {
-				writeProblem(w, http.StatusNotFound, errTypeNotFound, "MCP server not found",
-					"No mcp_server with id "+id, r.URL.Path, nil)
-				return
+				return rerr.NotFound("mcp_server", id)
 			}
-			writeInternalError(w, r, "get mcp_server")
-			return
+			return rerr.Wrap(err, "get mcp_server")
 		}
-		writeJSON(w, http.StatusOK, mcpServerToResponse(s))
+		return rerr.JSON(w, mcpServerToResponse(s))
 	}
 }
 
-func handleUpdateMCPServer(st store.Driver) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
+func handleUpdateMCPServer(st store.Driver) rerr.Handler {
+	return func(w http.ResponseWriter, r *http.Request) error {
 		tenant, ok := tenantOrError(w, r)
 		if !ok {
-			return
+			return nil
 		}
 		id := r.PathValue("id")
 		var req struct {
@@ -148,8 +139,7 @@ func handleUpdateMCPServer(st store.Driver) http.HandlerFunc {
 			AuthorizedAgentIDs *json.RawMessage `json:"authorizedAgentIds,omitempty"`
 		}
 		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-			writeBadRequest(w, r, "invalid JSON body")
-			return
+			return rerr.Validation(map[string]string{"body": "invalid JSON body"})
 		}
 		params := store.UpdateAIMCPServerParams{
 			Name: req.Name, URL: req.URL, AuthKind: req.AuthKind, AuthCredential: req.AuthCredential, Enabled: req.Enabled,
@@ -163,44 +153,37 @@ func handleUpdateMCPServer(st store.Driver) http.HandlerFunc {
 		if err != nil {
 			_ = tx.Rollback()
 			if errors.Is(err, store.ErrMCPServerNotFound) {
-				writeProblem(w, http.StatusNotFound, errTypeNotFound, "MCP server not found",
-					"No mcp_server with id "+id, r.URL.Path, nil)
-				return
+				return rerr.NotFound("mcp_server", id)
 			}
-			writeInternalError(w, r, "update mcp_server")
-			return
+			return rerr.Wrap(err, "update mcp_server")
 		}
 		if err := tx.Commit(); err != nil {
-			writeInternalError(w, r, "commit")
-			return
+			return rerr.Wrap(err, "commit")
 		}
-		writeJSON(w, http.StatusOK, mcpServerToResponse(updated))
+		return rerr.JSON(w, mcpServerToResponse(updated))
 	}
 }
 
-func handleDeleteMCPServer(st store.Driver) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
+func handleDeleteMCPServer(st store.Driver) rerr.Handler {
+	return func(w http.ResponseWriter, r *http.Request) error {
 		tenant, ok := tenantOrError(w, r)
 		if !ok {
-			return
+			return nil
 		}
 		id := r.PathValue("id")
 		tx, _ := st.Begin(r.Context(), store.TxOptions{})
 		if err := tx.DeleteMCPServer(r.Context(), tenant.ID, id); err != nil {
 			_ = tx.Rollback()
 			if errors.Is(err, store.ErrMCPServerNotFound) {
-				writeProblem(w, http.StatusNotFound, errTypeNotFound, "MCP server not found",
-					"No mcp_server with id "+id, r.URL.Path, nil)
-				return
+				return rerr.NotFound("mcp_server", id)
 			}
-			writeInternalError(w, r, "delete mcp_server")
-			return
+			return rerr.Wrap(err, "delete mcp_server")
 		}
 		if err := tx.Commit(); err != nil {
-			writeInternalError(w, r, "commit")
-			return
+			return rerr.Wrap(err, "commit")
 		}
 		w.WriteHeader(http.StatusNoContent)
+		return nil
 	}
 }
 
@@ -214,24 +197,21 @@ func handleDeleteMCPServer(st store.Driver) http.HandlerFunc {
 // `latencyMs` is always populated (probe duration). `error` is set on failure
 // (timeout, non-2xx, network error). `serverVersion` is populated from the
 // upstream `Server` response header when present (typical for HTTP servers).
-func handleTestMCPServer(st store.Driver) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
+func handleTestMCPServer(st store.Driver) rerr.Handler {
+	return func(w http.ResponseWriter, r *http.Request) error {
 		tenant, ok := tenantOrError(w, r)
 		if !ok {
-			return
+			return nil
 		}
 		id := r.PathValue("id")
 		tx, err := st.Begin(r.Context(), store.TxOptions{ReadOnly: true})
 		if err != nil {
-			writeInternalError(w, r, "begin tx")
-			return
+			return rerr.Wrap(err, "begin tx")
 		}
 		defer func() { _ = tx.Rollback() }()
 		s, err := tx.GetMCPServer(r.Context(), tenant.ID, id)
 		if err != nil {
-			writeProblem(w, http.StatusNotFound, errTypeNotFound, "MCP server not found",
-				"No mcp_server with id "+id, r.URL.Path, nil)
-			return
+			return rerr.NotFound("mcp_server", id)
 		}
 
 		probe := probeMCPConnectivity(r.Context(), s.URL)
@@ -246,7 +226,7 @@ func handleTestMCPServer(st store.Driver) http.HandlerFunc {
 		if probe.serverVersion != "" {
 			resp["serverVersion"] = probe.serverVersion
 		}
-		writeJSON(w, http.StatusOK, resp)
+		return rerr.JSON(w, resp)
 	}
 }
 
@@ -270,9 +250,9 @@ func probeMCPConnectivity(ctx context.Context, rawURL string) mcpProbeResult {
 	probeCtx, cancel := context.WithTimeout(ctx, 5*time.Second)
 	defer cancel()
 
-	req, rerr := http.NewRequestWithContext(probeCtx, http.MethodGet, rawURL, nil)
-	if rerr != nil {
-		return mcpProbeResult{ok: false, latencyMs: 0, err: "invalid URL: " + rerr.Error()}
+	req, probeErr := http.NewRequestWithContext(probeCtx, http.MethodGet, rawURL, nil)
+	if probeErr != nil {
+		return mcpProbeResult{ok: false, latencyMs: 0, err: "invalid URL: " + probeErr.Error()}
 	}
 	req.Header.Set("Accept", "application/json")
 

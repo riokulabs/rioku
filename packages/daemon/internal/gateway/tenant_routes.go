@@ -28,6 +28,7 @@ import (
 	"net/http"
 
 	"github.com/riokulabs/rioku/internal/gateway/optionsutil"
+	"github.com/riokulabs/rioku/internal/rerr"
 	"github.com/riokulabs/rioku/internal/store"
 )
 
@@ -35,46 +36,46 @@ import (
 func RegisterTenantRoutes(mux *http.ServeMux, st store.Driver) {
 	// Admin (cross-tenant) — list/create/get/update/delete tenants.
 	mux.Handle("GET /api/v1/admin/tenants",
-		RequirePermission("admin:cross-tenant-read")(http.HandlerFunc(handleListTenants(st))))
+		RequirePermission("admin:cross-tenant-read")(rerr.H(handleListTenants(st))))
 	mux.Handle("POST /api/v1/admin/tenants",
-		RequirePermission("admin:cross-tenant-write")(http.HandlerFunc(handleCreateTenant(st))))
+		RequirePermission("admin:cross-tenant-write")(rerr.H(handleCreateTenant(st))))
 	mux.Handle("GET /api/v1/admin/tenants/{id}",
-		RequirePermission("admin:cross-tenant-read")(http.HandlerFunc(handleGetTenant(st))))
+		RequirePermission("admin:cross-tenant-read")(rerr.H(handleGetTenant(st))))
 	mux.Handle("PATCH /api/v1/admin/tenants/{id}",
-		RequirePermission("admin:cross-tenant-write")(http.HandlerFunc(handleUpdateTenant(st))))
+		RequirePermission("admin:cross-tenant-write")(rerr.H(handleUpdateTenant(st))))
 	mux.Handle("DELETE /api/v1/admin/tenants/{id}",
-		RequirePermission("admin:cross-tenant-write")(http.HandlerFunc(handleDeleteTenant(st))))
+		RequirePermission("admin:cross-tenant-write")(rerr.H(handleDeleteTenant(st))))
 
 	// Tenant-scoped — current tenant settings.
 	mux.Handle("GET /api/v1/t/{tenant}/settings/tenant",
-		RequirePermission("tenant:read")(http.HandlerFunc(handleGetCurrentTenant)))
+		RequirePermission("tenant:read")(rerr.H(handleGetCurrentTenant)))
 	mux.Handle("PATCH /api/v1/t/{tenant}/settings/tenant",
-		RequirePermission("tenant:write")(http.HandlerFunc(handleUpdateCurrentTenant(st))))
+		RequirePermission("tenant:write")(rerr.H(handleUpdateCurrentTenant(st))))
 
 	// Tenant-scoped — memberships.
 	mux.Handle("GET /api/v1/t/{tenant}/memberships",
-		RequirePermission("user:read")(http.HandlerFunc(handleListMemberships(st))))
+		RequirePermission("user:read")(rerr.H(handleListMemberships(st))))
 	mux.Handle("POST /api/v1/t/{tenant}/memberships",
-		RequirePermission("user:invite")(http.HandlerFunc(handleCreateMembership(st))))
+		RequirePermission("user:invite")(rerr.H(handleCreateMembership(st))))
 	mux.Handle("GET /api/v1/t/{tenant}/memberships/{id}",
-		RequirePermission("user:read")(http.HandlerFunc(handleGetMembership(st))))
+		RequirePermission("user:read")(rerr.H(handleGetMembership(st))))
 	mux.Handle("PATCH /api/v1/t/{tenant}/memberships/{id}",
-		RequirePermission("user:invite")(http.HandlerFunc(handleUpdateMembershipState(st))))
+		RequirePermission("user:invite")(rerr.H(handleUpdateMembershipState(st))))
 	mux.Handle("PUT /api/v1/t/{tenant}/memberships/{id}",
-		RequirePermission("user:invite")(http.HandlerFunc(handleUpdateMembershipState(st))))
+		RequirePermission("user:invite")(rerr.H(handleUpdateMembershipState(st))))
 	mux.Handle("DELETE /api/v1/t/{tenant}/memberships/{id}",
-		RequirePermission("user:disable")(http.HandlerFunc(handleDeleteMembership(st))))
+		RequirePermission("user:disable")(rerr.H(handleDeleteMembership(st))))
 	mux.Handle("PUT /api/v1/t/{tenant}/memberships/{id}/roles",
-		RequirePermission("role:write")(http.HandlerFunc(handleSetMembershipRoles(st))))
+		RequirePermission("role:write")(rerr.H(handleSetMembershipRoles(st))))
 
 	// Membership state-machine action aliases. Each transitions a
 	// membership to a fixed state via the same storage method the
 	// PATCH endpoint uses, so audit trails are identical regardless
 	// of which surface the caller hits.
 	mux.Handle("POST /api/v1/t/{tenant}/memberships/{id}/activate",
-		RequirePermission("user:invite")(http.HandlerFunc(handleMembershipTransition(st, "active"))))
+		RequirePermission("user:invite")(rerr.H(handleMembershipTransition(st, "active"))))
 	mux.Handle("POST /api/v1/t/{tenant}/memberships/{id}/deactivate",
-		RequirePermission("user:invite")(http.HandlerFunc(handleMembershipTransition(st, "deactivated"))))
+		RequirePermission("user:invite")(rerr.H(handleMembershipTransition(st, "deactivated"))))
 
 	optionsutil.Register(mux, "/api/v1/admin/tenants", []string{"GET", "POST"})
 	optionsutil.Register(mux, "/api/v1/admin/tenants/{id}", []string{"GET", "PUT", "PATCH", "DELETE"})
@@ -89,43 +90,33 @@ func RegisterTenantRoutes(mux *http.ServeMux, st store.Driver) {
 // handleMembershipTransition POST-transitions a membership to the
 // supplied state via the same storage path used by PATCH so audit
 // records are uniform.
-func handleMembershipTransition(st store.Driver, targetState string) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
+func handleMembershipTransition(st store.Driver, targetState string) rerr.Handler {
+	return func(w http.ResponseWriter, r *http.Request) error {
 		tenant, ok := tenantOrError(w, r)
 		if !ok {
-			return
+			return nil
 		}
 		id := r.PathValue("id")
 		tx, err := st.Begin(r.Context(), store.TxOptions{})
 		if err != nil {
-			writeInternalError(w, r, "begin tx")
-			return
+			return rerr.Wrap(err, "begin tx")
 		}
+		defer func() { _ = tx.Rollback() }()
 		current, err := tx.GetMembership(r.Context(), id)
 		if err != nil {
-			_ = tx.Rollback()
-			writeProblem(w, http.StatusNotFound, errTypeNotFound,
-				"Membership not found", "No membership with id "+id, r.URL.Path, nil)
-			return
+			return rerr.NotFound("membership", id)
 		}
 		if current.TenantID != tenant.ID {
-			_ = tx.Rollback()
-			writeProblem(w, http.StatusNotFound, errTypeNotFound,
-				"Membership not found", "No membership with id "+id, r.URL.Path, nil)
-			return
+			return rerr.NotFound("membership", id)
 		}
 		updated, err := tx.UpdateMembershipState(r.Context(), id, targetState)
 		if err != nil {
-			_ = tx.Rollback()
-			writeProblem(w, http.StatusUnprocessableEntity, errTypeUnprocess,
-				"Invalid state transition", err.Error(), r.URL.Path, nil)
-			return
+			return rerr.Wrap(err, "update membership state")
 		}
 		if err := tx.Commit(); err != nil {
-			writeInternalError(w, r, "commit")
-			return
+			return rerr.Wrap(err, "commit")
 		}
-		writeJSON(w, http.StatusOK, membershipToResponse(updated))
+		return rerr.JSON(w, membershipToResponse(updated))
 	}
 }
 
@@ -181,103 +172,88 @@ type updateTenantRequest struct {
 
 // ─── Admin (cross-tenant) handlers ──────────────────────────────────────────
 
-func handleListTenants(st store.Driver) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
+func handleListTenants(st store.Driver) rerr.Handler {
+	return func(w http.ResponseWriter, r *http.Request) error {
 		tx, err := st.Begin(r.Context(), store.TxOptions{ReadOnly: true})
 		if err != nil {
-			writeInternalError(w, r, "begin tx")
-			return
+			return rerr.Wrap(err, "begin tx")
 		}
 		defer func() { _ = tx.Rollback() }()
 
 		tenants, err := tx.ListTenants(r.Context())
 		if err != nil {
-			writeInternalError(w, r, "list tenants")
-			return
+			return rerr.Wrap(err, "list tenants")
 		}
 		out := make([]tenantResponse, 0, len(tenants))
 		for _, t := range tenants {
 			out = append(out, tenantToResponse(t))
 		}
-		writeJSON(w, http.StatusOK, map[string]any{"items": out, "total": len(out)})
+		return rerr.JSON(w, map[string]any{"items": out, "total": len(out)})
 	}
 }
 
-func handleCreateTenant(st store.Driver) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
+func handleCreateTenant(st store.Driver) rerr.Handler {
+	return func(w http.ResponseWriter, r *http.Request) error {
 		var req createTenantRequest
 		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-			writeBadRequest(w, r, "invalid JSON body")
-			return
+			return rerr.Validation(map[string]string{"body": "invalid JSON body"})
 		}
 		if req.Slug == "" || req.Name == "" {
-			writeBadRequest(w, r, "slug and name are required")
-			return
+			return rerr.Validation(map[string]string{"slug": "slug and name are required"})
 		}
 
 		tx, err := st.Begin(r.Context(), store.TxOptions{})
 		if err != nil {
-			writeInternalError(w, r, "begin tx")
-			return
+			return rerr.Wrap(err, "begin tx")
 		}
+		defer func() { _ = tx.Rollback() }()
 		created, err := tx.CreateTenant(r.Context(), &store.Tenant{
 			Slug: req.Slug, Name: req.Name, Plan: req.Plan, URLMode: req.URLMode, ParentDomain: req.ParentDomain,
 		})
 		if err != nil {
-			_ = tx.Rollback()
 			if errors.Is(err, store.ErrTenantSlugTaken) {
-				writeProblem(w, http.StatusConflict, errTypeConflict,
-					"Slug already in use",
-					"A tenant with that slug already exists", r.URL.Path, nil)
-				return
+				return rerr.Conflict("A tenant with that slug already exists", err)
 			}
-			writeInternalError(w, r, "create tenant")
-			return
+			return rerr.Wrap(err, "create tenant")
 		}
 		if err := tx.Commit(); err != nil {
-			writeInternalError(w, r, "commit")
-			return
+			return rerr.Wrap(err, "commit")
 		}
-		writeJSON(w, http.StatusCreated, tenantToResponse(created))
+		return rerr.JSONStatus(w, http.StatusCreated, tenantToResponse(created))
 	}
 }
 
-func handleGetTenant(st store.Driver) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
+func handleGetTenant(st store.Driver) rerr.Handler {
+	return func(w http.ResponseWriter, r *http.Request) error {
 		id := r.PathValue("id")
 		tx, err := st.Begin(r.Context(), store.TxOptions{ReadOnly: true})
 		if err != nil {
-			writeInternalError(w, r, "begin tx")
-			return
+			return rerr.Wrap(err, "begin tx")
 		}
 		defer func() { _ = tx.Rollback() }()
 		tenant, err := tx.GetTenant(r.Context(), id)
 		if err != nil {
 			if errors.Is(err, store.ErrTenantNotFound) {
-				writeProblem(w, http.StatusNotFound, errTypeNotFound,
-					"Tenant not found", "No tenant with id "+id, r.URL.Path, nil)
-				return
+				return rerr.NotFound("tenant", id)
 			}
-			writeInternalError(w, r, "get tenant")
-			return
+			return rerr.Wrap(err, "get tenant")
 		}
-		writeJSON(w, http.StatusOK, tenantToResponse(tenant))
+		return rerr.JSON(w, tenantToResponse(tenant))
 	}
 }
 
-func handleUpdateTenant(st store.Driver) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
+func handleUpdateTenant(st store.Driver) rerr.Handler {
+	return func(w http.ResponseWriter, r *http.Request) error {
 		id := r.PathValue("id")
 		var req updateTenantRequest
 		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-			writeBadRequest(w, r, "invalid JSON body")
-			return
+			return rerr.Validation(map[string]string{"body": "invalid JSON body"})
 		}
 		tx, err := st.Begin(r.Context(), store.TxOptions{})
 		if err != nil {
-			writeInternalError(w, r, "begin tx")
-			return
+			return rerr.Wrap(err, "begin tx")
 		}
+		defer func() { _ = tx.Rollback() }()
 		updated, err := tx.UpdateTenant(r.Context(), id, store.UpdateTenantParams{
 			Name:               req.Name,
 			Plan:               req.Plan,
@@ -288,81 +264,69 @@ func handleUpdateTenant(st store.Driver) http.HandlerFunc {
 			DefaultDashboardID: req.DefaultDashboardID,
 		})
 		if err != nil {
-			_ = tx.Rollback()
 			if errors.Is(err, store.ErrTenantNotFound) {
-				writeProblem(w, http.StatusNotFound, errTypeNotFound,
-					"Tenant not found", "No tenant with id "+id, r.URL.Path, nil)
-				return
+				return rerr.NotFound("tenant", id)
 			}
-			writeInternalError(w, r, "update tenant")
-			return
+			return rerr.Wrap(err, "update tenant")
 		}
 		if err := tx.Commit(); err != nil {
-			writeInternalError(w, r, "commit")
-			return
+			return rerr.Wrap(err, "commit")
 		}
-		writeJSON(w, http.StatusOK, tenantToResponse(updated))
+		return rerr.JSON(w, tenantToResponse(updated))
 	}
 }
 
-func handleDeleteTenant(st store.Driver) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
+func handleDeleteTenant(st store.Driver) rerr.Handler {
+	return func(w http.ResponseWriter, r *http.Request) error {
 		id := r.PathValue("id")
 		tx, err := st.Begin(r.Context(), store.TxOptions{})
 		if err != nil {
-			writeInternalError(w, r, "begin tx")
-			return
+			return rerr.Wrap(err, "begin tx")
 		}
+		defer func() { _ = tx.Rollback() }()
 		if err := tx.DeleteTenant(r.Context(), id); err != nil {
-			_ = tx.Rollback()
 			switch {
 			case errors.Is(err, store.ErrTenantNotFound):
-				writeProblem(w, http.StatusNotFound, errTypeNotFound,
-					"Tenant not found", "No tenant with id "+id, r.URL.Path, nil)
+				return rerr.NotFound("tenant", id)
 			case errors.Is(err, store.ErrTenantImmutable):
-				writeProblem(w, http.StatusForbidden, errTypeForbidden,
-					"Default tenant cannot be deleted",
-					"The default tenant is immutable. Create a new tenant for isolation instead.",
-					r.URL.Path, nil)
+				return rerr.Forbidden("The default tenant is immutable. Create a new tenant for isolation instead.")
 			default:
-				writeInternalError(w, r, "delete tenant")
+				return rerr.Wrap(err, "delete tenant")
 			}
-			return
 		}
 		if err := tx.Commit(); err != nil {
-			writeInternalError(w, r, "commit")
-			return
+			return rerr.Wrap(err, "commit")
 		}
 		w.WriteHeader(http.StatusNoContent)
+		return nil
 	}
 }
 
 // ─── Tenant-scoped current-tenant settings ──────────────────────────────────
 
-func handleGetCurrentTenant(w http.ResponseWriter, r *http.Request) {
+func handleGetCurrentTenant(w http.ResponseWriter, r *http.Request) error {
 	tenant, ok := tenantOrError(w, r)
 	if !ok {
-		return
+		return nil
 	}
-	writeJSON(w, http.StatusOK, tenantToResponse(tenant))
+	return rerr.JSON(w, tenantToResponse(tenant))
 }
 
-func handleUpdateCurrentTenant(st store.Driver) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
+func handleUpdateCurrentTenant(st store.Driver) rerr.Handler {
+	return func(w http.ResponseWriter, r *http.Request) error {
 		tenant, ok := tenantOrError(w, r)
 		if !ok {
-			return
+			return nil
 		}
 		var req updateTenantRequest
 		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-			writeBadRequest(w, r, "invalid JSON body")
-			return
+			return rerr.Validation(map[string]string{"body": "invalid JSON body"})
 		}
 		tx, err := st.Begin(r.Context(), store.TxOptions{})
 		if err != nil {
-			writeInternalError(w, r, "begin tx")
-			return
+			return rerr.Wrap(err, "begin tx")
 		}
+		defer func() { _ = tx.Rollback() }()
 		updated, err := tx.UpdateTenant(r.Context(), tenant.ID, store.UpdateTenantParams{
 			Name:               req.Name,
 			Plan:               req.Plan,
@@ -373,15 +337,12 @@ func handleUpdateCurrentTenant(st store.Driver) http.HandlerFunc {
 			DefaultDashboardID: req.DefaultDashboardID,
 		})
 		if err != nil {
-			_ = tx.Rollback()
-			writeInternalError(w, r, "update tenant")
-			return
+			return rerr.Wrap(err, "update tenant")
 		}
 		if err := tx.Commit(); err != nil {
-			writeInternalError(w, r, "commit")
-			return
+			return rerr.Wrap(err, "commit")
 		}
-		writeJSON(w, http.StatusOK, tenantToResponse(updated))
+		return rerr.JSON(w, tenantToResponse(updated))
 	}
 }
 
@@ -433,45 +394,41 @@ type setMembershipRolesRequest struct {
 	RoleIDs []string `json:"roleIds"`
 }
 
-func handleListMemberships(st store.Driver) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
+func handleListMemberships(st store.Driver) rerr.Handler {
+	return func(w http.ResponseWriter, r *http.Request) error {
 		tenant, ok := tenantOrError(w, r)
 		if !ok {
-			return
+			return nil
 		}
 		tx, err := st.Begin(r.Context(), store.TxOptions{ReadOnly: true})
 		if err != nil {
-			writeInternalError(w, r, "begin tx")
-			return
+			return rerr.Wrap(err, "begin tx")
 		}
 		defer func() { _ = tx.Rollback() }()
 		memberships, err := tx.ListMembershipsByTenant(r.Context(), tenant.ID)
 		if err != nil {
-			writeInternalError(w, r, "list memberships")
-			return
+			return rerr.Wrap(err, "list memberships")
 		}
 		out := make([]membershipResponse, 0, len(memberships))
 		for _, m := range memberships {
 			out = append(out, membershipToResponse(m))
 		}
-		writeJSON(w, http.StatusOK, map[string]any{"items": out, "total": len(out)})
+		return rerr.JSON(w, map[string]any{"items": out, "total": len(out)})
 	}
 }
 
-func handleCreateMembership(st store.Driver) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
+func handleCreateMembership(st store.Driver) rerr.Handler {
+	return func(w http.ResponseWriter, r *http.Request) error {
 		tenant, ok := tenantOrError(w, r)
 		if !ok {
-			return
+			return nil
 		}
 		var req createMembershipRequest
 		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-			writeBadRequest(w, r, "invalid JSON body")
-			return
+			return rerr.Validation(map[string]string{"body": "invalid JSON body"})
 		}
 		if req.UserID == "" {
-			writeBadRequest(w, r, "userId is required")
-			return
+			return rerr.Validation(map[string]string{"userId": "userId is required"})
 		}
 		state := req.State
 		if state == "" {
@@ -479,157 +436,123 @@ func handleCreateMembership(st store.Driver) http.HandlerFunc {
 		}
 		tx, err := st.Begin(r.Context(), store.TxOptions{})
 		if err != nil {
-			writeInternalError(w, r, "begin tx")
-			return
+			return rerr.Wrap(err, "begin tx")
 		}
+		defer func() { _ = tx.Rollback() }()
 		created, err := tx.CreateMembership(r.Context(), &store.Membership{
 			TenantID: tenant.ID,
 			UserID:   req.UserID,
 			State:    state,
 		})
 		if err != nil {
-			_ = tx.Rollback()
 			if errors.Is(err, store.ErrMembershipExists) {
-				writeProblem(w, http.StatusConflict, errTypeConflict,
-					"Membership already exists",
-					"That user already has a membership in this tenant", r.URL.Path, nil)
-				return
+				return rerr.Conflict("That user already has a membership in this tenant", err)
 			}
-			writeInternalError(w, r, "create membership")
-			return
+			return rerr.Wrap(err, "create membership")
 		}
 		if err := tx.Commit(); err != nil {
-			writeInternalError(w, r, "commit")
-			return
+			return rerr.Wrap(err, "commit")
 		}
-		writeJSON(w, http.StatusCreated, membershipToResponse(created))
+		return rerr.JSONStatus(w, http.StatusCreated, membershipToResponse(created))
 	}
 }
 
-func handleGetMembership(st store.Driver) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
+func handleGetMembership(st store.Driver) rerr.Handler {
+	return func(w http.ResponseWriter, r *http.Request) error {
 		tenant, ok := tenantOrError(w, r)
 		if !ok {
-			return
+			return nil
 		}
 		id := r.PathValue("id")
 		tx, err := st.Begin(r.Context(), store.TxOptions{ReadOnly: true})
 		if err != nil {
-			writeInternalError(w, r, "begin tx")
-			return
+			return rerr.Wrap(err, "begin tx")
 		}
 		defer func() { _ = tx.Rollback() }()
 		m, err := tx.GetMembership(r.Context(), id)
 		if err != nil {
 			if errors.Is(err, store.ErrMembershipNotFound) {
-				writeProblem(w, http.StatusNotFound, errTypeNotFound,
-					"Membership not found", "No membership with id "+id, r.URL.Path, nil)
-				return
+				return rerr.NotFound("membership", id)
 			}
-			writeInternalError(w, r, "get membership")
-			return
+			return rerr.Wrap(err, "get membership")
 		}
 		// Cross-tenant guard: refuse to leak a membership from a
 		// different tenant via a guessed id.
 		if m.TenantID != tenant.ID {
-			writeProblem(w, http.StatusNotFound, errTypeNotFound,
-				"Membership not found", "No membership with id "+id, r.URL.Path, nil)
-			return
+			return rerr.NotFound("membership", id)
 		}
-		writeJSON(w, http.StatusOK, membershipToResponse(m))
+		return rerr.JSON(w, membershipToResponse(m))
 	}
 }
 
-func handleUpdateMembershipState(st store.Driver) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
+func handleUpdateMembershipState(st store.Driver) rerr.Handler {
+	return func(w http.ResponseWriter, r *http.Request) error {
 		tenant, ok := tenantOrError(w, r)
 		if !ok {
-			return
+			return nil
 		}
 		id := r.PathValue("id")
 		var req updateMembershipStateRequest
 		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-			writeBadRequest(w, r, "invalid JSON body")
-			return
+			return rerr.Validation(map[string]string{"body": "invalid JSON body"})
 		}
 		if req.State == "" {
-			writeBadRequest(w, r, "state is required")
-			return
+			return rerr.Validation(map[string]string{"state": "state is required"})
 		}
 		tx, err := st.Begin(r.Context(), store.TxOptions{})
 		if err != nil {
-			writeInternalError(w, r, "begin tx")
-			return
+			return rerr.Wrap(err, "begin tx")
 		}
+		defer func() { _ = tx.Rollback() }()
 		// Cross-tenant guard.
 		current, err := tx.GetMembership(r.Context(), id)
 		if err != nil {
-			_ = tx.Rollback()
-			writeProblem(w, http.StatusNotFound, errTypeNotFound,
-				"Membership not found", "No membership with id "+id, r.URL.Path, nil)
-			return
+			return rerr.NotFound("membership", id)
 		}
 		if current.TenantID != tenant.ID {
-			_ = tx.Rollback()
-			writeProblem(w, http.StatusNotFound, errTypeNotFound,
-				"Membership not found", "No membership with id "+id, r.URL.Path, nil)
-			return
+			return rerr.NotFound("membership", id)
 		}
 		updated, err := tx.UpdateMembershipState(r.Context(), id, req.State)
 		if err != nil {
-			_ = tx.Rollback()
 			if errors.Is(err, store.ErrMembershipInvalidState) {
-				writeProblem(w, http.StatusConflict, errTypeConflict,
-					"Invalid state transition",
-					"Cannot transition from "+current.State+" to "+req.State, r.URL.Path, nil)
-				return
+				return rerr.Conflict("Cannot transition from "+current.State+" to "+req.State, err)
 			}
-			writeInternalError(w, r, "update membership")
-			return
+			return rerr.Wrap(err, "update membership")
 		}
 		if err := tx.Commit(); err != nil {
-			writeInternalError(w, r, "commit")
-			return
+			return rerr.Wrap(err, "commit")
 		}
-		writeJSON(w, http.StatusOK, membershipToResponse(updated))
+		return rerr.JSON(w, membershipToResponse(updated))
 	}
 }
 
-func handleDeleteMembership(st store.Driver) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
+func handleDeleteMembership(st store.Driver) rerr.Handler {
+	return func(w http.ResponseWriter, r *http.Request) error {
 		tenant, ok := tenantOrError(w, r)
 		if !ok {
-			return
+			return nil
 		}
 		id := r.PathValue("id")
 		tx, err := st.Begin(r.Context(), store.TxOptions{})
 		if err != nil {
-			writeInternalError(w, r, "begin tx")
-			return
+			return rerr.Wrap(err, "begin tx")
 		}
+		defer func() { _ = tx.Rollback() }()
 		current, err := tx.GetMembership(r.Context(), id)
 		if err != nil {
-			_ = tx.Rollback()
-			writeProblem(w, http.StatusNotFound, errTypeNotFound,
-				"Membership not found", "No membership with id "+id, r.URL.Path, nil)
-			return
+			return rerr.NotFound("membership", id)
 		}
 		if current.TenantID != tenant.ID {
-			_ = tx.Rollback()
-			writeProblem(w, http.StatusNotFound, errTypeNotFound,
-				"Membership not found", "No membership with id "+id, r.URL.Path, nil)
-			return
+			return rerr.NotFound("membership", id)
 		}
 		if err := tx.DeleteMembership(r.Context(), id); err != nil {
-			_ = tx.Rollback()
-			writeInternalError(w, r, "delete membership")
-			return
+			return rerr.Wrap(err, "delete membership")
 		}
 		if err := tx.Commit(); err != nil {
-			writeInternalError(w, r, "commit")
-			return
+			return rerr.Wrap(err, "commit")
 		}
 		w.WriteHeader(http.StatusNoContent)
+		return nil
 	}
 }
 
@@ -637,43 +560,34 @@ func handleDeleteMembership(st store.Driver) http.HandlerFunc {
 // supplied list. Implemented as: list current → diff → assign new → revoke removed.
 // The transaction guarantees atomicity: if any step fails the whole
 // replacement rolls back.
-func handleSetMembershipRoles(st store.Driver) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
+func handleSetMembershipRoles(st store.Driver) rerr.Handler {
+	return func(w http.ResponseWriter, r *http.Request) error {
 		tenant, ok := tenantOrError(w, r)
 		if !ok {
-			return
+			return nil
 		}
 		id := r.PathValue("id")
 		var req setMembershipRolesRequest
 		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-			writeBadRequest(w, r, "invalid JSON body")
-			return
+			return rerr.Validation(map[string]string{"body": "invalid JSON body"})
 		}
 		tx, err := st.Begin(r.Context(), store.TxOptions{})
 		if err != nil {
-			writeInternalError(w, r, "begin tx")
-			return
+			return rerr.Wrap(err, "begin tx")
 		}
+		defer func() { _ = tx.Rollback() }()
 		current, err := tx.GetMembership(r.Context(), id)
 		if err != nil {
-			_ = tx.Rollback()
-			writeProblem(w, http.StatusNotFound, errTypeNotFound,
-				"Membership not found", "No membership with id "+id, r.URL.Path, nil)
-			return
+			return rerr.NotFound("membership", id)
 		}
 		if current.TenantID != tenant.ID {
-			_ = tx.Rollback()
-			writeProblem(w, http.StatusNotFound, errTypeNotFound,
-				"Membership not found", "No membership with id "+id, r.URL.Path, nil)
-			return
+			return rerr.NotFound("membership", id)
 		}
 
 		// Compute add/remove sets.
 		existing, err := tx.ListMembershipRoles(r.Context(), id)
 		if err != nil {
-			_ = tx.Rollback()
-			writeInternalError(w, r, "list current roles")
-			return
+			return rerr.Wrap(err, "list current roles")
 		}
 		want := make(map[string]struct{}, len(req.RoleIDs))
 		for _, rid := range req.RoleIDs {
@@ -690,9 +604,7 @@ func handleSetMembershipRoles(st store.Driver) http.HandlerFunc {
 				continue
 			}
 			if err := tx.AssignMembershipRole(r.Context(), id, rid, grantedBy); err != nil {
-				_ = tx.Rollback()
-				writeInternalError(w, r, "assign role")
-				return
+				return rerr.Wrap(err, "assign role")
 			}
 		}
 		for rid := range have {
@@ -700,21 +612,16 @@ func handleSetMembershipRoles(st store.Driver) http.HandlerFunc {
 				continue
 			}
 			if err := tx.RevokeMembershipRole(r.Context(), id, rid); err != nil {
-				_ = tx.Rollback()
-				writeInternalError(w, r, "revoke role")
-				return
+				return rerr.Wrap(err, "revoke role")
 			}
 		}
 
 		updatedRoles, err := tx.ListMembershipRoles(r.Context(), id)
 		if err != nil {
-			_ = tx.Rollback()
-			writeInternalError(w, r, "list updated roles")
-			return
+			return rerr.Wrap(err, "list updated roles")
 		}
 		if err := tx.Commit(); err != nil {
-			writeInternalError(w, r, "commit")
-			return
+			return rerr.Wrap(err, "commit")
 		}
 
 		// Surface roleIds (not full role objects) — the admin panel
@@ -723,7 +630,7 @@ func handleSetMembershipRoles(st store.Driver) http.HandlerFunc {
 		for _, role := range updatedRoles {
 			roleIDs = append(roleIDs, role.ID)
 		}
-		writeJSON(w, http.StatusOK, map[string]any{
+		return rerr.JSON(w, map[string]any{
 			"membershipId": id,
 			"roleIds":      roleIDs,
 		})

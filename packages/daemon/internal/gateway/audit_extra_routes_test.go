@@ -242,8 +242,8 @@ func TestAuditExtra_Reveal(t *testing.T) {
 	resp := doJSONRaw(t, client, http.MethodPost,
 		server.URL+"/api/v1/t/default/audit/"+id+"/reveal",
 		map[string]any{"reason": "hi"})
-	if resp.StatusCode != http.StatusBadRequest {
-		t.Fatalf("short reason: expected 400, got %d", resp.StatusCode)
+	if resp.StatusCode != http.StatusUnprocessableEntity {
+		t.Fatalf("short reason: expected 422, got %d", resp.StatusCode)
 	}
 	_ = resp.Body.Close()
 

@@ -427,8 +427,8 @@ func TestAITraces_RevealRequiresReason(t *testing.T) {
 		mux.ServeHTTP(rec, authedTenantRequest(t, drv,
 			http.MethodPost, "/api/v1/t/default/ai/traces/"+tr.ID+"/reveal", "default",
 			map[string]any{"reason": badReason}))
-		if rec.Code != http.StatusBadRequest {
-			t.Errorf("reason=%q: expected 400, got %d (%s)", badReason, rec.Code, rec.Body.String())
+		if rec.Code != http.StatusUnprocessableEntity {
+			t.Errorf("reason=%q: expected 422, got %d (%s)", badReason, rec.Code, rec.Body.String())
 		}
 	}
 }

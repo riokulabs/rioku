@@ -15,9 +15,11 @@ package gateway
 
 import (
 	"context"
+	"encoding/json"
 	"net/http"
 	"strings"
 
+	"github.com/riokulabs/rioku/internal/rerr"
 	"github.com/riokulabs/rioku/internal/store"
 )
 
@@ -34,19 +36,41 @@ func TenantFromContext(ctx context.Context) *store.Tenant {
 }
 
 // tenantOrError resolves the tenant for the current request. When the tenant
-// is missing it writes a 500 problem (matching the long-standing inline
-// `writeInternalError(..., "tenant resolution")` pattern) and returns
-// (nil, false); the caller bails out via `if !ok { return }`.
+// is missing it writes a 500 problem and returns (nil, false); the caller
+// bails out via `if !ok { return nil }`.
 //
 // Every tenant-scoped handler shares the same boilerplate; centralising it
 // here keeps individual handlers focused on their specific work.
 func tenantOrError(w http.ResponseWriter, r *http.Request) (*store.Tenant, bool) {
 	tenant := TenantFromContext(r.Context())
 	if tenant == nil {
-		writeInternalError(w, r, "tenant resolution")
+		writeRerr(w, r, rerr.Wrap(nil, "tenant resolution"))
 		return nil, false
 	}
 	return tenant, true
+}
+
+// writeRerr writes a *rerr.Error as an RFC 7807 response. Used by
+// middleware that cannot use rerr.H (they're not rerr.Handler closures).
+func writeRerr(w http.ResponseWriter, r *http.Request, e *rerr.Error) {
+	status, typ, title := rerr.CodeHTTP(e.Code)
+	detail := e.Detail
+	if status >= 500 {
+		detail = "An unexpected error occurred. Reference: " + e.CorrelationID()
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.Header().Set("X-Correlation-Id", e.CorrelationID())
+	if status == http.StatusUnauthorized {
+		w.Header().Set("WWW-Authenticate", "Bearer")
+	}
+	w.WriteHeader(status)
+	_ = json.NewEncoder(w).Encode(ProblemDetail{
+		Type:     typ,
+		Title:    title,
+		Status:   status,
+		Detail:   detail,
+		Instance: r.URL.Path,
+	})
 }
 
 // WithTenant attaches a tenant to the context. Used by tests and the
@@ -75,22 +99,17 @@ func TenantMiddleware(st store.Driver) func(http.Handler) http.Handler {
 
 			tx, err := st.Begin(r.Context(), store.TxOptions{ReadOnly: true})
 			if err != nil {
-				writeProblem(w, http.StatusInternalServerError, errTypeInternal,
-					"Internal error", "Failed to resolve tenant", r.URL.Path, nil)
+				writeRerr(w, r, rerr.Wrap(err, "begin tx"))
 				return
 			}
 			tenant, err := tx.GetTenantBySlug(r.Context(), slug)
 			_ = tx.Rollback()
 			if err != nil {
 				if err == store.ErrTenantNotFound {
-					writeProblem(w, http.StatusNotFound, errTypeNotFound,
-						"Tenant not found",
-						"No tenant exists with slug "+slug,
-						r.URL.Path, nil)
+					writeRerr(w, r, rerr.NotFound("tenant", slug))
 					return
 				}
-				writeProblem(w, http.StatusInternalServerError, errTypeInternal,
-					"Internal error", "Failed to resolve tenant", r.URL.Path, nil)
+				writeRerr(w, r, rerr.Wrap(err, "resolve tenant"))
 				return
 			}
 

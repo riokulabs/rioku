@@ -16,6 +16,7 @@ import (
 	"strings"
 
 	"github.com/riokulabs/rioku/internal/auth"
+	"github.com/riokulabs/rioku/internal/rerr"
 	"github.com/riokulabs/rioku/internal/store"
 	storeaudit "github.com/riokulabs/rioku/internal/store/audit"
 )
@@ -71,32 +72,31 @@ func traceQueryFromRequest(r *http.Request) store.AITraceQuery {
 	return q
 }
 
-func handleListAITraces(st store.Driver) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
+func handleListAITraces(st store.Driver) rerr.Handler {
+	return func(w http.ResponseWriter, r *http.Request) error {
 		tenant, ok := tenantOrError(w, r)
 		if !ok {
-			return
+			return nil
 		}
 		tx, _ := st.Begin(r.Context(), store.TxOptions{ReadOnly: true})
 		defer func() { _ = tx.Rollback() }()
 		items, err := tx.ListAITracesByTenant(r.Context(), tenant.ID, traceQueryFromRequest(r))
 		if err != nil {
-			writeInternalError(w, r, "list traces")
-			return
+			return rerr.Wrap(err, "list traces")
 		}
 		out := make([]aiTraceResponse, 0, len(items))
 		for _, tr := range items {
 			out = append(out, aiTraceToResponse(tr, false))
 		}
-		writeJSON(w, http.StatusOK, map[string]any{"items": out, "total": len(out)})
+		return rerr.JSON(w, map[string]any{"items": out, "total": len(out)})
 	}
 }
 
-func handleGetAITrace(st store.Driver) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
+func handleGetAITrace(st store.Driver) rerr.Handler {
+	return func(w http.ResponseWriter, r *http.Request) error {
 		tenant, ok := tenantOrError(w, r)
 		if !ok {
-			return
+			return nil
 		}
 		id := r.PathValue("id")
 		tx, _ := st.Begin(r.Context(), store.TxOptions{ReadOnly: true})
@@ -104,16 +104,13 @@ func handleGetAITrace(st store.Driver) http.HandlerFunc {
 		tr, err := tx.GetAITrace(r.Context(), tenant.ID, id)
 		if err != nil {
 			if errors.Is(err, store.ErrAITraceNotFound) {
-				writeProblem(w, http.StatusNotFound, errTypeNotFound, "Trace not found",
-					"No trace with id "+id, r.URL.Path, nil)
-				return
+				return rerr.NotFound("trace", id)
 			}
-			writeInternalError(w, r, "get trace")
-			return
+			return rerr.Wrap(err, "get trace")
 		}
 		// GET returns the redacted shape; sensitive fields require POST
 		// .../reveal with a compliance reason (see handleRevealAITrace).
-		writeJSON(w, http.StatusOK, aiTraceToResponse(tr, false))
+		return rerr.JSON(w, aiTraceToResponse(tr, false))
 	}
 }
 
@@ -123,12 +120,12 @@ func handleGetAITrace(st store.Driver) http.HandlerFunc {
 // Each successful reveal appends an `ai.trace_sensitive_revealed.v1`
 // audit entry in the same transaction so the unmask is permanently
 // recorded for compliance review.
-func handleRevealAITrace(st store.Driver) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
+func handleRevealAITrace(st store.Driver) rerr.Handler {
+	return func(w http.ResponseWriter, r *http.Request) error {
 		ctx := r.Context()
 		tenant, ok := tenantOrError(w, r)
 		if !ok {
-			return
+			return nil
 		}
 		id := r.PathValue("id")
 
@@ -136,16 +133,14 @@ func handleRevealAITrace(st store.Driver) http.HandlerFunc {
 			Reason string `json:"reason"`
 		}
 		if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
-			writeBadRequest(w, r, "request body must be JSON with a `reason` field")
-			return
+			return rerr.Validation(map[string]string{"body": "must be JSON with a `reason` field"})
 		}
 		reason := strings.TrimSpace(body.Reason)
 		// 10 chars is the contract documented in the test fixtures: short
 		// reasons like "ok" or "too short" are rejected so reviewers
 		// always see something usable.
 		if len(reason) < 10 {
-			writeBadRequest(w, r, "reason must be at least 10 characters")
-			return
+			return rerr.Validation(map[string]string{"reason": "must be at least 10 characters"})
 		}
 
 		actor := "system"
@@ -155,19 +150,15 @@ func handleRevealAITrace(st store.Driver) http.HandlerFunc {
 
 		tx, err := st.Begin(ctx, store.TxOptions{})
 		if err != nil {
-			writeInternalError(w, r, "begin tx")
-			return
+			return rerr.Wrap(err, "begin tx")
 		}
 		tr, err := tx.GetAITrace(ctx, tenant.ID, id)
 		if err != nil {
 			_ = tx.Rollback()
 			if errors.Is(err, store.ErrAITraceNotFound) {
-				writeProblem(w, http.StatusNotFound, errTypeNotFound, "Trace not found",
-					"No trace with id "+id, r.URL.Path, nil)
-				return
+				return rerr.NotFound("trace", id)
 			}
-			writeInternalError(w, r, "reveal trace")
-			return
+			return rerr.Wrap(err, "reveal trace")
 		}
 
 		entry, err := storeaudit.BuildEntry(
@@ -183,20 +174,17 @@ func handleRevealAITrace(st store.Driver) http.HandlerFunc {
 		)
 		if err != nil {
 			_ = tx.Rollback()
-			writeInternalError(w, r, "build reveal audit entry")
-			return
+			return rerr.Wrap(err, "build reveal audit entry")
 		}
 		_ = tenant // tenant scoping happens at the route layer; AuditEntry has no per-row tenant column today
 		if err := tx.AppendAuditEntry(ctx, entry); err != nil {
 			_ = tx.Rollback()
-			writeInternalError(w, r, "persist reveal audit entry")
-			return
+			return rerr.Wrap(err, "persist reveal audit entry")
 		}
 		if err := tx.Commit(); err != nil {
-			writeInternalError(w, r, "commit reveal audit entry")
-			return
+			return rerr.Wrap(err, "commit reveal audit entry")
 		}
 
-		writeJSON(w, http.StatusOK, aiTraceToResponse(tr, true))
+		return rerr.JSON(w, aiTraceToResponse(tr, true))
 	}
 }

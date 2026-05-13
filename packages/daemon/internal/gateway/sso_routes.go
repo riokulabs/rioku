@@ -22,6 +22,7 @@ import (
 	"net/http"
 
 	"github.com/riokulabs/rioku/internal/auth"
+	"github.com/riokulabs/rioku/internal/rerr"
 	"github.com/riokulabs/rioku/internal/store"
 	storeaudit "github.com/riokulabs/rioku/internal/store/audit"
 )
@@ -29,15 +30,15 @@ import (
 // RegisterSsoRoutes wires the per-tenant SSO provider CRUD endpoints.
 func RegisterSsoRoutes(mux *http.ServeMux, st store.Driver) {
 	mux.Handle("GET /api/v1/t/{tenant}/sso/providers",
-		RequirePermission("sso:read")(http.HandlerFunc(handleListSsoProviders(st))))
+		RequirePermission("sso:read")(rerr.H(handleListSsoProviders(st))))
 	mux.Handle("POST /api/v1/t/{tenant}/sso/providers",
-		RequirePermission("sso:write")(http.HandlerFunc(handleCreateSsoProvider(st))))
+		RequirePermission("sso:write")(rerr.H(handleCreateSsoProvider(st))))
 	mux.Handle("GET /api/v1/t/{tenant}/sso/providers/{id}",
-		RequirePermission("sso:read")(http.HandlerFunc(handleGetSsoProvider(st))))
+		RequirePermission("sso:read")(rerr.H(handleGetSsoProvider(st))))
 	mux.Handle("PATCH /api/v1/t/{tenant}/sso/providers/{id}",
-		RequirePermission("sso:write")(http.HandlerFunc(handleUpdateSsoProvider(st))))
+		RequirePermission("sso:write")(rerr.H(handleUpdateSsoProvider(st))))
 	mux.Handle("DELETE /api/v1/t/{tenant}/sso/providers/{id}",
-		RequirePermission("sso:write")(http.HandlerFunc(handleDeleteSsoProvider(st))))
+		RequirePermission("sso:write")(rerr.H(handleDeleteSsoProvider(st))))
 }
 
 // ─── DTOs ───────────────────────────────────────────────────────────────────
@@ -104,64 +105,58 @@ func validateKind(kind string) bool {
 
 // ─── Handlers ───────────────────────────────────────────────────────────────
 
-func handleListSsoProviders(st store.Driver) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
+func handleListSsoProviders(st store.Driver) rerr.Handler {
+	return func(w http.ResponseWriter, r *http.Request) error {
 		tenant, ok := tenantOrError(w, r)
 		if !ok {
-			return
+			return nil
 		}
 		tx, _ := st.Begin(r.Context(), store.TxOptions{ReadOnly: true})
 		defer func() { _ = tx.Rollback() }()
 		items, err := tx.ListSsoProvidersByTenant(r.Context(), tenant.ID)
 		if err != nil {
-			writeInternalError(w, r, "list sso providers")
-			return
+			return rerr.Wrap(err, "list sso providers")
 		}
 		out := make([]ssoProviderResponse, 0, len(items))
 		for _, p := range items {
 			out = append(out, ssoProviderToResponse(p))
 		}
-		writeJSON(w, http.StatusOK, map[string]any{"items": out, "total": len(out)})
+		return rerr.JSON(w, map[string]any{"items": out, "total": len(out)})
 	}
 }
 
-func handleGetSsoProvider(st store.Driver) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
+func handleGetSsoProvider(st store.Driver) rerr.Handler {
+	return func(w http.ResponseWriter, r *http.Request) error {
 		tenant, ok := tenantOrError(w, r)
 		if !ok {
-			return
+			return nil
 		}
 		id := r.PathValue("id")
 		tx, _ := st.Begin(r.Context(), store.TxOptions{ReadOnly: true})
 		defer func() { _ = tx.Rollback() }()
 		p, err := tx.GetSsoProvider(r.Context(), tenant.ID, id)
 		if err != nil {
-			writeProblem(w, http.StatusNotFound, errTypeNotFound, "Provider not found",
-				"No SSO provider with id "+id, r.URL.Path, nil)
-			return
+			return rerr.NotFound("sso provider", id)
 		}
-		writeJSON(w, http.StatusOK, ssoProviderToResponse(p))
+		return rerr.JSON(w, ssoProviderToResponse(p))
 	}
 }
 
-func handleCreateSsoProvider(st store.Driver) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
+func handleCreateSsoProvider(st store.Driver) rerr.Handler {
+	return func(w http.ResponseWriter, r *http.Request) error {
 		tenant, ok := tenantOrError(w, r)
 		if !ok {
-			return
+			return nil
 		}
 		var req createSsoProviderRequest
 		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-			writeBadRequest(w, r, "invalid JSON body")
-			return
+			return rerr.Validation(map[string]string{"body": "invalid JSON body"})
 		}
 		if req.Name == "" || req.Kind == "" {
-			writeBadRequest(w, r, "name and kind are required")
-			return
+			return rerr.Validation(map[string]string{"body": "name and kind are required"})
 		}
 		if !validateKind(req.Kind) {
-			writeBadRequest(w, r, "kind must be one of: oidc, saml")
-			return
+			return rerr.Validation(map[string]string{"kind": "must be one of: oidc, saml"})
 		}
 		// OIDC requires issuer + client_id at create time so the runtime
 		// plugin (#170) can dial the discovery endpoint without admin
@@ -169,12 +164,10 @@ func handleCreateSsoProvider(st store.Driver) http.HandlerFunc {
 		// it later via PATCH (#169 secrets land out-of-band).
 		if req.Kind == "oidc" {
 			if req.OIDCIssuer == nil || *req.OIDCIssuer == "" {
-				writeBadRequest(w, r, "oidcIssuer is required for kind=oidc")
-				return
+				return rerr.Validation(map[string]string{"oidcIssuer": "required for kind=oidc"})
 			}
 			if req.OIDCClientID == nil || *req.OIDCClientID == "" {
-				writeBadRequest(w, r, "oidcClientId is required for kind=oidc")
-				return
+				return rerr.Validation(map[string]string{"oidcClientId": "required for kind=oidc"})
 			}
 		}
 		enabled := true
@@ -196,42 +189,34 @@ func handleCreateSsoProvider(st store.Driver) http.HandlerFunc {
 		if err != nil {
 			_ = tx.Rollback()
 			if errors.Is(err, store.ErrSsoProviderTaken) {
-				writeProblem(w, http.StatusConflict, errTypeConflict, "Name already in use",
-					"An SSO provider with that name already exists in this tenant",
-					r.URL.Path, nil)
-				return
+				return rerr.Conflict("An SSO provider with that name already exists in this tenant", err)
 			}
-			writeInternalError(w, r, "create sso provider")
-			return
+			return rerr.Wrap(err, "create sso provider")
 		}
 		if err := emitSsoAudit(r.Context(), tx, r, "create", created, tenant.ID); err != nil {
 			_ = tx.Rollback()
-			writeInternalError(w, r, "audit")
-			return
+			return rerr.Wrap(err, "audit")
 		}
 		if err := tx.Commit(); err != nil {
-			writeInternalError(w, r, "commit")
-			return
+			return rerr.Wrap(err, "commit")
 		}
-		writeJSON(w, http.StatusCreated, ssoProviderToResponse(created))
+		return rerr.JSONStatus(w, http.StatusCreated, ssoProviderToResponse(created))
 	}
 }
 
-func handleUpdateSsoProvider(st store.Driver) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
+func handleUpdateSsoProvider(st store.Driver) rerr.Handler {
+	return func(w http.ResponseWriter, r *http.Request) error {
 		tenant, ok := tenantOrError(w, r)
 		if !ok {
-			return
+			return nil
 		}
 		id := r.PathValue("id")
 		var req updateSsoProviderRequest
 		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-			writeBadRequest(w, r, "invalid JSON body")
-			return
+			return rerr.Validation(map[string]string{"body": "invalid JSON body"})
 		}
 		if req.Kind != nil && !validateKind(*req.Kind) {
-			writeBadRequest(w, r, "kind must be one of: oidc, saml")
-			return
+			return rerr.Validation(map[string]string{"kind": "must be one of: oidc, saml"})
 		}
 		params := store.UpdateSsoProviderParams{
 			Name: req.Name, Kind: req.Kind, Enabled: req.Enabled,
@@ -252,37 +237,29 @@ func handleUpdateSsoProvider(st store.Driver) http.HandlerFunc {
 		if err != nil {
 			_ = tx.Rollback()
 			if errors.Is(err, store.ErrSsoProviderNotFound) {
-				writeProblem(w, http.StatusNotFound, errTypeNotFound, "Provider not found",
-					"No SSO provider with id "+id, r.URL.Path, nil)
-				return
+				return rerr.NotFound("sso provider", id)
 			}
 			if errors.Is(err, store.ErrSsoProviderTaken) {
-				writeProblem(w, http.StatusConflict, errTypeConflict, "Name already in use",
-					"An SSO provider with that name already exists in this tenant",
-					r.URL.Path, nil)
-				return
+				return rerr.Conflict("An SSO provider with that name already exists in this tenant", err)
 			}
-			writeInternalError(w, r, "update sso provider")
-			return
+			return rerr.Wrap(err, "update sso provider")
 		}
 		if err := emitSsoAudit(r.Context(), tx, r, "update", updated, tenant.ID); err != nil {
 			_ = tx.Rollback()
-			writeInternalError(w, r, "audit")
-			return
+			return rerr.Wrap(err, "audit")
 		}
 		if err := tx.Commit(); err != nil {
-			writeInternalError(w, r, "commit")
-			return
+			return rerr.Wrap(err, "commit")
 		}
-		writeJSON(w, http.StatusOK, ssoProviderToResponse(updated))
+		return rerr.JSON(w, ssoProviderToResponse(updated))
 	}
 }
 
-func handleDeleteSsoProvider(st store.Driver) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
+func handleDeleteSsoProvider(st store.Driver) rerr.Handler {
+	return func(w http.ResponseWriter, r *http.Request) error {
 		tenant, ok := tenantOrError(w, r)
 		if !ok {
-			return
+			return nil
 		}
 		id := r.PathValue("id")
 		tx, _ := st.Begin(r.Context(), store.TxOptions{})
@@ -291,30 +268,24 @@ func handleDeleteSsoProvider(st store.Driver) http.HandlerFunc {
 		existing, err := tx.GetSsoProvider(r.Context(), tenant.ID, id)
 		if err != nil {
 			_ = tx.Rollback()
-			writeProblem(w, http.StatusNotFound, errTypeNotFound, "Provider not found",
-				"No SSO provider with id "+id, r.URL.Path, nil)
-			return
+			return rerr.NotFound("sso provider", id)
 		}
 		if err := tx.DeleteSsoProvider(r.Context(), tenant.ID, id); err != nil {
 			_ = tx.Rollback()
 			if errors.Is(err, store.ErrSsoProviderNotFound) {
-				writeProblem(w, http.StatusNotFound, errTypeNotFound, "Provider not found",
-					"No SSO provider with id "+id, r.URL.Path, nil)
-				return
+				return rerr.NotFound("sso provider", id)
 			}
-			writeInternalError(w, r, "delete sso provider")
-			return
+			return rerr.Wrap(err, "delete sso provider")
 		}
 		if err := emitSsoAudit(r.Context(), tx, r, "delete", existing, tenant.ID); err != nil {
 			_ = tx.Rollback()
-			writeInternalError(w, r, "audit")
-			return
+			return rerr.Wrap(err, "audit")
 		}
 		if err := tx.Commit(); err != nil {
-			writeInternalError(w, r, "commit")
-			return
+			return rerr.Wrap(err, "commit")
 		}
 		w.WriteHeader(http.StatusNoContent)
+		return nil
 	}
 }
 

@@ -24,6 +24,7 @@ import (
 	"net/http"
 	"strings"
 
+	"github.com/riokulabs/rioku/internal/rerr"
 	"github.com/riokulabs/rioku/internal/store"
 )
 
@@ -32,9 +33,9 @@ import (
 // active TLS material.
 func RegisterSettingsTLSRoutes(mux *http.ServeMux, st store.Driver) {
 	mux.Handle("POST /api/v1/t/{tenant}/settings/tls/manual",
-		RequirePermission("tls:write")(http.HandlerFunc(handleUploadManualCert(st))))
+		RequirePermission("tls:write")(rerr.H(handleUploadManualCert(st))))
 	mux.Handle("DELETE /api/v1/t/{tenant}/settings/tls/manual/{certId}",
-		RequirePermission("tls:write")(http.HandlerFunc(handleDeleteManualCert(st))))
+		RequirePermission("tls:write")(rerr.H(handleDeleteManualCert(st))))
 }
 
 type manualCertRequest struct {
@@ -66,35 +67,31 @@ type certRef struct {
 	AutoRenew bool     `json:"autoRenew"`
 }
 
-func handleUploadManualCert(st store.Driver) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
+func handleUploadManualCert(st store.Driver) rerr.Handler {
+	return func(w http.ResponseWriter, r *http.Request) error {
 		tenant, ok := tenantOrError(w, r)
 		if !ok {
-			return
+			return nil
 		}
 		var req manualCertRequest
 		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-			writeBadRequest(w, r, "invalid JSON body")
-			return
+			return rerr.Validation(map[string]string{"body": "invalid JSON body"})
 		}
 		if strings.TrimSpace(req.CertPEM) == "" || strings.TrimSpace(req.KeyPEM) == "" {
-			writeBadRequest(w, r, "cert_pem and key_pem are required")
-			return
+			return rerr.Validation(map[string]string{"cert_pem": "cert_pem and key_pem are required"})
 		}
 
 		// Parse the cert chain and pull metadata from the leaf.
 		leaf, err := parseLeafCert(req.CertPEM)
 		if err != nil {
-			writeBadRequest(w, r, "invalid cert PEM: "+err.Error())
-			return
+			return rerr.Validation(map[string]string{"cert_pem": "invalid cert PEM: " + err.Error()})
 		}
 		// Confirm the supplied key matches the cert via tls.X509KeyPair —
 		// this is the standard way Go enforces "this private key signs
 		// this cert"; mismatches surface as a 400 rather than landing in
 		// the store.
 		if _, err := tls.X509KeyPair([]byte(req.CertPEM), []byte(req.KeyPEM)); err != nil {
-			writeBadRequest(w, r, "cert/key mismatch: "+err.Error())
-			return
+			return rerr.Validation(map[string]string{"key_pem": "cert/key mismatch: " + err.Error()})
 		}
 
 		fp := sha256.Sum256(leaf.Raw)
@@ -109,8 +106,7 @@ func handleUploadManualCert(st store.Driver) http.HandlerFunc {
 			domain = leaf.DNSNames[0]
 		}
 		if domain == "" {
-			writeBadRequest(w, r, "cert has no CommonName or DNS SANs to use as domain")
-			return
+			return rerr.Validation(map[string]string{"cert_pem": "cert has no CommonName or DNS SANs to use as domain"})
 		}
 
 		tx, _ := st.Begin(r.Context(), store.TxOptions{})
@@ -131,16 +127,12 @@ func handleUploadManualCert(st store.Driver) http.HandlerFunc {
 		if err != nil {
 			_ = tx.Rollback()
 			if errors.Is(err, store.ErrTLSCertificateTaken) {
-				writeProblem(w, http.StatusConflict, errTypeConflict, "Domain already in use",
-					"A certificate for "+domain+" already exists", r.URL.Path, nil)
-				return
+				return rerr.Conflict("a certificate for "+domain+" already exists", err)
 			}
-			writeInternalError(w, r, "create manual tls cert")
-			return
+			return rerr.Wrap(err, "create manual tls cert")
 		}
 		if err := tx.Commit(); err != nil {
-			writeInternalError(w, r, "commit")
-			return
+			return rerr.Wrap(err, "commit")
 		}
 
 		// New material → ask Caddy to reload so the live listener can
@@ -154,7 +146,7 @@ func handleUploadManualCert(st store.Driver) http.HandlerFunc {
 			SANs:      append([]string{}, leaf.DNSNames...),
 			AutoRenew: created.AutoRenew,
 		}
-		writeJSON(w, http.StatusCreated, manualCertResponse{
+		return rerr.JSONStatus(w, http.StatusCreated, manualCertResponse{
 			CertID:            created.ID,
 			Ref:               ref,
 			SHA256Fingerprint: fpHex,
@@ -165,34 +157,30 @@ func handleUploadManualCert(st store.Driver) http.HandlerFunc {
 	}
 }
 
-func handleDeleteManualCert(st store.Driver) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
+func handleDeleteManualCert(st store.Driver) rerr.Handler {
+	return func(w http.ResponseWriter, r *http.Request) error {
 		tenant, ok := tenantOrError(w, r)
 		if !ok {
-			return
+			return nil
 		}
 		id := r.PathValue("certId")
 		if id == "" {
-			writeBadRequest(w, r, "certId path value is required")
-			return
+			return rerr.Validation(map[string]string{"certId": "certId path value is required"})
 		}
 		tx, _ := st.Begin(r.Context(), store.TxOptions{})
 		if err := tx.DeleteTLSCertificate(r.Context(), tenant.ID, id); err != nil {
 			_ = tx.Rollback()
 			if errors.Is(err, store.ErrTLSCertificateNotFound) {
-				writeProblem(w, http.StatusNotFound, errTypeNotFound, "Certificate not found",
-					"No certificate with id "+id, r.URL.Path, nil)
-				return
+				return rerr.NotFound("tls_certificate", id)
 			}
-			writeInternalError(w, r, "delete manual tls cert")
-			return
+			return rerr.Wrap(err, "delete manual tls cert")
 		}
 		if err := tx.Commit(); err != nil {
-			writeInternalError(w, r, "commit")
-			return
+			return rerr.Wrap(err, "commit")
 		}
 		_ = triggerCaddyReload(r.Context(), "settings.tls.manual")
 		w.WriteHeader(http.StatusNoContent)
+		return nil
 	}
 }
 

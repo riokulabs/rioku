@@ -16,3 +16,18 @@ func JSON(w http.ResponseWriter, v any) error {
 	}
 	return nil
 }
+
+// JSONStatus sets Content-Type, writes the supplied status code, and encodes v.
+// Use this instead of WriteHeader+JSON; calling WriteHeader before
+// JSON drops the Content-Type header (header mutations after WriteHeader
+// are no-ops).
+//
+//	return rerr.JSONStatus(w, http.StatusCreated, created)
+func JSONStatus(w http.ResponseWriter, status int, v any) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(status)
+	if err := json.NewEncoder(w).Encode(v); err != nil {
+		return Wrap(err, "failed to encode response")
+	}
+	return nil
+}

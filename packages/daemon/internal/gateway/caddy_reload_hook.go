@@ -99,7 +99,7 @@ func NewCaddyAdminReloader(cfg CaddyReloaderConfig) CaddyReloadFunc {
 	}
 	logger := cfg.Logger
 	if logger == nil {
-		logger = slog.Default()
+		logger = slog.Default() //nolint:forbidigo // hook init fallback when cfg.Logger nil
 	}
 	adminURL := cfg.AdminURL
 	compile := cfg.Compile

@@ -18,6 +18,7 @@ import (
 	"net/http"
 
 	"github.com/riokulabs/rioku/internal/cluster"
+	"github.com/riokulabs/rioku/internal/rerr"
 )
 
 // RegisterClusterRoutes registers the cluster management endpoints. Returns
@@ -32,26 +33,25 @@ func RegisterClusterRoutes(mux *http.ServeMux, svc cluster.Service) {
 		return
 	}
 	mux.Handle("GET /api/v1/cluster",
-		RequirePermission("cluster:read")(http.HandlerFunc(handleClusterLegacy(svc))))
+		RequirePermission("cluster:read")(rerr.H(handleClusterLegacy(svc))))
 	mux.Handle("GET /api/v1/cluster/nodes",
-		RequirePermission("cluster:read")(http.HandlerFunc(handleListClusterNodes(svc))))
+		RequirePermission("cluster:read")(rerr.H(handleListClusterNodes(svc))))
 	mux.Handle("POST /api/v1/cluster/nodes/{id}/remove",
-		RequirePermission("cluster:manage")(http.HandlerFunc(handleRemoveClusterNode(svc))))
+		RequirePermission("cluster:manage")(rerr.H(handleRemoveClusterNode(svc))))
 	mux.Handle("POST /api/v1/cluster/sync",
-		RequirePermission("cluster:manage")(http.HandlerFunc(handleForceClusterSync(svc))))
+		RequirePermission("cluster:manage")(rerr.H(handleForceClusterSync(svc))))
 }
 
-func handleListClusterNodes(svc cluster.Service) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
+func handleListClusterNodes(svc cluster.Service) rerr.Handler {
+	return func(w http.ResponseWriter, r *http.Request) error {
 		nodes, err := svc.ListNodes(r.Context())
 		if err != nil {
-			writeInternalError(w, r, "list cluster nodes")
-			return
+			return rerr.Wrap(err, "list cluster nodes")
 		}
 		if nodes == nil {
 			nodes = []cluster.NodeInfo{}
 		}
-		writeJSON(w, http.StatusOK, map[string]any{
+		return rerr.JSON(w, map[string]any{
 			"items": nodes,
 			"total": len(nodes),
 		})
@@ -60,40 +60,37 @@ func handleListClusterNodes(svc cluster.Service) http.HandlerFunc {
 
 // handleClusterLegacy keeps the existing GET /api/v1/cluster shape alive
 // for the current admin panel build, which expects {"nodes": [...]}.
-func handleClusterLegacy(svc cluster.Service) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
+func handleClusterLegacy(svc cluster.Service) rerr.Handler {
+	return func(w http.ResponseWriter, r *http.Request) error {
 		nodes, err := svc.ListNodes(r.Context())
 		if err != nil {
-			writeInternalError(w, r, "list cluster nodes")
-			return
+			return rerr.Wrap(err, "list cluster nodes")
 		}
 		if nodes == nil {
 			nodes = []cluster.NodeInfo{}
 		}
-		writeJSON(w, http.StatusOK, map[string]any{"nodes": nodes})
+		return rerr.JSON(w, map[string]any{"nodes": nodes})
 	}
 }
 
-func handleRemoveClusterNode(svc cluster.Service) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
+func handleRemoveClusterNode(svc cluster.Service) rerr.Handler {
+	return func(w http.ResponseWriter, r *http.Request) error {
 		id := r.PathValue("id")
 		if id == "" {
-			writeBadRequest(w, r, "node id is required")
-			return
+			return rerr.Validation(map[string]string{"id": "node id is required"})
 		}
 		if err := svc.RemoveNode(r.Context(), id); err != nil {
 			// Single-node + unknown-id are caller-facing errors — surface
 			// the message instead of a generic 500.
-			writeProblem(w, http.StatusBadRequest, errTypeValidation, "Cannot remove node",
-				err.Error(), r.URL.Path, nil)
-			return
+			return rerr.Validation(map[string]string{"id": err.Error()})
 		}
 		w.WriteHeader(http.StatusNoContent)
+		return nil
 	}
 }
 
-func handleForceClusterSync(svc cluster.Service) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
+func handleForceClusterSync(svc cluster.Service) rerr.Handler {
+	return func(w http.ResponseWriter, r *http.Request) error {
 		result, err := svc.ForceSync(r.Context())
 		if err != nil {
 			// Include the result so the operator sees how far we got.
@@ -105,9 +102,9 @@ func handleForceClusterSync(svc cluster.Service) http.HandlerFunc {
 			w.Header().Set("Content-Type", "application/json")
 			w.WriteHeader(http.StatusBadGateway)
 			_, _ = w.Write(body)
-			return
+			return nil // rerr-skip: non-2xx with custom body already written
 		}
-		writeJSON(w, http.StatusOK, result)
+		return rerr.JSON(w, result)
 	}
 }
 

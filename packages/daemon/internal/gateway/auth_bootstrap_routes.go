@@ -17,13 +17,14 @@ import (
 	"github.com/riokulabs/rioku/internal/auth"
 	"github.com/riokulabs/rioku/internal/config"
 	"github.com/riokulabs/rioku/internal/gateway/optionsutil"
+	"github.com/riokulabs/rioku/internal/rerr"
 	"github.com/riokulabs/rioku/internal/store"
 )
 
 // RegisterBootstrapRoutes wires the bootstrap status and setup endpoints.
 func RegisterBootstrapRoutes(mux *http.ServeMux, st store.Driver, sm *auth.SessionManager, cfg *config.Config) {
-	mux.HandleFunc("GET /api/v1/auth/bootstrap-status", handleBootstrapStatus(st))
-	mux.HandleFunc("POST /api/v1/auth/bootstrap", handleBootstrap(st, sm, cfg))
+	mux.Handle("GET /api/v1/auth/bootstrap-status", rerr.H(handleBootstrapStatus(st)))
+	mux.Handle("POST /api/v1/auth/bootstrap", rerr.H(handleBootstrap(st, sm, cfg)))
 
 	optionsutil.Register(mux, "/api/v1/auth/bootstrap-status", []string{"GET"})
 	optionsutil.Register(mux, "/api/v1/auth/bootstrap", []string{"POST"})
@@ -31,25 +32,22 @@ func RegisterBootstrapRoutes(mux *http.ServeMux, st store.Driver, sm *auth.Sessi
 
 // ─── GET /auth/bootstrap-status ─────────────────────────────────────────────
 
-func handleBootstrapStatus(st store.Driver) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
+func handleBootstrapStatus(st store.Driver) rerr.Handler {
+	return func(w http.ResponseWriter, r *http.Request) error {
 		ctx := r.Context()
 		tx, err := st.Begin(ctx, store.TxOptions{ReadOnly: true})
 		if err != nil {
-			writeInternalError(w, r, "begin tx")
-			return
+			return rerr.Wrap(err, "begin tx")
 		}
 		defer func() { _ = tx.Rollback() }()
 
 		count, err := tx.CountUsers(ctx)
 		if err != nil {
-			writeInternalError(w, r, "count users")
-			return
+			return rerr.Wrap(err, "count users")
 		}
 		_ = tx.Commit()
 
-		w.Header().Set("Content-Type", "application/json")
-		_ = json.NewEncoder(w).Encode(map[string]bool{"required": count == 0})
+		return rerr.JSON(w, map[string]bool{"required": count == 0})
 	}
 }
 
@@ -67,16 +65,14 @@ type bootstrapResponse struct {
 	UserID   string `json:"userId"`
 }
 
-func handleBootstrap(st store.Driver, sm *auth.SessionManager, cfg *config.Config) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
+func handleBootstrap(st store.Driver, _ *auth.SessionManager, cfg *config.Config) rerr.Handler {
+	return func(w http.ResponseWriter, r *http.Request) error {
 		r.Body = http.MaxBytesReader(w, r.Body, maxAuthBodySize)
 		ctx := r.Context()
 
 		var req bootstrapRequest
 		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-			writeProblem(w, http.StatusBadRequest, errTypeValidation, "Invalid request body",
-				"Request body must be valid JSON", r.URL.Path, nil)
-			return
+			return rerr.Validation(map[string]string{"body": "request body must be valid JSON"})
 		}
 
 		// Normalise
@@ -85,58 +81,47 @@ func handleBootstrap(st store.Driver, sm *auth.SessionManager, cfg *config.Confi
 		req.TenantName = strings.TrimSpace(req.TenantName)
 
 		// Validate
-		var errs []ValidationError
+		fieldErrs := map[string]string{}
 		if req.Email == "" {
-			errs = append(errs, ValidationError{Field: "email", Reason: "must not be empty"})
+			fieldErrs["email"] = "must not be empty"
 		}
 		if req.Password == "" {
-			errs = append(errs, ValidationError{Field: "password", Reason: "must not be empty"})
+			fieldErrs["password"] = "must not be empty"
 		}
 		if req.TenantSlug == "" {
-			errs = append(errs, ValidationError{Field: "tenantSlug", Reason: "must not be empty"})
+			fieldErrs["tenantSlug"] = "must not be empty"
 		}
 		if req.TenantName == "" {
-			errs = append(errs, ValidationError{Field: "tenantName", Reason: "must not be empty"})
+			fieldErrs["tenantName"] = "must not be empty"
 		}
-		if len(errs) > 0 {
-			writeProblem(w, http.StatusBadRequest, errTypeValidation, "Validation failed",
-				"Missing required fields", r.URL.Path, errs)
-			return
+		if len(fieldErrs) > 0 {
+			return rerr.Validation(fieldErrs)
 		}
 
 		// Validate password policy.
 		if err := auth.ValidatePasswordPolicy(req.Password, cfg.Auth.PasswordPolicy); err != nil {
-			writeProblem(w, http.StatusBadRequest, errTypeValidation, "Password policy violation",
-				err.Error(), r.URL.Path, nil)
-			return
+			return rerr.Validation(map[string]string{"password": err.Error()})
 		}
 
 		tx, err := st.Begin(ctx, store.TxOptions{})
 		if err != nil {
-			writeInternalError(w, r, "begin tx")
-			return
+			return rerr.Wrap(err, "begin tx")
 		}
 		defer func() { _ = tx.Rollback() }()
 
 		// Idempotency check — if any user already exists, bootstrap is done.
 		count, err := tx.CountUsers(ctx)
 		if err != nil {
-			writeInternalError(w, r, "count users")
-			return
+			return rerr.Wrap(err, "count users")
 		}
 		if count > 0 {
-			writeProblem(w, http.StatusConflict, "https://rioku.dev/errors/bootstrap-already-completed",
-				"Bootstrap already completed",
-				"A root user already exists. The system has already been bootstrapped.",
-				r.URL.Path, nil)
-			return
+			return rerr.Conflict("a root user already exists; the system has already been bootstrapped", nil)
 		}
 
 		// Hash password.
 		passwordHash, err := auth.HashPassword(req.Password)
 		if err != nil {
-			writeInternalError(w, r, "hash password")
-			return
+			return rerr.Wrap(err, "hash password")
 		}
 
 		// 1. Create tenant.
@@ -151,12 +136,9 @@ func handleBootstrap(st store.Driver, sm *auth.SessionManager, cfg *config.Confi
 		})
 		if err != nil {
 			if errors.Is(err, store.ErrTenantSlugTaken) {
-				writeProblem(w, http.StatusConflict, errTypeConflict, "Tenant slug taken",
-					"A tenant with that slug already exists.", r.URL.Path, nil)
-				return
+				return rerr.Conflict("a tenant with that slug already exists", err)
 			}
-			writeInternalError(w, r, "create tenant")
-			return
+			return rerr.Wrap(err, "create tenant")
 		}
 
 		// 2. Create root user (username derived from email local-part).
@@ -173,8 +155,7 @@ func handleBootstrap(st store.Driver, sm *auth.SessionManager, cfg *config.Confi
 			PasswordChangedAt: now,
 		})
 		if err != nil {
-			writeInternalError(w, r, "create user")
-			return
+			return rerr.Wrap(err, "create user")
 		}
 
 		// 3. Create membership (user → tenant, state=active).
@@ -186,32 +167,28 @@ func handleBootstrap(st store.Driver, sm *auth.SessionManager, cfg *config.Confi
 			JoinedAt: &joinedAt,
 		})
 		if err != nil {
-			writeInternalError(w, r, "create membership")
-			return
+			return rerr.Wrap(err, "create membership")
 		}
 
 		// 4. Assign superadmin role.
 		roles, err := tx.ListRoles(ctx)
 		if err != nil {
-			writeInternalError(w, r, "list roles")
-			return
+			return rerr.Wrap(err, "list roles")
 		}
 		for _, role := range roles {
 			if role.Name == "superadmin" {
 				if err := tx.AssignRole(ctx, user.ID, role.ID, ""); err != nil {
-					writeInternalError(w, r, "assign role")
-					return
+					return rerr.Wrap(err, "assign role")
 				}
 				break
 			}
 		}
 
 		if err := tx.Commit(); err != nil {
-			writeInternalError(w, r, "commit")
-			return
+			return rerr.Wrap(err, "commit")
 		}
 
-		writeJSON(w, http.StatusCreated, bootstrapResponse{
+		return rerr.JSONStatus(w, http.StatusCreated, bootstrapResponse{
 			TenantID: tenant.ID,
 			UserID:   user.ID,
 		})

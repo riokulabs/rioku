@@ -14,30 +14,31 @@ import (
 	"net/http"
 
 	"github.com/riokulabs/rioku/internal/gateway/optionsutil"
+	"github.com/riokulabs/rioku/internal/rerr"
 	"github.com/riokulabs/rioku/internal/store"
 )
 
 func RegisterSiteRoutes(mux *http.ServeMux, st store.Driver) {
 	mux.Handle("GET /api/v1/t/{tenant}/sites",
-		RequirePermission("site:read")(http.HandlerFunc(handleListSites(st))))
+		RequirePermission("site:read")(rerr.H(handleListSites(st))))
 	mux.Handle("POST /api/v1/t/{tenant}/sites",
-		RequirePermission("site:write")(http.HandlerFunc(handleCreateSite(st))))
+		RequirePermission("site:write")(rerr.H(handleCreateSite(st))))
 	mux.Handle("GET /api/v1/t/{tenant}/sites/{id}",
-		RequirePermission("site:read")(http.HandlerFunc(handleGetSite(st))))
+		RequirePermission("site:read")(rerr.H(handleGetSite(st))))
 	// PUT and PATCH share the same underlying handler — both accept the
 	// pointer-field updateSiteRequest where omitted fields are unchanged.
 	// Future work can split them when the storage layer grows a discrete
 	// "replace whole row" path; for now the verbs are equivalent.
 	mux.Handle("PUT /api/v1/t/{tenant}/sites/{id}",
-		RequirePermission("site:write")(http.HandlerFunc(handleUpdateSite(st))))
+		RequirePermission("site:write")(rerr.H(handleUpdateSite(st))))
 	mux.Handle("PATCH /api/v1/t/{tenant}/sites/{id}",
-		RequirePermission("site:write")(http.HandlerFunc(handleUpdateSite(st))))
+		RequirePermission("site:write")(rerr.H(handleUpdateSite(st))))
 	mux.Handle("DELETE /api/v1/t/{tenant}/sites/{id}",
-		RequirePermission("site:delete")(http.HandlerFunc(handleDeleteSite(st))))
+		RequirePermission("site:delete")(rerr.H(handleDeleteSite(st))))
 	mux.Handle("PATCH /api/v1/t/{tenant}/sites/{id}/enabled",
-		RequirePermission("site:write")(http.HandlerFunc(handleToggleSite(st))))
+		RequirePermission("site:write")(rerr.H(handleToggleSite(st))))
 	mux.Handle("POST /api/v1/t/{tenant}/sites/{id}/toggle",
-		RequirePermission("site:write")(http.HandlerFunc(handleToggleSite(st))))
+		RequirePermission("site:write")(rerr.H(handleToggleSite(st))))
 
 	optionsutil.Register(mux, "/api/v1/t/{tenant}/sites",
 		[]string{"GET", "POST"})
@@ -109,50 +110,45 @@ type toggleSiteRequest struct {
 	Enabled bool `json:"enabled"`
 }
 
-func handleListSites(st store.Driver) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
+func handleListSites(st store.Driver) rerr.Handler {
+	return func(w http.ResponseWriter, r *http.Request) error {
 		tenant, ok := tenantOrError(w, r)
 		if !ok {
-			return
+			return nil
 		}
 		tx, err := st.Begin(r.Context(), store.TxOptions{ReadOnly: true})
 		if err != nil {
-			writeInternalError(w, r, "begin tx")
-			return
+			return rerr.Wrap(err, "begin tx")
 		}
 		defer func() { _ = tx.Rollback() }()
 		sites, err := tx.ListSitesByTenant(r.Context(), tenant.ID)
 		if err != nil {
-			writeInternalError(w, r, "list sites")
-			return
+			return rerr.Wrap(err, "list sites")
 		}
 		out := make([]siteResponse, 0, len(sites))
 		for _, s := range sites {
 			out = append(out, siteToResponse(s))
 		}
-		writeJSON(w, http.StatusOK, map[string]any{"items": out, "total": len(out)})
+		return rerr.JSON(w, map[string]any{"items": out, "total": len(out)})
 	}
 }
 
-func handleCreateSite(st store.Driver) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
+func handleCreateSite(st store.Driver) rerr.Handler {
+	return func(w http.ResponseWriter, r *http.Request) error {
 		tenant, ok := tenantOrError(w, r)
 		if !ok {
-			return
+			return nil
 		}
 		var req createSiteRequest
 		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-			writeBadRequest(w, r, "invalid JSON body")
-			return
+			return rerr.Validation(map[string]string{"body": "invalid JSON body"})
 		}
 		if req.Name == "" || req.Domain == "" {
-			writeBadRequest(w, r, "name and domain are required")
-			return
+			return rerr.Validation(map[string]string{"body": "name and domain are required"})
 		}
 		tx, err := st.Begin(r.Context(), store.TxOptions{})
 		if err != nil {
-			writeInternalError(w, r, "begin tx")
-			return
+			return rerr.Wrap(err, "begin tx")
 		}
 		created, err := tx.CreateSite(r.Context(), &store.Site{
 			TenantID:          tenant.ID,
@@ -169,66 +165,55 @@ func handleCreateSite(st store.Driver) http.HandlerFunc {
 		if err != nil {
 			_ = tx.Rollback()
 			if errors.Is(err, store.ErrSiteDomainTaken) {
-				writeProblem(w, http.StatusConflict, errTypeConflict,
-					"Domain already in use",
-					"A site with that domain already exists in this tenant", r.URL.Path, nil)
-				return
+				return rerr.Conflict("a site with that domain already exists in this tenant", err)
 			}
-			writeInternalError(w, r, "create site")
-			return
+			return rerr.Wrap(err, "create site")
 		}
 		if err := tx.Commit(); err != nil {
-			writeInternalError(w, r, "commit")
-			return
+			return rerr.Wrap(err, "commit")
 		}
 		_ = triggerCaddyReload(r.Context(), "site.create")
-		writeJSON(w, http.StatusCreated, siteToResponse(created))
+		return rerr.JSONStatus(w, http.StatusCreated, siteToResponse(created))
 	}
 }
 
-func handleGetSite(st store.Driver) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
+func handleGetSite(st store.Driver) rerr.Handler {
+	return func(w http.ResponseWriter, r *http.Request) error {
 		tenant, ok := tenantOrError(w, r)
 		if !ok {
-			return
+			return nil
 		}
 		id := r.PathValue("id")
 		tx, err := st.Begin(r.Context(), store.TxOptions{ReadOnly: true})
 		if err != nil {
-			writeInternalError(w, r, "begin tx")
-			return
+			return rerr.Wrap(err, "begin tx")
 		}
 		defer func() { _ = tx.Rollback() }()
 		site, err := tx.GetSite(r.Context(), tenant.ID, id)
 		if err != nil {
 			if errors.Is(err, store.ErrSiteNotFound) {
-				writeProblem(w, http.StatusNotFound, errTypeNotFound, "Site not found",
-					"No site with id "+id, r.URL.Path, nil)
-				return
+				return rerr.NotFound("site", id)
 			}
-			writeInternalError(w, r, "get site")
-			return
+			return rerr.Wrap(err, "get site")
 		}
-		writeJSON(w, http.StatusOK, siteToResponse(site))
+		return rerr.JSON(w, siteToResponse(site))
 	}
 }
 
-func handleUpdateSite(st store.Driver) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
+func handleUpdateSite(st store.Driver) rerr.Handler {
+	return func(w http.ResponseWriter, r *http.Request) error {
 		tenant, ok := tenantOrError(w, r)
 		if !ok {
-			return
+			return nil
 		}
 		id := r.PathValue("id")
 		var req updateSiteRequest
 		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-			writeBadRequest(w, r, "invalid JSON body")
-			return
+			return rerr.Validation(map[string]string{"body": "invalid JSON body"})
 		}
 		tx, err := st.Begin(r.Context(), store.TxOptions{})
 		if err != nil {
-			writeInternalError(w, r, "begin tx")
-			return
+			return rerr.Wrap(err, "begin tx")
 		}
 		updated, err := tx.UpdateSite(r.Context(), tenant.ID, id, store.UpdateSiteParams{
 			Name:              req.Name,
@@ -244,89 +229,75 @@ func handleUpdateSite(st store.Driver) http.HandlerFunc {
 			_ = tx.Rollback()
 			switch {
 			case errors.Is(err, store.ErrSiteNotFound):
-				writeProblem(w, http.StatusNotFound, errTypeNotFound, "Site not found",
-					"No site with id "+id, r.URL.Path, nil)
+				return rerr.NotFound("site", id)
 			case errors.Is(err, store.ErrSiteDomainTaken):
-				writeProblem(w, http.StatusConflict, errTypeConflict, "Domain already in use",
-					"Another site already uses that domain", r.URL.Path, nil)
+				return rerr.Conflict("another site already uses that domain", err)
 			default:
-				writeInternalError(w, r, "update site")
+				return rerr.Wrap(err, "update site")
 			}
-			return
 		}
 		if err := tx.Commit(); err != nil {
-			writeInternalError(w, r, "commit")
-			return
+			return rerr.Wrap(err, "commit")
 		}
 		_ = triggerCaddyReload(r.Context(), "site.update")
-		writeJSON(w, http.StatusOK, siteToResponse(updated))
+		return rerr.JSON(w, siteToResponse(updated))
 	}
 }
 
-func handleToggleSite(st store.Driver) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
+func handleToggleSite(st store.Driver) rerr.Handler {
+	return func(w http.ResponseWriter, r *http.Request) error {
 		tenant, ok := tenantOrError(w, r)
 		if !ok {
-			return
+			return nil
 		}
 		id := r.PathValue("id")
 		var req toggleSiteRequest
 		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-			writeBadRequest(w, r, "invalid JSON body")
-			return
+			return rerr.Validation(map[string]string{"body": "invalid JSON body"})
 		}
 		tx, err := st.Begin(r.Context(), store.TxOptions{})
 		if err != nil {
-			writeInternalError(w, r, "begin tx")
-			return
+			return rerr.Wrap(err, "begin tx")
 		}
 		updated, err := tx.ToggleSite(r.Context(), tenant.ID, id, req.Enabled)
 		if err != nil {
 			_ = tx.Rollback()
 			if errors.Is(err, store.ErrSiteNotFound) {
-				writeProblem(w, http.StatusNotFound, errTypeNotFound, "Site not found",
-					"No site with id "+id, r.URL.Path, nil)
-				return
+				return rerr.NotFound("site", id)
 			}
-			writeInternalError(w, r, "toggle site")
-			return
+			return rerr.Wrap(err, "toggle site")
 		}
 		if err := tx.Commit(); err != nil {
-			writeInternalError(w, r, "commit")
-			return
+			return rerr.Wrap(err, "commit")
 		}
 		_ = triggerCaddyReload(r.Context(), "site.toggle")
-		writeJSON(w, http.StatusOK, siteToResponse(updated))
+		return rerr.JSON(w, siteToResponse(updated))
 	}
 }
 
-func handleDeleteSite(st store.Driver) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
+func handleDeleteSite(st store.Driver) rerr.Handler {
+	return func(w http.ResponseWriter, r *http.Request) error {
 		tenant, ok := tenantOrError(w, r)
 		if !ok {
-			return
+			return nil
 		}
 		id := r.PathValue("id")
 		tx, err := st.Begin(r.Context(), store.TxOptions{})
 		if err != nil {
-			writeInternalError(w, r, "begin tx")
-			return
+			return rerr.Wrap(err, "begin tx")
 		}
 		if err := tx.DeleteSite(r.Context(), tenant.ID, id); err != nil {
 			_ = tx.Rollback()
 			if errors.Is(err, store.ErrSiteNotFound) {
-				writeProblem(w, http.StatusNotFound, errTypeNotFound, "Site not found",
-					"No site with id "+id, r.URL.Path, nil)
-				return
+				return rerr.NotFound("site", id)
 			}
-			writeInternalError(w, r, "delete site")
-			return
+			return rerr.Wrap(err, "delete site")
 		}
 		if err := tx.Commit(); err != nil {
-			writeInternalError(w, r, "commit")
-			return
+			return rerr.Wrap(err, "commit")
 		}
 		_ = triggerCaddyReload(r.Context(), "site.delete")
 		w.WriteHeader(http.StatusNoContent)
+		return nil
 	}
 }

@@ -22,6 +22,7 @@ import (
 	"github.com/riokulabs/rioku/internal/gateway/links"
 	"github.com/riokulabs/rioku/internal/gateway/optionsutil"
 	"github.com/riokulabs/rioku/internal/gateway/stream"
+	"github.com/riokulabs/rioku/internal/rerr"
 	"github.com/riokulabs/rioku/internal/store"
 )
 
@@ -40,7 +41,7 @@ func registerNotificationsExtras(mux *http.ServeMux, st store.Driver) {
 	// notifications_routes.go. We add only the SSE stream + OPTIONS
 	// for both paths.
 	mux.Handle("GET /api/v1/t/{tenant}/notifications/stream",
-		RequirePermission("notifications:read")(http.HandlerFunc(handleNotificationsStream(st))))
+		RequirePermission("notifications:read")(http.HandlerFunc(handleNotificationsStream(st)))) // rerr-skip: SSE via stream.Stream.Handler()
 
 	optionsutil.RegisterWithCapabilities(mux, "/api/v1/t/{tenant}/notifications/stream",
 		[]string{"GET"}, []string{"sse"})
@@ -140,32 +141,29 @@ func registerPKITLSExtras(mux *http.ServeMux) {
 
 func registerWebhookExtras(mux *http.ServeMux, st store.Driver) {
 	mux.Handle("POST /api/v1/t/{tenant}/settings/webhooks/{id}/test",
-		RequirePermission("webhooks:write")(http.HandlerFunc(handleTestWebhook(st))))
+		RequirePermission("webhooks:write")(rerr.H(handleTestWebhook(st))))
 	optionsutil.Register(mux, "/api/v1/t/{tenant}/settings/webhooks", []string{"GET", "POST"})
 	optionsutil.Register(mux, "/api/v1/t/{tenant}/settings/webhooks/{id}", []string{"GET", "PUT", "PATCH", "DELETE"})
 	optionsutil.Register(mux, "/api/v1/t/{tenant}/settings/webhooks/{id}/test", []string{"POST"})
 }
 
-func handleTestWebhook(st store.Driver) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
+func handleTestWebhook(st store.Driver) rerr.Handler {
+	return func(w http.ResponseWriter, r *http.Request) error {
 		tenant, ok := tenantOrError(w, r)
 		if !ok {
-			return
+			return nil
 		}
 		id := r.PathValue("id")
 		tx, err := st.Begin(r.Context(), store.TxOptions{ReadOnly: true})
 		if err != nil {
-			writeInternalError(w, r, "begin tx")
-			return
+			return rerr.Wrap(err, "begin tx")
 		}
 		defer func() { _ = tx.Rollback() }()
 		ep, err := tx.GetWebhookEndpoint(r.Context(), tenant.ID, id)
 		if err != nil {
-			writeProblem(w, http.StatusNotFound, errTypeNotFound,
-				"Webhook not found", "No webhook with id "+id, r.URL.Path, nil)
-			return
+			return rerr.NotFound("webhook", id)
 		}
-		writeJSON(w, http.StatusAccepted, map[string]any{
+		return rerr.JSONStatus(w, http.StatusAccepted, map[string]any{
 			"webhookId": ep.ID,
 			"url":       ep.URL,
 			"status":    "queued",
@@ -181,15 +179,15 @@ func registerClusterExtras(mux *http.ServeMux) {
 	// stays alive too; cluster operations are deployment-wide so the
 	// tenant prefix is informational.
 	mux.Handle("GET /api/v1/t/{tenant}/cluster/nodes",
-		RequirePermission("cluster:read")(http.HandlerFunc(handleClusterNodesAlias)))
+		RequirePermission("cluster:read")(rerr.H(handleClusterNodesAlias)))
 	mux.Handle("GET /api/v1/t/{tenant}/cluster/nodes/{id}",
-		RequirePermission("cluster:read")(http.HandlerFunc(handleClusterNodeAlias)))
+		RequirePermission("cluster:read")(rerr.H(handleClusterNodeAlias)))
 	mux.Handle("POST /api/v1/t/{tenant}/cluster/nodes/{id}/drain",
-		RequirePermission("cluster:write")(http.HandlerFunc(handleClusterNodeDrain)))
+		RequirePermission("cluster:write")(rerr.H(handleClusterNodeDrain)))
 	mux.Handle("POST /api/v1/t/{tenant}/cluster/nodes/{id}/promote",
-		RequirePermission("cluster:write")(http.HandlerFunc(handleClusterNodePromote)))
+		RequirePermission("cluster:write")(rerr.H(handleClusterNodePromote)))
 	mux.Handle("POST /api/v1/t/{tenant}/cluster/nodes/{id}/demote",
-		RequirePermission("cluster:write")(http.HandlerFunc(handleClusterNodeDemote)))
+		RequirePermission("cluster:write")(rerr.H(handleClusterNodeDemote)))
 
 	optionsutil.Register(mux, "/api/v1/t/{tenant}/cluster/nodes", []string{"GET"})
 	optionsutil.Register(mux, "/api/v1/t/{tenant}/cluster/nodes/{id}", []string{"GET"})
@@ -200,7 +198,7 @@ func registerClusterExtras(mux *http.ServeMux) {
 
 // handleClusterNodesAlias proxies to the legacy /api/v1/cluster/nodes
 // list endpoint. Keeping the body identical avoids drift.
-func handleClusterNodesAlias(w http.ResponseWriter, r *http.Request) {
+func handleClusterNodesAlias(w http.ResponseWriter, r *http.Request) error {
 	// Forward by mutating the request URL — the legacy handler is
 	// registered at `/api/v1/cluster/nodes`; we re-route via the
 	// daemon's main mux. For now we emit a redirect-like JSON until
@@ -210,7 +208,7 @@ func handleClusterNodesAlias(w http.ResponseWriter, r *http.Request) {
 	if tenant != nil {
 		tenantSlug = tenant.Slug
 	}
-	writeJSON(w, http.StatusOK, map[string]any{
+	return rerr.JSON(w, map[string]any{
 		"nodes": []any{},
 		"_links": links.Set{
 			"legacy": {Href: "/api/v1/cluster/nodes"},
@@ -220,9 +218,9 @@ func handleClusterNodesAlias(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
-func handleClusterNodeAlias(w http.ResponseWriter, r *http.Request) {
+func handleClusterNodeAlias(w http.ResponseWriter, r *http.Request) error {
 	id := r.PathValue("id")
-	writeJSON(w, http.StatusOK, map[string]any{
+	return rerr.JSON(w, map[string]any{
 		"id": id,
 		"_links": links.Set{
 			"legacy": {Href: "/api/v1/cluster/nodes/" + id},
@@ -231,27 +229,27 @@ func handleClusterNodeAlias(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
-func handleClusterNodeDrain(w http.ResponseWriter, r *http.Request) {
+func handleClusterNodeDrain(w http.ResponseWriter, r *http.Request) error {
 	id := r.PathValue("id")
-	writeJSON(w, http.StatusAccepted, map[string]any{
+	return rerr.JSONStatus(w, http.StatusAccepted, map[string]any{
 		"nodeId": id, "status": "queued",
 		"action": "drain",
 		"note":   "real drain orchestration lands with the multi-node cluster work (#57)",
 	})
 }
 
-func handleClusterNodePromote(w http.ResponseWriter, r *http.Request) {
+func handleClusterNodePromote(w http.ResponseWriter, r *http.Request) error {
 	id := r.PathValue("id")
-	writeJSON(w, http.StatusAccepted, map[string]any{
+	return rerr.JSONStatus(w, http.StatusAccepted, map[string]any{
 		"nodeId": id, "status": "queued",
 		"action": "promote",
 		"note":   "real promote orchestration lands with the multi-node cluster work (#57)",
 	})
 }
 
-func handleClusterNodeDemote(w http.ResponseWriter, r *http.Request) {
+func handleClusterNodeDemote(w http.ResponseWriter, r *http.Request) error {
 	id := r.PathValue("id")
-	writeJSON(w, http.StatusAccepted, map[string]any{
+	return rerr.JSONStatus(w, http.StatusAccepted, map[string]any{
 		"nodeId": id, "status": "queued",
 		"action": "demote",
 		"note":   "real demote orchestration lands with the multi-node cluster work (#57)",

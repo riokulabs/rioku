@@ -14,6 +14,7 @@ import (
 
 	"github.com/riokulabs/rioku/internal/auth"
 	"github.com/riokulabs/rioku/internal/config"
+	"github.com/riokulabs/rioku/internal/rerr"
 	"github.com/riokulabs/rioku/internal/store"
 	_ "github.com/riokulabs/rioku/internal/store/sqlite"
 )
@@ -286,19 +287,24 @@ func TestKeyRoutes_CreateKey_InvalidExpires(t *testing.T) {
 	})
 	defer func() { _ = resp.Body.Close() }()
 
-	if resp.StatusCode != http.StatusBadRequest {
-		t.Fatalf("expected 400, got %d", resp.StatusCode)
+	if resp.StatusCode != http.StatusUnprocessableEntity {
+		t.Fatalf("expected 422, got %d", resp.StatusCode)
 	}
 
 	var pd ProblemDetail
 	if err := json.NewDecoder(resp.Body).Decode(&pd); err != nil {
 		t.Fatalf("decode problem detail: %v", err)
 	}
-	if pd.Status != 400 {
-		t.Errorf("problem status = %d, want 400", pd.Status)
+	if pd.Status != 422 {
+		t.Errorf("problem status = %d, want 422", pd.Status)
 	}
-	if !strings.Contains(pd.Detail, "Invalid expiration duration") {
-		t.Errorf("detail = %q, want it to contain 'Invalid expiration duration'", pd.Detail)
+	if len(pd.Errors) == 0 || !strings.Contains(pd.Errors[0].Reason, "duration") {
+		t.Errorf("errors[0].reason = %q, want it to contain 'duration'", func() string {
+			if len(pd.Errors) > 0 {
+				return pd.Errors[0].Reason
+			}
+			return ""
+		}())
 	}
 }
 
@@ -310,19 +316,19 @@ func TestKeyRoutes_CreateKey_MissingName(t *testing.T) {
 	})
 	defer func() { _ = resp.Body.Close() }()
 
-	if resp.StatusCode != http.StatusBadRequest {
-		t.Fatalf("expected 400, got %d", resp.StatusCode)
+	if resp.StatusCode != http.StatusUnprocessableEntity {
+		t.Fatalf("expected 422, got %d", resp.StatusCode)
 	}
 
 	var pd ProblemDetail
 	if err := json.NewDecoder(resp.Body).Decode(&pd); err != nil {
 		t.Fatalf("decode problem detail: %v", err)
 	}
-	if pd.Status != 400 {
-		t.Errorf("problem status = %d, want 400", pd.Status)
+	if pd.Status != 422 {
+		t.Errorf("problem status = %d, want 422", pd.Status)
 	}
-	if !strings.Contains(pd.Detail, "Key name is required") {
-		t.Errorf("detail = %q, want it to contain 'Key name is required'", pd.Detail)
+	if len(pd.Errors) == 0 || pd.Errors[0].Field != "name" {
+		t.Errorf("expected validation error on field 'name', got errors=%v", pd.Errors)
 	}
 }
 
@@ -341,16 +347,16 @@ func TestKeyRoutes_CreateKey_InvalidJSON(t *testing.T) {
 	}
 	defer func() { _ = resp.Body.Close() }()
 
-	if resp.StatusCode != http.StatusBadRequest {
-		t.Fatalf("expected 400, got %d", resp.StatusCode)
+	if resp.StatusCode != http.StatusUnprocessableEntity {
+		t.Fatalf("expected 422, got %d", resp.StatusCode)
 	}
 
 	var pd ProblemDetail
 	if err := json.NewDecoder(resp.Body).Decode(&pd); err != nil {
 		t.Fatalf("decode problem detail: %v", err)
 	}
-	if pd.Status != 400 {
-		t.Errorf("problem status = %d, want 400", pd.Status)
+	if pd.Status != 422 {
+		t.Errorf("problem status = %d, want 422", pd.Status)
 	}
 }
 
@@ -474,19 +480,19 @@ func TestKeyRoutes_RevokeKey_EmptyID(t *testing.T) {
 	resp := doJSON(t, client, http.MethodDelete, server.URL+"/api/v1/keys/", nil)
 	defer func() { _ = resp.Body.Close() }()
 
-	if resp.StatusCode != http.StatusBadRequest {
-		t.Fatalf("expected 400, got %d", resp.StatusCode)
+	if resp.StatusCode != http.StatusUnprocessableEntity {
+		t.Fatalf("expected 422, got %d", resp.StatusCode)
 	}
 
 	var pd ProblemDetail
 	if err := json.NewDecoder(resp.Body).Decode(&pd); err != nil {
 		t.Fatalf("decode problem detail: %v", err)
 	}
-	if pd.Status != 400 {
-		t.Errorf("problem status = %d, want 400", pd.Status)
+	if pd.Status != 422 {
+		t.Errorf("problem status = %d, want 422", pd.Status)
 	}
-	if !strings.Contains(pd.Detail, "Key ID is required") {
-		t.Errorf("detail = %q, want it to contain 'Key ID is required'", pd.Detail)
+	if len(pd.Errors) == 0 || pd.Errors[0].Field != "id" {
+		t.Errorf("expected validation error on field 'id', got errors=%v", pd.Errors)
 	}
 }
 
@@ -599,13 +605,12 @@ func TestKeyRoutes_Unauthenticated(t *testing.T) {
 	}
 }
 
-func TestKeyRoutes_WriteInternalError(t *testing.T) {
-	// Test writeInternalError directly to cover that utility function.
+func TestKeyRoutes_WriteRerr(t *testing.T) {
+	// Test writeRerr (the successor to writeInternalError) directly.
 	rec := httptest.NewRecorder()
 	req := httptest.NewRequest(http.MethodGet, "/api/v1/test", nil)
-	req.Header.Set("X-Request-ID", "test-req-123")
 
-	writeInternalError(rec, req, "test context")
+	writeRerr(rec, req, rerr.Wrap(nil, "test context"))
 
 	if rec.Code != http.StatusInternalServerError {
 		t.Fatalf("expected 500, got %d", rec.Code)
@@ -622,9 +627,6 @@ func TestKeyRoutes_WriteInternalError(t *testing.T) {
 	}
 	if pd.Status != 500 {
 		t.Errorf("problem status = %d, want 500", pd.Status)
-	}
-	if !strings.Contains(pd.Detail, "test-req-123") {
-		t.Errorf("detail = %q, want it to contain request ID 'test-req-123'", pd.Detail)
 	}
 	if pd.Instance != "/api/v1/test" {
 		t.Errorf("instance = %q, want /api/v1/test", pd.Instance)

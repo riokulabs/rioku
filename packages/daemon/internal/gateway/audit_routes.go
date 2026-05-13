@@ -6,6 +6,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/riokulabs/rioku/internal/rerr"
 	"github.com/riokulabs/rioku/internal/store"
 	"google.golang.org/protobuf/encoding/protojson"
 )
@@ -25,8 +26,8 @@ import (
 // the path. Both set X-Total-Count to the unpaginated match count so
 // UIs can render "Page 1 of N" without a separate count call.
 func RegisterAuditRoutes(mux *http.ServeMux, st store.Driver) {
-	generic := RequirePermission("audit:read")(http.HandlerFunc(handleAuditQuery(st, false)))
-	perEntity := RequirePermission("audit:read")(http.HandlerFunc(handleAuditQuery(st, true)))
+	generic := RequirePermission("audit:read")(rerr.H(handleAuditQuery(st, false)))
+	perEntity := RequirePermission("audit:read")(rerr.H(handleAuditQuery(st, true)))
 
 	mux.Handle("GET /api/v1/audit", generic)
 	mux.Handle("GET /api/v1/audit/entity/{entityType}/{entityId}", perEntity)
@@ -39,8 +40,8 @@ func RegisterAuditRoutes(mux *http.ServeMux, st store.Driver) {
 // pathScoped is true, EntityType and EntityID are sourced from the
 // URL path — and conflicting values in the query string are rejected
 // rather than silently overridden, so callers don't get surprised.
-func handleAuditQuery(st store.Driver, pathScoped bool) func(http.ResponseWriter, *http.Request) {
-	return func(w http.ResponseWriter, r *http.Request) {
+func handleAuditQuery(st store.Driver, pathScoped bool) rerr.Handler {
+	return func(w http.ResponseWriter, r *http.Request) error {
 		ctx := r.Context()
 		q := r.URL.Query()
 
@@ -56,14 +57,10 @@ func handleAuditQuery(st store.Driver, pathScoped bool) func(http.ResponseWriter
 			// unambiguous. Letting one silently override the other
 			// would obscure copy-paste mistakes.
 			if query.EntityType != "" && query.EntityType != pt {
-				writeProblem(w, http.StatusBadRequest, errTypeValidation, "entity_type conflict",
-					"entity_type query parameter conflicts with path", r.URL.Path, nil)
-				return
+				return rerr.Validation(map[string]string{"entity_type": "entity_type query parameter conflicts with path"})
 			}
 			if query.EntityID != "" && query.EntityID != pid {
-				writeProblem(w, http.StatusBadRequest, errTypeValidation, "entity_id conflict",
-					"entity_id query parameter conflicts with path", r.URL.Path, nil)
-				return
+				return rerr.Validation(map[string]string{"entity_id": "entity_id query parameter conflicts with path"})
 			}
 			query.EntityType = pt
 			query.EntityID = pid
@@ -73,9 +70,7 @@ func handleAuditQuery(st store.Driver, pathScoped bool) func(http.ResponseWriter
 		if rangeStr := q.Get("range"); rangeStr != "" {
 			dur, err := parseRange(rangeStr)
 			if err != nil {
-				writeProblem(w, http.StatusBadRequest, errTypeValidation, "Invalid range",
-					"Range must be a duration like '24h' or '7d'", r.URL.Path, nil)
-				return
+				return rerr.Validation(map[string]string{"range": "must be a duration like '24h' or '7d'"})
 			}
 			since := time.Now().UTC().Add(-dur)
 			query.Since = &since
@@ -87,18 +82,14 @@ func handleAuditQuery(st store.Driver, pathScoped bool) func(http.ResponseWriter
 		if sinceStr := q.Get("since"); sinceStr != "" {
 			ts, err := time.Parse(time.RFC3339, sinceStr)
 			if err != nil {
-				writeProblem(w, http.StatusBadRequest, errTypeValidation, "Invalid since",
-					"since must be an RFC3339 timestamp", r.URL.Path, nil)
-				return
+				return rerr.Validation(map[string]string{"since": "must be an RFC3339 timestamp"})
 			}
 			query.Since = &ts
 		}
 		if untilStr := q.Get("until"); untilStr != "" {
 			ts, err := time.Parse(time.RFC3339, untilStr)
 			if err != nil {
-				writeProblem(w, http.StatusBadRequest, errTypeValidation, "Invalid until",
-					"until must be an RFC3339 timestamp", r.URL.Path, nil)
-				return
+				return rerr.Validation(map[string]string{"until": "must be an RFC3339 timestamp"})
 			}
 			query.Until = &ts
 		}
@@ -107,9 +98,7 @@ func handleAuditQuery(st store.Driver, pathScoped bool) func(http.ResponseWriter
 		if limitStr := q.Get("limit"); limitStr != "" {
 			n, err := strconv.Atoi(limitStr)
 			if err != nil || n < 0 {
-				writeProblem(w, http.StatusBadRequest, errTypeValidation, "Invalid limit",
-					"Limit must be a non-negative integer", r.URL.Path, nil)
-				return
+				return rerr.Validation(map[string]string{"limit": "must be a non-negative integer"})
 			}
 			query.Limit = n
 		}
@@ -118,9 +107,7 @@ func handleAuditQuery(st store.Driver, pathScoped bool) func(http.ResponseWriter
 		if offsetStr := q.Get("offset"); offsetStr != "" {
 			n, err := strconv.Atoi(offsetStr)
 			if err != nil || n < 0 {
-				writeProblem(w, http.StatusBadRequest, errTypeValidation, "Invalid offset",
-					"Offset must be a non-negative integer", r.URL.Path, nil)
-				return
+				return rerr.Validation(map[string]string{"offset": "must be a non-negative integer"})
 			}
 			query.Offset = n
 		}
@@ -128,27 +115,22 @@ func handleAuditQuery(st store.Driver, pathScoped bool) func(http.ResponseWriter
 		// Execute query in a read-only transaction.
 		tx, err := st.Begin(ctx, store.TxOptions{ReadOnly: true})
 		if err != nil {
-			writeProblem(w, http.StatusInternalServerError, errTypeInternal, "Internal error",
-				"Failed to query audit log", r.URL.Path, nil)
-			return
+			return rerr.Wrap(err, "begin audit tx")
 		}
 		defer func() { _ = tx.Rollback() }()
 
 		entries, err := tx.QueryAuditLog(ctx, query)
 		if err != nil {
-			writeProblem(w, http.StatusInternalServerError, errTypeInternal, "Internal error",
-				"Failed to query audit log", r.URL.Path, nil)
-			return
+			return rerr.Wrap(err, "query audit log")
 		}
 		// Total ignores Limit/Offset — UIs use it to render "X of Y".
 		total, err := tx.CountAuditLog(ctx, query)
 		if err != nil {
-			writeProblem(w, http.StatusInternalServerError, errTypeInternal, "Internal error",
-				"Failed to count audit log", r.URL.Path, nil)
-			return
+			return rerr.Wrap(err, "count audit log")
 		}
 
 		// Marshal each entry with protojson and build a JSON array.
+		// rerr-skip: response headers already written; streaming JSON array.
 		marshaler := protojson.MarshalOptions{EmitUnpopulated: true}
 
 		w.Header().Set("Content-Type", "application/json")
@@ -167,6 +149,7 @@ func handleAuditQuery(st store.Driver, pathScoped bool) func(http.ResponseWriter
 			_, _ = w.Write(data)
 		}
 		_, _ = w.Write([]byte("]"))
+		return nil
 	}
 }
 

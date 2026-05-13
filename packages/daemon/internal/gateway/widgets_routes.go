@@ -23,13 +23,13 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
-	"log/slog"
 	"net/http"
 	"net/url"
 	"strings"
 	"sync"
 	"time"
 
+	"github.com/riokulabs/rioku/internal/rerr"
 	"github.com/riokulabs/rioku/internal/store"
 )
 
@@ -52,7 +52,7 @@ const (
 func RegisterWidgetQueryRoutes(mux *http.ServeMux, st store.Driver) {
 	limiter := newTenantRateLimiter(widgetQueryRateBudget, widgetQueryRateInterval)
 	mux.Handle("POST /api/v1/t/{tenant}/widgets/query",
-		RequirePermission("dashboard:read")(http.HandlerFunc(handleWidgetQuery(st, limiter))))
+		RequirePermission("dashboard:read")(rerr.H(handleWidgetQuery(st, limiter))))
 }
 
 // widgetQueryRequest is the JSON body accepted by the widget query endpoint.
@@ -72,75 +72,51 @@ type widgetQueryRequest struct {
 	Match []string `json:"match,omitempty"`
 }
 
-func handleWidgetQuery(st store.Driver, limiter *tenantRateLimiter) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
+func handleWidgetQuery(st store.Driver, limiter *tenantRateLimiter) rerr.Handler {
+	return func(w http.ResponseWriter, r *http.Request) error {
 		tenant, ok := tenantOrError(w, r)
 		if !ok {
-			return
+			return nil
 		}
 
-		// Per-tenant rate limit. Returns RFC-7807 429 on exhaustion.
+		// Per-tenant rate limit.
 		if !limiter.allow(tenant.ID) {
-			writeProblem(w, http.StatusTooManyRequests, errTypeRateLimit,
-				"Widget query rate limit exceeded",
-				fmt.Sprintf("Tenant %q exceeded the widget query rate limit of %d queries per %s. Retry shortly.",
-					tenant.ID, widgetQueryRateBudget, widgetQueryRateInterval),
-				r.URL.Path,
-				nil,
-			)
-			return
+			return rerr.RateLimited(60)
 		}
 
 		var req widgetQueryRequest
 		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-			writeBadRequest(w, r, "invalid JSON body: "+err.Error())
-			return
+			return rerr.Validation(map[string]string{"body": "invalid JSON body: " + err.Error()})
 		}
 
 		switch req.Type {
 		case widgetQueryInstant, widgetQueryRange:
 			if strings.TrimSpace(req.Expr) == "" {
-				writeBadRequest(w, r, "expr is required for instant/range queries")
-				return
+				return rerr.Validation(map[string]string{"expr": "expr is required for instant/range queries"})
 			}
 			rewritten, err := injectTenantLabel(req.Expr, tenant.ID)
 			if err != nil {
-				writeProblem(w, http.StatusBadRequest, errTypeValidation,
-					"Widget query rejected",
-					err.Error(),
-					r.URL.Path,
-					nil,
-				)
-				return
+				return rerr.Validation(map[string]string{"expr": err.Error()})
 			}
 			req.Expr = rewritten
 		case widgetQuerySeries:
 			if len(req.Match) == 0 {
-				writeBadRequest(w, r, "match[] is required for series queries")
-				return
+				return rerr.Validation(map[string]string{"match": "match[] is required for series queries"})
 			}
 			rewritten := make([]string, 0, len(req.Match))
 			for _, m := range req.Match {
 				if strings.TrimSpace(m) == "" {
-					writeBadRequest(w, r, "match[] entries must be non-empty")
-					return
+					return rerr.Validation(map[string]string{"match": "match[] entries must be non-empty"})
 				}
 				out, err := injectTenantLabel(m, tenant.ID)
 				if err != nil {
-					writeProblem(w, http.StatusBadRequest, errTypeValidation,
-						"Widget query rejected",
-						err.Error(),
-						r.URL.Path,
-						nil,
-					)
-					return
+					return rerr.Validation(map[string]string{"match": err.Error()})
 				}
 				rewritten = append(rewritten, out)
 			}
 			req.Match = rewritten
 		default:
-			writeBadRequest(w, r, fmt.Sprintf("unknown query type %q (want instant|range|series)", req.Type))
-			return
+			return rerr.Validation(map[string]string{"type": fmt.Sprintf("unknown query type %q (want instant|range|series)", req.Type)})
 		}
 
 		// Look up Prometheus endpoint from tenant observability config.
@@ -157,14 +133,7 @@ func handleWidgetQuery(st store.Driver, limiter *tenantRateLimiter) http.Handler
 
 		body, status, headers, err := forwardWidgetQuery(r.Context(), prometheusURL, req)
 		if err != nil {
-			slog.Error("widget query: upstream error", "err", err, "tenant", tenant.ID, "type", req.Type)
-			writeProblem(w, http.StatusBadGateway, errTypeBadGateway,
-				"Prometheus upstream error",
-				fmt.Sprintf("Failed to reach Prometheus: %v", err),
-				r.URL.Path,
-				nil,
-			)
-			return
+			return rerr.BadGateway(err)
 		}
 
 		for _, key := range []string{"Content-Type", "X-Prometheus-Total-Samples", "X-Prometheus-Query-Stats"} {
@@ -172,9 +141,11 @@ func handleWidgetQuery(st store.Driver, limiter *tenantRateLimiter) http.Handler
 				w.Header().Set(key, v)
 			}
 		}
+		// rerr-skip: Prometheus result is streamed directly; headers already set above
 		w.Header().Set("Cache-Control", "private, max-age=15")
 		w.WriteHeader(status)
 		_, _ = io.Copy(w, body)
+		return nil
 	}
 }
 

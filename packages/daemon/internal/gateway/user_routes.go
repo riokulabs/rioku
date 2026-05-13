@@ -13,6 +13,7 @@ import (
 	"github.com/riokulabs/rioku/internal/auth"
 	"github.com/riokulabs/rioku/internal/config"
 	"github.com/riokulabs/rioku/internal/gateway/optionsutil"
+	"github.com/riokulabs/rioku/internal/rerr"
 	"github.com/riokulabs/rioku/internal/store"
 )
 
@@ -21,17 +22,17 @@ import (
 // `/api/v1/t/{tenant}/users` paths are exposed; storage filters by
 // tenant via context so the handlers don't change.
 func RegisterUserRoutes(mux *http.ServeMux, st store.Driver, sm *auth.SessionManager, cfg *config.Config) {
-	listH := RequirePermission("users:read")(http.HandlerFunc(handleListUsers(st)))
-	createH := RequirePermission("users:create")(http.HandlerFunc(handleCreateUser(st, cfg)))
-	getH := RequirePermission("users:read")(http.HandlerFunc(handleGetUser(st)))
-	updateH := RequirePermission("users:manage")(http.HandlerFunc(handleUpdateUser(st)))
-	suspendH := RequirePermission("users:manage")(http.HandlerFunc(handleSuspendUser(st, sm)))
-	activateH := RequirePermission("users:manage")(http.HandlerFunc(handleActivateUser(st)))
-	lockH := RequirePermission("users:manage")(http.HandlerFunc(handleLockUser(st, sm)))
-	unlockH := RequirePermission("users:manage")(http.HandlerFunc(handleUnlockUser(st)))
-	resetPwH := RequirePermission("users:manage")(http.HandlerFunc(handleResetPassword(st, cfg)))
-	sessionsH := RequirePermission("sessions:read")(http.HandlerFunc(handleListUserSessions(st)))
-	deleteH := RequirePermission("users:manage")(http.HandlerFunc(handleDeleteUser(st, sm)))
+	listH := RequirePermission("users:read")(rerr.H(handleListUsers(st)))
+	createH := RequirePermission("users:create")(rerr.H(handleCreateUser(st, cfg)))
+	getH := RequirePermission("users:read")(rerr.H(handleGetUser(st)))
+	updateH := RequirePermission("users:manage")(rerr.H(handleUpdateUser(st)))
+	suspendH := RequirePermission("users:manage")(rerr.H(handleSuspendUser(st, sm)))
+	activateH := RequirePermission("users:manage")(rerr.H(handleActivateUser(st)))
+	lockH := RequirePermission("users:manage")(rerr.H(handleLockUser(st, sm)))
+	unlockH := RequirePermission("users:manage")(rerr.H(handleUnlockUser(st)))
+	resetPwH := RequirePermission("users:manage")(rerr.H(handleResetPassword(st, cfg)))
+	sessionsH := RequirePermission("sessions:read")(rerr.H(handleListUserSessions(st)))
+	deleteH := RequirePermission("users:manage")(rerr.H(handleDeleteUser(st, sm)))
 
 	for _, base := range []string{"/api/v1/users", "/api/v1/t/{tenant}/users"} {
 		mux.Handle("GET "+base, listH)
@@ -62,27 +63,23 @@ func RegisterUserRoutes(mux *http.ServeMux, st store.Driver, sm *auth.SessionMan
 // List sessions for a user (admin endpoint)
 // ---------------------------------------------------------------------------
 
-func handleListUserSessions(st store.Driver) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
+func handleListUserSessions(st store.Driver) rerr.Handler {
+	return func(w http.ResponseWriter, r *http.Request) error {
 		ctx := r.Context()
 		userID := r.PathValue("id")
 		if userID == "" {
-			writeProblem(w, http.StatusBadRequest, errTypeValidation, "Validation failed",
-				"User ID is required", r.URL.Path, nil)
-			return
+			return rerr.Validation(map[string]string{"id": "User ID is required"})
 		}
 
 		tx, err := st.Begin(ctx, store.TxOptions{ReadOnly: true})
 		if err != nil {
-			writeInternalError(w, r, "begin tx")
-			return
+			return rerr.Wrap(err, "begin tx")
 		}
 		defer func() { _ = tx.Rollback() }()
 
 		sessions, err := tx.ListSessionsByUser(ctx, userID)
 		if err != nil {
-			writeInternalError(w, r, "list sessions")
-			return
+			return rerr.Wrap(err, "list sessions")
 		}
 
 		result := make([]sessionResponse, 0, len(sessions))
@@ -102,8 +99,7 @@ func handleListUserSessions(st store.Driver) http.HandlerFunc {
 			result = append(result, sr)
 		}
 
-		w.Header().Set("Content-Type", "application/json")
-		_ = json.NewEncoder(w).Encode(result)
+		return rerr.JSON(w, result)
 	}
 }
 
@@ -158,21 +154,19 @@ func toUserResponse(user *store.User, roles, permissions []string) userResponse 
 // List users
 // ---------------------------------------------------------------------------
 
-func handleListUsers(st store.Driver) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
+func handleListUsers(st store.Driver) rerr.Handler {
+	return func(w http.ResponseWriter, r *http.Request) error {
 		ctx := r.Context()
 
 		tx, err := st.Begin(ctx, store.TxOptions{ReadOnly: true})
 		if err != nil {
-			writeInternalError(w, r, "begin tx")
-			return
+			return rerr.Wrap(err, "begin tx")
 		}
 		defer func() { _ = tx.Rollback() }()
 
 		users, err := tx.ListUsers(ctx)
 		if err != nil {
-			writeInternalError(w, r, "list users")
-			return
+			return rerr.Wrap(err, "list users")
 		}
 
 		result := make([]userResponse, 0, len(users))
@@ -185,8 +179,7 @@ func handleListUsers(st store.Driver) http.HandlerFunc {
 		// Returning a bare array made the SPA's `useUserList` resolve
 		// `data.data.users → undefined → []`, breaking the Users page
 		// across every tenant.
-		w.Header().Set("Content-Type", "application/json")
-		_ = json.NewEncoder(w).Encode(map[string]any{
+		return rerr.JSON(w, map[string]any{
 			"users":         result,
 			"nextPageToken": "",
 		})
@@ -205,42 +198,35 @@ type createUserRequest struct {
 	ForcePasswordChange *bool   `json:"forcePasswordChange"`
 }
 
-func handleCreateUser(st store.Driver, cfg *config.Config) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
+func handleCreateUser(st store.Driver, cfg *config.Config) rerr.Handler {
+	return func(w http.ResponseWriter, r *http.Request) error {
 		r.Body = http.MaxBytesReader(w, r.Body, maxAuthBodySize)
 		ctx := r.Context()
 
 		var req createUserRequest
 		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-			writeProblem(w, http.StatusBadRequest, errTypeValidation, "Invalid request body",
-				"Request body must be valid JSON", r.URL.Path, nil)
-			return
+			return rerr.Validation(map[string]string{"body": "Request body must be valid JSON"})
 		}
 
-		var errs []ValidationError
+		fields := map[string]string{}
 		if req.Username == "" {
-			errs = append(errs, ValidationError{Field: "username", Reason: "must not be empty"})
+			fields["username"] = "must not be empty"
 		}
 		if req.Password == "" {
-			errs = append(errs, ValidationError{Field: "password", Reason: "must not be empty"})
+			fields["password"] = "must not be empty"
 		}
-		if len(errs) > 0 {
-			writeProblem(w, http.StatusBadRequest, errTypeValidation, "Validation failed",
-				"Missing required fields", r.URL.Path, errs)
-			return
+		if len(fields) > 0 {
+			return rerr.Validation(fields)
 		}
 
 		// Validate password policy.
 		if err := auth.ValidatePasswordPolicy(req.Password, cfg.Auth.PasswordPolicy); err != nil {
-			writeProblem(w, http.StatusBadRequest, errTypeValidation, "Password policy violation",
-				err.Error(), r.URL.Path, nil)
-			return
+			return rerr.Validation(map[string]string{"password": err.Error()})
 		}
 
 		hash, err := auth.HashPassword(req.Password)
 		if err != nil {
-			writeInternalError(w, r, "hash password")
-			return
+			return rerr.Wrap(err, "hash password")
 		}
 
 		forceChange := true
@@ -264,31 +250,24 @@ func handleCreateUser(st store.Driver, cfg *config.Config) http.HandlerFunc {
 
 		tx, err := st.Begin(ctx, store.TxOptions{})
 		if err != nil {
-			writeInternalError(w, r, "begin tx")
-			return
+			return rerr.Wrap(err, "begin tx")
 		}
 		defer func() { _ = tx.Rollback() }()
 
 		created, err := tx.CreateUser(ctx, user)
 		if err != nil {
 			if strings.Contains(err.Error(), "UNIQUE constraint") || strings.Contains(err.Error(), "duplicate key") {
-				writeProblem(w, http.StatusConflict, errTypeConflict, "User already exists",
-					fmt.Sprintf("Username %q is already taken", req.Username), r.URL.Path, nil)
-				return
+				return rerr.Conflict(fmt.Sprintf("Username %q is already taken", req.Username), err)
 			}
 			slog.Error("create user failed", "component", "gateway", "error", err, "username", req.Username)
-			writeInternalError(w, r, "create user")
-			return
+			return rerr.Wrap(err, "create user")
 		}
 
 		if err := tx.Commit(); err != nil {
-			writeInternalError(w, r, "commit")
-			return
+			return rerr.Wrap(err, "commit")
 		}
 
-		w.Header().Set("Content-Type", "application/json")
-		w.WriteHeader(http.StatusCreated)
-		_ = json.NewEncoder(w).Encode(toUserResponse(created, []string{}, []string{}))
+		return rerr.JSONStatus(w, http.StatusCreated, toUserResponse(created, []string{}, []string{}))
 	}
 }
 
@@ -296,34 +275,27 @@ func handleCreateUser(st store.Driver, cfg *config.Config) http.HandlerFunc {
 // Get user
 // ---------------------------------------------------------------------------
 
-func handleGetUser(st store.Driver) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
+func handleGetUser(st store.Driver) rerr.Handler {
+	return func(w http.ResponseWriter, r *http.Request) error {
 		ctx := r.Context()
 		id := r.PathValue("id")
 		if id == "" {
-			writeProblem(w, http.StatusBadRequest, errTypeValidation, "Validation failed",
-				"User ID is required", r.URL.Path, nil)
-			return
+			return rerr.Validation(map[string]string{"id": "User ID is required"})
 		}
 
 		tx, err := st.Begin(ctx, store.TxOptions{ReadOnly: true})
 		if err != nil {
-			writeInternalError(w, r, "begin tx")
-			return
+			return rerr.Wrap(err, "begin tx")
 		}
 		defer func() { _ = tx.Rollback() }()
 
 		user, err := tx.GetUser(ctx, id)
 		if err != nil {
-			writeProblem(w, http.StatusNotFound, errTypeNotFound, "User not found",
-				"No user exists with the given ID", r.URL.Path, nil)
-			return
+			return rerr.NotFound("user", id)
 		}
 
 		roles, permissions, _ := auth.LoadUserScopes(ctx, st, user.ID)
-
-		w.Header().Set("Content-Type", "application/json")
-		_ = json.NewEncoder(w).Encode(toUserResponse(user, roles, permissions))
+		return rerr.JSON(w, toUserResponse(user, roles, permissions))
 	}
 }
 
@@ -336,36 +308,29 @@ type updateUserRequest struct {
 	Email       *string `json:"email"`
 }
 
-func handleUpdateUser(st store.Driver) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
+func handleUpdateUser(st store.Driver) rerr.Handler {
+	return func(w http.ResponseWriter, r *http.Request) error {
 		r.Body = http.MaxBytesReader(w, r.Body, maxAuthBodySize)
 		ctx := r.Context()
 		id := r.PathValue("id")
 		if id == "" {
-			writeProblem(w, http.StatusBadRequest, errTypeValidation, "Validation failed",
-				"User ID is required", r.URL.Path, nil)
-			return
+			return rerr.Validation(map[string]string{"id": "User ID is required"})
 		}
 
 		var req updateUserRequest
 		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-			writeProblem(w, http.StatusBadRequest, errTypeValidation, "Invalid request body",
-				"Request body must be valid JSON", r.URL.Path, nil)
-			return
+			return rerr.Validation(map[string]string{"body": "Request body must be valid JSON"})
 		}
 
 		tx, err := st.Begin(ctx, store.TxOptions{})
 		if err != nil {
-			writeInternalError(w, r, "begin tx")
-			return
+			return rerr.Wrap(err, "begin tx")
 		}
 		defer func() { _ = tx.Rollback() }()
 
 		user, err := tx.GetUser(ctx, id)
 		if err != nil {
-			writeProblem(w, http.StatusNotFound, errTypeNotFound, "User not found",
-				"No user exists with the given ID", r.URL.Path, nil)
-			return
+			return rerr.NotFound("user", id)
 		}
 
 		if req.DisplayName != nil {
@@ -377,19 +342,15 @@ func handleUpdateUser(st store.Driver) http.HandlerFunc {
 
 		updated, err := tx.UpdateUser(ctx, user)
 		if err != nil {
-			writeInternalError(w, r, "update user")
-			return
+			return rerr.Wrap(err, "update user")
 		}
 
 		if err := tx.Commit(); err != nil {
-			writeInternalError(w, r, "commit")
-			return
+			return rerr.Wrap(err, "commit")
 		}
 
 		roles, permissions, _ := auth.LoadUserScopes(ctx, st, updated.ID)
-
-		w.Header().Set("Content-Type", "application/json")
-		_ = json.NewEncoder(w).Encode(toUserResponse(updated, roles, permissions))
+		return rerr.JSON(w, toUserResponse(updated, roles, permissions))
 	}
 }
 
@@ -397,45 +358,39 @@ func handleUpdateUser(st store.Driver) http.HandlerFunc {
 // Delete user (soft-delete)
 // ---------------------------------------------------------------------------
 
-func handleDeleteUser(st store.Driver, sm *auth.SessionManager) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
+func handleDeleteUser(st store.Driver, sm *auth.SessionManager) rerr.Handler {
+	return func(w http.ResponseWriter, r *http.Request) error {
 		ctx := r.Context()
 		id := r.PathValue("id")
 		if id == "" {
-			writeProblem(w, http.StatusBadRequest, errTypeValidation, "Validation failed",
-				"User ID is required", r.URL.Path, nil)
-			return
+			return rerr.Validation(map[string]string{"id": "User ID is required"})
 		}
 
 		tx, err := st.Begin(ctx, store.TxOptions{})
 		if err != nil {
-			writeInternalError(w, r, "begin tx")
-			return
+			return rerr.Wrap(err, "begin tx")
 		}
 		defer func() { _ = tx.Rollback() }()
 
 		user, err := tx.GetUser(ctx, id)
 		if err != nil {
-			writeProblem(w, http.StatusNotFound, errTypeNotFound, "User not found",
-				"No user exists with the given ID", r.URL.Path, nil)
-			return
+			return rerr.NotFound("user", id)
 		}
 
 		user.Status = "deleted"
 		if _, err := tx.UpdateUser(ctx, user); err != nil {
-			writeInternalError(w, r, "update user")
-			return
+			return rerr.Wrap(err, "update user")
 		}
 
 		if err := tx.Commit(); err != nil {
-			writeInternalError(w, r, "commit")
-			return
+			return rerr.Wrap(err, "commit")
 		}
 
 		// Revoke all sessions for the deleted user.
 		_ = sm.RevokeAllSessionsForUser(ctx, id)
 
 		w.WriteHeader(http.StatusNoContent)
+		return nil
 	}
 }
 
@@ -443,47 +398,38 @@ func handleDeleteUser(st store.Driver, sm *auth.SessionManager) http.HandlerFunc
 // Suspend user
 // ---------------------------------------------------------------------------
 
-func handleSuspendUser(st store.Driver, sm *auth.SessionManager) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
+func handleSuspendUser(st store.Driver, sm *auth.SessionManager) rerr.Handler {
+	return func(w http.ResponseWriter, r *http.Request) error {
 		ctx := r.Context()
 		id := r.PathValue("id")
 		if id == "" {
-			writeProblem(w, http.StatusBadRequest, errTypeValidation, "Validation failed",
-				"User ID is required", r.URL.Path, nil)
-			return
+			return rerr.Validation(map[string]string{"id": "User ID is required"})
 		}
 
 		tx, err := st.Begin(ctx, store.TxOptions{})
 		if err != nil {
-			writeInternalError(w, r, "begin tx")
-			return
+			return rerr.Wrap(err, "begin tx")
 		}
 		defer func() { _ = tx.Rollback() }()
 
 		user, err := tx.GetUser(ctx, id)
 		if err != nil {
-			writeProblem(w, http.StatusNotFound, errTypeNotFound, "User not found",
-				"No user exists with the given ID", r.URL.Path, nil)
-			return
+			return rerr.NotFound("user", id)
 		}
 
 		user.Status = "suspended"
 		if _, err := tx.UpdateUser(ctx, user); err != nil {
-			writeInternalError(w, r, "update user")
-			return
+			return rerr.Wrap(err, "update user")
 		}
 
 		if err := tx.Commit(); err != nil {
-			writeInternalError(w, r, "commit")
-			return
+			return rerr.Wrap(err, "commit")
 		}
 
 		// Revoke all sessions for the suspended user.
 		_ = sm.RevokeAllSessionsForUser(ctx, id)
 
-		w.Header().Set("Content-Type", "application/json")
-		w.WriteHeader(http.StatusOK)
-		_ = json.NewEncoder(w).Encode(map[string]bool{"ok": true})
+		return rerr.JSON(w, map[string]bool{"ok": true})
 	}
 }
 
@@ -491,44 +437,35 @@ func handleSuspendUser(st store.Driver, sm *auth.SessionManager) http.HandlerFun
 // Activate user
 // ---------------------------------------------------------------------------
 
-func handleActivateUser(st store.Driver) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
+func handleActivateUser(st store.Driver) rerr.Handler {
+	return func(w http.ResponseWriter, r *http.Request) error {
 		ctx := r.Context()
 		id := r.PathValue("id")
 		if id == "" {
-			writeProblem(w, http.StatusBadRequest, errTypeValidation, "Validation failed",
-				"User ID is required", r.URL.Path, nil)
-			return
+			return rerr.Validation(map[string]string{"id": "User ID is required"})
 		}
 
 		tx, err := st.Begin(ctx, store.TxOptions{})
 		if err != nil {
-			writeInternalError(w, r, "begin tx")
-			return
+			return rerr.Wrap(err, "begin tx")
 		}
 		defer func() { _ = tx.Rollback() }()
 
 		user, err := tx.GetUser(ctx, id)
 		if err != nil {
-			writeProblem(w, http.StatusNotFound, errTypeNotFound, "User not found",
-				"No user exists with the given ID", r.URL.Path, nil)
-			return
+			return rerr.NotFound("user", id)
 		}
 
 		user.Status = "active"
 		if _, err := tx.UpdateUser(ctx, user); err != nil {
-			writeInternalError(w, r, "update user")
-			return
+			return rerr.Wrap(err, "update user")
 		}
 
 		if err := tx.Commit(); err != nil {
-			writeInternalError(w, r, "commit")
-			return
+			return rerr.Wrap(err, "commit")
 		}
 
-		w.Header().Set("Content-Type", "application/json")
-		w.WriteHeader(http.StatusOK)
-		_ = json.NewEncoder(w).Encode(map[string]bool{"ok": true})
+		return rerr.JSON(w, map[string]bool{"ok": true})
 	}
 }
 
@@ -536,45 +473,39 @@ func handleActivateUser(st store.Driver) http.HandlerFunc {
 // Lock user
 // ---------------------------------------------------------------------------
 
-func handleLockUser(st store.Driver, sm *auth.SessionManager) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
+func handleLockUser(st store.Driver, sm *auth.SessionManager) rerr.Handler {
+	return func(w http.ResponseWriter, r *http.Request) error {
 		ctx := r.Context()
 		id := r.PathValue("id")
 		if id == "" {
-			writeProblem(w, http.StatusBadRequest, errTypeValidation, "Validation failed",
-				"User ID is required", r.URL.Path, nil)
-			return
+			return rerr.Validation(map[string]string{"id": "User ID is required"})
 		}
 
 		tx, err := st.Begin(ctx, store.TxOptions{})
 		if err != nil {
-			writeInternalError(w, r, "begin tx")
-			return
+			return rerr.Wrap(err, "begin tx")
 		}
 		defer func() { _ = tx.Rollback() }()
 
 		user, err := tx.GetUser(ctx, id)
 		if err != nil {
-			writeProblem(w, http.StatusNotFound, errTypeNotFound, "User not found",
-				"No user exists with the given ID", r.URL.Path, nil)
-			return
+			return rerr.NotFound("user", id)
 		}
 
 		user.Status = "locked"
 		if _, err := tx.UpdateUser(ctx, user); err != nil {
-			writeInternalError(w, r, "update user")
-			return
+			return rerr.Wrap(err, "update user")
 		}
 
 		if err := tx.Commit(); err != nil {
-			writeInternalError(w, r, "commit")
-			return
+			return rerr.Wrap(err, "commit")
 		}
 
 		// Revoke all sessions for the locked user (non-fatal).
 		_ = sm.RevokeAllSessionsForUser(ctx, id)
 
 		w.WriteHeader(http.StatusNoContent)
+		return nil
 	}
 }
 
@@ -582,49 +513,39 @@ func handleLockUser(st store.Driver, sm *auth.SessionManager) http.HandlerFunc {
 // Unlock user
 // ---------------------------------------------------------------------------
 
-func handleUnlockUser(st store.Driver) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
+func handleUnlockUser(st store.Driver) rerr.Handler {
+	return func(w http.ResponseWriter, r *http.Request) error {
 		ctx := r.Context()
 		id := r.PathValue("id")
 		if id == "" {
-			writeProblem(w, http.StatusBadRequest, errTypeValidation, "Validation failed",
-				"User ID is required", r.URL.Path, nil)
-			return
+			return rerr.Validation(map[string]string{"id": "User ID is required"})
 		}
 
 		tx, err := st.Begin(ctx, store.TxOptions{})
 		if err != nil {
-			writeInternalError(w, r, "begin tx")
-			return
+			return rerr.Wrap(err, "begin tx")
 		}
 		defer func() { _ = tx.Rollback() }()
 
 		if err := tx.ResetFailedAttempts(ctx, id); err != nil {
-			writeInternalError(w, r, "reset failed attempts")
-			return
+			return rerr.Wrap(err, "reset failed attempts")
 		}
 
 		user, err := tx.GetUser(ctx, id)
 		if err != nil {
-			writeProblem(w, http.StatusNotFound, errTypeNotFound, "User not found",
-				"No user exists with the given ID", r.URL.Path, nil)
-			return
+			return rerr.NotFound("user", id)
 		}
 
 		user.Status = "active"
 		if _, err := tx.UpdateUser(ctx, user); err != nil {
-			writeInternalError(w, r, "update user")
-			return
+			return rerr.Wrap(err, "update user")
 		}
 
 		if err := tx.Commit(); err != nil {
-			writeInternalError(w, r, "commit")
-			return
+			return rerr.Wrap(err, "commit")
 		}
 
-		w.Header().Set("Content-Type", "application/json")
-		w.WriteHeader(http.StatusOK)
-		_ = json.NewEncoder(w).Encode(map[string]bool{"ok": true})
+		return rerr.JSON(w, map[string]bool{"ok": true})
 	}
 }
 
@@ -632,14 +553,12 @@ func handleUnlockUser(st store.Driver) http.HandlerFunc {
 // Reset password
 // ---------------------------------------------------------------------------
 
-func handleResetPassword(st store.Driver, cfg *config.Config) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
+func handleResetPassword(st store.Driver, cfg *config.Config) rerr.Handler {
+	return func(w http.ResponseWriter, r *http.Request) error {
 		ctx := r.Context()
 		id := r.PathValue("id")
 		if id == "" {
-			writeProblem(w, http.StatusBadRequest, errTypeValidation, "Validation failed",
-				"User ID is required", r.URL.Path, nil)
-			return
+			return rerr.Validation(map[string]string{"id": "User ID is required"})
 		}
 
 		// Generate random 24-char password (same pattern as createRootUser in init.go).
@@ -651,8 +570,7 @@ func handleResetPassword(st store.Driver, cfg *config.Config) http.HandlerFunc {
 			b := make([]byte, 1)
 			for {
 				if _, err := rand.Read(b); err != nil {
-					writeInternalError(w, r, "generate password")
-					return
+					return rerr.Wrap(err, "generate password")
 				}
 				if int(b[0]) < len(charset)*(256/len(charset)) {
 					buf[i] = charset[int(b[0])%len(charset)]
@@ -664,22 +582,18 @@ func handleResetPassword(st store.Driver, cfg *config.Config) http.HandlerFunc {
 
 		hash, err := auth.HashPassword(plaintext)
 		if err != nil {
-			writeInternalError(w, r, "hash password")
-			return
+			return rerr.Wrap(err, "hash password")
 		}
 
 		tx, err := st.Begin(ctx, store.TxOptions{})
 		if err != nil {
-			writeInternalError(w, r, "begin tx")
-			return
+			return rerr.Wrap(err, "begin tx")
 		}
 		defer func() { _ = tx.Rollback() }()
 
 		user, err := tx.GetUser(ctx, id)
 		if err != nil {
-			writeProblem(w, http.StatusNotFound, errTypeNotFound, "User not found",
-				"No user exists with the given ID", r.URL.Path, nil)
-			return
+			return rerr.NotFound("user", id)
 		}
 
 		user.PasswordHash = hash
@@ -687,17 +601,16 @@ func handleResetPassword(st store.Driver, cfg *config.Config) http.HandlerFunc {
 		user.PasswordChangedAt = time.Now().UTC()
 
 		if _, err := tx.UpdateUser(ctx, user); err != nil {
-			writeInternalError(w, r, "update user")
-			return
+			return rerr.Wrap(err, "update user")
 		}
 
 		if err := tx.Commit(); err != nil {
-			writeInternalError(w, r, "commit")
-			return
+			return rerr.Wrap(err, "commit")
 		}
 
-		w.Header().Set("Content-Type", "application/json")
-		w.WriteHeader(http.StatusOK)
-		_ = json.NewEncoder(w).Encode(map[string]string{"temporary_password": plaintext})
+		// cfg is available for future policy checks.
+		_ = cfg
+
+		return rerr.JSON(w, map[string]string{"temporary_password": plaintext})
 	}
 }

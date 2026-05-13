@@ -564,8 +564,8 @@ func TestPatchSettings_GeneralInvalidLevel(t *testing.T) {
 		map[string]any{"logLevel": "verbose"})
 	defer func() { _ = resp.Body.Close() }()
 
-	if resp.StatusCode != http.StatusBadRequest {
-		t.Fatalf("expected 400, got %d", resp.StatusCode)
+	if resp.StatusCode != http.StatusUnprocessableEntity {
+		t.Fatalf("expected 422, got %d", resp.StatusCode)
 	}
 }
 
@@ -587,8 +587,8 @@ func TestPatchSettings_GeneralBadJSON(t *testing.T) {
 		t.Fatalf("do: %v", err)
 	}
 	defer func() { _ = resp.Body.Close() }()
-	if resp.StatusCode != http.StatusBadRequest {
-		t.Fatalf("expected 400 for bad JSON, got %d", resp.StatusCode)
+	if resp.StatusCode != http.StatusUnprocessableEntity {
+		t.Fatalf("expected 422 for bad JSON, got %d", resp.StatusCode)
 	}
 }
 
@@ -628,8 +628,8 @@ func TestPatchSettings_AuthValidationFailure(t *testing.T) {
 		})
 	defer func() { _ = resp.Body.Close() }()
 
-	if resp.StatusCode != http.StatusBadRequest {
-		t.Fatalf("expected 400, got %d", resp.StatusCode)
+	if resp.StatusCode != http.StatusUnprocessableEntity {
+		t.Fatalf("expected 422, got %d", resp.StatusCode)
 	}
 }
 

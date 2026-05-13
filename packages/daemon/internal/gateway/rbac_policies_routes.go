@@ -21,17 +21,18 @@ import (
 
 	"github.com/riokulabs/rioku/internal/gateway/links"
 	"github.com/riokulabs/rioku/internal/gateway/optionsutil"
+	"github.com/riokulabs/rioku/internal/rerr"
 	"github.com/riokulabs/rioku/internal/store"
 )
 
 // RegisterRbacPolicyRoutes wires the rbac-policy CRUD surface.
 func RegisterRbacPolicyRoutes(mux *http.ServeMux, st store.Driver) {
-	list := RequirePermission("rbac:read")(http.HandlerFunc(handleListRbacPolicies(st)))
-	create := RequirePermission("rbac:write")(http.HandlerFunc(handleCreateRbacPolicy(st)))
-	get := RequirePermission("rbac:read")(http.HandlerFunc(handleGetRbacPolicy(st)))
-	update := RequirePermission("rbac:write")(http.HandlerFunc(handleUpdateRbacPolicy(st)))
-	del := RequirePermission("rbac:write")(http.HandlerFunc(handleDeleteRbacPolicy(st)))
-	test := RequirePermission("rbac:read")(http.HandlerFunc(handleTestRbacPolicy(st)))
+	list := RequirePermission("rbac:read")(rerr.H(handleListRbacPolicies(st)))
+	create := RequirePermission("rbac:write")(rerr.H(handleCreateRbacPolicy(st)))
+	get := RequirePermission("rbac:read")(rerr.H(handleGetRbacPolicy(st)))
+	update := RequirePermission("rbac:write")(rerr.H(handleUpdateRbacPolicy(st)))
+	del := RequirePermission("rbac:write")(rerr.H(handleDeleteRbacPolicy(st)))
+	test := RequirePermission("rbac:read")(rerr.H(handleTestRbacPolicy(st)))
 
 	mux.Handle("GET /api/v1/t/{tenant}/rbac-policies", list)
 	mux.Handle("POST /api/v1/t/{tenant}/rbac-policies", create)
@@ -106,22 +107,20 @@ type updateRbacPolicyRequest struct {
 	Enabled     *bool   `json:"enabled,omitempty"`
 }
 
-func handleListRbacPolicies(st store.Driver) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
+func handleListRbacPolicies(st store.Driver) rerr.Handler {
+	return func(w http.ResponseWriter, r *http.Request) error {
 		tenant, ok := tenantOrError(w, r)
 		if !ok {
-			return
+			return nil
 		}
 		tx, err := st.Begin(r.Context(), store.TxOptions{ReadOnly: true})
 		if err != nil {
-			writeInternalError(w, r, "begin tx")
-			return
+			return rerr.Wrap(err, "begin tx")
 		}
 		defer func() { _ = tx.Rollback() }()
 		policies, err := tx.ListRbacPolicies(r.Context())
 		if err != nil {
-			writeInternalError(w, r, "list rbac_policies")
-			return
+			return rerr.Wrap(err, "list rbac_policies")
 		}
 		b := links.NewTenantBuilder(tenant.Slug)
 		out := make([]rbacPolicyDTO, 0, len(policies))
@@ -132,7 +131,7 @@ func handleListRbacPolicies(st store.Driver) http.HandlerFunc {
 		// The legacy `{items, total, _links}` shape made the SPA's
 		// `useRbacPolicyList` read `data.data.rbacPolicies → undefined → []`
 		// and render an empty list across every tenant.
-		writeJSON(w, http.StatusOK, map[string]any{
+		return rerr.JSON(w, map[string]any{
 			"rbacPolicies":  out,
 			"nextPageToken": "",
 			"_links":        links.Set{"self": b.Collection("rbac-policies")},
@@ -140,20 +139,18 @@ func handleListRbacPolicies(st store.Driver) http.HandlerFunc {
 	}
 }
 
-func handleCreateRbacPolicy(st store.Driver) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
+func handleCreateRbacPolicy(st store.Driver) rerr.Handler {
+	return func(w http.ResponseWriter, r *http.Request) error {
 		tenant, ok := tenantOrError(w, r)
 		if !ok {
-			return
+			return nil
 		}
 		var req createRbacPolicyRequest
 		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-			writeBadRequest(w, r, "invalid JSON body")
-			return
+			return rerr.Validation(map[string]string{"body": "invalid JSON body"})
 		}
 		if req.Name == "" || req.SubjectType == "" || req.SubjectID == "" || req.RoleID == "" {
-			writeBadRequest(w, r, "name, subjectType, subjectId, and roleId are required")
-			return
+			return rerr.Validation(map[string]string{"body": "name, subjectType, subjectId, and roleId are required"})
 		}
 		enabled := true
 		if req.Enabled != nil {
@@ -161,8 +158,7 @@ func handleCreateRbacPolicy(st store.Driver) http.HandlerFunc {
 		}
 		tx, err := st.Begin(r.Context(), store.TxOptions{})
 		if err != nil {
-			writeInternalError(w, r, "begin tx")
-			return
+			return rerr.Wrap(err, "begin tx")
 		}
 		created, err := tx.CreateRbacPolicy(r.Context(), &store.RbacPolicy{
 			Name:        req.Name,
@@ -175,62 +171,51 @@ func handleCreateRbacPolicy(st store.Driver) http.HandlerFunc {
 		if err != nil {
 			_ = tx.Rollback()
 			if errors.Is(err, store.ErrRbacPolicyDuplicate) {
-				writeProblem(w, http.StatusConflict, errTypeConflict,
-					"Duplicate", "A policy mapping this subject to that role already exists",
-					r.URL.Path, nil)
-				return
+				return rerr.Conflict("a policy mapping this subject to that role already exists", err)
 			}
-			writeProblem(w, http.StatusUnprocessableEntity, errTypeUnprocess,
-				"Create failed", err.Error(), r.URL.Path, nil)
-			return
+			return rerr.Validation(map[string]string{"body": err.Error()})
 		}
 		if err := tx.Commit(); err != nil {
-			writeInternalError(w, r, "commit")
-			return
+			return rerr.Wrap(err, "commit")
 		}
-		writeJSON(w, http.StatusCreated, rbacPolicyToDTO(created, links.NewTenantBuilder(tenant.Slug)))
+		return rerr.JSONStatus(w, http.StatusCreated, rbacPolicyToDTO(created, links.NewTenantBuilder(tenant.Slug)))
 	}
 }
 
-func handleGetRbacPolicy(st store.Driver) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
+func handleGetRbacPolicy(st store.Driver) rerr.Handler {
+	return func(w http.ResponseWriter, r *http.Request) error {
 		tenant, ok := tenantOrError(w, r)
 		if !ok {
-			return
+			return nil
 		}
 		id := r.PathValue("id")
 		tx, err := st.Begin(r.Context(), store.TxOptions{ReadOnly: true})
 		if err != nil {
-			writeInternalError(w, r, "begin tx")
-			return
+			return rerr.Wrap(err, "begin tx")
 		}
 		defer func() { _ = tx.Rollback() }()
 		p, err := tx.GetRbacPolicy(r.Context(), id)
 		if err != nil {
-			writeProblem(w, http.StatusNotFound, errTypeNotFound,
-				"RBAC policy not found", "No policy with id "+id, r.URL.Path, nil)
-			return
+			return rerr.NotFound("rbac_policy", id)
 		}
-		writeJSON(w, http.StatusOK, rbacPolicyToDTO(p, links.NewTenantBuilder(tenant.Slug)))
+		return rerr.JSON(w, rbacPolicyToDTO(p, links.NewTenantBuilder(tenant.Slug)))
 	}
 }
 
-func handleUpdateRbacPolicy(st store.Driver) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
+func handleUpdateRbacPolicy(st store.Driver) rerr.Handler {
+	return func(w http.ResponseWriter, r *http.Request) error {
 		tenant, ok := tenantOrError(w, r)
 		if !ok {
-			return
+			return nil
 		}
 		id := r.PathValue("id")
 		var req updateRbacPolicyRequest
 		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-			writeBadRequest(w, r, "invalid JSON body")
-			return
+			return rerr.Validation(map[string]string{"body": "invalid JSON body"})
 		}
 		tx, err := st.Begin(r.Context(), store.TxOptions{})
 		if err != nil {
-			writeInternalError(w, r, "begin tx")
-			return
+			return rerr.Wrap(err, "begin tx")
 		}
 		updated, err := tx.UpdateRbacPolicy(r.Context(), id, store.UpdateRbacPolicyParams{
 			Name:        req.Name,
@@ -243,51 +228,40 @@ func handleUpdateRbacPolicy(st store.Driver) http.HandlerFunc {
 		if err != nil {
 			_ = tx.Rollback()
 			if errors.Is(err, store.ErrRbacPolicyNotFound) {
-				writeProblem(w, http.StatusNotFound, errTypeNotFound,
-					"RBAC policy not found", "No policy with id "+id, r.URL.Path, nil)
-				return
+				return rerr.NotFound("rbac_policy", id)
 			}
 			if errors.Is(err, store.ErrRbacPolicyDuplicate) {
-				writeProblem(w, http.StatusConflict, errTypeConflict,
-					"Duplicate", "Another policy already maps this subject to that role",
-					r.URL.Path, nil)
-				return
+				return rerr.Conflict("another policy already maps this subject to that role", err)
 			}
-			writeInternalError(w, r, "update rbac_policy")
-			return
+			return rerr.Wrap(err, "update rbac_policy")
 		}
 		if err := tx.Commit(); err != nil {
-			writeInternalError(w, r, "commit")
-			return
+			return rerr.Wrap(err, "commit")
 		}
-		writeJSON(w, http.StatusOK, rbacPolicyToDTO(updated, links.NewTenantBuilder(tenant.Slug)))
+		return rerr.JSON(w, rbacPolicyToDTO(updated, links.NewTenantBuilder(tenant.Slug)))
 	}
 }
 
-func handleDeleteRbacPolicy(st store.Driver) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
+func handleDeleteRbacPolicy(st store.Driver) rerr.Handler {
+	return func(w http.ResponseWriter, r *http.Request) error {
 		_ = TenantFromContext(r.Context())
 		id := r.PathValue("id")
 		tx, err := st.Begin(r.Context(), store.TxOptions{})
 		if err != nil {
-			writeInternalError(w, r, "begin tx")
-			return
+			return rerr.Wrap(err, "begin tx")
 		}
 		if err := tx.DeleteRbacPolicy(r.Context(), id); err != nil {
 			_ = tx.Rollback()
 			if errors.Is(err, store.ErrRbacPolicyNotFound) {
-				writeProblem(w, http.StatusNotFound, errTypeNotFound,
-					"RBAC policy not found", "No policy with id "+id, r.URL.Path, nil)
-				return
+				return rerr.NotFound("rbac_policy", id)
 			}
-			writeInternalError(w, r, "delete rbac_policy")
-			return
+			return rerr.Wrap(err, "delete rbac_policy")
 		}
 		if err := tx.Commit(); err != nil {
-			writeInternalError(w, r, "commit")
-			return
+			return rerr.Wrap(err, "commit")
 		}
 		w.WriteHeader(http.StatusNoContent)
+		return nil
 	}
 }
 
@@ -299,8 +273,8 @@ func handleDeleteRbacPolicy(st store.Driver) http.HandlerFunc {
 //
 // If both fields match the policy AND the policy is enabled, returns
 // `{ "matched": true, "roleId": "..." }`; else `{ "matched": false }`.
-func handleTestRbacPolicy(st store.Driver) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
+func handleTestRbacPolicy(st store.Driver) rerr.Handler {
+	return func(w http.ResponseWriter, r *http.Request) error {
 		_ = TenantFromContext(r.Context())
 		id := r.PathValue("id")
 		var req struct {
@@ -308,20 +282,16 @@ func handleTestRbacPolicy(st store.Driver) http.HandlerFunc {
 			SubjectType string `json:"subjectType"`
 		}
 		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-			writeBadRequest(w, r, "invalid JSON body")
-			return
+			return rerr.Validation(map[string]string{"body": "invalid JSON body"})
 		}
 		tx, err := st.Begin(r.Context(), store.TxOptions{ReadOnly: true})
 		if err != nil {
-			writeInternalError(w, r, "begin tx")
-			return
+			return rerr.Wrap(err, "begin tx")
 		}
 		defer func() { _ = tx.Rollback() }()
 		p, err := tx.GetRbacPolicy(r.Context(), id)
 		if err != nil {
-			writeProblem(w, http.StatusNotFound, errTypeNotFound,
-				"RBAC policy not found", "No policy with id "+id, r.URL.Path, nil)
-			return
+			return rerr.NotFound("rbac_policy", id)
 		}
 		matched := p.Enabled && p.SubjectID == req.SubjectID && p.SubjectType == req.SubjectType
 		out := map[string]any{
@@ -331,6 +301,6 @@ func handleTestRbacPolicy(st store.Driver) http.HandlerFunc {
 		if matched {
 			out["roleId"] = p.RoleID
 		}
-		writeJSON(w, http.StatusOK, out)
+		return rerr.JSON(w, out)
 	}
 }

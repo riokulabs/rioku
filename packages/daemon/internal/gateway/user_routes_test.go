@@ -8,6 +8,7 @@ import (
 	"net/http/cookiejar"
 	"net/http/httptest"
 	"path/filepath"
+	"strings"
 	"testing"
 	"time"
 
@@ -259,16 +260,16 @@ func TestUserRoutes_CreateUser_InvalidPassword(t *testing.T) {
 	})
 	defer func() { _ = resp.Body.Close() }()
 
-	if resp.StatusCode != http.StatusBadRequest {
-		t.Fatalf("expected 400, got %d", resp.StatusCode)
+	if resp.StatusCode != http.StatusUnprocessableEntity {
+		t.Fatalf("expected 422, got %d", resp.StatusCode)
 	}
 
 	var pd ProblemDetail
 	if err := json.NewDecoder(resp.Body).Decode(&pd); err != nil {
 		t.Fatalf("decode problem detail: %v", err)
 	}
-	if pd.Title != "Password policy violation" {
-		t.Errorf("title = %q, want %q", pd.Title, "Password policy violation")
+	if pd.Title != "Validation failed" {
+		t.Errorf("title = %q, want %q", pd.Title, "Validation failed")
 	}
 }
 
@@ -282,8 +283,8 @@ func TestUserRoutes_CreateUser_MissingFields(t *testing.T) {
 		})
 		defer func() { _ = resp.Body.Close() }()
 
-		if resp.StatusCode != http.StatusBadRequest {
-			t.Fatalf("expected 400, got %d", resp.StatusCode)
+		if resp.StatusCode != http.StatusUnprocessableEntity {
+			t.Fatalf("expected 422, got %d", resp.StatusCode)
 		}
 
 		var pd ProblemDetail
@@ -312,8 +313,8 @@ func TestUserRoutes_CreateUser_MissingFields(t *testing.T) {
 		})
 		defer func() { _ = resp.Body.Close() }()
 
-		if resp.StatusCode != http.StatusBadRequest {
-			t.Fatalf("expected 400, got %d", resp.StatusCode)
+		if resp.StatusCode != http.StatusUnprocessableEntity {
+			t.Fatalf("expected 422, got %d", resp.StatusCode)
 		}
 
 		var pd ProblemDetail
@@ -339,8 +340,8 @@ func TestUserRoutes_CreateUser_MissingFields(t *testing.T) {
 		})
 		defer func() { _ = resp.Body.Close() }()
 
-		if resp.StatusCode != http.StatusBadRequest {
-			t.Fatalf("expected 400, got %d", resp.StatusCode)
+		if resp.StatusCode != http.StatusUnprocessableEntity {
+			t.Fatalf("expected 422, got %d", resp.StatusCode)
 		}
 
 		var pd ProblemDetail
@@ -642,8 +643,8 @@ func TestUserRoutes_UpdateUser_InvalidBody(t *testing.T) {
 	}
 	defer func() { _ = resp.Body.Close() }()
 
-	if resp.StatusCode != http.StatusBadRequest {
-		t.Fatalf("invalid JSON body: expected 400, got %d", resp.StatusCode)
+	if resp.StatusCode != http.StatusUnprocessableEntity {
+		t.Fatalf("invalid JSON body: expected 422, got %d", resp.StatusCode)
 	}
 }
 
@@ -780,8 +781,8 @@ func TestDeleteUser_CannotLogin(t *testing.T) {
 	if err := json.NewDecoder(loginResp.Body).Decode(&pd); err != nil {
 		t.Fatalf("decode problem detail: %v", err)
 	}
-	if pd.Title != "Account deleted" {
-		t.Errorf("problem title = %q, want %q", pd.Title, "Account deleted")
+	if !strings.Contains(pd.Detail, "deleted") {
+		t.Errorf("problem detail = %q, want it to contain 'deleted'", pd.Detail)
 	}
 }
 
@@ -799,8 +800,8 @@ func TestUserRoutes_CreateUser_InvalidBody(t *testing.T) {
 	}
 	defer func() { _ = resp.Body.Close() }()
 
-	if resp.StatusCode != http.StatusBadRequest {
-		t.Fatalf("invalid JSON create: expected 400, got %d", resp.StatusCode)
+	if resp.StatusCode != http.StatusUnprocessableEntity {
+		t.Fatalf("invalid JSON create: expected 422, got %d", resp.StatusCode)
 	}
 }
 

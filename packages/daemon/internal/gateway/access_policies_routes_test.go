@@ -254,8 +254,8 @@ func TestAccessPolicy_ValidationErrors(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			resp := doJSON(t, client, http.MethodPost, server.URL+"/api/v1/auth/access-policies", tc.body)
 			defer func() { _ = resp.Body.Close() }()
-			if resp.StatusCode != http.StatusBadRequest {
-				t.Errorf("expected 400, got %d", resp.StatusCode)
+			if resp.StatusCode != http.StatusUnprocessableEntity {
+				t.Errorf("expected 422, got %d", resp.StatusCode)
 			}
 		})
 	}

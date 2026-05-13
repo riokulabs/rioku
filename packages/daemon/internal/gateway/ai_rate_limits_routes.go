@@ -8,6 +8,7 @@ import (
 	"errors"
 	"net/http"
 
+	"github.com/riokulabs/rioku/internal/rerr"
 	"github.com/riokulabs/rioku/internal/store"
 )
 
@@ -41,32 +42,31 @@ func aiRateLimitToResponse(rl *store.AISemanticRateLimit) aiRateLimitResponse {
 	}
 }
 
-func handleListAIRateLimits(st store.Driver) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
+func handleListAIRateLimits(st store.Driver) rerr.Handler {
+	return func(w http.ResponseWriter, r *http.Request) error {
 		tenant, ok := tenantOrError(w, r)
 		if !ok {
-			return
+			return nil
 		}
 		tx, _ := st.Begin(r.Context(), store.TxOptions{ReadOnly: true})
 		defer func() { _ = tx.Rollback() }()
 		items, err := tx.ListAIRateLimitsByTenant(r.Context(), tenant.ID)
 		if err != nil {
-			writeInternalError(w, r, "list rate_limits")
-			return
+			return rerr.Wrap(err, "list rate_limits")
 		}
 		out := make([]aiRateLimitResponse, 0, len(items))
 		for _, rl := range items {
 			out = append(out, aiRateLimitToResponse(rl))
 		}
-		writeJSON(w, http.StatusOK, map[string]any{"items": out, "total": len(out)})
+		return rerr.JSON(w, map[string]any{"items": out, "total": len(out)})
 	}
 }
 
-func handleCreateAIRateLimit(st store.Driver) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
+func handleCreateAIRateLimit(st store.Driver) rerr.Handler {
+	return func(w http.ResponseWriter, r *http.Request) error {
 		tenant, ok := tenantOrError(w, r)
 		if !ok {
-			return
+			return nil
 		}
 		var req struct {
 			Name                string          `json:"name"`
@@ -80,12 +80,10 @@ func handleCreateAIRateLimit(st store.Driver) http.HandlerFunc {
 			Action              string          `json:"action,omitempty"`
 		}
 		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-			writeBadRequest(w, r, "invalid JSON body")
-			return
+			return rerr.Validation(map[string]string{"body": "invalid JSON body"})
 		}
 		if req.Name == "" || req.Scope == "" {
-			writeBadRequest(w, r, "name and scope are required")
-			return
+			return rerr.Validation(map[string]string{"name": "required", "scope": "required"})
 		}
 		tx, _ := st.Begin(r.Context(), store.TxOptions{})
 		created, err := tx.CreateAIRateLimit(r.Context(), &store.AISemanticRateLimit{
@@ -96,26 +94,22 @@ func handleCreateAIRateLimit(st store.Driver) http.HandlerFunc {
 		if err != nil {
 			_ = tx.Rollback()
 			if errors.Is(err, store.ErrAIRateLimitNameTaken) {
-				writeProblem(w, http.StatusConflict, errTypeConflict, "Name already in use",
-					"A rate limit with that name already exists in this tenant", r.URL.Path, nil)
-				return
+				return rerr.Conflict("a rate limit with that name already exists in this tenant", err)
 			}
-			writeInternalError(w, r, "create rate_limit")
-			return
+			return rerr.Wrap(err, "create rate_limit")
 		}
 		if err := tx.Commit(); err != nil {
-			writeInternalError(w, r, "commit")
-			return
+			return rerr.Wrap(err, "commit")
 		}
-		writeJSON(w, http.StatusCreated, aiRateLimitToResponse(created))
+		return rerr.JSONStatus(w, http.StatusCreated, aiRateLimitToResponse(created))
 	}
 }
 
-func handleGetAIRateLimit(st store.Driver) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
+func handleGetAIRateLimit(st store.Driver) rerr.Handler {
+	return func(w http.ResponseWriter, r *http.Request) error {
 		tenant, ok := tenantOrError(w, r)
 		if !ok {
-			return
+			return nil
 		}
 		id := r.PathValue("id")
 		tx, _ := st.Begin(r.Context(), store.TxOptions{ReadOnly: true})
@@ -123,22 +117,19 @@ func handleGetAIRateLimit(st store.Driver) http.HandlerFunc {
 		rl, err := tx.GetAIRateLimit(r.Context(), tenant.ID, id)
 		if err != nil {
 			if errors.Is(err, store.ErrAIRateLimitNotFound) {
-				writeProblem(w, http.StatusNotFound, errTypeNotFound, "Rate limit not found",
-					"No rate_limit with id "+id, r.URL.Path, nil)
-				return
+				return rerr.NotFound("rate_limit", id)
 			}
-			writeInternalError(w, r, "get rate_limit")
-			return
+			return rerr.Wrap(err, "get rate_limit")
 		}
-		writeJSON(w, http.StatusOK, aiRateLimitToResponse(rl))
+		return rerr.JSON(w, aiRateLimitToResponse(rl))
 	}
 }
 
-func handleUpdateAIRateLimit(st store.Driver) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
+func handleUpdateAIRateLimit(st store.Driver) rerr.Handler {
+	return func(w http.ResponseWriter, r *http.Request) error {
 		tenant, ok := tenantOrError(w, r)
 		if !ok {
-			return
+			return nil
 		}
 		id := r.PathValue("id")
 		var req struct {
@@ -154,8 +145,7 @@ func handleUpdateAIRateLimit(st store.Driver) http.HandlerFunc {
 			Enabled             *bool            `json:"enabled,omitempty"`
 		}
 		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-			writeBadRequest(w, r, "invalid JSON body")
-			return
+			return rerr.Validation(map[string]string{"body": "invalid JSON body"})
 		}
 		params := store.UpdateAIRateLimitParams{
 			Name: req.Name, Scope: req.Scope, AgentID: req.AgentID, ToolID: req.ToolID,
@@ -171,43 +161,36 @@ func handleUpdateAIRateLimit(st store.Driver) http.HandlerFunc {
 		if err != nil {
 			_ = tx.Rollback()
 			if errors.Is(err, store.ErrAIRateLimitNotFound) {
-				writeProblem(w, http.StatusNotFound, errTypeNotFound, "Rate limit not found",
-					"No rate_limit with id "+id, r.URL.Path, nil)
-				return
+				return rerr.NotFound("rate_limit", id)
 			}
-			writeInternalError(w, r, "update rate_limit")
-			return
+			return rerr.Wrap(err, "update rate_limit")
 		}
 		if err := tx.Commit(); err != nil {
-			writeInternalError(w, r, "commit")
-			return
+			return rerr.Wrap(err, "commit")
 		}
-		writeJSON(w, http.StatusOK, aiRateLimitToResponse(updated))
+		return rerr.JSON(w, aiRateLimitToResponse(updated))
 	}
 }
 
-func handleDeleteAIRateLimit(st store.Driver) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
+func handleDeleteAIRateLimit(st store.Driver) rerr.Handler {
+	return func(w http.ResponseWriter, r *http.Request) error {
 		tenant, ok := tenantOrError(w, r)
 		if !ok {
-			return
+			return nil
 		}
 		id := r.PathValue("id")
 		tx, _ := st.Begin(r.Context(), store.TxOptions{})
 		if err := tx.DeleteAIRateLimit(r.Context(), tenant.ID, id); err != nil {
 			_ = tx.Rollback()
 			if errors.Is(err, store.ErrAIRateLimitNotFound) {
-				writeProblem(w, http.StatusNotFound, errTypeNotFound, "Rate limit not found",
-					"No rate_limit with id "+id, r.URL.Path, nil)
-				return
+				return rerr.NotFound("rate_limit", id)
 			}
-			writeInternalError(w, r, "delete rate_limit")
-			return
+			return rerr.Wrap(err, "delete rate_limit")
 		}
 		if err := tx.Commit(); err != nil {
-			writeInternalError(w, r, "commit")
-			return
+			return rerr.Wrap(err, "commit")
 		}
 		w.WriteHeader(http.StatusNoContent)
+		return nil
 	}
 }

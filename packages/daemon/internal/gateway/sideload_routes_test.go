@@ -171,11 +171,11 @@ func TestPluginSideload_InvalidManifest(t *testing.T) {
 	rec := httptest.NewRecorder()
 	mux.ServeHTTP(rec, req)
 
-	if rec.Code != http.StatusBadRequest {
-		t.Fatalf("expected 400, got %d (%s)", rec.Code, rec.Body.String())
+	if rec.Code != http.StatusUnprocessableEntity {
+		t.Fatalf("expected 422, got %d (%s)", rec.Code, rec.Body.String())
 	}
-	if !bytes.Contains(rec.Body.Bytes(), []byte("manifest")) {
-		t.Fatalf("expected problem body to mention manifest, got %s", rec.Body.String())
+	if !bytes.Contains(rec.Body.Bytes(), []byte("permissions")) {
+		t.Fatalf("expected problem body to mention validation field, got %s", rec.Body.String())
 	}
 }
 
@@ -209,8 +209,8 @@ func TestPluginSideload_RejectsNonMultipart(t *testing.T) {
 	rec := httptest.NewRecorder()
 	mux.ServeHTTP(rec, req.WithContext(ctx))
 
-	if rec.Code != http.StatusBadRequest {
-		t.Errorf("expected 400 for non-multipart body, got %d (%s)", rec.Code, rec.Body.String())
+	if rec.Code != http.StatusUnprocessableEntity {
+		t.Errorf("expected 422 for non-multipart body, got %d (%s)", rec.Code, rec.Body.String())
 	}
 }
 

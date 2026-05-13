@@ -13,6 +13,7 @@ import (
 
 	"github.com/riokulabs/rioku/internal/auth"
 	"github.com/riokulabs/rioku/internal/config"
+	"github.com/riokulabs/rioku/internal/rerr"
 	"github.com/riokulabs/rioku/internal/store"
 	_ "github.com/riokulabs/rioku/internal/store/sqlite"
 )
@@ -248,16 +249,16 @@ func TestTOTPRoutes_Verify_NotSetup(t *testing.T) {
 	})
 	defer func() { _ = resp.Body.Close() }()
 
-	if resp.StatusCode != http.StatusBadRequest {
-		t.Fatalf("TOTP verify not setup: expected 400, got %d", resp.StatusCode)
+	if resp.StatusCode != http.StatusUnprocessableEntity {
+		t.Fatalf("TOTP verify not setup: expected 422, got %d", resp.StatusCode)
 	}
 
 	var pd ProblemDetail
 	if err := json.NewDecoder(resp.Body).Decode(&pd); err != nil {
 		t.Fatalf("decode problem detail: %v", err)
 	}
-	if pd.Title != "TOTP not set up" {
-		t.Errorf("expected title 'TOTP not set up', got %q", pd.Title)
+	if pd.Title != "Validation failed" {
+		t.Errorf("expected title 'Validation failed', got %q", pd.Title)
 	}
 }
 
@@ -279,8 +280,8 @@ func TestTOTPRoutes_Verify_EmptyCode(t *testing.T) {
 	})
 	defer func() { _ = resp.Body.Close() }()
 
-	if resp.StatusCode != http.StatusBadRequest {
-		t.Fatalf("TOTP verify empty code: expected 400, got %d", resp.StatusCode)
+	if resp.StatusCode != http.StatusUnprocessableEntity {
+		t.Fatalf("TOTP verify empty code: expected 422, got %d", resp.StatusCode)
 	}
 }
 
@@ -492,8 +493,8 @@ func TestTOTPRoutes_Disable_EmptyPassword(t *testing.T) {
 	})
 	defer func() { _ = resp.Body.Close() }()
 
-	if resp.StatusCode != http.StatusBadRequest {
-		t.Fatalf("TOTP disable empty password: expected 400, got %d", resp.StatusCode)
+	if resp.StatusCode != http.StatusUnprocessableEntity {
+		t.Fatalf("TOTP disable empty password: expected 422, got %d", resp.StatusCode)
 	}
 }
 
@@ -514,8 +515,8 @@ func TestTOTPRoutes_Verify_InvalidJSON(t *testing.T) {
 	}
 	defer func() { _ = resp.Body.Close() }()
 
-	if resp.StatusCode != http.StatusBadRequest {
-		t.Fatalf("TOTP verify invalid JSON: expected 400, got %d", resp.StatusCode)
+	if resp.StatusCode != http.StatusUnprocessableEntity {
+		t.Fatalf("TOTP verify invalid JSON: expected 422, got %d", resp.StatusCode)
 	}
 }
 
@@ -536,8 +537,8 @@ func TestTOTPRoutes_Disable_InvalidJSON(t *testing.T) {
 	}
 	defer func() { _ = resp.Body.Close() }()
 
-	if resp.StatusCode != http.StatusBadRequest {
-		t.Fatalf("TOTP disable invalid JSON: expected 400, got %d", resp.StatusCode)
+	if resp.StatusCode != http.StatusUnprocessableEntity {
+		t.Fatalf("TOTP disable invalid JSON: expected 422, got %d", resp.StatusCode)
 	}
 }
 
@@ -742,7 +743,7 @@ func TestTOTPRoutes_Setup_UserNotFound(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	handler := handleTOTPSetup(drv, enc)
+	handler := rerr.H(handleTOTPSetup(drv, enc))
 
 	// Inject session claims with a non-existent user ID.
 	req := httptest.NewRequest(http.MethodPost, "/api/v1/auth/totp/setup", nil)
@@ -790,7 +791,7 @@ func TestTOTPRoutes_Verify_UserNotFound(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	handler := handleTOTPVerify(drv, sm, enc)
+	handler := rerr.H(handleTOTPVerify(drv, sm, enc))
 
 	body := `{"code":"123456"}`
 	req := httptest.NewRequest(http.MethodPost, "/api/v1/auth/totp/verify", strings.NewReader(body))
@@ -839,7 +840,7 @@ func TestTOTPRoutes_Disable_UserNotFound(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	handler := handleTOTPDisable(drv, sm, enc)
+	handler := rerr.H(handleTOTPDisable(drv, sm, enc))
 
 	body := `{"currentPassword":"SomePass123!"}`
 	req := httptest.NewRequest(http.MethodPost, "/api/v1/auth/totp/disable", strings.NewReader(body))
@@ -877,15 +878,15 @@ func TestTOTPRoutes_Reset_EmptyPathValue(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	handler := handleTOTPReset(drv)
+	handler := rerr.H(handleTOTPReset(drv))
 
 	// Call handler directly without a path value for {id}.
 	req := httptest.NewRequest(http.MethodPost, "/api/v1/users//totp/reset", nil)
 	rr := httptest.NewRecorder()
 	handler.ServeHTTP(rr, req)
 
-	if rr.Code != http.StatusBadRequest {
-		t.Fatalf("reset empty path value: expected 400, got %d", rr.Code)
+	if rr.Code != http.StatusUnprocessableEntity {
+		t.Fatalf("reset empty path value: expected 422, got %d", rr.Code)
 	}
 }
 
@@ -909,7 +910,7 @@ func TestTOTPRoutes_Reset_UserNotFound_Direct(t *testing.T) {
 
 	// Register on a mux so {id} path value is resolved.
 	mux := http.NewServeMux()
-	mux.HandleFunc("POST /api/v1/users/{id}/totp/reset", handleTOTPReset(drv))
+	mux.Handle("POST /api/v1/users/{id}/totp/reset", rerr.H(handleTOTPReset(drv)))
 
 	req := httptest.NewRequest(http.MethodPost, "/api/v1/users/nonexistent-id/totp/reset", nil)
 	rr := httptest.NewRecorder()

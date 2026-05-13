@@ -18,6 +18,7 @@ import (
 	"net/http"
 
 	"github.com/riokulabs/rioku/internal/caddy"
+	"github.com/riokulabs/rioku/internal/rerr"
 )
 
 // RegisterCertificateRoutes registers the certificate management endpoints.
@@ -28,68 +29,59 @@ func RegisterCertificateRoutes(mux *http.ServeMux, svc caddy.CertService) {
 		return
 	}
 	mux.Handle("GET /api/v1/certificates",
-		RequirePermission("certificates:read")(http.HandlerFunc(handleListCertificates(svc))))
+		RequirePermission("certificates:read")(rerr.H(handleListCertificates(svc))))
 	mux.Handle("POST /api/v1/certificates/{id}/renew",
-		RequirePermission("certificates:manage")(http.HandlerFunc(handleRenewCertificate(svc))))
+		RequirePermission("certificates:manage")(rerr.H(handleRenewCertificate(svc))))
 	mux.Handle("POST /api/v1/certificates/{id}/revoke",
-		RequirePermission("certificates:manage")(http.HandlerFunc(handleRevokeCertificate(svc))))
+		RequirePermission("certificates:manage")(rerr.H(handleRevokeCertificate(svc))))
 }
 
-func handleListCertificates(svc caddy.CertService) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
+func handleListCertificates(svc caddy.CertService) rerr.Handler {
+	return func(w http.ResponseWriter, r *http.Request) error {
 		certs, err := svc.ListCertificates(r.Context())
 		if err != nil {
-			writeInternalError(w, r, "list certificates")
-			return
+			return rerr.Wrap(err, "list certificates")
 		}
 		if certs == nil {
 			certs = []caddy.Certificate{}
 		}
-		writeJSON(w, http.StatusOK, map[string]any{
+		return rerr.JSON(w, map[string]any{
 			"items": certs,
 			"total": len(certs),
 		})
 	}
 }
 
-func handleRenewCertificate(svc caddy.CertService) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
+func handleRenewCertificate(svc caddy.CertService) rerr.Handler {
+	return func(w http.ResponseWriter, r *http.Request) error {
 		id := r.PathValue("id")
 		if id == "" {
-			writeBadRequest(w, r, "certificate id is required")
-			return
+			return rerr.Validation(map[string]string{"id": "certificate id is required"})
 		}
 		result, err := svc.RenewCertificate(r.Context(), id)
 		if err != nil {
 			if errors.Is(err, caddy.ErrCertNotFound) {
-				writeProblem(w, http.StatusNotFound, errTypeValidation, "Not found",
-					"Certificate not found.", r.URL.Path, nil)
-				return
+				return rerr.NotFound("certificate", id)
 			}
-			writeInternalError(w, r, "renew certificate")
-			return
+			return rerr.Wrap(err, "renew certificate")
 		}
-		writeJSON(w, http.StatusAccepted, result)
+		return rerr.JSONStatus(w, http.StatusAccepted, result)
 	}
 }
 
-func handleRevokeCertificate(svc caddy.CertService) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
+func handleRevokeCertificate(svc caddy.CertService) rerr.Handler {
+	return func(w http.ResponseWriter, r *http.Request) error {
 		id := r.PathValue("id")
 		if id == "" {
-			writeBadRequest(w, r, "certificate id is required")
-			return
+			return rerr.Validation(map[string]string{"id": "certificate id is required"})
 		}
 		result, err := svc.RevokeCertificate(r.Context(), id)
 		if err != nil {
 			if errors.Is(err, caddy.ErrCertNotFound) {
-				writeProblem(w, http.StatusNotFound, errTypeValidation, "Not found",
-					"Certificate not found.", r.URL.Path, nil)
-				return
+				return rerr.NotFound("certificate", id)
 			}
-			writeInternalError(w, r, "revoke certificate")
-			return
+			return rerr.Wrap(err, "revoke certificate")
 		}
-		writeJSON(w, http.StatusAccepted, result)
+		return rerr.JSONStatus(w, http.StatusAccepted, result)
 	}
 }

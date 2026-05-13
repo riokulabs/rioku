@@ -5,7 +5,6 @@ import (
 	"net/http"
 	"strconv"
 
-	"github.com/riokulabs/rioku/internal/gateway"
 	"github.com/riokulabs/rioku/internal/logging"
 )
 
@@ -41,7 +40,7 @@ func H(h Handler) http.Handler {
 func renderError(w http.ResponseWriter, r *http.Request, re *Error) {
 	status, typ, title := codeToHTTP(re.Code)
 
-	problem := gateway.ProblemDetail{
+	problem := ProblemDetail{
 		Type:     typ,
 		Title:    title,
 		Status:   status,
@@ -74,9 +73,9 @@ func renderError(w http.ResponseWriter, r *http.Request, re *Error) {
 
 	// Field-level validation errors.
 	if len(re.Fields) > 0 {
-		errs := make([]gateway.ValidationError, 0, len(re.Fields))
+		errs := make([]ValidationError, 0, len(re.Fields))
 		for field, reason := range re.Fields {
-			errs = append(errs, gateway.ValidationError{Field: field, Reason: reason})
+			errs = append(errs, ValidationError{Field: field, Reason: reason})
 		}
 		problem.Errors = errs
 	}
@@ -95,8 +94,14 @@ func renderError(w http.ResponseWriter, r *http.Request, re *Error) {
 	_ = json.NewEncoder(w).Encode(problem)
 }
 
+// CodeHTTP maps a Code to an HTTP status, RFC 7807 type URI, and title.
+// Exported so middleware that cannot use H() can still render consistent
+// problem details.
+func CodeHTTP(c Code) (status int, typ, title string) {
+	return codeToHTTP(c)
+}
+
 // codeToHTTP maps a Code to an HTTP status, RFC 7807 type URI, and title.
-// The type URIs are the same constants defined in gateway/errors.go.
 func codeToHTTP(c Code) (status int, typ, title string) {
 	switch c {
 	case CodeNotFound:
@@ -121,6 +126,8 @@ func codeToHTTP(c Code) (status int, typ, title string) {
 		return http.StatusLocked, "https://rioku.dev/errors/account-locked", "Resource locked"
 	case CodeTimeout:
 		return http.StatusGatewayTimeout, "https://rioku.dev/errors/gateway-timeout", "Gateway timeout"
+	case CodeGone:
+		return http.StatusGone, "https://rioku.dev/errors/gone", "Resource gone"
 	default: // CodeInternal and anything unknown
 		return http.StatusInternalServerError, "https://rioku.dev/errors/internal", "Internal server error"
 	}
