@@ -54,11 +54,11 @@ function extractBlocks(content, path) {
   return blocks;
 }
 
-function validateBlock(block, tmp) {
+function validateBlock(block, tmp, puppeteerCfg) {
   const inPath = join(tmp, 'block.mmd');
   const outPath = join(tmp, 'block.svg');
   writeFileSync(inPath, block.code);
-  const r = spawnSync('npx', ['--no-install', '-p', '@mermaid-js/mermaid-cli', 'mmdc', '-i', inPath, '-o', outPath, '-q'], {
+  const r = spawnSync('npx', ['--no-install', '-p', '@mermaid-js/mermaid-cli', 'mmdc', '-i', inPath, '-o', outPath, '-q', '--puppeteerConfigFile', puppeteerCfg], {
     encoding: 'utf8',
     stdio: ['ignore', 'pipe', 'pipe'],
   });
@@ -79,10 +79,17 @@ if (blocks.length === 0) {
 console.log(`Validating ${blocks.length} mermaid block(s) in ${files.length} file(s)...`);
 
 const tmp = mkdtempSync(join(tmpdir(), 'mermaid-validate-'));
+// Puppeteer launches Chromium with the sandbox enabled by default. CI
+// runners (GitHub Actions, plain containers) lack the kernel capabilities
+// Chromium needs to set up the sandbox, so the browser process exits
+// immediately with "No usable sandbox!". Disabling the sandbox at launch
+// time is the standard CI workaround.
+const puppeteerCfg = join(tmp, 'puppeteer.json');
+writeFileSync(puppeteerCfg, JSON.stringify({ args: ['--no-sandbox', '--disable-setuid-sandbox'] }));
 let failed = 0;
 try {
   for (const block of blocks) {
-    const err = validateBlock(block, tmp);
+    const err = validateBlock(block, tmp, puppeteerCfg);
     const loc = `${relative(process.cwd(), block.path)}:${block.startLine}`;
     if (err) {
       failed++;
