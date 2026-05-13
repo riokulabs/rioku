@@ -55,7 +55,9 @@ to the canonical target. They will be removed in a future release.
 
 1. Add the target name to the `.PHONY` line at the top of the Makefile.
 2. Prefix the comment with the category and a pipe separator:
+
    ```makefile
    ## <category> | <target-name>: Short description
    ```
+
 3. The `make help` output updates automatically — no other changes needed.

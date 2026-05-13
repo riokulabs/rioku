@@ -108,7 +108,7 @@ Specifically:
 
 - **`internal/ai/tokens` package** with `Estimate(modelID, text)
   (int, error)`. Backed by `tiktoken-go`. Returns the estimate
-  + the encoding it used so callers can include the encoding
+  - the encoding it used so callers can include the encoding
   name in spend log records (helps with reconciliation later).
 - **Spend log row** records both the pre-call estimate (in a
   `estimated_tokens` column) and the post-call actual (in

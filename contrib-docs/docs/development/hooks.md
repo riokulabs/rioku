@@ -27,14 +27,17 @@ locally; PR CI catches everything regardless.
 ### `pre-commit` (`.githooks/pre-commit`)
 
 On staged `.go` files:
+
 - `gofmt -w` — auto-fix and re-stage.
 - `goimports -w` — auto-fix imports + re-stage. Skipped if `goimports` isn't on `$PATH`.
 - `go vet ./...` — per touched module, workspace-aware via `go.work`.
 
 On staged `.proto` files:
+
 - `buf lint` — runs in `packages/proto`. Skipped if `buf` isn't installed.
 
 On staged `.ts/.tsx/.js/.jsx/.mjs/.cjs` files in `packages/web` or `packages/ui`:
+
 - `pnpm exec eslint --fix --max-warnings=0` on changed files only.
 - Re-stages anything `--fix` modified. Skipped if `pnpm` or that
   package's `node_modules/eslint` isn't installed.
@@ -85,7 +88,7 @@ itself changes (path-filtered).
 Branch protection lives in GitHub repo settings, not in this repo. The
 recommended required-status-checks list for `develop` and `main`:
 
-```
+```text
 commit-lint
 lint
 proto

@@ -44,6 +44,7 @@ Cloudflare can be removed via `rku plugin remove dns-cloudflare` if not needed. 
 ### caddy-security Configuration
 
 caddy-security is included as an **auth middleware bridge** until Rioku builds first-party OIDC/OAuth2. It must be configured in middleware-only mode:
+
 - Token validation (OIDC, JWT, OAuth2) — ENABLED
 - Portal UI — DISABLED (conflicts with Rioku admin panel)
 - Built-in user database — DISABLED (Rioku owns identity via config store)
@@ -159,6 +160,7 @@ The `rku init` command downloads a pre-built Caddy binary with default plugins c
 When users install optional plugins (`rku plugin install <name>`), the build service recompiles Caddy with the additional modules via xcaddy. This is the same pattern as the current Caddy download page.
 
 **Build service flow:**
+
 1. User runs `rku plugin install forward-proxy`
 2. CLI sends request to build service (local xcaddy or hosted)
 3. Build service runs `xcaddy build --with <module>`

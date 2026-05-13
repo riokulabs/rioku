@@ -1,0 +1,20 @@
+// markdownlint-cli2 config for Rioku.
+// Rules are inherited from .markdownlint.jsonc; this file scopes which
+// files are linted.
+{
+  "config": {
+    "extends": ".markdownlint.jsonc"
+  },
+  "globs": [
+    "docs/docs/**/*.md",
+    "contrib-docs/docs/**/*.md",
+    "README.md",
+    "CHANGELOG.md"
+  ],
+  "ignores": [
+    "**/node_modules/**",
+    "**/build/**",
+    "**/.docusaurus/**",
+    "**/dist/**"
+  ]
+}

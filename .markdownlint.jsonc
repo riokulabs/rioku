@@ -1,0 +1,31 @@
+// markdownlint config for Rioku contrib-docs and docs.
+// Rules favour real-signal issues over stylistic nitpicks.
+// See https://github.com/DavidAnson/markdownlint/blob/main/doc/Rules.md
+{
+  "default": true,
+
+  // Line length is enforced by editorconfig and prettier elsewhere;
+  // markdown prose has different line-break semantics so don't double-up.
+  "MD013": false,
+
+  // Bare URLs are fine in source files (linters auto-link them).
+  "MD034": false,
+
+  // Inline HTML is necessary for Docusaurus admonitions, mermaid wrappers,
+  // and the occasional <br/> in tables.
+  "MD033": false,
+
+  // Allow duplicate headings across the file (top-level + within sections).
+  "MD024": { "siblings_only": true },
+
+  // First-line H1 is not always present; Docusaurus uses frontmatter title.
+  "MD041": false,
+
+  // Docusaurus pages have a frontmatter `title:` AND a top-level `# Title`
+  // in the body. Disable frontmatter detection so MD025 doesn't flag the
+  // body `#` as a second H1.
+  "MD025": { "front_matter_title": "" },
+
+  // No-emphasis-as-heading flags valid prose patterns; skip.
+  "MD036": false
+}

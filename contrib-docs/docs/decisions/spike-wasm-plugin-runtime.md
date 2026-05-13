@@ -51,6 +51,7 @@ Two-tier plugin system:
 Rioku-native ABI, inspired by http-wasm (Traefik v3). NOT proxy-wasm.
 
 **Host exports (rioku module):**
+
 - `get_request_header`, `set_request_header`
 - `get_request_path`, `get_request_method`
 - `set_response_status`, `set_response_header`, `set_response_body`
@@ -58,6 +59,7 @@ Rioku-native ABI, inspired by http-wasm (Traefik v3). NOT proxy-wasm.
 - `get_plugin_config`
 
 **Guest exports:**
+
 - `malloc(size) -> ptr` — bump allocator for host-to-guest data
 - `handle_request() -> action` — 0=continue, 1=short-circuit
 

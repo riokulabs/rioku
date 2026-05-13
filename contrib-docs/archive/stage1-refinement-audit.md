@@ -18,6 +18,7 @@
 ## Important
 
 ### Completeness — user-visible "Coming soon"
+
 - **SSO** (settings/authentication) — OAuth + SAML Coming-soon cards
 - **Passkeys** (settings/profile) — "planned for a future release"
 - **Integrations OAuth connectors** — permanent disabled buttons
@@ -26,6 +27,7 @@
 - **Keyboard shortcuts** — `g d` and `g s` labeled "(placeholder)" in help modal
 
 ### Completeness — auth/session stubs
+
 - `getSessionToken()` returns `null` always (mock bearer = no-op)
 - `PLACEHOLDER_CURRENT_SESSION = 'current-session-mock'` hardcoded
 - Session geolocation = last IP octet mod 10 (presented as real location)
@@ -34,6 +36,7 @@
 - CEL eval is JS approximation (access policies, tool routing)
 
 ### Pattern consistency
+
 | Pattern | Compliance | Impact |
 |---|---|---|
 | `c="dimmed"` leaks | 61 hits (heavy in cluster/, super-admin/, shared) | Dark-mode contrast degradation |
@@ -47,6 +50,7 @@
 | "Open full page" affordance | 3/~10+ entities (only services/routes/users) | Inconsistent |
 
 ### Visual — mobile settings tables overflow
+
 - settings-tenant (441px, "Subdomain" clipped)
 - settings-pki (621px, enrollments table)
 - settings-integrations (427px, webhook table)
@@ -54,6 +58,7 @@
 - cluster (832px, Nodes table)
 
 ### Visual — other (spot-check needed due to Playwright race)
+
 - **Settings > Profile** reported dark in light mode — unclear if real or capture artifact
 - **Dashboard viewer "Requests by Service" chart** — no bars, no Y-axis labels ✅ confirmed by user screenshot of Overview dashboard (card shows dashed grid + service labels, no bars)
 - **Security > Users actions column**: filled red "Deactivate" + plain-text "Remove" side-by-side
@@ -62,6 +67,7 @@
 - **Danger Zone** — 3 adjacent actions with 3 different button variants
 
 ### Sparse seed data
+
 - **beta + gamma tenants have NO resources** — memberships only. Switching tenants → empty everywhere.
 - notification channel webhook URLs literal `xxxx` placeholders
 - 3 MCP servers (1 disabled) — thin for filter exercise
@@ -93,6 +99,7 @@ Full mock-derived stage-2 API + DB spec at `contrib-docs/stage2-api-target.md` (
 ## Open Infrastructure Issue
 
 **Playwright test harness reliability** — diagnostic on 2026-04-22 showed the `authedPage` fixture races TanStack Router code-split imports. After fixture completes (`currentUserId !== null`) + goto + networkidle + 800ms wait, main route content is STILL not rendered (only sidebar). This means:
+
 - Screenshot-based visual tests can capture empty states as if they were real renders
 - Assertion-based E2E tests (which wait via `expect(...)toBeVisible()` internally) are less affected
 - Need to fix the fixture to wait for a route-ready sentinel before handing off to tests

@@ -112,7 +112,7 @@ Scripts branch on exit code without parsing output.
 
 Manages the config file and profiles. Mirrors `aws configure` exactly. Never reads from environment variables — operates only on the config file.
 
-```
+```bash
 rku configure                                    # interactive, sets default profile
 rku configure --profile <name>                   # interactive, sets named profile
 rku configure set <key> <value>                  # set single value, default profile
@@ -129,7 +129,8 @@ rku configure list-profiles                      # show all profile names
 First-run daemon bootstrap. Generates `rioku.yaml`, initialises the config store, and produces the bootstrap token. Two modes:
 
 **Interactive (default):**
-```
+
+```console
 $ rku init
 Initializing Rioku...
   Store backend [sqlite]:
@@ -144,6 +145,7 @@ Run 'rku start' to launch the daemon.
 ```
 
 **Non-interactive (for automation):**
+
 ```bash
 rku init \
   --store sqlite \
@@ -162,7 +164,7 @@ rku init \
 
 ### 7.1 Daemon Lifecycle ✅
 
-```
+```bash
 rku init          # first-run bootstrap
 rku start         # start daemon (foreground)
 rku stop          # stop daemon
@@ -171,7 +173,7 @@ rku status        # daemon, Caddy, store, cluster, and build health
 
 ### 7.2 `rku route` ✅
 
-```
+```bash
 rku route list
 rku route get <id>
 rku route create --name <> --match-host <> --match-path <> --service <id>
@@ -184,7 +186,7 @@ rku route disable <id>
 
 ### 7.3 `rku service` ✅
 
-```
+```bash
 rku service list
 rku service get <id>
 rku service create --name <> --upstream <addr> [--upstream <addr>] --lb <policy>
@@ -197,7 +199,7 @@ rku service upstream remove <service-id> <upstream-id>
 
 ### 7.4 `rku policy` ✅
 
-```
+```bash
 rku policy list
 rku policy get <id>
 rku policy create --type <type> --config <json|@file>
@@ -209,7 +211,7 @@ rku policy detach --route <id> --policy <id>
 
 ### 7.5 `rku key` ✅
 
-```
+```bash
 rku key list
 rku key get <id>
 rku key create --name <> [--scope <>] [--expires <>]  # token printed once
@@ -219,7 +221,7 @@ rku key rotate <id>   # issues new token, revokes old
 
 ### 7.6 `rku plugin` 🔲
 
-```
+```bash
 rku plugin list [--type <>] [--status <>]
 rku plugin get <id>
 rku plugin install <module-path> [--config <json|@file>] [--defer-build]
@@ -230,7 +232,7 @@ rku plugin config set <plugin-id> --config <json|@file> [--merge]
 
 ### 7.7 `rku build` 🔲
 
-```
+```bash
 rku build status
 rku build logs [--follow]
 rku build history
@@ -238,7 +240,7 @@ rku build history
 
 ### 7.8 `rku cluster` 🔲
 
-```
+```bash
 rku cluster list
 rku cluster get <node-id>
 rku cluster remove <node-id>
@@ -248,7 +250,7 @@ rku cluster remove <node-id>
 
 Gateway config snapshot management. Not to be confused with `rku configure` (CLI config file).
 
-```
+```bash
 rku config export [--output-file <>]
 rku config import --file <>
 rku config versions   # list snapshots available for rollback
@@ -258,7 +260,7 @@ rku config versions   # list snapshots available for rollback
 
 Store backend migration. SQLite → Postgres or MariaDB. No manual intervention required beyond config changes.
 
-```
+```bash
 rku migrate verify --to <backend> --dsn <>   # dry-run, no writes
 rku migrate run    --to <backend> --dsn <>
 rku migrate status
@@ -266,7 +268,7 @@ rku migrate status
 
 ### 7.11 `rku audit` ✅
 
-```
+```bash
 rku audit list [--limit <>] [--since <>] [--actor <>] [--resource <>]
 ```
 
