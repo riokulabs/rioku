@@ -129,6 +129,7 @@ The stack trace consistently shows a Mantine `Badge` (`<div>`) rendered inside a
 **Surface affected**: `/t/acme/plugins`
 
 The Plugins page has tabs for Marketplace and Installed (both found and clicked successfully). The "Signers" tab was not found via `getByRole('tab', { name: /signers/i })`. This may be because:
+
 1. The tab is rendered as a link/button rather than `role="tab"`
 2. "Signers" tab only appears when the user has a specific permission not held by Derrick in the mock store
 3. Plugin signers is accessible only via a separate URL (e.g. `/t/acme/plugins/signers`)
@@ -242,6 +243,7 @@ Pressing `/` on the keyboard (while focus is on the page body) did not open a se
 **Surface affected**: All tenant pages
 
 The Ctrl+K spotlight opened successfully and showed 3 commands:
+
 1. "Go to Dashboard — Navigate to tenant dashboard"
 2. "Go to Sites — Navigate to tenant sites"
 3. "Toggle theme — Current: dark"

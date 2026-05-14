@@ -19,7 +19,8 @@ Audit logging today is fragmented across three sources:
    revocation, ACME failures. Logged via slog only; not queryable
    via the audit endpoints.
 
-#182 frames the unification: every audit-worthy event flows through
+## 182 frames the unification: every audit-worthy event flows through
+
 a single table that the admin's audit handlers (detail / stream /
 export / typeahead) already understand.
 
@@ -43,22 +44,23 @@ payloads without table-wide migrations.
 The Go side defines a typed struct per discriminator. Marshalling
 to / from `payload` is centralised so consumers don't reach into
 the raw JSON. A registry maps each discriminator to a constructor
+
 + unmarshaller, so the audit-renderer in the admin panel can dispatch
 on the discriminator to get a typed view.
 
 ## Why not generic before/after diff
 
-- **Diff doesn't model lifecycle events.** A certificate-renewal
++ **Diff doesn't model lifecycle events.** A certificate-renewal
   audit entry isn't an entity update — there's no "before". A
   leader change isn't either. Forcing them into the diff shape
   produces awkward synthetic before-states that confuse readers.
-- **Diff is opaque to indexing.** Querying "show me all
++ **Diff is opaque to indexing.** Querying "show me all
   authentication-policy changes in the last 7 days" requires
   scanning every row with `entity_type='auth_policy'`. With a
   typed payload, the admin renderer can extract specific fields
   (e.g. the changed permission set) and we can index high-value
   fields per schema as the audit volume grows.
-- **Field-level redaction is hard with diff.** Some admin actions
++ **Field-level redaction is hard with diff.** Some admin actions
   reveal data we'd rather not store verbatim (e.g. PKI cert SANs,
   tenant slug renames). Per-action schemas declare which fields
   are PII and the redaction layer (#74) honours them at write
@@ -66,53 +68,53 @@ on the discriminator to get a typed view.
 
 ## Why not per-action *table*
 
-- **Cross-cutting queries explode.** The admin's "all audit events
++ **Cross-cutting queries explode.** The admin's "all audit events
   for actor X" needs UNION ALL across N tables. With a single
   table + discriminator, it's a single index scan.
-- **Retention policy stays simple.** One pruning loop, one config
++ **Retention policy stays simple.** One pruning loop, one config
   knob (`audit_retention_config`). Multiple tables would need
   per-table retention.
-- **Stream + export + typeahead handlers already exist** for the
++ **Stream + export + typeahead handlers already exist** for the
   unified table. Keeping them working unchanged is the explicit
   goal of #182 ("the existing chunk-6 handlers keep working at
   the API boundary").
 
 ## Why backward-compatible (keep `diff`)
 
-- Existing rows in `audit_log` are not migrated. They keep their
++ Existing rows in `audit_log` are not migrated. They keep their
   `diff` blob and surface as-is.
-- Existing emitters keep working unchanged until each is
++ Existing emitters keep working unchanged until each is
   individually ported to the new payload shape. The `payload`
   column is nullable; the `payload_schema` column is nullable.
-- The admin renderer dispatches on discriminator: when
++ The admin renderer dispatches on discriminator: when
   `payload_schema` is non-null, render via the typed path;
   otherwise fall back to the diff renderer.
-- Migrating each existing emitter is a per-module task (config,
++ Migrating each existing emitter is a per-module task (config,
   PKI, RBAC, …) tracked under #182's children.
 
 ## Consequences
 
-- **Migration 39:** add `payload_schema TEXT NULL` +
++ **Migration 39:** add `payload_schema TEXT NULL` +
   `payload TEXT NULL` (JSON-encoded) to `audit_log`. Per-dialect.
   Index `payload_schema` since the renderer dispatches on it.
-- **Discriminator registry** in `internal/store/audit/registry.go`:
++ **Discriminator registry** in `internal/store/audit/registry.go`:
   each registered schema has a Go struct, a marshaller, and an
   optional redactor that runs at insert time.
-- **Insert API expansion:** the existing `tx.AppendAuditLog(...)`
++ **Insert API expansion:** the existing `tx.AppendAuditLog(...)`
   gains a new sibling `tx.AppendAuditEvent(payload AuditPayload)`
   that derives `entity_type / entity_id / operation` from the
   payload's discriminator + struct fields. Old call sites can
   keep using the legacy method during the migration.
-- **Read path:** `GetAuditEntry` returns a struct with both
++ **Read path:** `GetAuditEntry` returns a struct with both
   `Diff` (legacy, possibly empty) and `Payload + PayloadSchema`
   (new, possibly null). Stream + export + typeahead operate on
   the wider tuple.
-- **Pruning** hooks the existing `audit_retention_config`
++ **Pruning** hooks the existing `audit_retention_config`
   surface. Per-discriminator overrides are explicitly out of
   scope for v1; one global retention applies. Per-class
   overrides are a v2 candidate if a customer materially needs
   to keep cert lifecycle longer than admin actions.
-- **Raft + cert lifecycle migration** is two follow-up issues:
++ **Raft + cert lifecycle migration** is two follow-up issues:
   one each to convert their existing slog calls into
   structured `AppendAuditEvent` calls under
   `raft.*.v1` and `cert.*.v1` discriminators.

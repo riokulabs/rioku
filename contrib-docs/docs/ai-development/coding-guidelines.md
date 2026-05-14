@@ -36,7 +36,7 @@ For language and formatting rules enforced by linters, see the [Style Guide](../
 
 Never ask AI to write a large chunk of code. One function at a time, with a clear contract.
 
-```
+```text
 Context:
 - File: [path]
 - Package: [package name]
@@ -64,7 +64,7 @@ Return:
 
 ### Standard Testing Prompt Template
 
-```
+```text
 Context:
 - Function under test: [function signature]
 - [paste the implementation]
@@ -94,7 +94,7 @@ Each test case must:
 
 Append this to any prompt involving goroutines, mutexes, or distributed state:
 
-```
+```text
 After writing this code, review it for:
 1. Goroutine leaks — every goroutine started must have a clear exit condition
 2. Context cancellation — ctx.Done() must be checked in any loop or
@@ -123,6 +123,7 @@ Treat tests as the primary deliverable. The implementation is a means to making 
 A test verifying Rioku continues serving traffic correctly when the config store is completely unreachable. This is the degraded mode guarantee. Enterprise operators will ask about this first. Write it before the degraded mode implementation, not after.
 
 **Non-negotiable testing rules:**
+
 - Run tests with `-race` flag always — never ship code that hasn't passed the race detector
 - Chaos tests run on homelab before any multi-node release
 - Every bug that reaches production gets a regression test before the fix is merged

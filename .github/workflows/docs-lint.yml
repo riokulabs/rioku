@@ -1,0 +1,58 @@
+name: Docs Lint
+
+on:
+  pull_request:
+    branches: [develop, main]
+    paths:
+      - 'contrib-docs/**'
+      - 'docs/**'
+      - '**/*.md'
+      - '.markdownlint.jsonc'
+      - '.markdownlintignore'
+      - 'scripts/validate-mermaid.mjs'
+      - 'package.json'
+      - 'package-lock.json'
+      - '.github/workflows/docs-lint.yml'
+  push:
+    branches: [develop]
+    paths:
+      - 'contrib-docs/**'
+      - 'docs/**'
+      - '**/*.md'
+      - '.markdownlint.jsonc'
+      - '.markdownlintignore'
+      - 'scripts/validate-mermaid.mjs'
+      - 'package.json'
+      - 'package-lock.json'
+
+concurrency:
+  group: docs-lint-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  lint:
+    name: Markdown + Mermaid Lint
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v6
+
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install tooling
+        # npm install at the repo root picks up markdownlint-cli2 and
+        # @mermaid-js/mermaid-cli. The npm cache (above) memoises
+        # puppeteer's Chromium download so subsequent runs skip the
+        # ~200MB fetch.
+        run: npm install --no-audit --no-fund
+
+      - name: Markdown lint
+        run: npm run lint:md
+
+      - name: Mermaid validation
+        # mmdc renders to SVG headlessly via puppeteer. Any block that
+        # fails to parse exits non-zero with the mermaid error message.
+        run: npm run lint:mermaid

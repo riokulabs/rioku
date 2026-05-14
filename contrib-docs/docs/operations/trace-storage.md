@@ -6,7 +6,7 @@ Rioku captures HTTP request traces from Caddy's native access log module and sto
 
 ### Architecture
 
-```
+```text
 Caddy log module → unixgram socket → Ingester → Ring Buffer → Aggregator → SQLite
                                                      ↓
                                               SSE live stream
@@ -118,7 +118,7 @@ Can share the same Postgres instance as the config store (different database).
 
 ## Diagnostics
 
-```
+```text
 $ rku traces status
 Store:            sqlite
 Raw traces:       12.4 GB (7 day retention, 847,293 traces)
@@ -131,13 +131,14 @@ Disk budget:      50 GB max (24.8% used)
 ### Warning indicators
 
 The daemon emits warnings when:
+
 - Trace store exceeds 80% of `max_size_gb`
 - Adaptive sampling is active for >5 minutes (traffic spike)
 - Query latency for trace search exceeds 2 seconds
 
 ### Recommended actions
 
-```
+```text
 WARN: trace store at 80% of disk budget (40.1 GB / 50 GB)
   → reduce retention: rku config set traces.retention.request_traces 3d
   → reduce sampling:  rku config set traces.sampling.rate 0.05
@@ -176,6 +177,7 @@ SQLite is the ideal edge backend. Single binary, no network dependency, bounded 
 ### High drop rate
 
 If `traces_dropped_total` is increasing:
+
 - Increase `buffer_size` (costs memory)
 - Reduce `sampling.rate`
 - Upgrade to faster storage backend
@@ -183,6 +185,7 @@ If `traces_dropped_total` is increasing:
 ### Slow dashboard queries
 
 If historical charts load slowly:
+
 - Verify pre-aggregated buckets exist (aggregator must be running)
 - Reduce `retention.request_traces` (raw traces are the heavy table)
 - Upgrade to ClickHouse for analytical queries

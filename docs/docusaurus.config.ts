@@ -13,8 +13,7 @@ const config: Config = {
   organizationName: 'riokulabs',
   projectName: 'rioku',
 
-  onBrokenLinks: 'warn',
-  onBrokenMarkdownLinks: 'warn',
+  onBrokenLinks: 'throw',
 
   i18n: {
     defaultLocale: 'en',
@@ -23,6 +22,9 @@ const config: Config = {
 
   markdown: {
     mermaid: true,
+    hooks: {
+      onBrokenMarkdownLinks: 'throw',
+    },
   },
 
   themes: ['@docusaurus/theme-mermaid'],

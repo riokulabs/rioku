@@ -14,7 +14,7 @@ const config: Config = {
   organizationName: 'riokulabs',
   projectName: 'rioku',
 
-  onBrokenLinks: 'warn',
+  onBrokenLinks: 'throw',
 
   i18n: {
     defaultLocale: 'en',
@@ -25,7 +25,7 @@ const config: Config = {
     mermaid: true,
     format: 'md',
     hooks: {
-      onBrokenMarkdownLinks: 'warn',
+      onBrokenMarkdownLinks: 'throw',
     },
   },
 

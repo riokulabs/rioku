@@ -7,9 +7,15 @@
   ],
   "scripts": {
     "lint": "eslint packages/",
-    "lint:fix": "eslint packages/ --fix"
+    "lint:fix": "eslint packages/ --fix",
+    "lint:md": "markdownlint-cli2",
+    "lint:md:fix": "markdownlint-cli2 --fix",
+    "lint:mermaid": "node scripts/validate-mermaid.mjs",
+    "lint:docs": "npm run lint:md && npm run lint:mermaid"
   },
   "devDependencies": {
+    "@mermaid-js/mermaid-cli": "^11.4.2",
+    "markdownlint-cli2": "^0.18.1",
     "@chromatic-com/storybook": "^5.1.2",
     "@cspell/dict-css": "^4.1.1",
     "@cspell/dict-golang": "^6.0.26",

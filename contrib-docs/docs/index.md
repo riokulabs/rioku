@@ -10,11 +10,11 @@ These docs are written for contributors building and extending Rioku — whether
 
 - **[Quick Start](/docs/getting-started)** — Set up your development environment and understand the project structure.
 - **[Architecture](/docs/architecture/process-topology)** — Core system design: process topology, request lifecycle, cluster sync, and the plugin host. Diagrams: [Process Topology](/docs/architecture/process-topology), [Request Lifecycle](/docs/architecture/request-lifecycle), [Cluster Sync](/docs/architecture/cluster-sync), [Plugin Host](/docs/architecture/plugin-host). [Glossary](/docs/architecture/glossary) covers all key terms.
-- **[APIs](/docs/apis)** — Complete API reference (auto-generated from OpenAPI specifications).
-- **[Operations](/docs/operations)** — How to deploy, configure, and monitor Rioku in production.
-- **[Contributing](/docs/development/coding-guidelines)** — Code standards, testing practices, commit conventions, and the development workflow.
-- **[Decisions](/docs/decisions)** — Architectural decisions and research spikes explaining the rationale behind key design choices.
-- **[AI Development](/docs/ai-development)** — Integration patterns for AI agents and agentic workflows with Rioku.
+- **[APIs](/docs/apis/reference)**: complete REST API reference (auto-generated from OpenAPI).
+- **[Operations](/docs/operations/release-process)**: how to deploy, configure, and monitor Rioku in production.
+- **[Contributing](/docs/development/coding-guidelines)**: code standards, testing practices, commit conventions, and the development workflow.
+- **Decisions**: architectural decisions and research spikes are filed under the Decisions section in the sidebar.
+- **[AI Development](/docs/ai-development/coding-guidelines)**: integration patterns for AI agents and agentic workflows with Rioku.
 
 ---
 

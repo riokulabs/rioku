@@ -87,7 +87,7 @@ Three retention tiers, each independent:
 ## Consequences
 
 - **Migration 43 (Sprint 5 Phase 1f):** new tables `ai_spend_logs`
-  + `ai_spend_rollups`. The spend log columns: `id, tenant_id,
+  - `ai_spend_rollups`. The spend log columns: `id, tenant_id,
   virtual_key_id, application_id, plan_id, model_id, provider_id,
   input_tokens, output_tokens, total_tokens, cost_usd,
   latency_ms, status, request_id, messages` (nullable),

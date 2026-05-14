@@ -54,7 +54,7 @@ requests is a thin pass-through to the daemon's AI gateway port.
 
 ## Architecture
 
-```
+```text
 client ─→ Caddy (auth, rate-limit, logging, basic transforms)
        └→ daemon AI gateway port (selection + cost + virtual key
             check + token count + spend log + reverse-proxy to
@@ -69,6 +69,7 @@ manipulation, OAS validation if applicable. When it hits an
 AI route it `reverse_proxy`'s to the daemon's AI port.
 
 The daemon's AI gateway then:
+
 1. Resolves the virtual key (#167) → provider creds + allowed-
    models filter + budget.
 2. Picks the upstream via the configured strategy (#168).

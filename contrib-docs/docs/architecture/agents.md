@@ -19,6 +19,7 @@ For a visual overview of how these components connect, see the architecture diag
 **Key types:** `Gateway`, `RateLimiter`
 
 **Where to add features:**
+
 - New REST endpoints: add a handler file following the `*_routes.go` pattern in `internal/gateway/`.
 - New middleware (auth, rate-limit, RBAC): add to `route_middleware_order.go` and document the order.
 - SSE streams: add to `sse.go`.
@@ -34,6 +35,7 @@ For a visual overview of how these components connect, see the architecture diag
 **Key types:** `Driver` (interface), `Tx` (interface), `DriverConfig`
 
 **Where to add features:**
+
 - New config entities: add methods to the `Driver` interface, implement across all three dialect packages (`store/sqlite`, `store/postgres`, `store/mysql`), add migrations to all three dialect migration directories in sync.
 - Audit log entries: use `internal/store/audit` helpers; do not write to the audit table directly from handlers.
 
@@ -48,6 +50,7 @@ For a visual overview of how these components connect, see the architecture diag
 **Key types:** `Manager`, `ManagerConfig`, `Compiler`
 
 **Where to add features:**
+
 - New Caddy config sections: extend `compiler.go` (or the relevant `compiler_*.go` sub-file) to emit the new JSON block.
 - New Caddy admin API calls: add a method to `Manager` that hits the Caddy admin HTTP API via `httpClient`.
 - Log routing changes: see `internal/daemon/log_multi_handler.go`.
@@ -65,6 +68,7 @@ For a visual overview of how these components connect, see the architecture diag
 **Sub-packages:** `internal/cluster/crdt` (delta propagation), `internal/cluster/raft` (embedded Raft store, optional)
 
 **Where to add features:**
+
 - New per-node metadata surfaced in the admin panel: extend `NodeInfo` in `service.go` and update the `Discovery` implementation.
 - Cross-node config replication: work in `internal/cluster/crdt`; changes here must be tested against the store-matrix CI job.
 
@@ -81,6 +85,7 @@ For a visual overview of how these components connect, see the architecture diag
 **Sub-packages:** `internal/plugin/wasm` (WASM runtime bindings)
 
 **Where to add features:**
+
 - New plugin capability: define the capability constant and add enforcement to the host's permission check path in `host.go`.
 - New sideload endpoint: add to the gateway's sideload route group (`internal/gateway/sideload_routes_test.go` documents the contract).
 
@@ -101,6 +106,7 @@ For a visual overview of how these components connect, see the architecture diag
 **Key types:** `aigateway.Server`, `registry.Registry`, `strategies.Registry`, `tracestore.Driver` (interface), `tracestore.Ingester`
 
 **Where to add features:**
+
 - New routing strategy: implement the `strategies.Strategy` interface and register it in the `strategies` package.
 - New model pricing data: update `ai/registry`; do not hard-code prices in handler code.
 - New MCP tool: add to `internal/mcp/`; follow the existing tool registration pattern.
@@ -122,6 +128,7 @@ For a visual overview of how these components connect, see the architecture diag
 **Key types:** `auth.SessionClaims`, `auth.Manager` (session store), `vault.Resolver`
 
 **Where to add features:**
+
 - New RBAC permission: add the scope constant to `internal/auth/scopes.go`, add a store migration that seeds it, add RBAC middleware enforcement at the relevant gateway route.
 - New auth method (e.g. new SSO provider): implement in `internal/gateway/sso_routes.go`; JWT issuance and session creation go through `internal/auth`.
 - New keyring backend: implement the `keyring.Backend` interface; register in `keyring/keyring.go`.

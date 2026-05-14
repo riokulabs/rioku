@@ -83,5 +83,5 @@ conditional-expression slot.**
   for the matcher; the daemon can reuse the dep tree.
 - **Documentation:** every subsystem with a CEL slot ships a
   `cel.md` that lists its variable bindings + custom functions
-  + cost limit. Operators get a concrete reference rather than
+  - cost limit. Operators get a concrete reference rather than
   having to read source code.

@@ -1351,12 +1351,15 @@ erDiagram
 ## 4. Notes
 
 ### Tenant isolation model (row-level FK)
+
 Every tenant-scoped entity carries `tenant_id` as a non-nullable FK. The daemon must enforce row-level isolation on every query — no cross-tenant data must ever be returned on tenant-scoped endpoints. The exceptions are entities with `tenant_scope: null` (Plugin, PluginSigner) which represent global/super-admin-only records.
 
 ### Timestamps convention (ISO-8601 strings in mock)
+
 The mock stores all timestamps as ISO-8601 strings (e.g. `new Date().toISOString()`). The daemon should store as `TIMESTAMP WITH TIME ZONE` (Postgres) or `DATETIME` (SQLite/MySQL) and serialize to ISO-8601 on REST responses. Fields: `created_at`, `updated_at`, `at`, `invited_at`, `joined_at`, `last_used`, `expires_at`, `read_at`, `archived_at`, etc.
 
 ### Enum columns
+
 The following fields map to database enum or constrained string columns:
 
 - `User`: none (booleans + free text)
@@ -1392,6 +1395,7 @@ The following fields map to database enum or constrained string columns:
 - `TlsConfig`: `acme.provider` (`lets-encrypt|zerossl|custom`)
 
 ### Entities that emit audit entries in the mock
+
 Based on `features/*/api.ts` calling `appendAudit` / `emitHostEvent`:
 
 `Service`, `Route`, `Middleware`, `Site`, `AiProvider`, `AiAgent`, `AiTool`, `AiToolBinding`, `AiSemanticRateLimit`, `McpServer`, `AiTrace` (on invoke), `Role`, `ApiKey` (create/revoke/rotate), `Membership` (invite/activate/deactivate/remove), `User` (disable/enable/delete), `Session` (revoke), `AccessPolicy`, `RbacPolicy`, `Dashboard`, `Widget`, `DashboardVersion`, `Plugin` (enable/disable/install/uninstall), `PluginSigner` (verify/revoke), `ClusterNode` (remove), `ClusterEnrollmentToken` (generate/revoke), `CertAuthority`, `CertEnrollment` (add/revoke), `TlsCertificate` (add/toggle/delete), `TlsConfig`, `NetworkConfig`, `TenantAuthPolicy`, `AuditRetentionConfig`, `NotificationChannel`, `NotificationRoutingRule`, `TenantNotificationConfig`, `WebhookEndpoint`, profile/preference changes, tenant settings changes, hard-reset, export, delete.
@@ -1401,6 +1405,7 @@ Super-admin actions additionally write to `AdminAuditEntry` (hash-chained) and r
 ### Cross-tenant vs tenant-scoped tables
 
 **Cross-tenant (no tenant_id, or nullable tenant_id):**
+
 - `Tenant` — is the tenant, not inside one
 - `User` — global identity (Membership ties user to tenant)
 - `Permission` — global catalog
@@ -1412,6 +1417,7 @@ Super-admin actions additionally write to `AdminAuditEntry` (hash-chained) and r
 - `ClusterEnrollmentToken` — no `tenant_id`
 
 **Singleton-per-tenant (keyed by tenant_id, no id PK):**
+
 - `TenantAuthPolicy`
 - `NetworkConfig`
 - `TlsConfig`
