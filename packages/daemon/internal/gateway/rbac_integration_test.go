@@ -108,7 +108,7 @@ func setupRBACTestServer(t *testing.T) (*httptest.Server, store.Driver, string) 
 
 	mux := http.NewServeMux()
 	RegisterAuthRoutes(mux, a, sm, drv, cfg, enc)
-	RegisterRBACRoutes(mux, drv)
+	RegisterRBACRoutes(mux, drv, nil)
 
 	var handler http.Handler = mux
 	handler = SecurityHeadersMiddleware(handler)

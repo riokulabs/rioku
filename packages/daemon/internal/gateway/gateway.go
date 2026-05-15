@@ -169,7 +169,7 @@ func NewGateway(
 	RegisterKeyRoutes(topMux, st)
 
 	// RBAC management routes (permission-gated).
-	RegisterRBACRoutes(topMux, st)
+	RegisterRBACRoutes(topMux, st, sm)
 
 	// User management routes (permission-gated).
 	RegisterUserRoutes(topMux, st, sm, cfg)

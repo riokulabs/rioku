@@ -38,7 +38,7 @@ func setupAuditExtraTestServer(t *testing.T) (*httptest.Server, store.Driver, *h
 	enc, _ := auth.NewEncryptor(encKey)
 
 	RegisterAuthRoutes(mux, a, sm, drv, cfg, enc)
-	RegisterRBACRoutes(mux, drv)
+	RegisterRBACRoutes(mux, drv, nil)
 	RegisterAuditRoutes(mux, drv)
 	RegisterAuditExtraRoutes(mux, drv)
 

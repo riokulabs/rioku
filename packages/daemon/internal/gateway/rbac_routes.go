@@ -20,11 +20,11 @@ import (
 // and tenant-scoped `/api/v1/t/{tenant}/roles` paths are exposed;
 // storage's `tenant_id IS NULL OR tenant_id = ?` filter keeps built-in
 // roles visible from every tenant alongside tenant-scoped custom ones.
-func RegisterRBACRoutes(mux *http.ServeMux, st store.Driver) {
+func RegisterRBACRoutes(mux *http.ServeMux, st store.Driver, sm *auth.SessionManager) {
 	listRolesH := RequirePermission("roles:read")(rerr.H(handleListRoles(st)))
 	createRoleH := RequirePermission("roles:manage")(rerr.H(handleCreateRole(st)))
 	getRoleH := RequirePermission("roles:read")(rerr.H(handleGetRole(st)))
-	updateRoleH := RequirePermission("roles:manage")(rerr.H(handleUpdateRole(st)))
+	updateRoleH := RequirePermission("roles:manage")(rerr.H(handleUpdateRole(st, sm)))
 	deleteRoleH := RequirePermission("roles:manage")(rerr.H(handleDeleteRole(st)))
 	listPermsH := RequirePermission("roles:read")(rerr.H(handleListPermissions(st)))
 	listUserRolesH := RequirePermission("users:read")(rerr.H(handleListUserRoles(st)))
@@ -207,13 +207,15 @@ func handleGetRole(st store.Driver) rerr.Handler {
 }
 
 type updateRoleRequest struct {
-	Name        *string  `json:"name"`
-	Description *string  `json:"description"`
-	AddPerms    []string `json:"addPermissions"`
-	RemovePerms []string `json:"removePermissions"`
+	Name         *string  `json:"name"`
+	Description  *string  `json:"description"`
+	AddPerms     []string `json:"addPermissions"`
+	RemovePerms  []string `json:"removePermissions"`
+	ParentRoleID *string  `json:"parentRoleId"` // non-nil → set parent
+	ClearParent  bool     `json:"clearParent"`   // true → set parent_role_id to NULL
 }
 
-func handleUpdateRole(st store.Driver) rerr.Handler {
+func handleUpdateRole(st store.Driver, sm *auth.SessionManager) rerr.Handler {
 	return func(w http.ResponseWriter, r *http.Request) error {
 		r.Body = http.MaxBytesReader(w, r.Body, maxAuthBodySize)
 		ctx := r.Context()
@@ -255,10 +257,12 @@ func handleUpdateRole(st store.Driver) rerr.Handler {
 		}
 
 		role, err := tx.UpdateRole(ctx, id, store.UpdateRoleParams{
-			Name:        req.Name,
-			Description: req.Description,
-			AddPerms:    req.AddPerms,
-			RemovePerms: req.RemovePerms,
+			Name:         req.Name,
+			Description:  req.Description,
+			AddPerms:     req.AddPerms,
+			RemovePerms:  req.RemovePerms,
+			ParentRoleID: req.ParentRoleID,
+			ClearParent:  req.ClearParent,
 		})
 		if err != nil {
 			if errors.Is(err, store.ErrRoleEscalation) {
@@ -290,6 +294,19 @@ func handleUpdateRole(st store.Driver) rerr.Handler {
 
 		if err := tx.Commit(); err != nil {
 			return rerr.Wrap(err, "commit")
+		}
+
+		// Evict cached sessions for users assigned to this role so they
+		// reload effective permissions on the next request (#210).
+		if sm != nil {
+			if rtx, txErr := st.Begin(ctx, store.TxOptions{ReadOnly: true}); txErr == nil {
+				if affectedUsers, listErr := rtx.ListUsersWithRole(ctx, id); listErr == nil {
+					for _, uid := range affectedUsers {
+						sm.EvictSessionsByUser(ctx, uid)
+					}
+				}
+				_ = rtx.Rollback()
+			}
 		}
 
 		return rerr.JSON(w, toRoleResponse(role))
