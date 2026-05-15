@@ -34,6 +34,7 @@ paths:
                     items: { $ref: "#/components/schemas/AITrace" }
                   total: { type: integer }
     options:
+      tags: [ai-traces]
       responses: { "204": { description: no content } }
 
   /api/v1/t/{tenant}/ai/traces/{id}:
@@ -50,6 +51,7 @@ paths:
             application/json:
               schema: { $ref: "#/components/schemas/AITrace" }
     options:
+      tags: [ai-traces]
       responses: { "204": { description: no content } }
 
   /api/v1/t/{tenant}/ai/traces/stream:
@@ -66,6 +68,7 @@ paths:
             text/event-stream:
               schema: { type: string }
     options:
+      tags: [ai-traces]
       responses: { "204": { description: no content } }
 
   /api/v1/t/{tenant}/ai/traces/export/csv:
@@ -82,6 +85,7 @@ paths:
             text/csv:
               schema: { type: string }
     options:
+      tags: [ai-traces]
       responses: { "204": { description: no content } }
 
 components:

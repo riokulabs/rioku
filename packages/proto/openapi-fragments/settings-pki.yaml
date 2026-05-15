@@ -47,6 +47,7 @@ paths:
             application/problem+json:
               schema: { $ref: "#/components/schemas/Problem" }
     options:
+      tags: [settings]
       responses: { "204": { description: no content } }
 
   /api/v1/t/{tenant}/settings/pki/cas/{id}:
@@ -95,6 +96,7 @@ paths:
             application/problem+json:
               schema: { $ref: "#/components/schemas/Problem" }
     options:
+      tags: [settings]
       responses: { "204": { description: no content } }
 
   /api/v1/t/{tenant}/settings/pki/enrollments:
@@ -133,6 +135,7 @@ paths:
             application/json:
               schema: { $ref: "#/components/schemas/CertEnrollment" }
     options:
+      tags: [settings]
       responses: { "204": { description: no content } }
 
   /api/v1/t/{tenant}/settings/pki/enrollments/{id}:
@@ -157,6 +160,7 @@ paths:
             application/problem+json:
               schema: { $ref: "#/components/schemas/Problem" }
     options:
+      tags: [settings]
       responses: { "204": { description: no content } }
 
   /api/v1/t/{tenant}/settings/pki/enrollments/{id}/revoke:
@@ -190,6 +194,7 @@ paths:
             application/problem+json:
               schema: { $ref: "#/components/schemas/Problem" }
     options:
+      tags: [settings]
       responses: { "204": { description: no content } }
 
 components:

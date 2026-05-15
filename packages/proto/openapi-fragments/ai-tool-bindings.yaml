@@ -38,6 +38,7 @@ paths:
             application/json:
               schema: { $ref: "#/components/schemas/AIToolBinding" }
     options:
+      tags: [ai-tool-bindings]
       responses: { "204": { description: no content } }
 
   /api/v1/t/{tenant}/ai/tool-bindings/{id}:
@@ -72,6 +73,7 @@ paths:
       operationId: deleteAIToolBinding
       responses: { "204": { description: deleted } }
     options:
+      tags: [ai-tool-bindings]
       responses: { "204": { description: no content } }
 
   /api/v1/t/{tenant}/ai/tool-bindings/bulk-attach:
@@ -106,6 +108,7 @@ paths:
                     items: { $ref: "#/components/schemas/AIToolBinding" }
                   total: { type: integer }
     options:
+      tags: [ai-tool-bindings]
       responses: { "204": { description: no content } }
 
   /api/v1/t/{tenant}/ai/tool-bindings/preview-condition:
@@ -136,6 +139,7 @@ paths:
                   matched: { type: boolean }
                   note: { type: string }
     options:
+      tags: [ai-tool-bindings]
       responses: { "204": { description: no content } }
 
 components:

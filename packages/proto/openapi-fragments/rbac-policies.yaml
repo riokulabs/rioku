@@ -58,6 +58,7 @@ paths:
         "201": { description: created }
         "409": { description: duplicate (subjectType + subjectId + roleId already mapped) }
     options:
+      tags: [rbac-policies]
       responses: { "204": { description: no content } }
 
   /api/v1/t/{tenant}/rbac-policies/{id}:
@@ -81,6 +82,7 @@ paths:
       operationId: deleteRbacPolicy
       responses: { "204": { description: deleted } }
     options:
+      tags: [rbac-policies]
       responses: { "204": { description: no content } }
 
   /api/v1/t/{tenant}/rbac-policies/{id}/test:
@@ -113,4 +115,5 @@ paths:
                   policyId: { type: string }
                   roleId: { type: string, description: "Only present when matched is true" }
     options:
+      tags: [rbac-policies]
       responses: { "204": { description: no content } }

@@ -42,6 +42,7 @@ paths:
             application/json:
               schema: { $ref: "#/components/schemas/AccessPolicy" }
     options:
+      tags: [access-policies]
       responses: { "204": { description: no content } }
 
   /api/v1/t/{tenant}/access-policies/{id}:
@@ -91,6 +92,7 @@ paths:
       operationId: deleteAccessPolicy
       responses: { "204": { description: deleted } }
     options:
+      tags: [access-policies]
       responses: { "204": { description: no content } }
 
   /api/v1/t/{tenant}/access-policies/test-cel:
@@ -118,6 +120,7 @@ paths:
               schema: { $ref: "#/components/schemas/TestCELResult" }
         "400": { description: invalid request body }
     options:
+      tags: [access-policies]
       responses: { "204": { description: no content } }
 
 components:

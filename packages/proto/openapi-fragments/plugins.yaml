@@ -57,6 +57,7 @@ paths:
               schema:
                 $ref: "#/components/schemas/Problem"
     options:
+      tags: [plugins]
       responses: { "204": { description: no content } }
 
   /api/v1/t/{tenant}/plugins/{id}:
@@ -94,6 +95,7 @@ paths:
             application/problem+json:
               schema: { $ref: "#/components/schemas/Problem" }
     options:
+      tags: [plugins]
       responses: { "204": { description: no content } }
 
   /api/v1/t/{tenant}/plugins/{id}/enable:
@@ -114,6 +116,7 @@ paths:
             application/json:
               schema: { $ref: "#/components/schemas/Plugin" }
     options:
+      tags: [plugins]
       responses: { "204": { description: no content } }
 
   /api/v1/t/{tenant}/plugins/{id}/disable:
@@ -134,6 +137,7 @@ paths:
             application/json:
               schema: { $ref: "#/components/schemas/Plugin" }
     options:
+      tags: [plugins]
       responses: { "204": { description: no content } }
 
   /api/v1/t/{tenant}/plugins/{id}/build-log:
@@ -171,6 +175,7 @@ paths:
                   `event: progress` and `data:` containing a JSON
                   `{ stage, progress, message }` envelope.
     options:
+      tags: [plugins]
       responses: { "204": { description: no content } }
 
   # ─── Marketplace ──────────────────────────────────────────────────────────
@@ -191,6 +196,7 @@ paths:
               schema:
                 $ref: "#/components/schemas/MarketplaceList"
     options:
+      tags: [plugins]
       responses: { "204": { description: no content } }
 
   /api/v1/t/{tenant}/plugin-marketplace:
@@ -207,6 +213,7 @@ paths:
             application/json:
               schema: { $ref: "#/components/schemas/MarketplaceList" }
     options:
+      tags: [plugins]
       responses: { "204": { description: no content } }
 
   /api/v1/t/{tenant}/plugin-marketplace/{id}:
@@ -268,6 +275,7 @@ paths:
                   status: { type: string, enum: [queued, building] }
                   note: { type: string }
     options:
+      tags: [plugins]
       responses: { "204": { description: no content } }
 
   # ─── Sideload ─────────────────────────────────────────────────────────────
@@ -354,6 +362,7 @@ paths:
             application/problem+json:
               schema: { $ref: "#/components/schemas/Problem" }
     options:
+      tags: [plugins]
       responses: { "204": { description: no content } }
 
   # ─── Manifest validator ──────────────────────────────────────────────────
@@ -394,6 +403,7 @@ paths:
                         path: { type: string }
                         message: { type: string }
     options:
+      tags: [plugins]
       responses: { "204": { description: no content } }
 
 components:

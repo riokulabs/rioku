@@ -43,6 +43,7 @@ paths:
         "409":
           description: name already in use within this tenant
     options:
+      tags: [sso]
       responses: { "204": { description: no content } }
 
   /api/v1/t/{tenant}/sso/providers/{id}:
@@ -83,6 +84,7 @@ paths:
         "204": { description: deleted }
         "404": { description: not found }
     options:
+      tags: [sso]
       responses: { "204": { description: no content } }
 
 components:

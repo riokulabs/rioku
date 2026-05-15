@@ -40,6 +40,7 @@ paths:
             application/json:
               schema: { $ref: "#/components/schemas/Middleware" }
     options:
+      tags: [middlewares]
       responses: { "204": { description: no content } }
 
   /api/v1/t/{tenant}/middlewares/{id}:
@@ -88,6 +89,7 @@ paths:
       operationId: deleteMiddleware
       responses: { "204": { description: deleted } }
     options:
+      tags: [middlewares]
       responses: { "204": { description: no content } }
 
 components:

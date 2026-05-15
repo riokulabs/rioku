@@ -64,6 +64,7 @@ paths:
         "201": { description: created }
         "409": { description: duplicate email }
     options:
+      tags: [users]
       responses: { "204": { description: no content } }
 
   /api/v1/t/{tenant}/users/{id}:
@@ -115,6 +116,7 @@ paths:
       operationId: deleteUser
       responses: { "204": { description: deleted } }
     options:
+      tags: [users]
       responses: { "204": { description: no content } }
 
   /api/v1/t/{tenant}/users/{id}/suspend:
@@ -127,6 +129,7 @@ paths:
       operationId: suspendUser
       responses: { "204": { description: suspended } }
     options:
+      tags: [users]
       responses: { "204": { description: no content } }
 
   /api/v1/t/{tenant}/users/{id}/activate:
@@ -139,6 +142,7 @@ paths:
       operationId: activateUser
       responses: { "204": { description: activated } }
     options:
+      tags: [users]
       responses: { "204": { description: no content } }
 
   /api/v1/t/{tenant}/users/{id}/lock:
@@ -150,6 +154,7 @@ paths:
       operationId: lockUser
       responses: { "204": { description: locked } }
     options:
+      tags: [users]
       responses: { "204": { description: no content } }
 
   /api/v1/t/{tenant}/users/{id}/unlock:
@@ -161,6 +166,7 @@ paths:
       operationId: unlockUser
       responses: { "204": { description: unlocked } }
     options:
+      tags: [users]
       responses: { "204": { description: no content } }
 
   /api/v1/t/{tenant}/users/{id}/reset-password:
@@ -180,6 +186,7 @@ paths:
                 forceChangeOnNextLogin: { type: boolean }
       responses: { "200": { description: ok } }
     options:
+      tags: [users]
       responses: { "204": { description: no content } }
 
   /api/v1/t/{tenant}/users/{id}/sessions:
@@ -213,4 +220,5 @@ paths:
                         expiresAt: { type: string, format: date-time }
                         lastActivityAt: { type: string, format: date-time }
     options:
+      tags: [users]
       responses: { "204": { description: no content } }

@@ -5806,7 +5806,10 @@
           "204": {
             "description": "no content"
           }
-        }
+        },
+        "tags": [
+          "admin"
+        ]
       }
     },
     "/api/v1/admin/impersonation": {
@@ -5842,7 +5845,10 @@
           "204": {
             "description": "no content"
           }
-        }
+        },
+        "tags": [
+          "impersonation"
+        ]
       },
       "post": {
         "operationId": "startImpersonation",
@@ -5920,7 +5926,10 @@
           "204": {
             "description": "no content"
           }
-        }
+        },
+        "tags": [
+          "impersonation"
+        ]
       },
       "parameters": [
         {
@@ -5934,7 +5943,10 @@
           "204": {
             "description": "no content"
           }
-        }
+        },
+        "tags": [
+          "impersonation"
+        ]
       },
       "parameters": [
         {
@@ -5998,7 +6010,10 @@
           "204": {
             "description": "no content"
           }
-        }
+        },
+        "tags": [
+          "admin"
+        ]
       },
       "post": {
         "description": "Requires `admin:cross-tenant-write`.",
@@ -6095,7 +6110,10 @@
           "204": {
             "description": "no content"
           }
-        }
+        },
+        "tags": [
+          "admin"
+        ]
       },
       "parameters": [
         {
@@ -6208,7 +6226,10 @@
           "204": {
             "description": "no content"
           }
-        }
+        },
+        "tags": [
+          "admin"
+        ]
       }
     },
     "/api/v1/ai/virtual-keys": {
@@ -8303,7 +8324,10 @@
           "204": {
             "description": "no content"
           }
-        }
+        },
+        "tags": [
+          "plugins"
+        ]
       }
     },
     "/api/v1/plugins/{pluginId}": {
@@ -8763,7 +8787,10 @@
           "204": {
             "description": "no content"
           }
-        }
+        },
+        "tags": [
+          "access-policies"
+        ]
       },
       "parameters": [
         {
@@ -8805,7 +8832,10 @@
           "204": {
             "description": "no content"
           }
-        }
+        },
+        "tags": [
+          "access-policies"
+        ]
       },
       "parameters": [
         {
@@ -8884,7 +8914,10 @@
           "204": {
             "description": "no content"
           }
-        }
+        },
+        "tags": [
+          "access-policies"
+        ]
       },
       "parameters": [
         {
@@ -8987,7 +9020,10 @@
           "204": {
             "description": "no content"
           }
-        }
+        },
+        "tags": [
+          "ai-agents"
+        ]
       },
       "parameters": [
         {
@@ -9059,7 +9095,10 @@
           "204": {
             "description": "no content"
           }
-        }
+        },
+        "tags": [
+          "ai-agents"
+        ]
       },
       "parameters": [
         {
@@ -9132,7 +9171,10 @@
           "204": {
             "description": "no content"
           }
-        }
+        },
+        "tags": [
+          "ai-agents"
+        ]
       },
       "parameters": [
         {
@@ -9209,7 +9251,10 @@
           "204": {
             "description": "no content"
           }
-        }
+        },
+        "tags": [
+          "ai-agents"
+        ]
       },
       "parameters": [
         {
@@ -9257,7 +9302,10 @@
           "204": {
             "description": "no content"
           }
-        }
+        },
+        "tags": [
+          "ai-agents"
+        ]
       },
       "parameters": [
         {
@@ -9304,7 +9352,10 @@
           "204": {
             "description": "no content"
           }
-        }
+        },
+        "tags": [
+          "ai-mcp-servers"
+        ]
       },
       "parameters": [
         {
@@ -9376,7 +9427,10 @@
           "204": {
             "description": "no content"
           }
-        }
+        },
+        "tags": [
+          "ai-mcp-servers"
+        ]
       },
       "parameters": [
         {
@@ -9449,7 +9503,10 @@
           "204": {
             "description": "no content"
           }
-        }
+        },
+        "tags": [
+          "ai-mcp-servers"
+        ]
       },
       "parameters": [
         {
@@ -9564,7 +9621,10 @@
           "204": {
             "description": "no content"
           }
-        }
+        },
+        "tags": [
+          "ai-mcp-servers"
+        ]
       },
       "parameters": [
         {
@@ -9611,7 +9671,10 @@
           "204": {
             "description": "no content"
           }
-        }
+        },
+        "tags": [
+          "ai-rate-limits"
+        ]
       },
       "parameters": [
         {
@@ -9683,7 +9746,10 @@
           "204": {
             "description": "no content"
           }
-        }
+        },
+        "tags": [
+          "ai-rate-limits"
+        ]
       },
       "parameters": [
         {
@@ -9759,7 +9825,10 @@
           "204": {
             "description": "no content"
           }
-        }
+        },
+        "tags": [
+          "ai-rate-limits"
+        ]
       },
       "parameters": [
         {
@@ -9776,7 +9845,10 @@
           "204": {
             "description": "no content"
           }
-        }
+        },
+        "tags": [
+          "ai-rate-limits"
+        ]
       },
       "parameters": [
         {
@@ -9852,7 +9924,10 @@
           "204": {
             "description": "no content"
           }
-        }
+        },
+        "tags": [
+          "ai-tool-bindings"
+        ]
       },
       "parameters": [
         {
@@ -9895,7 +9970,10 @@
           "204": {
             "description": "no content"
           }
-        }
+        },
+        "tags": [
+          "ai-tool-bindings"
+        ]
       },
       "parameters": [
         {
@@ -9964,7 +10042,10 @@
           "204": {
             "description": "no content"
           }
-        }
+        },
+        "tags": [
+          "ai-tool-bindings"
+        ]
       },
       "parameters": [
         {
@@ -10056,7 +10137,10 @@
           "204": {
             "description": "no content"
           }
-        }
+        },
+        "tags": [
+          "ai-tool-bindings"
+        ]
       },
       "parameters": [
         {
@@ -10131,7 +10215,10 @@
           "204": {
             "description": "no content"
           }
-        }
+        },
+        "tags": [
+          "ai-tools"
+        ]
       },
       "parameters": [
         {
@@ -10203,7 +10290,10 @@
           "204": {
             "description": "no content"
           }
-        }
+        },
+        "tags": [
+          "ai-tools"
+        ]
       },
       "parameters": [
         {
@@ -10311,7 +10401,10 @@
           "204": {
             "description": "no content"
           }
-        }
+        },
+        "tags": [
+          "ai-tools"
+        ]
       },
       "parameters": [
         {
@@ -10328,7 +10421,10 @@
           "204": {
             "description": "no content"
           }
-        }
+        },
+        "tags": [
+          "ai-tools"
+        ]
       },
       "parameters": [
         {
@@ -10428,7 +10524,10 @@
           "204": {
             "description": "no content"
           }
-        }
+        },
+        "tags": [
+          "ai-traces"
+        ]
       },
       "parameters": [
         {
@@ -10461,7 +10560,10 @@
           "204": {
             "description": "no content"
           }
-        }
+        },
+        "tags": [
+          "ai-traces"
+        ]
       },
       "parameters": [
         {
@@ -10494,7 +10596,10 @@
           "204": {
             "description": "no content"
           }
-        }
+        },
+        "tags": [
+          "ai-traces"
+        ]
       },
       "parameters": [
         {
@@ -10526,7 +10631,10 @@
           "204": {
             "description": "no content"
           }
-        }
+        },
+        "tags": [
+          "ai-traces"
+        ]
       },
       "parameters": [
         {
@@ -10616,7 +10724,10 @@
           "204": {
             "description": "no content"
           }
-        }
+        },
+        "tags": [
+          "api-keys"
+        ]
       },
       "parameters": [
         {
@@ -10766,7 +10877,10 @@
           "204": {
             "description": "no content"
           }
-        }
+        },
+        "tags": [
+          "api-keys"
+        ]
       },
       "parameters": [
         {
@@ -10836,7 +10950,10 @@
           "204": {
             "description": "no content"
           }
-        }
+        },
+        "tags": [
+          "api-keys"
+        ]
       },
       "parameters": [
         {
@@ -10865,7 +10982,10 @@
           "204": {
             "description": "no content"
           }
-        }
+        },
+        "tags": [
+          "api-keys"
+        ]
       },
       "parameters": [
         {
@@ -10931,7 +11051,10 @@
           "204": {
             "description": "no content"
           }
-        }
+        },
+        "tags": [
+          "api-keys"
+        ]
       },
       "parameters": [
         {
@@ -10979,7 +11102,10 @@
           "204": {
             "description": "no content"
           }
-        }
+        },
+        "tags": [
+          "audit"
+        ]
       },
       "parameters": [
         {
@@ -11092,7 +11218,10 @@
           "204": {
             "description": "no content"
           }
-        }
+        },
+        "tags": [
+          "audit"
+        ]
       },
       "parameters": [
         {
@@ -11143,7 +11272,10 @@
           "204": {
             "description": "no content"
           }
-        }
+        },
+        "tags": [
+          "audit"
+        ]
       },
       "parameters": [
         {
@@ -11221,7 +11353,10 @@
           "204": {
             "description": "no content"
           }
-        }
+        },
+        "tags": [
+          "audit"
+        ]
       },
       "parameters": [
         {
@@ -11312,7 +11447,10 @@
           "204": {
             "description": "no content"
           }
-        }
+        },
+        "tags": [
+          "audit"
+        ]
       },
       "parameters": [
         {
@@ -11371,7 +11509,10 @@
           "204": {
             "description": "no content"
           }
-        }
+        },
+        "tags": [
+          "audit"
+        ]
       },
       "parameters": [
         {
@@ -11475,7 +11616,10 @@
           "204": {
             "description": "no content"
           }
-        }
+        },
+        "tags": [
+          "audit"
+        ]
       },
       "parameters": [
         {
@@ -11511,7 +11655,10 @@
           "204": {
             "description": "no content"
           }
-        }
+        },
+        "tags": [
+          "audit"
+        ]
       },
       "parameters": [
         {
@@ -11528,7 +11675,10 @@
           "204": {
             "description": "no content"
           }
-        }
+        },
+        "tags": [
+          "audit"
+        ]
       },
       "parameters": [
         {
@@ -11621,7 +11771,10 @@
           "204": {
             "description": "no content"
           }
-        }
+        },
+        "tags": [
+          "dashboards"
+        ]
       },
       "parameters": [
         {
@@ -11765,7 +11918,10 @@
           "204": {
             "description": "no content"
           }
-        }
+        },
+        "tags": [
+          "dashboards"
+        ]
       },
       "parameters": [
         {
@@ -11901,7 +12057,10 @@
           "204": {
             "description": "no content"
           }
-        }
+        },
+        "tags": [
+          "dashboards"
+        ]
       },
       "parameters": [
         {
@@ -11937,7 +12096,10 @@
           "204": {
             "description": "no content"
           }
-        }
+        },
+        "tags": [
+          "dashboards"
+        ]
       },
       "parameters": [
         {
@@ -11973,7 +12135,10 @@
           "204": {
             "description": "no content"
           }
-        }
+        },
+        "tags": [
+          "dashboards"
+        ]
       },
       "parameters": [
         {
@@ -12038,7 +12203,10 @@
           "204": {
             "description": "no content"
           }
-        }
+        },
+        "tags": [
+          "dashboards"
+        ]
       },
       "parameters": [
         {
@@ -12067,7 +12235,10 @@
           "204": {
             "description": "no content"
           }
-        }
+        },
+        "tags": [
+          "dashboards"
+        ]
       },
       "parameters": [
         {
@@ -12178,7 +12349,10 @@
           "204": {
             "description": "no content"
           }
-        }
+        },
+        "tags": [
+          "dashboards"
+        ]
       },
       "parameters": [
         {
@@ -12236,7 +12410,10 @@
           "204": {
             "description": "no content"
           }
-        }
+        },
+        "tags": [
+          "dashboards"
+        ]
       },
       "parameters": [
         {
@@ -12291,7 +12468,10 @@
           "204": {
             "description": "no content"
           }
-        }
+        },
+        "tags": [
+          "middlewares"
+        ]
       },
       "parameters": [
         {
@@ -12363,7 +12543,10 @@
           "204": {
             "description": "no content"
           }
-        }
+        },
+        "tags": [
+          "middlewares"
+        ]
       },
       "parameters": [
         {
@@ -12507,7 +12690,10 @@
           "204": {
             "description": "no content"
           }
-        }
+        },
+        "tags": [
+          "permissions"
+        ]
       },
       "parameters": [
         {
@@ -12540,7 +12726,10 @@
           "204": {
             "description": "no content"
           }
-        }
+        },
+        "tags": [
+          "plugins"
+        ]
       },
       "parameters": [
         {
@@ -12617,7 +12806,10 @@
           "204": {
             "description": "no content"
           }
-        }
+        },
+        "tags": [
+          "plugins"
+        ]
       },
       "parameters": [
         {
@@ -12687,7 +12879,10 @@
           "204": {
             "description": "no content"
           }
-        }
+        },
+        "tags": [
+          "plugins"
+        ]
       },
       "parameters": [
         {
@@ -12762,7 +12957,10 @@
           "204": {
             "description": "no content"
           }
-        }
+        },
+        "tags": [
+          "plugins"
+        ]
       },
       "parameters": [
         {
@@ -12834,7 +13032,10 @@
           "204": {
             "description": "no content"
           }
-        }
+        },
+        "tags": [
+          "plugins"
+        ]
       },
       "parameters": [
         {
@@ -13005,7 +13206,10 @@
           "204": {
             "description": "no content"
           }
-        }
+        },
+        "tags": [
+          "plugins"
+        ]
       },
       "parameters": [
         {
@@ -13076,7 +13280,10 @@
           "204": {
             "description": "no content"
           }
-        }
+        },
+        "tags": [
+          "plugins"
+        ]
       },
       "parameters": [
         {
@@ -13098,7 +13305,10 @@
           "204": {
             "description": "no content"
           }
-        }
+        },
+        "tags": [
+          "plugins"
+        ]
       },
       "parameters": [
         {
@@ -13139,7 +13349,10 @@
           "204": {
             "description": "no content"
           }
-        }
+        },
+        "tags": [
+          "plugins"
+        ]
       },
       "parameters": [
         {
@@ -13338,7 +13551,10 @@
           "204": {
             "description": "no content"
           }
-        }
+        },
+        "tags": [
+          "rbac-policies"
+        ]
       },
       "parameters": [
         {
@@ -13434,7 +13650,10 @@
           "204": {
             "description": "no content"
           }
-        }
+        },
+        "tags": [
+          "rbac-policies"
+        ]
       },
       "parameters": [
         {
@@ -13473,7 +13692,10 @@
           "204": {
             "description": "no content"
           }
-        }
+        },
+        "tags": [
+          "rbac-policies"
+        ]
       },
       "parameters": [
         {
@@ -13606,7 +13828,10 @@
           "204": {
             "description": "no content"
           }
-        }
+        },
+        "tags": [
+          "roles"
+        ]
       },
       "parameters": [
         {
@@ -13730,7 +13955,10 @@
           "204": {
             "description": "no content"
           }
-        }
+        },
+        "tags": [
+          "roles"
+        ]
       },
       "parameters": [
         {
@@ -13781,7 +14009,10 @@
           "204": {
             "description": "no content"
           }
-        }
+        },
+        "tags": [
+          "services"
+        ]
       },
       "parameters": [
         {
@@ -13839,7 +14070,10 @@
           "204": {
             "description": "no content"
           }
-        }
+        },
+        "tags": [
+          "services"
+        ]
       },
       "parameters": [
         {
@@ -13911,7 +14145,10 @@
           "204": {
             "description": "no content"
           }
-        }
+        },
+        "tags": [
+          "services"
+        ]
       },
       "parameters": [
         {
@@ -13941,7 +14178,10 @@
           "204": {
             "description": "no content"
           }
-        }
+        },
+        "tags": [
+          "services"
+        ]
       },
       "parameters": [
         {
@@ -14185,7 +14425,10 @@
           "204": {
             "description": "no content"
           }
-        }
+        },
+        "tags": [
+          "services"
+        ]
       },
       "parameters": [
         {
@@ -14261,7 +14504,10 @@
           "204": {
             "description": "no content"
           }
-        }
+        },
+        "tags": [
+          "sessions"
+        ]
       },
       "parameters": [
         {
@@ -14275,7 +14521,10 @@
           "204": {
             "description": "no content"
           }
-        }
+        },
+        "tags": [
+          "sessions"
+        ]
       },
       "parameters": [
         {
@@ -14313,7 +14562,10 @@
           "204": {
             "description": "no content"
           }
-        }
+        },
+        "tags": [
+          "sessions"
+        ]
       },
       "parameters": [
         {
@@ -14349,7 +14601,10 @@
           "204": {
             "description": "no content"
           }
-        }
+        },
+        "tags": [
+          "settings"
+        ]
       },
       "parameters": [
         {
@@ -14413,7 +14668,10 @@
           "204": {
             "description": "no content"
           }
-        }
+        },
+        "tags": [
+          "settings"
+        ]
       },
       "parameters": [
         {
@@ -14427,7 +14685,10 @@
           "204": {
             "description": "no content"
           }
-        }
+        },
+        "tags": [
+          "settings"
+        ]
       },
       "parameters": [
         {
@@ -14501,7 +14762,10 @@
           "204": {
             "description": "no content"
           }
-        }
+        },
+        "tags": [
+          "settings"
+        ]
       },
       "parameters": [
         {
@@ -14534,7 +14798,10 @@
           "204": {
             "description": "no content"
           }
-        }
+        },
+        "tags": [
+          "settings"
+        ]
       },
       "parameters": [
         {
@@ -14596,7 +14863,10 @@
           "204": {
             "description": "no content"
           }
-        }
+        },
+        "tags": [
+          "settings"
+        ]
       },
       "parameters": [
         {
@@ -14651,7 +14921,10 @@
           "204": {
             "description": "no content"
           }
-        }
+        },
+        "tags": [
+          "settings"
+        ]
       },
       "parameters": [
         {
@@ -14696,7 +14969,10 @@
           "204": {
             "description": "no content"
           }
-        }
+        },
+        "tags": [
+          "settings"
+        ]
       },
       "parameters": [
         {
@@ -14775,7 +15051,10 @@
           "204": {
             "description": "no content"
           }
-        }
+        },
+        "tags": [
+          "settings"
+        ]
       },
       "parameters": [
         {
@@ -14838,7 +15117,10 @@
           "204": {
             "description": "no content"
           }
-        }
+        },
+        "tags": [
+          "settings"
+        ]
       },
       "parameters": [
         {
@@ -14900,7 +15182,10 @@
           "204": {
             "description": "no content"
           }
-        }
+        },
+        "tags": [
+          "settings"
+        ]
       },
       "parameters": [
         {
@@ -14962,7 +15247,10 @@
           "204": {
             "description": "no content"
           }
-        }
+        },
+        "tags": [
+          "settings"
+        ]
       },
       "parameters": [
         {
@@ -15024,7 +15312,10 @@
           "204": {
             "description": "no content"
           }
-        }
+        },
+        "tags": [
+          "settings"
+        ]
       },
       "parameters": [
         {
@@ -15101,7 +15392,10 @@
           "204": {
             "description": "no content"
           }
-        }
+        },
+        "tags": [
+          "settings"
+        ]
       },
       "parameters": [
         {
@@ -15203,7 +15497,10 @@
           "204": {
             "description": "no content"
           }
-        }
+        },
+        "tags": [
+          "settings"
+        ]
       },
       "parameters": [
         {
@@ -15287,7 +15584,10 @@
           "204": {
             "description": "no content"
           }
-        }
+        },
+        "tags": [
+          "settings"
+        ]
       },
       "parameters": [
         {
@@ -15358,7 +15658,10 @@
           "204": {
             "description": "no content"
           }
-        }
+        },
+        "tags": [
+          "settings"
+        ]
       },
       "parameters": [
         {
@@ -15380,7 +15683,10 @@
           "204": {
             "description": "no content"
           }
-        }
+        },
+        "tags": [
+          "settings"
+        ]
       },
       "parameters": [
         {
@@ -15523,7 +15829,10 @@
           "204": {
             "description": "no content"
           }
-        }
+        },
+        "tags": [
+          "settings"
+        ]
       },
       "parameters": [
         {
@@ -15615,7 +15924,10 @@
           "204": {
             "description": "no content"
           }
-        }
+        },
+        "tags": [
+          "settings"
+        ]
       },
       "parameters": [
         {
@@ -15692,7 +16004,10 @@
           "204": {
             "description": "no content"
           }
-        }
+        },
+        "tags": [
+          "settings"
+        ]
       },
       "parameters": [
         {
@@ -15794,7 +16109,10 @@
           "204": {
             "description": "no content"
           }
-        }
+        },
+        "tags": [
+          "settings"
+        ]
       },
       "parameters": [
         {
@@ -15816,7 +16134,10 @@
           "204": {
             "description": "no content"
           }
-        }
+        },
+        "tags": [
+          "settings"
+        ]
       },
       "parameters": [
         {
@@ -15894,7 +16215,10 @@
           "204": {
             "description": "no content"
           }
-        }
+        },
+        "tags": [
+          "settings"
+        ]
       },
       "parameters": [
         {
@@ -15908,7 +16232,10 @@
           "204": {
             "description": "no content"
           }
-        }
+        },
+        "tags": [
+          "settings"
+        ]
       },
       "parameters": [
         {
@@ -15951,7 +16278,10 @@
           "204": {
             "description": "no content"
           }
-        }
+        },
+        "tags": [
+          "settings"
+        ]
       },
       "parameters": [
         {
@@ -15994,7 +16324,10 @@
           "204": {
             "description": "no content"
           }
-        }
+        },
+        "tags": [
+          "settings"
+        ]
       },
       "parameters": [
         {
@@ -16079,7 +16412,10 @@
           "204": {
             "description": "no content"
           }
-        }
+        },
+        "tags": [
+          "settings"
+        ]
       },
       "parameters": [
         {
@@ -16145,7 +16481,10 @@
           "204": {
             "description": "no content"
           }
-        }
+        },
+        "tags": [
+          "sites"
+        ]
       },
       "parameters": [
         {
@@ -16217,7 +16556,10 @@
           "204": {
             "description": "no content"
           }
-        }
+        },
+        "tags": [
+          "sites"
+        ]
       },
       "parameters": [
         {
@@ -16290,7 +16632,10 @@
           "204": {
             "description": "no content"
           }
-        }
+        },
+        "tags": [
+          "sites"
+        ]
       },
       "parameters": [
         {
@@ -16366,7 +16711,10 @@
           "204": {
             "description": "no content"
           }
-        }
+        },
+        "tags": [
+          "sso"
+        ]
       },
       "parameters": [
         {
@@ -16447,7 +16795,10 @@
           "204": {
             "description": "no content"
           }
-        }
+        },
+        "tags": [
+          "sso"
+        ]
       },
       "parameters": [
         {
@@ -16563,7 +16914,10 @@
           "204": {
             "description": "no content"
           }
-        }
+        },
+        "tags": [
+          "users"
+        ]
       },
       "parameters": [
         {
@@ -16698,7 +17052,10 @@
           "204": {
             "description": "no content"
           }
-        }
+        },
+        "tags": [
+          "users"
+        ]
       },
       "parameters": [
         {
@@ -16758,7 +17115,10 @@
           "204": {
             "description": "no content"
           }
-        }
+        },
+        "tags": [
+          "users"
+        ]
       },
       "parameters": [
         {
@@ -16787,7 +17147,10 @@
           "204": {
             "description": "no content"
           }
-        }
+        },
+        "tags": [
+          "users"
+        ]
       },
       "parameters": [
         {
@@ -16815,7 +17178,10 @@
           "204": {
             "description": "no content"
           }
-        }
+        },
+        "tags": [
+          "users"
+        ]
       },
       "parameters": [
         {
@@ -16895,7 +17261,10 @@
           "204": {
             "description": "no content"
           }
-        }
+        },
+        "tags": [
+          "roles"
+        ]
       },
       "parameters": [
         {
@@ -16957,7 +17326,10 @@
           "204": {
             "description": "no content"
           }
-        }
+        },
+        "tags": [
+          "roles"
+        ]
       },
       "parameters": [
         {
@@ -17041,7 +17413,10 @@
           "204": {
             "description": "no content"
           }
-        }
+        },
+        "tags": [
+          "users"
+        ]
       },
       "parameters": [
         {
@@ -17058,7 +17433,10 @@
           "204": {
             "description": "no content"
           }
-        }
+        },
+        "tags": [
+          "users"
+        ]
       },
       "parameters": [
         {
@@ -17087,7 +17465,10 @@
           "204": {
             "description": "no content"
           }
-        }
+        },
+        "tags": [
+          "users"
+        ]
       },
       "parameters": [
         {
@@ -17185,7 +17566,10 @@
           "204": {
             "description": "no content"
           }
-        }
+        },
+        "tags": [
+          "dashboards"
+        ]
       },
       "parameters": [
         {

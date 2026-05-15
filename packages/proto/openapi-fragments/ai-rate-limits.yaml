@@ -38,6 +38,7 @@ paths:
             application/json:
               schema: { $ref: "#/components/schemas/AIRateLimit" }
     options:
+      tags: [ai-rate-limits]
       responses: { "204": { description: no content } }
 
   /api/v1/t/{tenant}/ai/rate-limits/{id}:
@@ -72,6 +73,7 @@ paths:
       operationId: deleteAIRateLimit
       responses: { "204": { description: deleted } }
     options:
+      tags: [ai-rate-limits]
       responses: { "204": { description: no content } }
 
   /api/v1/t/{tenant}/ai/rate-limits/{id}/simulate:
@@ -94,6 +96,7 @@ paths:
             application/json:
               schema: { $ref: "#/components/schemas/AIRateLimitSimulateResponse" }
     options:
+      tags: [ai-rate-limits]
       responses: { "204": { description: no content } }
 
   /api/v1/t/{tenant}/ai/rate-limits/{id}/metrics:
@@ -118,6 +121,7 @@ paths:
             application/json:
               schema: { $ref: "#/components/schemas/AIRateLimitMetricsResponse" }
     options:
+      tags: [ai-rate-limits]
       responses: { "204": { description: no content } }
 
 components:

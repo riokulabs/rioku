@@ -38,6 +38,7 @@ paths:
             application/json:
               schema: { $ref: "#/components/schemas/AITool" }
     options:
+      tags: [ai-tools]
       responses: { "204": { description: no content } }
 
   /api/v1/t/{tenant}/ai/tools/{id}:
@@ -86,6 +87,7 @@ paths:
       operationId: deleteAITool
       responses: { "204": { description: deleted } }
     options:
+      tags: [ai-tools]
       responses: { "204": { description: no content } }
 
   /api/v1/t/{tenant}/ai/tools/{id}/test:
@@ -108,6 +110,7 @@ paths:
                   ok: { type: boolean }
                   note: { type: string }
     options:
+      tags: [ai-tools]
       responses: { "204": { description: no content } }
 
   /api/v1/t/{tenant}/ai/tools/{id}/agents:
@@ -134,6 +137,7 @@ paths:
                         agentId: { type: string }
                   total: { type: integer }
     options:
+      tags: [ai-tools]
       responses: { "204": { description: no content } }
 
 components:

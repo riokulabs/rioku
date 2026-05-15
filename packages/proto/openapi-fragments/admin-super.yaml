@@ -49,6 +49,7 @@ paths:
             application/json:
               schema: { $ref: "#/components/schemas/AdminTenant" }
     options:
+      tags: [admin]
       responses: { "204": { description: no content } }
 
   /api/v1/admin/tenants/{id}:
@@ -97,6 +98,7 @@ paths:
       responses:
         "204": { description: no content }
     options:
+      tags: [admin]
       responses: { "204": { description: no content } }
 
   /api/v1/admin/users:
@@ -123,6 +125,7 @@ paths:
                         status: { type: string }
                   total: { type: integer }
     options:
+      tags: [admin]
       responses: { "204": { description: no content } }
 
   /api/v1/admin/audit:
@@ -148,6 +151,7 @@ paths:
                   total: { type: integer }
                   note: { type: string }
     options:
+      tags: [admin]
       responses: { "204": { description: no content } }
 
 components:

@@ -39,6 +39,7 @@ paths:
             application/json:
               schema: { $ref: "#/components/schemas/AIAgent" }
     options:
+      tags: [ai-agents]
       responses: { "204": { description: no content } }
 
   /api/v1/t/{tenant}/ai/agents/{id}:
@@ -87,6 +88,7 @@ paths:
       operationId: deleteAIAgent
       responses: { "204": { description: deleted } }
     options:
+      tags: [ai-agents]
       responses: { "204": { description: no content } }
 
   /api/v1/t/{tenant}/ai/agents/{id}/tools:
@@ -110,6 +112,7 @@ paths:
                     items: { $ref: "#/components/schemas/AIToolBinding" }
                   total: { type: integer }
     options:
+      tags: [ai-agents]
       responses: { "204": { description: no content } }
 
   /api/v1/t/{tenant}/ai/agents/{id}/traces:
@@ -133,6 +136,7 @@ paths:
                     items: { $ref: "#/components/schemas/AITrace" }
                   total: { type: integer }
     options:
+      tags: [ai-agents]
       responses: { "204": { description: no content } }
 
   /api/v1/t/{tenant}/ai/agents/{id}/rotate-credential:
@@ -155,6 +159,7 @@ paths:
                   ok: { type: boolean }
                   note: { type: string }
     options:
+      tags: [ai-agents]
       responses: { "204": { description: no content } }
 
 components:

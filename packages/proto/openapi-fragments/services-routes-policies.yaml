@@ -111,6 +111,7 @@ paths:
         "200":
           description: paginated route collection
     options:
+      tags: [services]
       responses: { "204": { description: no content } }
 
   /api/v1/t/{tenant}/routes:
@@ -132,6 +133,7 @@ paths:
             schema: { $ref: "#/components/schemas/v1Route" }
       responses: { "201": { description: created } }
     options:
+      tags: [services]
       responses: { "204": { description: no content } }
 
   /api/v1/t/{tenant}/routes/{id}:
@@ -162,6 +164,7 @@ paths:
       operationId: deleteRoute
       responses: { "204": { description: deleted } }
     options:
+      tags: [services]
       responses: { "204": { description: no content } }
 
   /api/v1/t/{tenant}/routes/{id}/policies:
@@ -174,6 +177,7 @@ paths:
       operationId: listPoliciesByRoute
       responses: { "200": { description: ok } }
     options:
+      tags: [services]
       responses: { "204": { description: no content } }
 
   /api/v1/t/{tenant}/routes/{id}/policies/{policyId}:
@@ -195,6 +199,7 @@ paths:
       operationId: detachPolicyFromRoute
       responses: { "204": { description: deleted } }
     options:
+      tags: [services]
       responses: { "204": { description: no content } }
 
 components:

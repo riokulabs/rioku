@@ -36,6 +36,7 @@ paths:
                         lastActivityAt: { type: string, format: date-time }
                         revoked: { type: boolean }
     options:
+      tags: [sessions]
       responses: { "204": { description: no content } }
 
   /api/v1/t/{tenant}/sessions/{id}:
@@ -48,6 +49,7 @@ paths:
       operationId: revokeSession
       responses: { "204": { description: revoked } }
     options:
+      tags: [sessions]
       responses: { "204": { description: no content } }
 
   /api/v1/t/{tenant}/sessions/revoke-others:
@@ -59,4 +61,5 @@ paths:
       operationId: revokeOtherSessions
       responses: { "204": { description: revoked } }
     options:
+      tags: [sessions]
       responses: { "204": { description: no content } }

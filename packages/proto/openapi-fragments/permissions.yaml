@@ -36,6 +36,7 @@ paths:
                     type: array
                     items: { $ref: "#/components/schemas/Permission" }
     options:
+      tags: [permissions]
       responses: { "204": { description: no content } }
 
 components:

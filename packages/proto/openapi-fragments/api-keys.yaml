@@ -71,6 +71,7 @@ paths:
                   key: { type: string, description: "Plaintext secret (returned once)" }
                   prefix: { type: string, description: "Non-secret display fragment of the raw key" }
     options:
+      tags: [api-keys]
       responses: { "204": { description: no content } }
 
   /api/v1/t/{tenant}/api-keys/{id}:
@@ -136,6 +137,7 @@ paths:
       operationId: deleteAPIKey
       responses: { "204": { description: revoked } }
     options:
+      tags: [api-keys]
       responses: { "204": { description: no content } }
 
   /api/v1/t/{tenant}/api-keys/{id}/revoke:
@@ -148,6 +150,7 @@ paths:
       operationId: revokeAPIKey
       responses: { "204": { description: revoked } }
     options:
+      tags: [api-keys]
       responses: { "204": { description: no content } }
 
   /api/v1/t/{tenant}/api-keys/{id}/rotate:
@@ -175,6 +178,7 @@ paths:
                   prefix: { type: string, description: "Non-secret display fragment of the new raw key" }
                   _links: { $ref: "#/components/schemas/LinkSet" }
     options:
+      tags: [api-keys]
       responses: { "204": { description: no content } }
 
   /api/v1/t/{tenant}/api-keys/{id}/usage:
@@ -189,4 +193,5 @@ paths:
         "200":
           description: ok
     options:
+      tags: [api-keys]
       responses: { "204": { description: no content } }

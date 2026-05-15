@@ -45,6 +45,7 @@ paths:
             application/problem+json:
               schema: { $ref: "#/components/schemas/Problem" }
     options:
+      tags: [settings]
       responses: { "204": { description: no content } }
 
   /api/v1/t/{tenant}/settings/tls/certificates/{id}:
@@ -79,6 +80,7 @@ paths:
             application/problem+json:
               schema: { $ref: "#/components/schemas/Problem" }
     options:
+      tags: [settings]
       responses: { "204": { description: no content } }
 
   /api/v1/t/{tenant}/settings/tls/certificates/{id}/auto-renew:
@@ -108,6 +110,7 @@ paths:
             application/json:
               schema: { $ref: "#/components/schemas/TLSCertificate" }
     options:
+      tags: [settings]
       responses: { "204": { description: no content } }
 
   /api/v1/t/{tenant}/settings/tls/config:
@@ -124,6 +127,7 @@ paths:
             application/json:
               schema: { $ref: "#/components/schemas/TLSConfig" }
     options:
+      tags: [settings]
       responses: { "204": { description: no content } }
 
   /api/v1/t/{tenant}/settings/tls/config/acme:
@@ -145,6 +149,7 @@ paths:
             application/json:
               schema: { $ref: "#/components/schemas/TLSConfig" }
     options:
+      tags: [settings]
       responses: { "204": { description: no content } }
 
   /api/v1/t/{tenant}/settings/tls/config/ciphers:
@@ -166,6 +171,7 @@ paths:
             application/json:
               schema: { $ref: "#/components/schemas/TLSConfig" }
     options:
+      tags: [settings]
       responses: { "204": { description: no content } }
 
 components:

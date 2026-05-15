@@ -57,6 +57,7 @@ paths:
         "201": { description: created }
         "409": { description: duplicate name }
     options:
+      tags: [roles]
       responses: { "204": { description: no content } }
 
   /api/v1/t/{tenant}/roles/{id}:
@@ -100,6 +101,7 @@ paths:
       operationId: deleteRole
       responses: { "204": { description: deleted } }
     options:
+      tags: [roles]
       responses: { "204": { description: no content } }
 
   /api/v1/t/{tenant}/users/{id}/roles:
@@ -142,6 +144,7 @@ paths:
         "201": { description: assigned }
         "409": { description: already assigned }
     options:
+      tags: [roles]
       responses: { "204": { description: no content } }
 
   /api/v1/t/{tenant}/users/{id}/roles/{roleId}:
@@ -158,4 +161,5 @@ paths:
       operationId: revokeUserRole
       responses: { "204": { description: revoked } }
     options:
+      tags: [roles]
       responses: { "204": { description: no content } }

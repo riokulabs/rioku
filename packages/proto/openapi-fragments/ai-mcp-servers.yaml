@@ -38,6 +38,7 @@ paths:
             application/json:
               schema: { $ref: "#/components/schemas/MCPServer" }
     options:
+      tags: [ai-mcp-servers]
       responses: { "204": { description: no content } }
 
   /api/v1/t/{tenant}/ai/mcp-servers/{id}:
@@ -86,6 +87,7 @@ paths:
       operationId: deleteMCPServer
       responses: { "204": { description: deleted } }
     options:
+      tags: [ai-mcp-servers]
       responses: { "204": { description: no content } }
 
   /api/v1/t/{tenant}/ai/mcp-servers/{id}/test:
@@ -116,6 +118,7 @@ paths:
                   error: { type: string }
                   serverVersion: { type: string }
     options:
+      tags: [ai-mcp-servers]
       responses: { "204": { description: no content } }
 
   /api/v1/t/{tenant}/ai/mcp-servers/{id}/tools:
@@ -150,6 +153,7 @@ paths:
                         enabled: { type: boolean }
                   total: { type: integer }
     options:
+      tags: [ai-mcp-servers]
       responses: { "204": { description: no content } }
 
 components:

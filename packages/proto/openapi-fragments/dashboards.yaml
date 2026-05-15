@@ -336,6 +336,7 @@ paths:
             application/json:
               schema: { $ref: "#/components/schemas/Dashboard" }
     options:
+      tags: [dashboards]
       responses: { "204": { description: no content } }
 
   /api/v1/t/{tenant}/dashboards/{id}:
@@ -388,6 +389,7 @@ paths:
       operationId: deleteDashboard
       responses: { "204": { description: deleted } }
     options:
+      tags: [dashboards]
       responses: { "204": { description: no content } }
 
   /api/v1/t/{tenant}/dashboards/{id}/set-default:
@@ -405,6 +407,7 @@ paths:
             application/json:
               schema: { $ref: "#/components/schemas/Dashboard" }
     options:
+      tags: [dashboards]
       responses: { "204": { description: no content } }
 
   /api/v1/t/{tenant}/dashboards/{id}/set-home:
@@ -422,6 +425,7 @@ paths:
             application/json:
               schema: { $ref: "#/components/schemas/Dashboard" }
     options:
+      tags: [dashboards]
       responses: { "204": { description: no content } }
 
   /api/v1/t/{tenant}/dashboards/{id}/share:
@@ -444,6 +448,7 @@ paths:
             application/json:
               schema: { $ref: "#/components/schemas/DashboardShare" }
     options:
+      tags: [dashboards]
       responses: { "204": { description: no content } }
 
   /api/v1/t/{tenant}/dashboards/{id}/shares:
@@ -461,6 +466,7 @@ paths:
             application/json:
               schema: { $ref: "#/components/schemas/DashboardShareList" }
     options:
+      tags: [dashboards]
       responses: { "204": { description: no content } }
 
   /api/v1/t/{tenant}/dashboards/{id}/shares/{shareId}:
@@ -477,6 +483,7 @@ paths:
       operationId: deleteDashboardShare
       responses: { "204": { description: revoked } }
     options:
+      tags: [dashboards]
       responses: { "204": { description: no content } }
 
   /api/v1/t/{tenant}/dashboards/{id}/snapshot:
@@ -595,6 +602,7 @@ paths:
             application/json:
               schema: { $ref: "#/components/schemas/Widget" }
     options:
+      tags: [dashboards]
       responses: { "204": { description: no content } }
 
   /api/v1/t/{tenant}/dashboards/{id}/widgets/{wid}:
@@ -611,6 +619,7 @@ paths:
       operationId: deleteWidget
       responses: { "204": { description: deleted } }
     options:
+      tags: [dashboards]
       responses: { "204": { description: no content } }
 
   /api/v1/t/{tenant}/dashboards/{id}/layout:
@@ -663,6 +672,7 @@ paths:
             application/json:
               schema: { $ref: "#/components/schemas/Widget" }
     options:
+      tags: [dashboards]
       responses: { "204": { description: no content } }
 
   /api/v1/t/{tenant}/widgets/{id}/flip-advanced:
