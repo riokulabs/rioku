@@ -3504,6 +3504,37 @@
         },
         "type": "object"
       },
+      "Application": {
+        "properties": {
+          "createdAt": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "description": {
+            "type": "string"
+          },
+          "id": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "ownerUserId": {
+            "type": "string"
+          },
+          "status": {
+            "type": "string"
+          },
+          "tenantId": {
+            "type": "string"
+          },
+          "updatedAt": {
+            "format": "date-time",
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
       "AuditEntry": {
         "properties": {
           "_links": {
@@ -3710,6 +3741,23 @@
         ],
         "type": "object"
       },
+      "CreateApplicationBody": {
+        "properties": {
+          "description": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "ownerUserId": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "name"
+        ],
+        "type": "object"
+      },
       "CreateCertAuthorityBody": {
         "properties": {
           "certificatePem": {
@@ -3813,6 +3861,40 @@
         ],
         "type": "object"
       },
+      "CreatePlanBody": {
+        "properties": {
+          "apiId": {
+            "type": "string"
+          },
+          "description": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "quotaPerDay": {
+            "format": "int32",
+            "type": "integer"
+          },
+          "rateLimitPerMinute": {
+            "format": "int32",
+            "type": "integer"
+          },
+          "securityType": {
+            "type": "string"
+          },
+          "selectionRule": {
+            "type": "string"
+          },
+          "validation": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "name"
+        ],
+        "type": "object"
+      },
       "CreateSiteBody": {
         "properties": {
           "basicAuthEnabled": {
@@ -3886,6 +3968,27 @@
         "required": [
           "name",
           "kind"
+        ],
+        "type": "object"
+      },
+      "CreateSubscriptionBody": {
+        "properties": {
+          "apiId": {
+            "type": "string"
+          },
+          "applicationId": {
+            "type": "string"
+          },
+          "planId": {
+            "type": "string"
+          },
+          "requestMessage": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "planId",
+          "applicationId"
         ],
         "type": "object"
       },
@@ -4518,6 +4621,54 @@
           },
           "sourcePluginId": {
             "description": "Set when source is plugin-manifest or plugin-dynamic.",
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
+      "Plan": {
+        "properties": {
+          "apiId": {
+            "type": "string"
+          },
+          "createdAt": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "description": {
+            "type": "string"
+          },
+          "id": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "quotaPerDay": {
+            "format": "int32",
+            "type": "integer"
+          },
+          "rateLimitPerMinute": {
+            "format": "int32",
+            "type": "integer"
+          },
+          "securityType": {
+            "type": "string"
+          },
+          "selectionRule": {
+            "type": "string"
+          },
+          "status": {
+            "type": "string"
+          },
+          "tenantId": {
+            "type": "string"
+          },
+          "updatedAt": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "validation": {
             "type": "string"
           }
         },
@@ -5197,6 +5348,51 @@
         },
         "type": "object"
       },
+      "Subscription": {
+        "properties": {
+          "apiId": {
+            "type": "string"
+          },
+          "applicationId": {
+            "type": "string"
+          },
+          "createdAt": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "endingAt": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "id": {
+            "type": "string"
+          },
+          "planId": {
+            "type": "string"
+          },
+          "reasonMessage": {
+            "type": "string"
+          },
+          "requestMessage": {
+            "type": "string"
+          },
+          "startingAt": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "status": {
+            "type": "string"
+          },
+          "tenantId": {
+            "type": "string"
+          },
+          "updatedAt": {
+            "format": "date-time",
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
       "TLSCertificate": {
         "properties": {
           "autoRenew": {
@@ -5338,6 +5534,23 @@
         },
         "type": "object"
       },
+      "UpdateApplicationBody": {
+        "properties": {
+          "description": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "ownerUserId": {
+            "type": "string"
+          },
+          "status": {
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
       "UpdateCertAuthorityBody": {
         "properties": {
           "kind": {
@@ -5432,6 +5645,37 @@
         },
         "type": "object"
       },
+      "UpdatePlanBody": {
+        "properties": {
+          "description": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "quotaPerDay": {
+            "format": "int32",
+            "type": "integer"
+          },
+          "rateLimitPerMinute": {
+            "format": "int32",
+            "type": "integer"
+          },
+          "securityType": {
+            "type": "string"
+          },
+          "selectionRule": {
+            "type": "string"
+          },
+          "status": {
+            "type": "string"
+          },
+          "validation": {
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
       "UpdateSiteBody": {
         "properties": {
           "basicAuthEnabled": {
@@ -5496,6 +5740,25 @@
               "type": "string"
             },
             "type": "array"
+          }
+        },
+        "type": "object"
+      },
+      "UpdateSubscriptionBody": {
+        "properties": {
+          "endingAt": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "reasonMessage": {
+            "type": "string"
+          },
+          "startingAt": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "status": {
+            "type": "string"
           }
         },
         "type": "object"
@@ -5806,7 +6069,10 @@
           "204": {
             "description": "no content"
           }
-        }
+        },
+        "tags": [
+          "admin"
+        ]
       }
     },
     "/api/v1/admin/impersonation": {
@@ -5842,7 +6108,10 @@
           "204": {
             "description": "no content"
           }
-        }
+        },
+        "tags": [
+          "impersonation"
+        ]
       },
       "post": {
         "operationId": "startImpersonation",
@@ -5920,7 +6189,10 @@
           "204": {
             "description": "no content"
           }
-        }
+        },
+        "tags": [
+          "impersonation"
+        ]
       },
       "parameters": [
         {
@@ -5934,7 +6206,10 @@
           "204": {
             "description": "no content"
           }
-        }
+        },
+        "tags": [
+          "impersonation"
+        ]
       },
       "parameters": [
         {
@@ -5998,7 +6273,10 @@
           "204": {
             "description": "no content"
           }
-        }
+        },
+        "tags": [
+          "admin"
+        ]
       },
       "post": {
         "description": "Requires `admin:cross-tenant-write`.",
@@ -6095,7 +6373,10 @@
           "204": {
             "description": "no content"
           }
-        }
+        },
+        "tags": [
+          "admin"
+        ]
       },
       "parameters": [
         {
@@ -6208,7 +6489,10 @@
           "204": {
             "description": "no content"
           }
-        }
+        },
+        "tags": [
+          "admin"
+        ]
       }
     },
     "/api/v1/ai/virtual-keys": {
@@ -8303,7 +8587,10 @@
           "204": {
             "description": "no content"
           }
-        }
+        },
+        "tags": [
+          "plugins"
+        ]
       }
     },
     "/api/v1/plugins/{pluginId}": {
@@ -8763,7 +9050,10 @@
           "204": {
             "description": "no content"
           }
-        }
+        },
+        "tags": [
+          "access-policies"
+        ]
       },
       "parameters": [
         {
@@ -8805,7 +9095,10 @@
           "204": {
             "description": "no content"
           }
-        }
+        },
+        "tags": [
+          "access-policies"
+        ]
       },
       "parameters": [
         {
@@ -8884,7 +9177,10 @@
           "204": {
             "description": "no content"
           }
-        }
+        },
+        "tags": [
+          "access-policies"
+        ]
       },
       "parameters": [
         {
@@ -8987,7 +9283,10 @@
           "204": {
             "description": "no content"
           }
-        }
+        },
+        "tags": [
+          "ai-agents"
+        ]
       },
       "parameters": [
         {
@@ -9059,7 +9358,10 @@
           "204": {
             "description": "no content"
           }
-        }
+        },
+        "tags": [
+          "ai-agents"
+        ]
       },
       "parameters": [
         {
@@ -9132,7 +9434,10 @@
           "204": {
             "description": "no content"
           }
-        }
+        },
+        "tags": [
+          "ai-agents"
+        ]
       },
       "parameters": [
         {
@@ -9209,7 +9514,10 @@
           "204": {
             "description": "no content"
           }
-        }
+        },
+        "tags": [
+          "ai-agents"
+        ]
       },
       "parameters": [
         {
@@ -9257,7 +9565,10 @@
           "204": {
             "description": "no content"
           }
-        }
+        },
+        "tags": [
+          "ai-agents"
+        ]
       },
       "parameters": [
         {
@@ -9304,7 +9615,10 @@
           "204": {
             "description": "no content"
           }
-        }
+        },
+        "tags": [
+          "ai-mcp-servers"
+        ]
       },
       "parameters": [
         {
@@ -9376,7 +9690,10 @@
           "204": {
             "description": "no content"
           }
-        }
+        },
+        "tags": [
+          "ai-mcp-servers"
+        ]
       },
       "parameters": [
         {
@@ -9449,7 +9766,10 @@
           "204": {
             "description": "no content"
           }
-        }
+        },
+        "tags": [
+          "ai-mcp-servers"
+        ]
       },
       "parameters": [
         {
@@ -9564,7 +9884,10 @@
           "204": {
             "description": "no content"
           }
-        }
+        },
+        "tags": [
+          "ai-mcp-servers"
+        ]
       },
       "parameters": [
         {
@@ -9611,7 +9934,10 @@
           "204": {
             "description": "no content"
           }
-        }
+        },
+        "tags": [
+          "ai-rate-limits"
+        ]
       },
       "parameters": [
         {
@@ -9683,7 +10009,10 @@
           "204": {
             "description": "no content"
           }
-        }
+        },
+        "tags": [
+          "ai-rate-limits"
+        ]
       },
       "parameters": [
         {
@@ -9759,7 +10088,10 @@
           "204": {
             "description": "no content"
           }
-        }
+        },
+        "tags": [
+          "ai-rate-limits"
+        ]
       },
       "parameters": [
         {
@@ -9776,7 +10108,10 @@
           "204": {
             "description": "no content"
           }
-        }
+        },
+        "tags": [
+          "ai-rate-limits"
+        ]
       },
       "parameters": [
         {
@@ -9852,7 +10187,10 @@
           "204": {
             "description": "no content"
           }
-        }
+        },
+        "tags": [
+          "ai-tool-bindings"
+        ]
       },
       "parameters": [
         {
@@ -9895,7 +10233,10 @@
           "204": {
             "description": "no content"
           }
-        }
+        },
+        "tags": [
+          "ai-tool-bindings"
+        ]
       },
       "parameters": [
         {
@@ -9964,7 +10305,10 @@
           "204": {
             "description": "no content"
           }
-        }
+        },
+        "tags": [
+          "ai-tool-bindings"
+        ]
       },
       "parameters": [
         {
@@ -10056,7 +10400,10 @@
           "204": {
             "description": "no content"
           }
-        }
+        },
+        "tags": [
+          "ai-tool-bindings"
+        ]
       },
       "parameters": [
         {
@@ -10131,7 +10478,10 @@
           "204": {
             "description": "no content"
           }
-        }
+        },
+        "tags": [
+          "ai-tools"
+        ]
       },
       "parameters": [
         {
@@ -10203,7 +10553,10 @@
           "204": {
             "description": "no content"
           }
-        }
+        },
+        "tags": [
+          "ai-tools"
+        ]
       },
       "parameters": [
         {
@@ -10311,7 +10664,10 @@
           "204": {
             "description": "no content"
           }
-        }
+        },
+        "tags": [
+          "ai-tools"
+        ]
       },
       "parameters": [
         {
@@ -10328,7 +10684,10 @@
           "204": {
             "description": "no content"
           }
-        }
+        },
+        "tags": [
+          "ai-tools"
+        ]
       },
       "parameters": [
         {
@@ -10428,7 +10787,10 @@
           "204": {
             "description": "no content"
           }
-        }
+        },
+        "tags": [
+          "ai-traces"
+        ]
       },
       "parameters": [
         {
@@ -10461,7 +10823,10 @@
           "204": {
             "description": "no content"
           }
-        }
+        },
+        "tags": [
+          "ai-traces"
+        ]
       },
       "parameters": [
         {
@@ -10494,7 +10859,10 @@
           "204": {
             "description": "no content"
           }
-        }
+        },
+        "tags": [
+          "ai-traces"
+        ]
       },
       "parameters": [
         {
@@ -10526,7 +10894,10 @@
           "204": {
             "description": "no content"
           }
-        }
+        },
+        "tags": [
+          "ai-traces"
+        ]
       },
       "parameters": [
         {
@@ -10616,7 +10987,10 @@
           "204": {
             "description": "no content"
           }
-        }
+        },
+        "tags": [
+          "api-keys"
+        ]
       },
       "parameters": [
         {
@@ -10766,7 +11140,10 @@
           "204": {
             "description": "no content"
           }
-        }
+        },
+        "tags": [
+          "api-keys"
+        ]
       },
       "parameters": [
         {
@@ -10836,7 +11213,10 @@
           "204": {
             "description": "no content"
           }
-        }
+        },
+        "tags": [
+          "api-keys"
+        ]
       },
       "parameters": [
         {
@@ -10865,7 +11245,10 @@
           "204": {
             "description": "no content"
           }
-        }
+        },
+        "tags": [
+          "api-keys"
+        ]
       },
       "parameters": [
         {
@@ -10931,7 +11314,10 @@
           "204": {
             "description": "no content"
           }
-        }
+        },
+        "tags": [
+          "api-keys"
+        ]
       },
       "parameters": [
         {
@@ -10941,6 +11327,191 @@
           "$ref": "#/components/parameters/ID"
         }
       ]
+    },
+    "/api/v1/t/{tenant}/applications": {
+      "get": {
+        "operationId": "listApplications",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "applications": {
+                      "items": {
+                        "$ref": "#/components/schemas/Application"
+                      },
+                      "type": "array"
+                    },
+                    "nextPageToken": {
+                      "type": "string"
+                    }
+                  },
+                  "type": "object"
+                }
+              }
+            },
+            "description": "List of applications"
+          }
+        },
+        "summary": "List applications",
+        "tags": [
+          "api-management"
+        ]
+      },
+      "options": {
+        "responses": {
+          "204": {
+            "description": "no content"
+          }
+        },
+        "tags": [
+          "api-management"
+        ]
+      },
+      "parameters": [
+        {
+          "$ref": "#/components/parameters/Tenant"
+        }
+      ],
+      "post": {
+        "operationId": "createApplication",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateApplicationBody"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Application"
+                }
+              }
+            },
+            "description": "created"
+          }
+        },
+        "summary": "Create application",
+        "tags": [
+          "api-management"
+        ]
+      }
+    },
+    "/api/v1/t/{tenant}/applications/{id}": {
+      "delete": {
+        "operationId": "deleteApplication",
+        "responses": {
+          "204": {
+            "description": "deleted"
+          }
+        },
+        "summary": "Delete application",
+        "tags": [
+          "api-management"
+        ]
+      },
+      "get": {
+        "operationId": "getApplication",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Application"
+                }
+              }
+            },
+            "description": "ok"
+          }
+        },
+        "summary": "Get application",
+        "tags": [
+          "api-management"
+        ]
+      },
+      "options": {
+        "responses": {
+          "204": {
+            "description": "no content"
+          }
+        },
+        "tags": [
+          "api-management"
+        ]
+      },
+      "parameters": [
+        {
+          "$ref": "#/components/parameters/Tenant"
+        },
+        {
+          "$ref": "#/components/parameters/ID"
+        }
+      ],
+      "patch": {
+        "operationId": "patchApplication",
+        "requestBody": {
+          "content": {
+            "application/merge-patch+json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateApplicationBody"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Application"
+                }
+              }
+            },
+            "description": "ok"
+          }
+        },
+        "summary": "Patch application",
+        "tags": [
+          "api-management"
+        ]
+      },
+      "put": {
+        "operationId": "replaceApplication",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateApplicationBody"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Application"
+                }
+              }
+            },
+            "description": "ok"
+          }
+        },
+        "summary": "Replace application",
+        "tags": [
+          "api-management"
+        ]
+      }
     },
     "/api/v1/t/{tenant}/audit": {
       "get": {
@@ -10979,7 +11550,10 @@
           "204": {
             "description": "no content"
           }
-        }
+        },
+        "tags": [
+          "audit"
+        ]
       },
       "parameters": [
         {
@@ -11092,7 +11666,10 @@
           "204": {
             "description": "no content"
           }
-        }
+        },
+        "tags": [
+          "audit"
+        ]
       },
       "parameters": [
         {
@@ -11143,7 +11720,10 @@
           "204": {
             "description": "no content"
           }
-        }
+        },
+        "tags": [
+          "audit"
+        ]
       },
       "parameters": [
         {
@@ -11221,7 +11801,10 @@
           "204": {
             "description": "no content"
           }
-        }
+        },
+        "tags": [
+          "audit"
+        ]
       },
       "parameters": [
         {
@@ -11312,7 +11895,10 @@
           "204": {
             "description": "no content"
           }
-        }
+        },
+        "tags": [
+          "audit"
+        ]
       },
       "parameters": [
         {
@@ -11371,7 +11957,10 @@
           "204": {
             "description": "no content"
           }
-        }
+        },
+        "tags": [
+          "audit"
+        ]
       },
       "parameters": [
         {
@@ -11475,7 +12064,10 @@
           "204": {
             "description": "no content"
           }
-        }
+        },
+        "tags": [
+          "audit"
+        ]
       },
       "parameters": [
         {
@@ -11511,7 +12103,10 @@
           "204": {
             "description": "no content"
           }
-        }
+        },
+        "tags": [
+          "audit"
+        ]
       },
       "parameters": [
         {
@@ -11528,7 +12123,10 @@
           "204": {
             "description": "no content"
           }
-        }
+        },
+        "tags": [
+          "audit"
+        ]
       },
       "parameters": [
         {
@@ -11621,7 +12219,10 @@
           "204": {
             "description": "no content"
           }
-        }
+        },
+        "tags": [
+          "dashboards"
+        ]
       },
       "parameters": [
         {
@@ -11765,7 +12366,10 @@
           "204": {
             "description": "no content"
           }
-        }
+        },
+        "tags": [
+          "dashboards"
+        ]
       },
       "parameters": [
         {
@@ -11901,7 +12505,10 @@
           "204": {
             "description": "no content"
           }
-        }
+        },
+        "tags": [
+          "dashboards"
+        ]
       },
       "parameters": [
         {
@@ -11937,7 +12544,10 @@
           "204": {
             "description": "no content"
           }
-        }
+        },
+        "tags": [
+          "dashboards"
+        ]
       },
       "parameters": [
         {
@@ -11973,7 +12583,10 @@
           "204": {
             "description": "no content"
           }
-        }
+        },
+        "tags": [
+          "dashboards"
+        ]
       },
       "parameters": [
         {
@@ -12038,7 +12651,10 @@
           "204": {
             "description": "no content"
           }
-        }
+        },
+        "tags": [
+          "dashboards"
+        ]
       },
       "parameters": [
         {
@@ -12067,7 +12683,10 @@
           "204": {
             "description": "no content"
           }
-        }
+        },
+        "tags": [
+          "dashboards"
+        ]
       },
       "parameters": [
         {
@@ -12178,7 +12797,10 @@
           "204": {
             "description": "no content"
           }
-        }
+        },
+        "tags": [
+          "dashboards"
+        ]
       },
       "parameters": [
         {
@@ -12236,7 +12858,10 @@
           "204": {
             "description": "no content"
           }
-        }
+        },
+        "tags": [
+          "dashboards"
+        ]
       },
       "parameters": [
         {
@@ -12291,7 +12916,10 @@
           "204": {
             "description": "no content"
           }
-        }
+        },
+        "tags": [
+          "middlewares"
+        ]
       },
       "parameters": [
         {
@@ -12363,7 +12991,10 @@
           "204": {
             "description": "no content"
           }
-        }
+        },
+        "tags": [
+          "middlewares"
+        ]
       },
       "parameters": [
         {
@@ -12507,13 +13138,201 @@
           "204": {
             "description": "no content"
           }
-        }
+        },
+        "tags": [
+          "permissions"
+        ]
       },
       "parameters": [
         {
           "$ref": "#/components/parameters/Tenant"
         }
       ]
+    },
+    "/api/v1/t/{tenant}/plans": {
+      "get": {
+        "operationId": "listPlans",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "nextPageToken": {
+                      "type": "string"
+                    },
+                    "plans": {
+                      "items": {
+                        "$ref": "#/components/schemas/Plan"
+                      },
+                      "type": "array"
+                    }
+                  },
+                  "type": "object"
+                }
+              }
+            },
+            "description": "List of plans"
+          }
+        },
+        "summary": "List plans",
+        "tags": [
+          "api-management"
+        ]
+      },
+      "options": {
+        "responses": {
+          "204": {
+            "description": "no content"
+          }
+        },
+        "tags": [
+          "api-management"
+        ]
+      },
+      "parameters": [
+        {
+          "$ref": "#/components/parameters/Tenant"
+        }
+      ],
+      "post": {
+        "operationId": "createPlan",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreatePlanBody"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Plan"
+                }
+              }
+            },
+            "description": "created"
+          }
+        },
+        "summary": "Create plan",
+        "tags": [
+          "api-management"
+        ]
+      }
+    },
+    "/api/v1/t/{tenant}/plans/{id}": {
+      "delete": {
+        "operationId": "deletePlan",
+        "responses": {
+          "204": {
+            "description": "deleted"
+          }
+        },
+        "summary": "Delete plan",
+        "tags": [
+          "api-management"
+        ]
+      },
+      "get": {
+        "operationId": "getPlan",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Plan"
+                }
+              }
+            },
+            "description": "ok"
+          }
+        },
+        "summary": "Get plan",
+        "tags": [
+          "api-management"
+        ]
+      },
+      "options": {
+        "responses": {
+          "204": {
+            "description": "no content"
+          }
+        },
+        "tags": [
+          "api-management"
+        ]
+      },
+      "parameters": [
+        {
+          "$ref": "#/components/parameters/Tenant"
+        },
+        {
+          "$ref": "#/components/parameters/ID"
+        }
+      ],
+      "patch": {
+        "operationId": "patchPlan",
+        "requestBody": {
+          "content": {
+            "application/merge-patch+json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdatePlanBody"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Plan"
+                }
+              }
+            },
+            "description": "ok"
+          }
+        },
+        "summary": "Patch plan",
+        "tags": [
+          "api-management"
+        ]
+      },
+      "put": {
+        "operationId": "replacePlan",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdatePlanBody"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Plan"
+                }
+              }
+            },
+            "description": "ok"
+          }
+        },
+        "summary": "Replace plan",
+        "tags": [
+          "api-management"
+        ]
+      }
     },
     "/api/v1/t/{tenant}/plugin-marketplace": {
       "get": {
@@ -12540,7 +13359,10 @@
           "204": {
             "description": "no content"
           }
-        }
+        },
+        "tags": [
+          "plugins"
+        ]
       },
       "parameters": [
         {
@@ -12617,7 +13439,10 @@
           "204": {
             "description": "no content"
           }
-        }
+        },
+        "tags": [
+          "plugins"
+        ]
       },
       "parameters": [
         {
@@ -12687,7 +13512,10 @@
           "204": {
             "description": "no content"
           }
-        }
+        },
+        "tags": [
+          "plugins"
+        ]
       },
       "parameters": [
         {
@@ -12762,7 +13590,10 @@
           "204": {
             "description": "no content"
           }
-        }
+        },
+        "tags": [
+          "plugins"
+        ]
       },
       "parameters": [
         {
@@ -12834,7 +13665,10 @@
           "204": {
             "description": "no content"
           }
-        }
+        },
+        "tags": [
+          "plugins"
+        ]
       },
       "parameters": [
         {
@@ -13005,7 +13839,10 @@
           "204": {
             "description": "no content"
           }
-        }
+        },
+        "tags": [
+          "plugins"
+        ]
       },
       "parameters": [
         {
@@ -13076,7 +13913,10 @@
           "204": {
             "description": "no content"
           }
-        }
+        },
+        "tags": [
+          "plugins"
+        ]
       },
       "parameters": [
         {
@@ -13098,7 +13938,10 @@
           "204": {
             "description": "no content"
           }
-        }
+        },
+        "tags": [
+          "plugins"
+        ]
       },
       "parameters": [
         {
@@ -13139,7 +13982,10 @@
           "204": {
             "description": "no content"
           }
-        }
+        },
+        "tags": [
+          "plugins"
+        ]
       },
       "parameters": [
         {
@@ -13338,7 +14184,10 @@
           "204": {
             "description": "no content"
           }
-        }
+        },
+        "tags": [
+          "rbac-policies"
+        ]
       },
       "parameters": [
         {
@@ -13434,7 +14283,10 @@
           "204": {
             "description": "no content"
           }
-        }
+        },
+        "tags": [
+          "rbac-policies"
+        ]
       },
       "parameters": [
         {
@@ -13473,7 +14325,10 @@
           "204": {
             "description": "no content"
           }
-        }
+        },
+        "tags": [
+          "rbac-policies"
+        ]
       },
       "parameters": [
         {
@@ -13606,7 +14461,10 @@
           "204": {
             "description": "no content"
           }
-        }
+        },
+        "tags": [
+          "roles"
+        ]
       },
       "parameters": [
         {
@@ -13730,7 +14588,10 @@
           "204": {
             "description": "no content"
           }
-        }
+        },
+        "tags": [
+          "roles"
+        ]
       },
       "parameters": [
         {
@@ -13781,7 +14642,10 @@
           "204": {
             "description": "no content"
           }
-        }
+        },
+        "tags": [
+          "services"
+        ]
       },
       "parameters": [
         {
@@ -13839,7 +14703,10 @@
           "204": {
             "description": "no content"
           }
-        }
+        },
+        "tags": [
+          "services"
+        ]
       },
       "parameters": [
         {
@@ -13911,7 +14778,10 @@
           "204": {
             "description": "no content"
           }
-        }
+        },
+        "tags": [
+          "services"
+        ]
       },
       "parameters": [
         {
@@ -13941,7 +14811,10 @@
           "204": {
             "description": "no content"
           }
-        }
+        },
+        "tags": [
+          "services"
+        ]
       },
       "parameters": [
         {
@@ -14185,7 +15058,10 @@
           "204": {
             "description": "no content"
           }
-        }
+        },
+        "tags": [
+          "services"
+        ]
       },
       "parameters": [
         {
@@ -14261,7 +15137,10 @@
           "204": {
             "description": "no content"
           }
-        }
+        },
+        "tags": [
+          "sessions"
+        ]
       },
       "parameters": [
         {
@@ -14275,7 +15154,10 @@
           "204": {
             "description": "no content"
           }
-        }
+        },
+        "tags": [
+          "sessions"
+        ]
       },
       "parameters": [
         {
@@ -14313,7 +15195,10 @@
           "204": {
             "description": "no content"
           }
-        }
+        },
+        "tags": [
+          "sessions"
+        ]
       },
       "parameters": [
         {
@@ -14349,7 +15234,10 @@
           "204": {
             "description": "no content"
           }
-        }
+        },
+        "tags": [
+          "settings"
+        ]
       },
       "parameters": [
         {
@@ -14413,7 +15301,10 @@
           "204": {
             "description": "no content"
           }
-        }
+        },
+        "tags": [
+          "settings"
+        ]
       },
       "parameters": [
         {
@@ -14427,7 +15318,10 @@
           "204": {
             "description": "no content"
           }
-        }
+        },
+        "tags": [
+          "settings"
+        ]
       },
       "parameters": [
         {
@@ -14501,7 +15395,10 @@
           "204": {
             "description": "no content"
           }
-        }
+        },
+        "tags": [
+          "settings"
+        ]
       },
       "parameters": [
         {
@@ -14534,7 +15431,10 @@
           "204": {
             "description": "no content"
           }
-        }
+        },
+        "tags": [
+          "settings"
+        ]
       },
       "parameters": [
         {
@@ -14596,7 +15496,10 @@
           "204": {
             "description": "no content"
           }
-        }
+        },
+        "tags": [
+          "settings"
+        ]
       },
       "parameters": [
         {
@@ -14651,7 +15554,10 @@
           "204": {
             "description": "no content"
           }
-        }
+        },
+        "tags": [
+          "settings"
+        ]
       },
       "parameters": [
         {
@@ -14696,7 +15602,10 @@
           "204": {
             "description": "no content"
           }
-        }
+        },
+        "tags": [
+          "settings"
+        ]
       },
       "parameters": [
         {
@@ -14775,7 +15684,10 @@
           "204": {
             "description": "no content"
           }
-        }
+        },
+        "tags": [
+          "settings"
+        ]
       },
       "parameters": [
         {
@@ -14838,7 +15750,10 @@
           "204": {
             "description": "no content"
           }
-        }
+        },
+        "tags": [
+          "settings"
+        ]
       },
       "parameters": [
         {
@@ -14900,7 +15815,10 @@
           "204": {
             "description": "no content"
           }
-        }
+        },
+        "tags": [
+          "settings"
+        ]
       },
       "parameters": [
         {
@@ -14962,7 +15880,10 @@
           "204": {
             "description": "no content"
           }
-        }
+        },
+        "tags": [
+          "settings"
+        ]
       },
       "parameters": [
         {
@@ -15024,7 +15945,10 @@
           "204": {
             "description": "no content"
           }
-        }
+        },
+        "tags": [
+          "settings"
+        ]
       },
       "parameters": [
         {
@@ -15101,7 +16025,10 @@
           "204": {
             "description": "no content"
           }
-        }
+        },
+        "tags": [
+          "settings"
+        ]
       },
       "parameters": [
         {
@@ -15203,7 +16130,10 @@
           "204": {
             "description": "no content"
           }
-        }
+        },
+        "tags": [
+          "settings"
+        ]
       },
       "parameters": [
         {
@@ -15287,7 +16217,10 @@
           "204": {
             "description": "no content"
           }
-        }
+        },
+        "tags": [
+          "settings"
+        ]
       },
       "parameters": [
         {
@@ -15358,7 +16291,10 @@
           "204": {
             "description": "no content"
           }
-        }
+        },
+        "tags": [
+          "settings"
+        ]
       },
       "parameters": [
         {
@@ -15380,7 +16316,10 @@
           "204": {
             "description": "no content"
           }
-        }
+        },
+        "tags": [
+          "settings"
+        ]
       },
       "parameters": [
         {
@@ -15523,7 +16462,10 @@
           "204": {
             "description": "no content"
           }
-        }
+        },
+        "tags": [
+          "settings"
+        ]
       },
       "parameters": [
         {
@@ -15615,7 +16557,10 @@
           "204": {
             "description": "no content"
           }
-        }
+        },
+        "tags": [
+          "settings"
+        ]
       },
       "parameters": [
         {
@@ -15692,7 +16637,10 @@
           "204": {
             "description": "no content"
           }
-        }
+        },
+        "tags": [
+          "settings"
+        ]
       },
       "parameters": [
         {
@@ -15794,7 +16742,10 @@
           "204": {
             "description": "no content"
           }
-        }
+        },
+        "tags": [
+          "settings"
+        ]
       },
       "parameters": [
         {
@@ -15816,7 +16767,10 @@
           "204": {
             "description": "no content"
           }
-        }
+        },
+        "tags": [
+          "settings"
+        ]
       },
       "parameters": [
         {
@@ -15894,7 +16848,10 @@
           "204": {
             "description": "no content"
           }
-        }
+        },
+        "tags": [
+          "settings"
+        ]
       },
       "parameters": [
         {
@@ -15908,7 +16865,10 @@
           "204": {
             "description": "no content"
           }
-        }
+        },
+        "tags": [
+          "settings"
+        ]
       },
       "parameters": [
         {
@@ -15951,7 +16911,10 @@
           "204": {
             "description": "no content"
           }
-        }
+        },
+        "tags": [
+          "settings"
+        ]
       },
       "parameters": [
         {
@@ -15994,7 +16957,10 @@
           "204": {
             "description": "no content"
           }
-        }
+        },
+        "tags": [
+          "settings"
+        ]
       },
       "parameters": [
         {
@@ -16079,7 +17045,10 @@
           "204": {
             "description": "no content"
           }
-        }
+        },
+        "tags": [
+          "settings"
+        ]
       },
       "parameters": [
         {
@@ -16145,7 +17114,10 @@
           "204": {
             "description": "no content"
           }
-        }
+        },
+        "tags": [
+          "sites"
+        ]
       },
       "parameters": [
         {
@@ -16217,7 +17189,10 @@
           "204": {
             "description": "no content"
           }
-        }
+        },
+        "tags": [
+          "sites"
+        ]
       },
       "parameters": [
         {
@@ -16290,7 +17265,10 @@
           "204": {
             "description": "no content"
           }
-        }
+        },
+        "tags": [
+          "sites"
+        ]
       },
       "parameters": [
         {
@@ -16366,7 +17344,10 @@
           "204": {
             "description": "no content"
           }
-        }
+        },
+        "tags": [
+          "sso"
+        ]
       },
       "parameters": [
         {
@@ -16447,7 +17428,10 @@
           "204": {
             "description": "no content"
           }
-        }
+        },
+        "tags": [
+          "sso"
+        ]
       },
       "parameters": [
         {
@@ -16490,6 +17474,209 @@
         "summary": "Update SSO provider",
         "tags": [
           "sso"
+        ]
+      }
+    },
+    "/api/v1/t/{tenant}/subscriptions": {
+      "get": {
+        "operationId": "listSubscriptions",
+        "parameters": [
+          {
+            "description": "Filter subscriptions by application ID",
+            "in": "query",
+            "name": "application_id",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "description": "Filter subscriptions by plan ID",
+            "in": "query",
+            "name": "plan_id",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "nextPageToken": {
+                      "type": "string"
+                    },
+                    "subscriptions": {
+                      "items": {
+                        "$ref": "#/components/schemas/Subscription"
+                      },
+                      "type": "array"
+                    }
+                  },
+                  "type": "object"
+                }
+              }
+            },
+            "description": "List of subscriptions"
+          }
+        },
+        "summary": "List subscriptions",
+        "tags": [
+          "api-management"
+        ]
+      },
+      "options": {
+        "responses": {
+          "204": {
+            "description": "no content"
+          }
+        },
+        "tags": [
+          "api-management"
+        ]
+      },
+      "parameters": [
+        {
+          "$ref": "#/components/parameters/Tenant"
+        }
+      ],
+      "post": {
+        "operationId": "createSubscription",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateSubscriptionBody"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Subscription"
+                }
+              }
+            },
+            "description": "created"
+          }
+        },
+        "summary": "Create subscription",
+        "tags": [
+          "api-management"
+        ]
+      }
+    },
+    "/api/v1/t/{tenant}/subscriptions/{id}": {
+      "delete": {
+        "operationId": "deleteSubscription",
+        "responses": {
+          "204": {
+            "description": "deleted"
+          }
+        },
+        "summary": "Delete subscription",
+        "tags": [
+          "api-management"
+        ]
+      },
+      "get": {
+        "operationId": "getSubscription",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Subscription"
+                }
+              }
+            },
+            "description": "ok"
+          }
+        },
+        "summary": "Get subscription",
+        "tags": [
+          "api-management"
+        ]
+      },
+      "options": {
+        "responses": {
+          "204": {
+            "description": "no content"
+          }
+        },
+        "tags": [
+          "api-management"
+        ]
+      },
+      "parameters": [
+        {
+          "$ref": "#/components/parameters/Tenant"
+        },
+        {
+          "$ref": "#/components/parameters/ID"
+        }
+      ],
+      "patch": {
+        "operationId": "patchSubscription",
+        "requestBody": {
+          "content": {
+            "application/merge-patch+json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateSubscriptionBody"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Subscription"
+                }
+              }
+            },
+            "description": "ok"
+          }
+        },
+        "summary": "Patch subscription",
+        "tags": [
+          "api-management"
+        ]
+      },
+      "put": {
+        "operationId": "replaceSubscription",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateSubscriptionBody"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Subscription"
+                }
+              }
+            },
+            "description": "ok"
+          }
+        },
+        "summary": "Replace subscription",
+        "tags": [
+          "api-management"
         ]
       }
     },
@@ -16563,7 +17750,10 @@
           "204": {
             "description": "no content"
           }
-        }
+        },
+        "tags": [
+          "users"
+        ]
       },
       "parameters": [
         {
@@ -16698,7 +17888,10 @@
           "204": {
             "description": "no content"
           }
-        }
+        },
+        "tags": [
+          "users"
+        ]
       },
       "parameters": [
         {
@@ -16758,7 +17951,10 @@
           "204": {
             "description": "no content"
           }
-        }
+        },
+        "tags": [
+          "users"
+        ]
       },
       "parameters": [
         {
@@ -16787,7 +17983,10 @@
           "204": {
             "description": "no content"
           }
-        }
+        },
+        "tags": [
+          "users"
+        ]
       },
       "parameters": [
         {
@@ -16815,7 +18014,10 @@
           "204": {
             "description": "no content"
           }
-        }
+        },
+        "tags": [
+          "users"
+        ]
       },
       "parameters": [
         {
@@ -16895,7 +18097,10 @@
           "204": {
             "description": "no content"
           }
-        }
+        },
+        "tags": [
+          "roles"
+        ]
       },
       "parameters": [
         {
@@ -16957,7 +18162,10 @@
           "204": {
             "description": "no content"
           }
-        }
+        },
+        "tags": [
+          "roles"
+        ]
       },
       "parameters": [
         {
@@ -17041,7 +18249,10 @@
           "204": {
             "description": "no content"
           }
-        }
+        },
+        "tags": [
+          "users"
+        ]
       },
       "parameters": [
         {
@@ -17058,7 +18269,10 @@
           "204": {
             "description": "no content"
           }
-        }
+        },
+        "tags": [
+          "users"
+        ]
       },
       "parameters": [
         {
@@ -17087,7 +18301,10 @@
           "204": {
             "description": "no content"
           }
-        }
+        },
+        "tags": [
+          "users"
+        ]
       },
       "parameters": [
         {
@@ -17185,7 +18402,10 @@
           "204": {
             "description": "no content"
           }
-        }
+        },
+        "tags": [
+          "dashboards"
+        ]
       },
       "parameters": [
         {
