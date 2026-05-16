@@ -66,6 +66,11 @@ type SeedFile struct {
 	NotificationConfig   *SeedNotificationConfig   `yaml:"notification_config"`
 	WebhookEndpoints     []SeedWebhookEndpoint     `yaml:"webhook_endpoints"`
 	ClusterNodes         []SeedClusterNode         `yaml:"cluster_nodes"`
+
+	// API management
+	Plans         []SeedPlan         `yaml:"plans"`
+	Applications  []SeedApplication  `yaml:"applications"`
+	Subscriptions []SeedSubscription `yaml:"subscriptions"`
 }
 
 // SeedClusterNode declares an expected cluster member for the sandbox.
@@ -80,6 +85,35 @@ type SeedClusterNode struct {
 	Name string `yaml:"name"`
 	Role string `yaml:"role"`
 	Note string `yaml:"note,omitempty"`
+}
+
+// SeedPlan defines an API management plan.
+type SeedPlan struct {
+	Tenant             string `yaml:"tenant,omitempty"`
+	Name               string `yaml:"name"`
+	Description        string `yaml:"description,omitempty"`
+	SecurityType       string `yaml:"security_type,omitempty"`
+	Validation         string `yaml:"validation,omitempty"`
+	RateLimitPerMinute int32  `yaml:"rate_limit_per_minute,omitempty"`
+	QuotaPerDay        int32  `yaml:"quota_per_day,omitempty"`
+	SelectionRule      string `yaml:"selection_rule,omitempty"`
+}
+
+// SeedApplication defines an API management application.
+type SeedApplication struct {
+	Tenant        string `yaml:"tenant,omitempty"`
+	Name          string `yaml:"name"`
+	Description   string `yaml:"description,omitempty"`
+	OwnerUsername string `yaml:"owner_username,omitempty"`
+}
+
+// SeedSubscription links an application to a plan by name.
+// Plan and Application are resolved to IDs at apply time.
+type SeedSubscription struct {
+	Tenant         string `yaml:"tenant,omitempty"`
+	Plan           string `yaml:"plan"`
+	Application    string `yaml:"application"`
+	RequestMessage string `yaml:"request_message,omitempty"`
 }
 
 // SeedRole defines a custom role to create.
@@ -784,6 +818,8 @@ func runSeed(seedFile, seedDir, targetAddr, username, password string, direct bo
 	fmt.Printf("Other:   %d notif channels, %d notif rules, %d plugins, %d signers, %d CAs, %d enrollments, %d TLS certs, %d webhooks, %d sso\n",
 		stage2Counts.notifChannels, stage2Counts.notifRules, stage2Counts.plugins, stage2Counts.pluginSigners,
 		stage2Counts.cas, stage2Counts.enrollments, stage2Counts.tlsCerts, stage2Counts.webhooks, stage2Counts.ssoProviders)
+	fmt.Printf("API Mgmt:   %d plans, %d applications, %d subscriptions\n",
+		stage2Counts.plans, stage2Counts.applications, stage2Counts.subscriptions)
 	fmt.Printf("Singletons: %s\n", stage2Counts.singletonsApplied)
 
 	return nil
@@ -802,6 +838,7 @@ type stage2Counts struct {
 	plugins, pluginSigners                               int
 	cas, enrollments, tlsCerts, webhooks                 int
 	clusterNodes                                         int
+	plans, applications, subscriptions                   int
 	singletonsApplied                                    string
 }
 
@@ -1320,6 +1357,71 @@ func applyStage2(client *http.Client, sessionCookie, base string, seed *SeedFile
 			"name", n.Name, "role", role, "note", n.Note,
 			"hint", "cluster nodes are seeded via enrollment tokens, not REST")
 		c.clusterNodes++
+	}
+
+	// 22. Plans
+	planIDs := make(map[string]string)
+	for _, p := range seed.Plans {
+		body, _ := json.Marshal(map[string]any{
+			"name": p.Name, "description": p.Description,
+			"securityType": p.SecurityType, "validation": p.Validation,
+			"rateLimitPerMinute": p.RateLimitPerMinute, "quotaPerDay": p.QuotaPerDay,
+			"selectionRule": p.SelectionRule,
+		})
+		status, respBody := apiCall(client, sessionCookie, "POST", tenantBase(p.Tenant)+"/plans", body)
+		logSeed(logger, "plan", p.Name, status)
+		c.plans++
+		if status >= 200 && status < 300 {
+			var resp map[string]any
+			_ = json.Unmarshal(respBody, &resp)
+			if id, ok := resp["id"].(string); ok {
+				planIDs[p.Name] = id
+			}
+		}
+	}
+
+	// 23. Applications
+	appIDs := make(map[string]string)
+	if len(seed.Applications) > 0 {
+		users := fetchNamedItems(client, sessionCookie, base+"/api/v1/users", "username")
+		for _, a := range seed.Applications {
+			payload := map[string]any{
+				"name": a.Name, "description": a.Description,
+			}
+			if a.OwnerUsername != "" {
+				if uid, ok := users[a.OwnerUsername]; ok {
+					payload["ownerUserId"] = uid
+				}
+			}
+			body, _ := json.Marshal(payload)
+			status, respBody := apiCall(client, sessionCookie, "POST", tenantBase(a.Tenant)+"/applications", body)
+			logSeed(logger, "application", a.Name, status)
+			c.applications++
+			if status >= 200 && status < 300 {
+				var resp map[string]any
+				_ = json.Unmarshal(respBody, &resp)
+				if id, ok := resp["id"].(string); ok {
+					appIDs[a.Name] = id
+				}
+			}
+		}
+	}
+
+	// 24. Subscriptions — resolve plan and application by name
+	for _, s := range seed.Subscriptions {
+		pid, pOK := planIDs[s.Plan]
+		aid, aOK := appIDs[s.Application]
+		if !pOK || !aOK {
+			logger.Warn("subscription skipped: missing plan or application",
+				"plan", s.Plan, "application", s.Application)
+			continue
+		}
+		body, _ := json.Marshal(map[string]any{
+			"planId": pid, "applicationId": aid, "requestMessage": s.RequestMessage,
+		})
+		status, _ := apiCall(client, sessionCookie, "POST", tenantBase(s.Tenant)+"/subscriptions", body)
+		logSeed(logger, "subscription", s.Application+"->"+s.Plan, status)
+		c.subscriptions++
 	}
 
 	return c

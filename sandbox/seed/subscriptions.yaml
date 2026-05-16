@@ -1,0 +1,23 @@
+# Owned by Plan 05 (api-mgmt) — API management subscriptions seed data. See sandbox/scripts/seed-config.sh for loader.
+# Plans and applications are resolved by name from plans.yaml and applications.yaml.
+
+subscriptions:
+  - plan: free
+    application: users-app
+    request_message: "Evaluating the users API"
+
+  - plan: pro
+    application: products-app
+    request_message: "Production integration for products service"
+
+  - plan: free
+    application: webhooks-app
+    request_message: "Testing webhook delivery pipeline"
+
+  - plan: internal
+    application: auth-app
+    request_message: "Service-to-service auth calls"
+
+  - plan: enterprise
+    application: media-app
+    request_message: "High-throughput media processing — enterprise tier required"
