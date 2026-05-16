@@ -3,6 +3,8 @@ package postgres
 import (
 	"context"
 	"database/sql"
+	"encoding/json"
+	"errors"
 	"fmt"
 	"strings"
 	"time"
@@ -10,31 +12,189 @@ import (
 	"github.com/riokulabs/rioku/internal/store"
 )
 
-// OAS + WAF config CRUD on routes is stubbed for postgres until the
-// SQLite v1 implementation soaks. Migrations 41-42 land across all
-// three dialects so the schema is ready; the Go-side queries for the
-// per-route config tables follow as their own commit. The denial
-// surface (Append / Query / Prune) is fully implemented because the
-// data-plane Coraza audit logger writes through this path on every
-// rule match in production.
+// ---------------------------------------------------------------------------
+// Route OAS validator config (#171)
+// ---------------------------------------------------------------------------
 
-func (t *tx) GetRouteOASConfig(_ context.Context, _ string) (*store.RouteOASConfig, error) {
-	return nil, fmt.Errorf("postgres: GetRouteOASConfig not implemented")
+func (t *tx) GetRouteOASConfig(ctx context.Context, routeID string) (*store.RouteOASConfig, error) {
+	tenantID := store.TenantIDFromContext(ctx)
+	row := t.sqlTx.QueryRowContext(ctx, rewritePlaceholders(
+		`SELECT route_id, tenant_id, oas_url, oas_inline, refresh_interval_seconds,
+		        validate_request_body, validate_request_params, reject_unknown,
+		        created_at, updated_at
+		 FROM route_oas_configs WHERE route_id = ? AND tenant_id = ?`),
+		routeID, tenantID)
+	var (
+		c                                                    store.RouteOASConfig
+		validateBody, validateParams, rejectUnknown bool
+		createdAt, updatedAt                        time.Time
+	)
+	if err := row.Scan(
+		&c.RouteID, &c.TenantID, &c.OASURL, &c.OASInline, &c.RefreshIntervalSeconds,
+		&validateBody, &validateParams, &rejectUnknown, &createdAt, &updatedAt,
+	); err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return nil, store.ErrRouteOASConfigNotFound
+		}
+		return nil, fmt.Errorf("postgres: get route_oas_config: %w", err)
+	}
+	c.ValidateRequestBody = validateBody
+	c.ValidateRequestParams = validateParams
+	c.RejectUnknown = rejectUnknown
+	c.CreatedAt = createdAt.UTC()
+	c.UpdatedAt = updatedAt.UTC()
+	return &c, nil
 }
-func (t *tx) UpsertRouteOASConfig(_ context.Context, _ *store.RouteOASConfig) (*store.RouteOASConfig, error) {
-	return nil, fmt.Errorf("postgres: UpsertRouteOASConfig not implemented")
+
+func (t *tx) UpsertRouteOASConfig(ctx context.Context, c *store.RouteOASConfig) (*store.RouteOASConfig, error) {
+	if c == nil || c.RouteID == "" {
+		return nil, fmt.Errorf("postgres: route_oas_config requires route_id")
+	}
+	tenantID := store.TenantIDFromContext(ctx)
+	if tenantID == "" {
+		tenantID = c.TenantID
+	}
+	now := nowUTC()
+	_, err := t.sqlTx.ExecContext(ctx, rewritePlaceholders(
+		`INSERT INTO route_oas_configs (route_id, tenant_id, oas_url, oas_inline,
+		     refresh_interval_seconds, validate_request_body, validate_request_params,
+		     reject_unknown, created_at, updated_at)
+		 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+		 ON CONFLICT (route_id) DO UPDATE SET
+		     oas_url = excluded.oas_url,
+		     oas_inline = excluded.oas_inline,
+		     refresh_interval_seconds = excluded.refresh_interval_seconds,
+		     validate_request_body = excluded.validate_request_body,
+		     validate_request_params = excluded.validate_request_params,
+		     reject_unknown = excluded.reject_unknown,
+		     updated_at = excluded.updated_at`),
+		c.RouteID, tenantID, c.OASURL, c.OASInline,
+		c.RefreshIntervalSeconds, c.ValidateRequestBody,
+		c.ValidateRequestParams, c.RejectUnknown,
+		now, now,
+	)
+	if err != nil {
+		return nil, fmt.Errorf("postgres: upsert route_oas_config: %w", err)
+	}
+	return t.GetRouteOASConfig(ctx, c.RouteID)
 }
-func (t *tx) DeleteRouteOASConfig(_ context.Context, _ string) error {
-	return fmt.Errorf("postgres: DeleteRouteOASConfig not implemented")
+
+func (t *tx) DeleteRouteOASConfig(ctx context.Context, routeID string) error {
+	tenantID := store.TenantIDFromContext(ctx)
+	res, err := t.sqlTx.ExecContext(ctx, rewritePlaceholders(
+		`DELETE FROM route_oas_configs WHERE route_id = ? AND tenant_id = ?`),
+		routeID, tenantID,
+	)
+	if err != nil {
+		return fmt.Errorf("postgres: delete route_oas_config: %w", err)
+	}
+	if n, _ := res.RowsAffected(); n == 0 {
+		return store.ErrRouteOASConfigNotFound
+	}
+	return nil
 }
-func (t *tx) GetRouteWAFConfig(_ context.Context, _ string) (*store.RouteWAFConfig, error) {
-	return nil, fmt.Errorf("postgres: GetRouteWAFConfig not implemented")
+
+// ---------------------------------------------------------------------------
+// Route WAF config (#172)
+// ---------------------------------------------------------------------------
+
+func (t *tx) GetRouteWAFConfig(ctx context.Context, routeID string) (*store.RouteWAFConfig, error) {
+	tenantID := store.TenantIDFromContext(ctx)
+	row := t.sqlTx.QueryRowContext(ctx, rewritePlaceholders(
+		`SELECT route_id, tenant_id, enabled, mode, rule_set, paranoia_level,
+		        excluded_rule_ids, request_body_limit, created_at, updated_at
+		 FROM route_waf_configs WHERE route_id = ? AND tenant_id = ?`),
+		routeID, tenantID)
+	var (
+		c            store.RouteWAFConfig
+		enabled      bool
+		mode         string
+		excludedJSON string
+		createdAt    time.Time
+		updatedAt    time.Time
+	)
+	if err := row.Scan(
+		&c.RouteID, &c.TenantID, &enabled, &mode, &c.RuleSet, &c.ParanoiaLevel,
+		&excludedJSON, &c.RequestBodyLimit, &createdAt, &updatedAt,
+	); err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return nil, store.ErrRouteWAFConfigNotFound
+		}
+		return nil, fmt.Errorf("postgres: get route_waf_config: %w", err)
+	}
+	c.Enabled = enabled
+	c.Mode = store.WAFMode(mode)
+	if err := json.Unmarshal([]byte(excludedJSON), &c.ExcludedRuleIDs); err != nil {
+		return nil, fmt.Errorf("postgres: parse excluded_rule_ids: %w", err)
+	}
+	c.CreatedAt = createdAt.UTC()
+	c.UpdatedAt = updatedAt.UTC()
+	return &c, nil
 }
-func (t *tx) UpsertRouteWAFConfig(_ context.Context, _ *store.RouteWAFConfig) (*store.RouteWAFConfig, error) {
-	return nil, fmt.Errorf("postgres: UpsertRouteWAFConfig not implemented")
+
+func (t *tx) UpsertRouteWAFConfig(ctx context.Context, c *store.RouteWAFConfig) (*store.RouteWAFConfig, error) {
+	if c == nil || c.RouteID == "" {
+		return nil, fmt.Errorf("postgres: route_waf_config requires route_id")
+	}
+	tenantID := store.TenantIDFromContext(ctx)
+	if tenantID == "" {
+		tenantID = c.TenantID
+	}
+	if c.Mode == "" {
+		c.Mode = store.WAFModeBlock
+	}
+	if c.RuleSet == "" {
+		c.RuleSet = "crs"
+	}
+	if c.ParanoiaLevel == 0 {
+		c.ParanoiaLevel = 1
+	}
+	if c.RequestBodyLimit == 0 {
+		c.RequestBodyLimit = 131072
+	}
+	excluded := c.ExcludedRuleIDs
+	if excluded == nil {
+		excluded = []string{}
+	}
+	excludedJSON, err := json.Marshal(excluded)
+	if err != nil {
+		return nil, fmt.Errorf("postgres: marshal excluded_rule_ids: %w", err)
+	}
+	now := nowUTC()
+	if _, err := t.sqlTx.ExecContext(ctx, rewritePlaceholders(
+		`INSERT INTO route_waf_configs (route_id, tenant_id, enabled, mode, rule_set,
+		     paranoia_level, excluded_rule_ids, request_body_limit, created_at, updated_at)
+		 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+		 ON CONFLICT (route_id) DO UPDATE SET
+		     enabled = excluded.enabled,
+		     mode = excluded.mode,
+		     rule_set = excluded.rule_set,
+		     paranoia_level = excluded.paranoia_level,
+		     excluded_rule_ids = excluded.excluded_rule_ids,
+		     request_body_limit = excluded.request_body_limit,
+		     updated_at = excluded.updated_at`),
+		c.RouteID, tenantID, c.Enabled, string(c.Mode), c.RuleSet,
+		c.ParanoiaLevel, string(excludedJSON), c.RequestBodyLimit,
+		now, now,
+	); err != nil {
+		return nil, fmt.Errorf("postgres: upsert route_waf_config: %w", err)
+	}
+	return t.GetRouteWAFConfig(ctx, c.RouteID)
 }
-func (t *tx) DeleteRouteWAFConfig(_ context.Context, _ string) error {
-	return fmt.Errorf("postgres: DeleteRouteWAFConfig not implemented")
+
+func (t *tx) DeleteRouteWAFConfig(ctx context.Context, routeID string) error {
+	tenantID := store.TenantIDFromContext(ctx)
+	res, err := t.sqlTx.ExecContext(ctx, rewritePlaceholders(
+		`DELETE FROM route_waf_configs WHERE route_id = ? AND tenant_id = ?`),
+		routeID, tenantID,
+	)
+	if err != nil {
+		return fmt.Errorf("postgres: delete route_waf_config: %w", err)
+	}
+	if n, _ := res.RowsAffected(); n == 0 {
+		return store.ErrRouteWAFConfigNotFound
+	}
+	return nil
 }
 
 func (t *tx) AppendWAFDenial(ctx context.Context, d *store.WAFDenial) error {
