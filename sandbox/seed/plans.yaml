@@ -1,0 +1,34 @@
+# Owned by Plan 05 (api-mgmt) — API management plans seed data. See sandbox/scripts/seed-config.sh for loader.
+
+plans:
+  - name: free
+    description: "Free tier — limited rate and quota for evaluation"
+    security_type: API_KEY
+    validation: AUTO
+    rate_limit_per_minute: 60
+    quota_per_day: 1000
+    selection_rule: ""
+
+  - name: pro
+    description: "Pro tier — higher limits for production workloads"
+    security_type: API_KEY
+    validation: AUTO
+    rate_limit_per_minute: 600
+    quota_per_day: 50000
+    selection_rule: ""
+
+  - name: enterprise
+    description: "Enterprise tier — unrestricted, manual approval required"
+    security_type: API_KEY
+    validation: MANUAL
+    rate_limit_per_minute: 0
+    quota_per_day: 0
+    selection_rule: ""
+
+  - name: internal
+    description: "Internal plan for first-party service-to-service calls"
+    security_type: JWT
+    validation: AUTO
+    rate_limit_per_minute: 0
+    quota_per_day: 0
+    selection_rule: ""

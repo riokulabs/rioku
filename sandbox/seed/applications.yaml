@@ -1,0 +1,22 @@
+# Owned by Plan 05 (api-mgmt) — API management applications seed data. See sandbox/scripts/seed-config.sh for loader.
+
+applications:
+  - name: users-app
+    description: "Consumer application for the users upstream service"
+    owner_username: alice
+
+  - name: products-app
+    description: "Consumer application for the products upstream service"
+    owner_username: alice
+
+  - name: webhooks-app
+    description: "Consumer application for the webhooks upstream service"
+    owner_username: bob
+
+  - name: auth-app
+    description: "Consumer application for the auth upstream service"
+    owner_username: bob
+
+  - name: media-app
+    description: "Consumer application for the media upstream service"
+    owner_username: alice
