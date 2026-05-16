@@ -177,16 +177,16 @@ Integration tests for the config store require a live database. All three variab
 
 ### CI job names
 
-Branch protection should require all five jobs. The sixth is non-blocking.
+Branch protection must require the three jobs marked **Yes** below. The MySQL/MariaDB jobs are explicitly **not** required — they run as optional early signal until the migration rewrite (#213) is complete.
 
 | Job name | Required? |
 | --- | --- |
 | `store-matrix-sqlite` | Yes |
 | `store-matrix-postgres-15` | Yes |
 | `store-matrix-postgres-18` | Yes |
-| `store-matrix-mysql-8-4` | Optional (non-blocking — migration rewrite pending) |
-| `store-matrix-mariadb-11-4` | Optional (non-blocking — migration rewrite pending) |
-| `store-matrix-mariadb-11-8` | Optional (non-blocking) |
+| `store-matrix-mysql-8-4 (optional)` | No — migration rewrite pending (#213) |
+| `store-matrix-mariadb-11-4 (optional)` | No — migration rewrite pending (#213) |
+| `store-matrix-mariadb-11-8 (optional)` | No |
 
 See `contrib-docs/docs/development/store-test-matrix.md` for the full env-var contract.
 
