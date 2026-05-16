@@ -1,0 +1,387 @@
+# Plan 05 api-mgmt: Plans, Applications, and Subscriptions — the three core
+# API management entities for consumer-facing API lifecycle management.
+#
+# Mirrors RegisterAPIManagementRoutes in
+# packages/daemon/internal/gateway/api_management_routes.go.
+
+paths:
+  /api/v1/t/{tenant}/plans:
+    parameters:
+      - $ref: "#/components/parameters/Tenant"
+    get:
+      tags: [api-management]
+      summary: List plans
+      operationId: listPlans
+      responses:
+        "200":
+          description: List of plans
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  plans:
+                    type: array
+                    items: { $ref: "#/components/schemas/Plan" }
+                  nextPageToken: { type: string }
+    post:
+      tags: [api-management]
+      summary: Create plan
+      operationId: createPlan
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/CreatePlanBody" }
+      responses:
+        "201":
+          description: created
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Plan" }
+    options:
+      tags: [api-management]
+      responses: { "204": { description: no content } }
+
+  /api/v1/t/{tenant}/plans/{id}:
+    parameters:
+      - $ref: "#/components/parameters/Tenant"
+      - $ref: "#/components/parameters/ID"
+    get:
+      tags: [api-management]
+      summary: Get plan
+      operationId: getPlan
+      responses:
+        "200":
+          description: ok
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Plan" }
+    put:
+      tags: [api-management]
+      summary: Replace plan
+      operationId: replacePlan
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/UpdatePlanBody" }
+      responses:
+        "200":
+          description: ok
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Plan" }
+    patch:
+      tags: [api-management]
+      summary: Patch plan
+      operationId: patchPlan
+      requestBody:
+        required: true
+        content:
+          application/merge-patch+json:
+            schema: { $ref: "#/components/schemas/UpdatePlanBody" }
+      responses:
+        "200":
+          description: ok
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Plan" }
+    delete:
+      tags: [api-management]
+      summary: Delete plan
+      operationId: deletePlan
+      responses: { "204": { description: deleted } }
+    options:
+      tags: [api-management]
+      responses: { "204": { description: no content } }
+
+  /api/v1/t/{tenant}/applications:
+    parameters:
+      - $ref: "#/components/parameters/Tenant"
+    get:
+      tags: [api-management]
+      summary: List applications
+      operationId: listApplications
+      responses:
+        "200":
+          description: List of applications
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  applications:
+                    type: array
+                    items: { $ref: "#/components/schemas/Application" }
+                  nextPageToken: { type: string }
+    post:
+      tags: [api-management]
+      summary: Create application
+      operationId: createApplication
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/CreateApplicationBody" }
+      responses:
+        "201":
+          description: created
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Application" }
+    options:
+      tags: [api-management]
+      responses: { "204": { description: no content } }
+
+  /api/v1/t/{tenant}/applications/{id}:
+    parameters:
+      - $ref: "#/components/parameters/Tenant"
+      - $ref: "#/components/parameters/ID"
+    get:
+      tags: [api-management]
+      summary: Get application
+      operationId: getApplication
+      responses:
+        "200":
+          description: ok
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Application" }
+    put:
+      tags: [api-management]
+      summary: Replace application
+      operationId: replaceApplication
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/UpdateApplicationBody" }
+      responses:
+        "200":
+          description: ok
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Application" }
+    patch:
+      tags: [api-management]
+      summary: Patch application
+      operationId: patchApplication
+      requestBody:
+        required: true
+        content:
+          application/merge-patch+json:
+            schema: { $ref: "#/components/schemas/UpdateApplicationBody" }
+      responses:
+        "200":
+          description: ok
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Application" }
+    delete:
+      tags: [api-management]
+      summary: Delete application
+      operationId: deleteApplication
+      responses: { "204": { description: deleted } }
+    options:
+      tags: [api-management]
+      responses: { "204": { description: no content } }
+
+  /api/v1/t/{tenant}/subscriptions:
+    parameters:
+      - $ref: "#/components/parameters/Tenant"
+    get:
+      tags: [api-management]
+      summary: List subscriptions
+      operationId: listSubscriptions
+      parameters:
+        - name: application_id
+          in: query
+          schema: { type: string }
+          description: Filter subscriptions by application ID
+        - name: plan_id
+          in: query
+          schema: { type: string }
+          description: Filter subscriptions by plan ID
+      responses:
+        "200":
+          description: List of subscriptions
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  subscriptions:
+                    type: array
+                    items: { $ref: "#/components/schemas/Subscription" }
+                  nextPageToken: { type: string }
+    post:
+      tags: [api-management]
+      summary: Create subscription
+      operationId: createSubscription
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/CreateSubscriptionBody" }
+      responses:
+        "201":
+          description: created
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Subscription" }
+    options:
+      tags: [api-management]
+      responses: { "204": { description: no content } }
+
+  /api/v1/t/{tenant}/subscriptions/{id}:
+    parameters:
+      - $ref: "#/components/parameters/Tenant"
+      - $ref: "#/components/parameters/ID"
+    get:
+      tags: [api-management]
+      summary: Get subscription
+      operationId: getSubscription
+      responses:
+        "200":
+          description: ok
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Subscription" }
+    put:
+      tags: [api-management]
+      summary: Replace subscription
+      operationId: replaceSubscription
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/UpdateSubscriptionBody" }
+      responses:
+        "200":
+          description: ok
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Subscription" }
+    patch:
+      tags: [api-management]
+      summary: Patch subscription
+      operationId: patchSubscription
+      requestBody:
+        required: true
+        content:
+          application/merge-patch+json:
+            schema: { $ref: "#/components/schemas/UpdateSubscriptionBody" }
+      responses:
+        "200":
+          description: ok
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Subscription" }
+    delete:
+      tags: [api-management]
+      summary: Delete subscription
+      operationId: deleteSubscription
+      responses: { "204": { description: deleted } }
+    options:
+      tags: [api-management]
+      responses: { "204": { description: no content } }
+
+components:
+  schemas:
+    Plan:
+      type: object
+      properties:
+        id: { type: string }
+        tenantId: { type: string }
+        apiId: { type: string }
+        name: { type: string }
+        description: { type: string }
+        securityType: { type: string }
+        validation: { type: string }
+        status: { type: string }
+        rateLimitPerMinute: { type: integer, format: int32 }
+        quotaPerDay: { type: integer, format: int32 }
+        selectionRule: { type: string }
+        createdAt: { type: string, format: date-time }
+        updatedAt: { type: string, format: date-time }
+    CreatePlanBody:
+      type: object
+      required: [name]
+      properties:
+        apiId: { type: string }
+        name: { type: string }
+        description: { type: string }
+        securityType: { type: string }
+        validation: { type: string }
+        rateLimitPerMinute: { type: integer, format: int32 }
+        quotaPerDay: { type: integer, format: int32 }
+        selectionRule: { type: string }
+    UpdatePlanBody:
+      type: object
+      properties:
+        name: { type: string }
+        description: { type: string }
+        securityType: { type: string }
+        validation: { type: string }
+        status: { type: string }
+        rateLimitPerMinute: { type: integer, format: int32 }
+        quotaPerDay: { type: integer, format: int32 }
+        selectionRule: { type: string }
+
+    Application:
+      type: object
+      properties:
+        id: { type: string }
+        tenantId: { type: string }
+        name: { type: string }
+        description: { type: string }
+        ownerUserId: { type: string }
+        status: { type: string }
+        createdAt: { type: string, format: date-time }
+        updatedAt: { type: string, format: date-time }
+    CreateApplicationBody:
+      type: object
+      required: [name]
+      properties:
+        name: { type: string }
+        description: { type: string }
+        ownerUserId: { type: string }
+    UpdateApplicationBody:
+      type: object
+      properties:
+        name: { type: string }
+        description: { type: string }
+        ownerUserId: { type: string }
+        status: { type: string }
+
+    Subscription:
+      type: object
+      properties:
+        id: { type: string }
+        tenantId: { type: string }
+        planId: { type: string }
+        applicationId: { type: string }
+        apiId: { type: string }
+        status: { type: string }
+        requestMessage: { type: string }
+        reasonMessage: { type: string }
+        startingAt: { type: string, format: date-time }
+        endingAt: { type: string, format: date-time }
+        createdAt: { type: string, format: date-time }
+        updatedAt: { type: string, format: date-time }
+    CreateSubscriptionBody:
+      type: object
+      required: [planId, applicationId]
+      properties:
+        planId: { type: string }
+        applicationId: { type: string }
+        apiId: { type: string }
+        requestMessage: { type: string }
+    UpdateSubscriptionBody:
+      type: object
+      properties:
+        status: { type: string }
+        reasonMessage: { type: string }
+        startingAt: { type: string, format: date-time }
+        endingAt: { type: string, format: date-time }
