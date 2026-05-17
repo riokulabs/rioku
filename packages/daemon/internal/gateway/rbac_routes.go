@@ -212,7 +212,7 @@ type updateRoleRequest struct {
 	AddPerms     []string `json:"addPermissions"`
 	RemovePerms  []string `json:"removePermissions"`
 	ParentRoleID *string  `json:"parentRoleId"` // non-nil → set parent
-	ClearParent  bool     `json:"clearParent"`   // true → set parent_role_id to NULL
+	ClearParent  bool     `json:"clearParent"`  // true → set parent_role_id to NULL
 }
 
 func handleUpdateRole(st store.Driver, sm *auth.SessionManager) rerr.Handler {
