@@ -1,0 +1,2 @@
+-- no-op: version pre-allocated during admin stage-2 sprint planning and consolidated
+-- before release; present only to keep the migration version sequence contiguous (#212).
