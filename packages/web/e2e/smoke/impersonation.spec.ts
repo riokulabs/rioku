@@ -73,7 +73,8 @@ test('impersonation: enter session and banner appears', async ({ page }) => {
   // Fill reason (required, min 20 chars)
   await page.getByLabel(/reason/i).fill('E2E test impersonation for smoke testing');
 
-  // Fill TOTP code (any 6 digits accepted in stage 1)
+  // Fill TOTP code — validated client-side as 6 digits; daemon does not
+  // verify TOTP for impersonation start (it validates auth at session login).
   await page.getByLabel(/totp code/i).fill('123456');
 
   // Submit the form
