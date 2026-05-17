@@ -78,6 +78,34 @@ func TestEnrollmentTokens_LifecycleAndRevoke(t *testing.T) {
 	}
 }
 
+// TestImpersonation_SlugResolution verifies that sending a tenant slug in
+// tenantId is resolved to the internal tenant id before storage, avoiding the
+// FK violation that would occur if the slug were stored directly.
+func TestImpersonation_SlugResolution(t *testing.T) {
+	drv := openTenantTestStore(t)
+	mux := http.NewServeMux()
+	RegisterWebhooksClusterImpersonationRoutes(mux, drv)
+
+	// "default" is the slug for the seed tenant; its internal id is "tenant_default".
+	r := httptest.NewRecorder()
+	mux.ServeHTTP(r, authedTenantRequest(t, drv, http.MethodPost,
+		"/api/v1/admin/impersonation", "",
+		map[string]any{"reason": "slug resolution test", "tenantId": "default"}))
+	if r.Code != http.StatusCreated {
+		t.Fatalf("start with slug: %d (%s)", r.Code, r.Body.String())
+	}
+	var resp impersonationResponse
+	if err := json.NewDecoder(r.Body).Decode(&resp); err != nil {
+		t.Fatalf("decode: %v", err)
+	}
+	if resp.TenantID == nil || *resp.TenantID == "" {
+		t.Error("expected tenantId in response")
+	}
+	if resp.TenantID != nil && *resp.TenantID == "default" {
+		t.Errorf("tenantId should be the internal id, not the slug; got %q", *resp.TenantID)
+	}
+}
+
 func TestImpersonation_StartListEnd(t *testing.T) {
 	drv := openTenantTestStore(t)
 	mux := http.NewServeMux()
