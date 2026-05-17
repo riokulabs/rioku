@@ -66,6 +66,9 @@ type Server struct {
 	// fires one webhook per day, not one per blocked request.
 	quotaCache map[string]time.Time
 
+	// stopCh is closed by Shutdown to signal background goroutines.
+	stopCh chan struct{}
+
 	// Now is the clock function. Overridable for tests.
 	Now func() time.Time
 }
@@ -94,7 +97,8 @@ func New(st store.Driver, log *slog.Logger) *Server {
 		store:      st,
 		log:        log,
 		Now:        time.Now,
-		quotaCache: map[string]time.Time{},
+		quotaCache: make(map[string]time.Time, quotaDedupInitCap),
+		stopCh:     make(chan struct{}),
 	}
 }
 
@@ -113,6 +117,7 @@ func (s *Server) Listen(addr string) error {
 	}
 	s.listener = l
 	s.addr = l.Addr().String()
+	go s.sweepQuotaCache()
 	mux := http.NewServeMux()
 	mux.HandleFunc("/validate-key", s.handleValidateKey)
 	mux.HandleFunc("/quota-exceeded", s.handleQuotaExceeded)
@@ -172,7 +177,31 @@ func (s *Server) Shutdown(ctx context.Context) error {
 	if s.srv == nil {
 		return nil
 	}
+	close(s.stopCh)
 	return s.srv.Shutdown(ctx)
+}
+
+// sweepQuotaCache runs as a background goroutine and periodically
+// removes expired entries from quotaCache so day-old entries do not
+// accumulate indefinitely (#209).
+func (s *Server) sweepQuotaCache() {
+	ticker := time.NewTicker(quotaSweepInterval)
+	defer ticker.Stop()
+	for {
+		select {
+		case <-s.stopCh:
+			return
+		case t := <-ticker.C:
+			cutoff := t.UTC().Add(-quotaDedupTTL)
+			s.quotaCacheMu.Lock()
+			for k, ts := range s.quotaCache {
+				if ts.Before(cutoff) {
+					delete(s.quotaCache, k)
+				}
+			}
+			s.quotaCacheMu.Unlock()
+		}
+	}
 }
 
 // handleValidateKey is the POST /validate-key handler. The plugin's
@@ -255,7 +284,12 @@ func (s *Server) logErr(msg string, err error) {
 // QuotaPerDay window; sub-day windows still suppress within the
 // day, which is the correct trade-off — operators do not want one
 // webhook per blocked request during a sustained breach.
-const quotaDedupTTL = 24 * time.Hour
+const (
+	quotaDedupTTL      = 24 * time.Hour
+	quotaDedupInitCap  = 1_024             // pre-allocated map capacity
+	quotaDedupMaxSize  = 100_000           // hard cap on in-memory entries (#209)
+	quotaSweepInterval = quotaDedupTTL / 2 // background sweep cadence
+)
 
 // handleQuotaExceeded is the data-plane webhook ingress (#202). The
 // rate-limit Caddy module POSTs the block context here when an API
@@ -314,11 +348,11 @@ func (s *Server) handleQuotaExceeded(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	s.quotaCache[dedupKey] = now
-	// Bound the cache: drop entries older than the TTL on every write.
-	for k, t := range s.quotaCache {
-		if now.Sub(t) >= quotaDedupTTL {
-			delete(s.quotaCache, k)
-		}
+	// If the map grew past the hard cap, reset it. The next request for
+	// any (key, plan) combination will fire once more before being
+	// deduped again — acceptable for a best-effort mechanism (#209).
+	if len(s.quotaCache) > quotaDedupMaxSize {
+		s.quotaCache = make(map[string]time.Time, quotaDedupInitCap)
 	}
 	s.quotaCacheMu.Unlock()
 
