@@ -116,9 +116,11 @@ func waitForStoreReady(ctx context.Context, healthURL string) error {
 	}
 }
 
-// waitForCaddyProxy polls trafficURL (with the given Host header) until it
-// receives a 200 from the upstream, or the context expires. This replaces
-// fixed sleeps that were too tight on slow CI runners.
+// waitForCaddyProxy polls trafficURL (with the given Host header) until the
+// upstream is reachable through Caddy, or the context expires. The check
+// requires X-Upstream: reached because Caddy returns "200 OK" with an empty
+// body by default (no routes configured), which would otherwise cause a
+// false-positive and let the test assert against an empty response.
 func waitForCaddyProxy(ctx context.Context, trafficURL, hostHeader string) error {
 	client := &http.Client{Timeout: 2 * time.Second}
 	for {
@@ -134,8 +136,10 @@ func waitForCaddyProxy(ctx context.Context, trafficURL, hostHeader string) error
 		req.Host = hostHeader
 		resp, err := client.Do(req)
 		if err == nil {
+			reached := resp.Header.Get("X-Upstream") == "reached"
+			_, _ = io.ReadAll(resp.Body)
 			_ = resp.Body.Close()
-			if resp.StatusCode == http.StatusOK {
+			if resp.StatusCode == http.StatusOK && reached {
 				return nil
 			}
 		}
