@@ -93,8 +93,17 @@ func TestDecryptCorrupted(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	// Corrupt the ciphertext by flipping a character in the base64 body.
-	corrupted := ciphertext[:4] + "X" + ciphertext[5:]
+	// Corrupt the ciphertext by replacing a base64 character in the body with
+	// one that is guaranteed to be different from the original. Picking 'X'
+	// blindly was a 1/64 chance of no-op when position 4 already held 'X'.
+	b := []byte(ciphertext)
+	if b[4] == 'X' {
+		b[4] = 'Y'
+	} else {
+		b[4] = 'X'
+	}
+	corrupted := string(b)
+
 	_, err = enc.Decrypt(corrupted)
 	if err == nil {
 		t.Fatal("expected error decrypting corrupted ciphertext")
