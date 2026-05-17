@@ -47,7 +47,7 @@ const planSelectColumns = `id, tenant_id, api_id, name, description,
 
 func scanPlan(row scanner) (*store.Plan, error) {
 	var (
-		p                                      store.Plan
+		p                                store.Plan
 		securityType, validation, status string
 		createdAt, updatedAt             sql.NullTime
 	)
@@ -252,9 +252,9 @@ const appSelectColumns = `id, tenant_id, name, description, owner_user_id, statu
 
 func scanApplication(row scanner) (*store.Application, error) {
 	var (
-		a                  store.Application
-		owner              sql.NullString
-		status             string
+		a                    store.Application
+		owner                sql.NullString
+		status               string
 		createdAt, updatedAt sql.NullTime
 	)
 	if err := row.Scan(
