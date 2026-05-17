@@ -263,8 +263,10 @@ describe('ImpersonationEntryForm', () => {
     });
   });
 
-  it('does NOT call the daemon start mutation in mock-API mode', async () => {
-    realApiMock.value = false;
+  it('does not call the daemon mutation directly — delegates exclusively to entry()', async () => {
+    // After the double-call fix, the form only calls entry() from useImpersonation().
+    // The mutation dispatch and active-id mirroring are useImpersonation's responsibility,
+    // tested in use-impersonation.test.ts. The form must not bypass that abstraction.
     const user = userEvent.setup();
     renderWithProviders(<ImpersonationEntryForm />);
 
@@ -282,43 +284,16 @@ describe('ImpersonationEntryForm', () => {
     await user.click(submitBtn);
 
     await waitFor(() => {
-      expect(mockEntry).toHaveBeenCalled();
+      expect(mockEntry).toHaveBeenCalledWith(
+        expect.objectContaining({
+          tenant_id: TENANT_ID,
+          reason: 'Investigating support ticket about role assignments',
+          totpCode: '123456',
+        }),
+      );
     });
+    // Form must never call the daemon mutation directly.
     expect(mockStartMutate).not.toHaveBeenCalled();
-    expect(setActiveImp).not.toHaveBeenCalled();
-  });
-
-  it('calls the daemon start mutation in real-API mode with the wire body shape', async () => {
-    realApiMock.value = true;
-    const user = userEvent.setup();
-    renderWithProviders(<ImpersonationEntryForm />);
-
-    await selectTenant(user);
-
-    const [reasonInput] = screen.getAllByLabelText(/reason/i);
-    if (!reasonInput) throw new Error('reason input not found');
-    await user.type(reasonInput, 'Investigating support ticket about role assignments');
-
-    const [totpInput] = screen.getAllByLabelText(/totp code/i);
-    if (!totpInput) throw new Error('totp input not found');
-    await user.type(totpInput, '123456');
-
-    const submitBtn = screen.getByRole('button', { name: /start impersonation/i });
-    await user.click(submitBtn);
-
-    await waitFor(() => {
-      expect(mockStartMutate).toHaveBeenCalled();
-    });
-    const callArg = mockStartMutate.mock.calls[0]?.[0] as
-      | { data: { tenantId: string; targetUserId: string; reason: string } }
-      | undefined;
-    expect(callArg?.data.tenantId).toBe(TENANT_ID);
-    expect(callArg?.data.targetUserId).toBe('');
-    expect(callArg?.data.reason).toBe('Investigating support ticket about role assignments');
-    // Local entry() still called for the audit + local mirror.
-    expect(mockEntry).toHaveBeenCalled();
-    // Active-impersonation holder was updated with the daemon-issued id.
-    expect(setActiveImp).toHaveBeenCalledWith('imp-daemon-001');
   });
 
   it('shows valid ticketRef as URL', async () => {
