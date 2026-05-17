@@ -372,9 +372,14 @@ coverage-baseline:
 	@cd $(PKG)/daemon && $(GO) tool cover -func=coverage.out | grep total | awk '{print $$3}' | tr -d '%' > bench/coverage-baseline.txt
 	@echo "Coverage baseline updated to $$(cat $(PKG)/daemon/bench/coverage-baseline.txt)%"
 
-## test | test-integration: Run integration tests (requires databases)
+## test | test-integration: Run integration tests (requires sandbox)
+# Scoped to packages that have //go:build integration files (internal/cli,
+# internal/daemon). Running ./... here pulls in the full gateway test suite
+# (~10 min) which is already covered by the Test (daemon, race) CI job and
+# blows the 30-min E2E job budget leaving no time for Playwright. -p 1
+# prevents concurrent stdout pollution between cli and daemon packages.
 test-integration:
-	cd $(PKG)/daemon && $(GO) test -tags integration -race ./...
+	cd $(PKG)/daemon && $(GO) test -tags integration -race -count=1 -timeout=300s -p 1 ./internal/cli/... ./internal/daemon/...
 
 ## test | test-e2e: Run Playwright E2E tests (requires running sandbox)
 test-e2e:

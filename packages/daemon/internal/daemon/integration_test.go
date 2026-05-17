@@ -116,6 +116,33 @@ func waitForStoreReady(ctx context.Context, healthURL string) error {
 	}
 }
 
+// waitForCaddyProxy polls trafficURL (with the given Host header) until it
+// receives a 200 from the upstream, or the context expires. This replaces
+// fixed sleeps that were too tight on slow CI runners.
+func waitForCaddyProxy(ctx context.Context, trafficURL, hostHeader string) error {
+	client := &http.Client{Timeout: 2 * time.Second}
+	for {
+		select {
+		case <-ctx.Done():
+			return fmt.Errorf("timed out waiting for caddy proxy to route %s (Host: %s)", trafficURL, hostHeader)
+		default:
+		}
+		req, err := http.NewRequest(http.MethodGet, trafficURL, nil)
+		if err != nil {
+			return err
+		}
+		req.Host = hostHeader
+		resp, err := client.Do(req)
+		if err == nil {
+			_ = resp.Body.Close()
+			if resp.StatusCode == http.StatusOK {
+				return nil
+			}
+		}
+		time.Sleep(100 * time.Millisecond)
+	}
+}
+
 // doJSON performs an HTTP request with optional JSON body and returns the response.
 func doJSON(t *testing.T, method, url, token string, body any) *http.Response {
 	t.Helper()
@@ -272,6 +299,7 @@ listen:
   grpc: "127.0.0.1:%d"
   rest: "127.0.0.1:%d"
   internal_port: %d
+  ai_gateway: ""
 caddy:
   binary: "%s"
   admin_addr: "127.0.0.1:%d"
@@ -462,12 +490,16 @@ func TestFullProxyFlow(t *testing.T) {
 		t.Fatalf("create route: expected 200, got %d: %s", resp.StatusCode, body)
 	}
 
-	// 5. Wait for the sync agent to push config to Caddy.
-	// The sync agent debounces at 100ms; 2 seconds is generous.
-	time.Sleep(2 * time.Second)
+	// 5. Poll until Caddy has the route active (sync agent debounces at 100ms;
+	// we give 15s for slow CI runners instead of a fixed 2s sleep).
+	trafficURL := fmt.Sprintf("http://127.0.0.1:%d/", ports.caddyTraffic)
+	syncCtx, syncCancel := context.WithTimeout(context.Background(), 15*time.Second)
+	defer syncCancel()
+	if err := waitForCaddyProxy(syncCtx, trafficURL, testHost); err != nil {
+		t.Fatalf("caddy route never became active: %v", err)
+	}
 
 	// 6. Send a request through Caddy's traffic port with the right Host header.
-	trafficURL := fmt.Sprintf("http://127.0.0.1:%d/", ports.caddyTraffic)
 	trafficReq, err := http.NewRequest(http.MethodGet, trafficURL, nil)
 	if err != nil {
 		t.Fatalf("new traffic request: %v", err)
@@ -642,11 +674,16 @@ func TestTrafficTracing(t *testing.T) {
 	routeID, _ := routeObj["id"].(string)
 	t.Logf("created route ID: %s", routeID)
 
-	// 5. Wait for the sync agent to push config to Caddy.
-	time.Sleep(2 * time.Second)
+	// 5. Poll until Caddy has the route active (sync agent debounces at 100ms;
+	// we give 15s for slow CI runners instead of a fixed 2s sleep).
+	trafficURL := fmt.Sprintf("http://127.0.0.1:%d/", ports.caddyTraffic)
+	syncCtx, syncCancel := context.WithTimeout(context.Background(), 15*time.Second)
+	defer syncCancel()
+	if err := waitForCaddyProxy(syncCtx, trafficURL, testHost); err != nil {
+		t.Fatalf("caddy route never became active: %v", err)
+	}
 
 	// 6. Send 10 HTTP requests through Caddy's traffic port with the right Host header.
-	trafficURL := fmt.Sprintf("http://127.0.0.1:%d/", ports.caddyTraffic)
 	client := &http.Client{Timeout: 5 * time.Second}
 
 	const numRequests = 10
@@ -904,11 +941,15 @@ func TestDegradedMode(t *testing.T) {
 		t.Fatalf("create route: expected 200, got %d: %s", resp.StatusCode, body)
 	}
 
-	// Wait for Caddy sync.
-	time.Sleep(2 * time.Second)
+	// Poll until Caddy has the route active (15s budget for slow CI runners).
+	trafficURL := fmt.Sprintf("http://127.0.0.1:%d/", ports.caddyTraffic)
+	syncCtx, syncCancel := context.WithTimeout(context.Background(), 15*time.Second)
+	defer syncCancel()
+	if err := waitForCaddyProxy(syncCtx, trafficURL, testHost); err != nil {
+		t.Fatalf("caddy route never became active: %v", err)
+	}
 
 	// Helper to send a proxied request through Caddy's traffic port.
-	trafficURL := fmt.Sprintf("http://127.0.0.1:%d/", ports.caddyTraffic)
 	sendTraffic := func(t *testing.T) (int, string) {
 		t.Helper()
 		req, err := http.NewRequest(http.MethodGet, trafficURL, nil)
