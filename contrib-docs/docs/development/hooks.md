@@ -9,7 +9,7 @@ blocks merge.
 | Layer | Runs | Latency | Authoritative? |
 | --- | --- | --- | --- |
 | `pre-commit` | gofmt + goimports auto-fix on staged Go; per-touched-module `go vet`; `buf lint` on staged proto; `eslint --fix` on staged TS in `packages/web` and `packages/ui` | < 5s typical | No — advisory |
-| `pre-push` | `go vet ./...` smoke on `packages/daemon` and `packages/build-service` | < 3s typical | No — advisory |
+| `pre-push` | gofmt + goimports drift check on all Go in `packages/daemon` + `packages/build-service`; `go vet ./...` smoke; prettier format check on `packages/web` | < 8s typical | No — advisory |
 | **PR CI** | Full `go test -race`, `store-matrix-*` (sqlite + postgres-15/18 + mysql-8.4 + mariadb-11.4), full `golangci-lint`, `buf lint`, `cspell`, full web suite (lint + typecheck + format + Vitest + Playwright + bundle/ABI audits), `test-e2e` (sandbox smoke + Playwright), gofmt/goimports drift check | varies | **Yes — blocks merge** |
 
 ## Setup
@@ -44,10 +44,17 @@ On staged `.ts/.tsx/.js/.jsx/.mjs/.cjs` files in `packages/web` or `packages/ui`
 
 ### `pre-push` (`.githooks/pre-push`)
 
-- `go vet ./...` on `packages/daemon` and `packages/build-service`.
+On all Go files in `packages/daemon` and `packages/build-service`:
 
-That's it. **No tests, no `pnpm typecheck`, no Playwright.** All of those
-are PR CI's job.
+- `gofmt -l .` — reports unformatted files and blocks the push. Fix with `gofmt -w <file>`.
+- `goimports -l .` — reports import drift and blocks the push. Skipped if `goimports` isn't on `$PATH`.
+- `go vet ./...` — quick vet smoke.
+
+On `packages/web` (when `node_modules` and `pnpm` are present):
+
+- `pnpm exec prettier --check .` — reports formatting issues and blocks the push. Fix with `pnpm exec prettier --write .`.
+
+**No tests, no `pnpm typecheck`, no Playwright.** All of those are PR CI's job.
 
 ### `commit-msg` (`.githooks/commit-msg` → `lint-commit.sh`)
 
