@@ -25,7 +25,7 @@ func (t *tx) GetRouteOASConfig(ctx context.Context, routeID string) (*store.Rout
 		 FROM route_oas_configs WHERE route_id = ? AND tenant_id = ?`),
 		routeID, tenantID)
 	var (
-		c                                                    store.RouteOASConfig
+		c                                           store.RouteOASConfig
 		validateBody, validateParams, rejectUnknown bool
 		createdAt, updatedAt                        time.Time
 	)
