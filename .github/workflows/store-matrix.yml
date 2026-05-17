@@ -96,13 +96,11 @@ jobs:
           go test -race -count=1 -timeout=1500s ./internal/store/postgres/...
 
   store-matrix-mysql-8-4:
-    name: store-matrix-mysql-8-4
+    name: store-matrix-mysql-8-4 (optional)
     runs-on: ubuntu-latest
     # MySQL/MariaDB migrations need a comprehensive rewrite before
-    # CI can enforce them: many migrations use `TEXT NOT NULL UNIQUE`
-    # and `TEXT PRIMARY KEY` which MySQL strict mode rejects without
-    # an explicit key length. Tracked as a follow-up; until then the
-    # job runs for early signal but does not block PRs.
+    # CI can enforce them. Tracked as a follow-up (#213); until then
+    # the job must NOT be listed in required branch protection checks.
     continue-on-error: true
     services:
       mysql:
@@ -141,9 +139,9 @@ jobs:
           go test -race -count=1 -timeout=300s ./internal/store/mysql/...
 
   store-matrix-mariadb-11-4:
-    name: store-matrix-mariadb-11-4
+    name: store-matrix-mariadb-11-4 (optional)
     runs-on: ubuntu-latest
-    # See store-matrix-mysql-8-4 for the migration-rewrite TODO.
+    # See store-matrix-mysql-8-4 for the migration-rewrite TODO (#213).
     continue-on-error: true
     services:
       mariadb:
