@@ -23,161 +23,110 @@ Conventions:
  */
 import * as zod from 'zod';
 
+
 /**
  * @summary List SSO providers
  */
 export const listSsoProvidersPathTenantRegExp = new RegExp('^[a-z0-9-]+$');
 
+
 export const ListSsoProvidersParams = zod.object({
-  tenant: zod
-    .string()
-    .regex(listSsoProvidersPathTenantRegExp)
-    .describe('Tenant slug (e.g. `default`, `acme`).'),
-});
+  "tenant": zod.string().regex(listSsoProvidersPathTenantRegExp).describe('Tenant slug (e.g. `default`, `acme`).')
+})
 
 export const ListSsoProvidersResponse = zod.object({
-  items: zod
-    .array(
-      zod.object({
-        claimsMapping: zod
-          .record(zod.string(), zod.string())
-          .optional()
-          .describe('Map of daemon-side claim name -> provider-side claim name.'),
-        createdAt: zod.iso.datetime({ offset: true }).optional(),
-        enabled: zod.boolean().optional(),
-        id: zod.string().optional(),
-        kind: zod
-          .enum(['oidc', 'saml'])
-          .optional()
-          .describe(
-            'Provider protocol. Only `oidc` is implemented today; `saml` is reserved for forward-compatibility.',
-          ),
-        name: zod.string().optional(),
-        oidcClientId: zod.string().nullish(),
-        oidcClientSecretRef: zod
-          .string()
-          .nullish()
-          .describe(
-            'Indirection reference into the secret store (#169). The raw secret never traverses this API.',
-          ),
-        oidcIssuer: zod.string().nullish(),
-        oidcScopes: zod.array(zod.string()).optional(),
-        tenantId: zod.string().optional(),
-        updatedAt: zod.iso.datetime({ offset: true }).optional(),
-      }),
-    )
-    .optional(),
-  total: zod.number().optional(),
-});
+  "items": zod.array(zod.object({
+  "claimsMapping": zod.record(zod.string(), zod.string()).optional().describe('Map of daemon-side claim name -> provider-side claim name.'),
+  "createdAt": zod.iso.datetime({"offset":true}).optional(),
+  "enabled": zod.boolean().optional(),
+  "id": zod.string().optional(),
+  "kind": zod.enum(['oidc', 'saml']).optional().describe('Provider protocol. Only `oidc` is implemented today; `saml` is reserved for forward-compatibility.'),
+  "name": zod.string().optional(),
+  "oidcClientId": zod.string().nullish(),
+  "oidcClientSecretRef": zod.string().nullish().describe('Indirection reference into the secret store (#169). The raw secret never traverses this API.'),
+  "oidcIssuer": zod.string().nullish(),
+  "oidcScopes": zod.array(zod.string()).optional(),
+  "tenantId": zod.string().optional(),
+  "updatedAt": zod.iso.datetime({"offset":true}).optional()
+})).optional(),
+  "total": zod.number().optional()
+})
 
 /**
  * @summary Create SSO provider
  */
 export const createSsoProviderPathTenantRegExp = new RegExp('^[a-z0-9-]+$');
 
+
 export const CreateSsoProviderParams = zod.object({
-  tenant: zod
-    .string()
-    .regex(createSsoProviderPathTenantRegExp)
-    .describe('Tenant slug (e.g. `default`, `acme`).'),
-});
+  "tenant": zod.string().regex(createSsoProviderPathTenantRegExp).describe('Tenant slug (e.g. `default`, `acme`).')
+})
 
 export const CreateSsoProviderBody = zod.object({
-  claimsMapping: zod.record(zod.string(), zod.string()).optional(),
-  enabled: zod.boolean().optional(),
-  kind: zod.enum(['oidc', 'saml']),
-  name: zod.string(),
-  oidcClientId: zod.string().optional(),
-  oidcClientSecretRef: zod.string().optional(),
-  oidcIssuer: zod.string().optional(),
-  oidcScopes: zod.array(zod.string()).optional(),
-});
+  "claimsMapping": zod.record(zod.string(), zod.string()).optional(),
+  "enabled": zod.boolean().optional(),
+  "kind": zod.enum(['oidc', 'saml']),
+  "name": zod.string(),
+  "oidcClientId": zod.string().optional(),
+  "oidcClientSecretRef": zod.string().optional(),
+  "oidcIssuer": zod.string().optional(),
+  "oidcScopes": zod.array(zod.string()).optional()
+})
 
 export const deleteSsoProviderPathTenantRegExp = new RegExp('^[a-z0-9-]+$');
 
+
 export const DeleteSsoProviderParams = zod.object({
-  tenant: zod
-    .string()
-    .regex(deleteSsoProviderPathTenantRegExp)
-    .describe('Tenant slug (e.g. `default`, `acme`).'),
-  id: zod.uuid().describe('Resource id (UUID).'),
-});
+  "tenant": zod.string().regex(deleteSsoProviderPathTenantRegExp).describe('Tenant slug (e.g. `default`, `acme`).'),
+  "id": zod.uuid().describe('Resource id (UUID).')
+})
 
 export const getSsoProviderPathTenantRegExp = new RegExp('^[a-z0-9-]+$');
 
+
 export const GetSsoProviderParams = zod.object({
-  tenant: zod
-    .string()
-    .regex(getSsoProviderPathTenantRegExp)
-    .describe('Tenant slug (e.g. `default`, `acme`).'),
-  id: zod.uuid().describe('Resource id (UUID).'),
-});
+  "tenant": zod.string().regex(getSsoProviderPathTenantRegExp).describe('Tenant slug (e.g. `default`, `acme`).'),
+  "id": zod.uuid().describe('Resource id (UUID).')
+})
 
 export const GetSsoProviderResponse = zod.object({
-  claimsMapping: zod
-    .record(zod.string(), zod.string())
-    .optional()
-    .describe('Map of daemon-side claim name -> provider-side claim name.'),
-  createdAt: zod.iso.datetime({ offset: true }).optional(),
-  enabled: zod.boolean().optional(),
-  id: zod.string().optional(),
-  kind: zod
-    .enum(['oidc', 'saml'])
-    .optional()
-    .describe(
-      'Provider protocol. Only `oidc` is implemented today; `saml` is reserved for forward-compatibility.',
-    ),
-  name: zod.string().optional(),
-  oidcClientId: zod.string().nullish(),
-  oidcClientSecretRef: zod
-    .string()
-    .nullish()
-    .describe(
-      'Indirection reference into the secret store (#169). The raw secret never traverses this API.',
-    ),
-  oidcIssuer: zod.string().nullish(),
-  oidcScopes: zod.array(zod.string()).optional(),
-  tenantId: zod.string().optional(),
-  updatedAt: zod.iso.datetime({ offset: true }).optional(),
-});
+  "claimsMapping": zod.record(zod.string(), zod.string()).optional().describe('Map of daemon-side claim name -> provider-side claim name.'),
+  "createdAt": zod.iso.datetime({"offset":true}).optional(),
+  "enabled": zod.boolean().optional(),
+  "id": zod.string().optional(),
+  "kind": zod.enum(['oidc', 'saml']).optional().describe('Provider protocol. Only `oidc` is implemented today; `saml` is reserved for forward-compatibility.'),
+  "name": zod.string().optional(),
+  "oidcClientId": zod.string().nullish(),
+  "oidcClientSecretRef": zod.string().nullish().describe('Indirection reference into the secret store (#169). The raw secret never traverses this API.'),
+  "oidcIssuer": zod.string().nullish(),
+  "oidcScopes": zod.array(zod.string()).optional(),
+  "tenantId": zod.string().optional(),
+  "updatedAt": zod.iso.datetime({"offset":true}).optional()
+})
 
 /**
  * @summary Update SSO provider
  */
 export const patchSsoProviderPathTenantRegExp = new RegExp('^[a-z0-9-]+$');
 
+
 export const PatchSsoProviderParams = zod.object({
-  tenant: zod
-    .string()
-    .regex(patchSsoProviderPathTenantRegExp)
-    .describe('Tenant slug (e.g. `default`, `acme`).'),
-  id: zod.uuid().describe('Resource id (UUID).'),
-});
+  "tenant": zod.string().regex(patchSsoProviderPathTenantRegExp).describe('Tenant slug (e.g. `default`, `acme`).'),
+  "id": zod.uuid().describe('Resource id (UUID).')
+})
 
 export const PatchSsoProviderResponse = zod.object({
-  claimsMapping: zod
-    .record(zod.string(), zod.string())
-    .optional()
-    .describe('Map of daemon-side claim name -> provider-side claim name.'),
-  createdAt: zod.iso.datetime({ offset: true }).optional(),
-  enabled: zod.boolean().optional(),
-  id: zod.string().optional(),
-  kind: zod
-    .enum(['oidc', 'saml'])
-    .optional()
-    .describe(
-      'Provider protocol. Only `oidc` is implemented today; `saml` is reserved for forward-compatibility.',
-    ),
-  name: zod.string().optional(),
-  oidcClientId: zod.string().nullish(),
-  oidcClientSecretRef: zod
-    .string()
-    .nullish()
-    .describe(
-      'Indirection reference into the secret store (#169). The raw secret never traverses this API.',
-    ),
-  oidcIssuer: zod.string().nullish(),
-  oidcScopes: zod.array(zod.string()).optional(),
-  tenantId: zod.string().optional(),
-  updatedAt: zod.iso.datetime({ offset: true }).optional(),
-});
+  "claimsMapping": zod.record(zod.string(), zod.string()).optional().describe('Map of daemon-side claim name -> provider-side claim name.'),
+  "createdAt": zod.iso.datetime({"offset":true}).optional(),
+  "enabled": zod.boolean().optional(),
+  "id": zod.string().optional(),
+  "kind": zod.enum(['oidc', 'saml']).optional().describe('Provider protocol. Only `oidc` is implemented today; `saml` is reserved for forward-compatibility.'),
+  "name": zod.string().optional(),
+  "oidcClientId": zod.string().nullish(),
+  "oidcClientSecretRef": zod.string().nullish().describe('Indirection reference into the secret store (#169). The raw secret never traverses this API.'),
+  "oidcIssuer": zod.string().nullish(),
+  "oidcScopes": zod.array(zod.string()).optional(),
+  "tenantId": zod.string().optional(),
+  "updatedAt": zod.iso.datetime({"offset":true}).optional()
+})
+

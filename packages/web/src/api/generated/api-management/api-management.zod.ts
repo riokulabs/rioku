@@ -23,473 +23,427 @@ Conventions:
  */
 import * as zod from 'zod';
 
+
 /**
  * @summary List applications
  */
 export const listApplicationsPathTenantRegExp = new RegExp('^[a-z0-9-]+$');
 
+
 export const ListApplicationsParams = zod.object({
-  tenant: zod
-    .string()
-    .regex(listApplicationsPathTenantRegExp)
-    .describe('Tenant slug (e.g. `default`, `acme`).'),
-});
+  "tenant": zod.string().regex(listApplicationsPathTenantRegExp).describe('Tenant slug (e.g. `default`, `acme`).')
+})
 
 export const ListApplicationsResponse = zod.object({
-  applications: zod
-    .array(
-      zod.object({
-        createdAt: zod.iso.datetime({ offset: true }).optional(),
-        description: zod.string().optional(),
-        id: zod.string().optional(),
-        name: zod.string().optional(),
-        ownerUserId: zod.string().optional(),
-        status: zod.string().optional(),
-        tenantId: zod.string().optional(),
-        updatedAt: zod.iso.datetime({ offset: true }).optional(),
-      }),
-    )
-    .optional(),
-  nextPageToken: zod.string().optional(),
-});
+  "applications": zod.array(zod.object({
+  "createdAt": zod.iso.datetime({"offset":true}).optional(),
+  "description": zod.string().optional(),
+  "id": zod.string().optional(),
+  "name": zod.string().optional(),
+  "ownerUserId": zod.string().optional(),
+  "status": zod.string().optional(),
+  "tenantId": zod.string().optional(),
+  "updatedAt": zod.iso.datetime({"offset":true}).optional()
+})).optional(),
+  "nextPageToken": zod.string().optional()
+})
 
 /**
  * @summary Create application
  */
 export const createApplicationPathTenantRegExp = new RegExp('^[a-z0-9-]+$');
 
+
 export const CreateApplicationParams = zod.object({
-  tenant: zod
-    .string()
-    .regex(createApplicationPathTenantRegExp)
-    .describe('Tenant slug (e.g. `default`, `acme`).'),
-});
+  "tenant": zod.string().regex(createApplicationPathTenantRegExp).describe('Tenant slug (e.g. `default`, `acme`).')
+})
 
 export const CreateApplicationBody = zod.object({
-  description: zod.string().optional(),
-  name: zod.string(),
-  ownerUserId: zod.string().optional(),
-});
+  "description": zod.string().optional(),
+  "name": zod.string(),
+  "ownerUserId": zod.string().optional()
+})
 
 /**
  * @summary Delete application
  */
 export const deleteApplicationPathTenantRegExp = new RegExp('^[a-z0-9-]+$');
 
+
 export const DeleteApplicationParams = zod.object({
-  tenant: zod
-    .string()
-    .regex(deleteApplicationPathTenantRegExp)
-    .describe('Tenant slug (e.g. `default`, `acme`).'),
-  id: zod.uuid().describe('Resource id (UUID).'),
-});
+  "tenant": zod.string().regex(deleteApplicationPathTenantRegExp).describe('Tenant slug (e.g. `default`, `acme`).'),
+  "id": zod.uuid().describe('Resource id (UUID).')
+})
 
 /**
  * @summary Get application
  */
 export const getApplicationPathTenantRegExp = new RegExp('^[a-z0-9-]+$');
 
+
 export const GetApplicationParams = zod.object({
-  tenant: zod
-    .string()
-    .regex(getApplicationPathTenantRegExp)
-    .describe('Tenant slug (e.g. `default`, `acme`).'),
-  id: zod.uuid().describe('Resource id (UUID).'),
-});
+  "tenant": zod.string().regex(getApplicationPathTenantRegExp).describe('Tenant slug (e.g. `default`, `acme`).'),
+  "id": zod.uuid().describe('Resource id (UUID).')
+})
 
 export const GetApplicationResponse = zod.object({
-  createdAt: zod.iso.datetime({ offset: true }).optional(),
-  description: zod.string().optional(),
-  id: zod.string().optional(),
-  name: zod.string().optional(),
-  ownerUserId: zod.string().optional(),
-  status: zod.string().optional(),
-  tenantId: zod.string().optional(),
-  updatedAt: zod.iso.datetime({ offset: true }).optional(),
-});
+  "createdAt": zod.iso.datetime({"offset":true}).optional(),
+  "description": zod.string().optional(),
+  "id": zod.string().optional(),
+  "name": zod.string().optional(),
+  "ownerUserId": zod.string().optional(),
+  "status": zod.string().optional(),
+  "tenantId": zod.string().optional(),
+  "updatedAt": zod.iso.datetime({"offset":true}).optional()
+})
 
 /**
  * @summary Patch application
  */
 export const patchApplicationPathTenantRegExp = new RegExp('^[a-z0-9-]+$');
 
+
 export const PatchApplicationParams = zod.object({
-  tenant: zod
-    .string()
-    .regex(patchApplicationPathTenantRegExp)
-    .describe('Tenant slug (e.g. `default`, `acme`).'),
-  id: zod.uuid().describe('Resource id (UUID).'),
-});
+  "tenant": zod.string().regex(patchApplicationPathTenantRegExp).describe('Tenant slug (e.g. `default`, `acme`).'),
+  "id": zod.uuid().describe('Resource id (UUID).')
+})
 
 export const PatchApplicationResponse = zod.object({
-  createdAt: zod.iso.datetime({ offset: true }).optional(),
-  description: zod.string().optional(),
-  id: zod.string().optional(),
-  name: zod.string().optional(),
-  ownerUserId: zod.string().optional(),
-  status: zod.string().optional(),
-  tenantId: zod.string().optional(),
-  updatedAt: zod.iso.datetime({ offset: true }).optional(),
-});
+  "createdAt": zod.iso.datetime({"offset":true}).optional(),
+  "description": zod.string().optional(),
+  "id": zod.string().optional(),
+  "name": zod.string().optional(),
+  "ownerUserId": zod.string().optional(),
+  "status": zod.string().optional(),
+  "tenantId": zod.string().optional(),
+  "updatedAt": zod.iso.datetime({"offset":true}).optional()
+})
 
 /**
  * @summary Replace application
  */
 export const replaceApplicationPathTenantRegExp = new RegExp('^[a-z0-9-]+$');
 
+
 export const ReplaceApplicationParams = zod.object({
-  tenant: zod
-    .string()
-    .regex(replaceApplicationPathTenantRegExp)
-    .describe('Tenant slug (e.g. `default`, `acme`).'),
-  id: zod.uuid().describe('Resource id (UUID).'),
-});
+  "tenant": zod.string().regex(replaceApplicationPathTenantRegExp).describe('Tenant slug (e.g. `default`, `acme`).'),
+  "id": zod.uuid().describe('Resource id (UUID).')
+})
 
 export const ReplaceApplicationBody = zod.object({
-  description: zod.string().optional(),
-  name: zod.string().optional(),
-  ownerUserId: zod.string().optional(),
-  status: zod.string().optional(),
-});
+  "description": zod.string().optional(),
+  "name": zod.string().optional(),
+  "ownerUserId": zod.string().optional(),
+  "status": zod.string().optional()
+})
 
 export const ReplaceApplicationResponse = zod.object({
-  createdAt: zod.iso.datetime({ offset: true }).optional(),
-  description: zod.string().optional(),
-  id: zod.string().optional(),
-  name: zod.string().optional(),
-  ownerUserId: zod.string().optional(),
-  status: zod.string().optional(),
-  tenantId: zod.string().optional(),
-  updatedAt: zod.iso.datetime({ offset: true }).optional(),
-});
+  "createdAt": zod.iso.datetime({"offset":true}).optional(),
+  "description": zod.string().optional(),
+  "id": zod.string().optional(),
+  "name": zod.string().optional(),
+  "ownerUserId": zod.string().optional(),
+  "status": zod.string().optional(),
+  "tenantId": zod.string().optional(),
+  "updatedAt": zod.iso.datetime({"offset":true}).optional()
+})
 
 /**
  * @summary List plans
  */
 export const listPlansPathTenantRegExp = new RegExp('^[a-z0-9-]+$');
 
+
 export const ListPlansParams = zod.object({
-  tenant: zod
-    .string()
-    .regex(listPlansPathTenantRegExp)
-    .describe('Tenant slug (e.g. `default`, `acme`).'),
-});
+  "tenant": zod.string().regex(listPlansPathTenantRegExp).describe('Tenant slug (e.g. `default`, `acme`).')
+})
 
 export const ListPlansResponse = zod.object({
-  nextPageToken: zod.string().optional(),
-  plans: zod
-    .array(
-      zod.object({
-        apiId: zod.string().optional(),
-        createdAt: zod.iso.datetime({ offset: true }).optional(),
-        description: zod.string().optional(),
-        id: zod.string().optional(),
-        name: zod.string().optional(),
-        quotaPerDay: zod.number().optional(),
-        rateLimitPerMinute: zod.number().optional(),
-        securityType: zod.string().optional(),
-        selectionRule: zod.string().optional(),
-        status: zod.string().optional(),
-        tenantId: zod.string().optional(),
-        updatedAt: zod.iso.datetime({ offset: true }).optional(),
-        validation: zod.string().optional(),
-      }),
-    )
-    .optional(),
-});
+  "nextPageToken": zod.string().optional(),
+  "plans": zod.array(zod.object({
+  "apiId": zod.string().optional(),
+  "createdAt": zod.iso.datetime({"offset":true}).optional(),
+  "description": zod.string().optional(),
+  "id": zod.string().optional(),
+  "name": zod.string().optional(),
+  "quotaPerDay": zod.number().optional(),
+  "rateLimitPerMinute": zod.number().optional(),
+  "securityType": zod.string().optional(),
+  "selectionRule": zod.string().optional(),
+  "status": zod.string().optional(),
+  "tenantId": zod.string().optional(),
+  "updatedAt": zod.iso.datetime({"offset":true}).optional(),
+  "validation": zod.string().optional()
+})).optional()
+})
 
 /**
  * @summary Create plan
  */
 export const createPlanPathTenantRegExp = new RegExp('^[a-z0-9-]+$');
 
+
 export const CreatePlanParams = zod.object({
-  tenant: zod
-    .string()
-    .regex(createPlanPathTenantRegExp)
-    .describe('Tenant slug (e.g. `default`, `acme`).'),
-});
+  "tenant": zod.string().regex(createPlanPathTenantRegExp).describe('Tenant slug (e.g. `default`, `acme`).')
+})
 
 export const CreatePlanBody = zod.object({
-  apiId: zod.string().optional(),
-  description: zod.string().optional(),
-  name: zod.string(),
-  quotaPerDay: zod.number().optional(),
-  rateLimitPerMinute: zod.number().optional(),
-  securityType: zod.string().optional(),
-  selectionRule: zod.string().optional(),
-  validation: zod.string().optional(),
-});
+  "apiId": zod.string().optional(),
+  "description": zod.string().optional(),
+  "name": zod.string(),
+  "quotaPerDay": zod.number().optional(),
+  "rateLimitPerMinute": zod.number().optional(),
+  "securityType": zod.string().optional(),
+  "selectionRule": zod.string().optional(),
+  "validation": zod.string().optional()
+})
 
 /**
  * @summary Delete plan
  */
 export const deletePlanPathTenantRegExp = new RegExp('^[a-z0-9-]+$');
 
+
 export const DeletePlanParams = zod.object({
-  tenant: zod
-    .string()
-    .regex(deletePlanPathTenantRegExp)
-    .describe('Tenant slug (e.g. `default`, `acme`).'),
-  id: zod.uuid().describe('Resource id (UUID).'),
-});
+  "tenant": zod.string().regex(deletePlanPathTenantRegExp).describe('Tenant slug (e.g. `default`, `acme`).'),
+  "id": zod.uuid().describe('Resource id (UUID).')
+})
 
 /**
  * @summary Get plan
  */
 export const getPlanPathTenantRegExp = new RegExp('^[a-z0-9-]+$');
 
+
 export const GetPlanParams = zod.object({
-  tenant: zod
-    .string()
-    .regex(getPlanPathTenantRegExp)
-    .describe('Tenant slug (e.g. `default`, `acme`).'),
-  id: zod.uuid().describe('Resource id (UUID).'),
-});
+  "tenant": zod.string().regex(getPlanPathTenantRegExp).describe('Tenant slug (e.g. `default`, `acme`).'),
+  "id": zod.uuid().describe('Resource id (UUID).')
+})
 
 export const GetPlanResponse = zod.object({
-  apiId: zod.string().optional(),
-  createdAt: zod.iso.datetime({ offset: true }).optional(),
-  description: zod.string().optional(),
-  id: zod.string().optional(),
-  name: zod.string().optional(),
-  quotaPerDay: zod.number().optional(),
-  rateLimitPerMinute: zod.number().optional(),
-  securityType: zod.string().optional(),
-  selectionRule: zod.string().optional(),
-  status: zod.string().optional(),
-  tenantId: zod.string().optional(),
-  updatedAt: zod.iso.datetime({ offset: true }).optional(),
-  validation: zod.string().optional(),
-});
+  "apiId": zod.string().optional(),
+  "createdAt": zod.iso.datetime({"offset":true}).optional(),
+  "description": zod.string().optional(),
+  "id": zod.string().optional(),
+  "name": zod.string().optional(),
+  "quotaPerDay": zod.number().optional(),
+  "rateLimitPerMinute": zod.number().optional(),
+  "securityType": zod.string().optional(),
+  "selectionRule": zod.string().optional(),
+  "status": zod.string().optional(),
+  "tenantId": zod.string().optional(),
+  "updatedAt": zod.iso.datetime({"offset":true}).optional(),
+  "validation": zod.string().optional()
+})
 
 /**
  * @summary Patch plan
  */
 export const patchPlanPathTenantRegExp = new RegExp('^[a-z0-9-]+$');
 
+
 export const PatchPlanParams = zod.object({
-  tenant: zod
-    .string()
-    .regex(patchPlanPathTenantRegExp)
-    .describe('Tenant slug (e.g. `default`, `acme`).'),
-  id: zod.uuid().describe('Resource id (UUID).'),
-});
+  "tenant": zod.string().regex(patchPlanPathTenantRegExp).describe('Tenant slug (e.g. `default`, `acme`).'),
+  "id": zod.uuid().describe('Resource id (UUID).')
+})
 
 export const PatchPlanResponse = zod.object({
-  apiId: zod.string().optional(),
-  createdAt: zod.iso.datetime({ offset: true }).optional(),
-  description: zod.string().optional(),
-  id: zod.string().optional(),
-  name: zod.string().optional(),
-  quotaPerDay: zod.number().optional(),
-  rateLimitPerMinute: zod.number().optional(),
-  securityType: zod.string().optional(),
-  selectionRule: zod.string().optional(),
-  status: zod.string().optional(),
-  tenantId: zod.string().optional(),
-  updatedAt: zod.iso.datetime({ offset: true }).optional(),
-  validation: zod.string().optional(),
-});
+  "apiId": zod.string().optional(),
+  "createdAt": zod.iso.datetime({"offset":true}).optional(),
+  "description": zod.string().optional(),
+  "id": zod.string().optional(),
+  "name": zod.string().optional(),
+  "quotaPerDay": zod.number().optional(),
+  "rateLimitPerMinute": zod.number().optional(),
+  "securityType": zod.string().optional(),
+  "selectionRule": zod.string().optional(),
+  "status": zod.string().optional(),
+  "tenantId": zod.string().optional(),
+  "updatedAt": zod.iso.datetime({"offset":true}).optional(),
+  "validation": zod.string().optional()
+})
 
 /**
  * @summary Replace plan
  */
 export const replacePlanPathTenantRegExp = new RegExp('^[a-z0-9-]+$');
 
+
 export const ReplacePlanParams = zod.object({
-  tenant: zod
-    .string()
-    .regex(replacePlanPathTenantRegExp)
-    .describe('Tenant slug (e.g. `default`, `acme`).'),
-  id: zod.uuid().describe('Resource id (UUID).'),
-});
+  "tenant": zod.string().regex(replacePlanPathTenantRegExp).describe('Tenant slug (e.g. `default`, `acme`).'),
+  "id": zod.uuid().describe('Resource id (UUID).')
+})
 
 export const ReplacePlanBody = zod.object({
-  description: zod.string().optional(),
-  name: zod.string().optional(),
-  quotaPerDay: zod.number().optional(),
-  rateLimitPerMinute: zod.number().optional(),
-  securityType: zod.string().optional(),
-  selectionRule: zod.string().optional(),
-  status: zod.string().optional(),
-  validation: zod.string().optional(),
-});
+  "description": zod.string().optional(),
+  "name": zod.string().optional(),
+  "quotaPerDay": zod.number().optional(),
+  "rateLimitPerMinute": zod.number().optional(),
+  "securityType": zod.string().optional(),
+  "selectionRule": zod.string().optional(),
+  "status": zod.string().optional(),
+  "validation": zod.string().optional()
+})
 
 export const ReplacePlanResponse = zod.object({
-  apiId: zod.string().optional(),
-  createdAt: zod.iso.datetime({ offset: true }).optional(),
-  description: zod.string().optional(),
-  id: zod.string().optional(),
-  name: zod.string().optional(),
-  quotaPerDay: zod.number().optional(),
-  rateLimitPerMinute: zod.number().optional(),
-  securityType: zod.string().optional(),
-  selectionRule: zod.string().optional(),
-  status: zod.string().optional(),
-  tenantId: zod.string().optional(),
-  updatedAt: zod.iso.datetime({ offset: true }).optional(),
-  validation: zod.string().optional(),
-});
+  "apiId": zod.string().optional(),
+  "createdAt": zod.iso.datetime({"offset":true}).optional(),
+  "description": zod.string().optional(),
+  "id": zod.string().optional(),
+  "name": zod.string().optional(),
+  "quotaPerDay": zod.number().optional(),
+  "rateLimitPerMinute": zod.number().optional(),
+  "securityType": zod.string().optional(),
+  "selectionRule": zod.string().optional(),
+  "status": zod.string().optional(),
+  "tenantId": zod.string().optional(),
+  "updatedAt": zod.iso.datetime({"offset":true}).optional(),
+  "validation": zod.string().optional()
+})
 
 /**
  * @summary List subscriptions
  */
 export const listSubscriptionsPathTenantRegExp = new RegExp('^[a-z0-9-]+$');
 
+
 export const ListSubscriptionsParams = zod.object({
-  tenant: zod
-    .string()
-    .regex(listSubscriptionsPathTenantRegExp)
-    .describe('Tenant slug (e.g. `default`, `acme`).'),
-});
+  "tenant": zod.string().regex(listSubscriptionsPathTenantRegExp).describe('Tenant slug (e.g. `default`, `acme`).')
+})
 
 export const ListSubscriptionsQueryParams = zod.object({
-  application_id: zod.string().optional().describe('Filter subscriptions by application ID'),
-  plan_id: zod.string().optional().describe('Filter subscriptions by plan ID'),
-});
+  "application_id": zod.string().optional().describe('Filter subscriptions by application ID'),
+  "plan_id": zod.string().optional().describe('Filter subscriptions by plan ID')
+})
 
 export const ListSubscriptionsResponse = zod.object({
-  nextPageToken: zod.string().optional(),
-  subscriptions: zod
-    .array(
-      zod.object({
-        apiId: zod.string().optional(),
-        applicationId: zod.string().optional(),
-        createdAt: zod.iso.datetime({ offset: true }).optional(),
-        endingAt: zod.iso.datetime({ offset: true }).optional(),
-        id: zod.string().optional(),
-        planId: zod.string().optional(),
-        reasonMessage: zod.string().optional(),
-        requestMessage: zod.string().optional(),
-        startingAt: zod.iso.datetime({ offset: true }).optional(),
-        status: zod.string().optional(),
-        tenantId: zod.string().optional(),
-        updatedAt: zod.iso.datetime({ offset: true }).optional(),
-      }),
-    )
-    .optional(),
-});
+  "nextPageToken": zod.string().optional(),
+  "subscriptions": zod.array(zod.object({
+  "apiId": zod.string().optional(),
+  "applicationId": zod.string().optional(),
+  "createdAt": zod.iso.datetime({"offset":true}).optional(),
+  "endingAt": zod.iso.datetime({"offset":true}).optional(),
+  "id": zod.string().optional(),
+  "planId": zod.string().optional(),
+  "reasonMessage": zod.string().optional(),
+  "requestMessage": zod.string().optional(),
+  "startingAt": zod.iso.datetime({"offset":true}).optional(),
+  "status": zod.string().optional(),
+  "tenantId": zod.string().optional(),
+  "updatedAt": zod.iso.datetime({"offset":true}).optional()
+})).optional()
+})
 
 /**
  * @summary Create subscription
  */
 export const createSubscriptionPathTenantRegExp = new RegExp('^[a-z0-9-]+$');
 
+
 export const CreateSubscriptionParams = zod.object({
-  tenant: zod
-    .string()
-    .regex(createSubscriptionPathTenantRegExp)
-    .describe('Tenant slug (e.g. `default`, `acme`).'),
-});
+  "tenant": zod.string().regex(createSubscriptionPathTenantRegExp).describe('Tenant slug (e.g. `default`, `acme`).')
+})
 
 export const CreateSubscriptionBody = zod.object({
-  apiId: zod.string().optional(),
-  applicationId: zod.string(),
-  planId: zod.string(),
-  requestMessage: zod.string().optional(),
-});
+  "apiId": zod.string().optional(),
+  "applicationId": zod.string(),
+  "planId": zod.string(),
+  "requestMessage": zod.string().optional()
+})
 
 /**
  * @summary Delete subscription
  */
 export const deleteSubscriptionPathTenantRegExp = new RegExp('^[a-z0-9-]+$');
 
+
 export const DeleteSubscriptionParams = zod.object({
-  tenant: zod
-    .string()
-    .regex(deleteSubscriptionPathTenantRegExp)
-    .describe('Tenant slug (e.g. `default`, `acme`).'),
-  id: zod.uuid().describe('Resource id (UUID).'),
-});
+  "tenant": zod.string().regex(deleteSubscriptionPathTenantRegExp).describe('Tenant slug (e.g. `default`, `acme`).'),
+  "id": zod.uuid().describe('Resource id (UUID).')
+})
 
 /**
  * @summary Get subscription
  */
 export const getSubscriptionPathTenantRegExp = new RegExp('^[a-z0-9-]+$');
 
+
 export const GetSubscriptionParams = zod.object({
-  tenant: zod
-    .string()
-    .regex(getSubscriptionPathTenantRegExp)
-    .describe('Tenant slug (e.g. `default`, `acme`).'),
-  id: zod.uuid().describe('Resource id (UUID).'),
-});
+  "tenant": zod.string().regex(getSubscriptionPathTenantRegExp).describe('Tenant slug (e.g. `default`, `acme`).'),
+  "id": zod.uuid().describe('Resource id (UUID).')
+})
 
 export const GetSubscriptionResponse = zod.object({
-  apiId: zod.string().optional(),
-  applicationId: zod.string().optional(),
-  createdAt: zod.iso.datetime({ offset: true }).optional(),
-  endingAt: zod.iso.datetime({ offset: true }).optional(),
-  id: zod.string().optional(),
-  planId: zod.string().optional(),
-  reasonMessage: zod.string().optional(),
-  requestMessage: zod.string().optional(),
-  startingAt: zod.iso.datetime({ offset: true }).optional(),
-  status: zod.string().optional(),
-  tenantId: zod.string().optional(),
-  updatedAt: zod.iso.datetime({ offset: true }).optional(),
-});
+  "apiId": zod.string().optional(),
+  "applicationId": zod.string().optional(),
+  "createdAt": zod.iso.datetime({"offset":true}).optional(),
+  "endingAt": zod.iso.datetime({"offset":true}).optional(),
+  "id": zod.string().optional(),
+  "planId": zod.string().optional(),
+  "reasonMessage": zod.string().optional(),
+  "requestMessage": zod.string().optional(),
+  "startingAt": zod.iso.datetime({"offset":true}).optional(),
+  "status": zod.string().optional(),
+  "tenantId": zod.string().optional(),
+  "updatedAt": zod.iso.datetime({"offset":true}).optional()
+})
 
 /**
  * @summary Patch subscription
  */
 export const patchSubscriptionPathTenantRegExp = new RegExp('^[a-z0-9-]+$');
 
+
 export const PatchSubscriptionParams = zod.object({
-  tenant: zod
-    .string()
-    .regex(patchSubscriptionPathTenantRegExp)
-    .describe('Tenant slug (e.g. `default`, `acme`).'),
-  id: zod.uuid().describe('Resource id (UUID).'),
-});
+  "tenant": zod.string().regex(patchSubscriptionPathTenantRegExp).describe('Tenant slug (e.g. `default`, `acme`).'),
+  "id": zod.uuid().describe('Resource id (UUID).')
+})
 
 export const PatchSubscriptionResponse = zod.object({
-  apiId: zod.string().optional(),
-  applicationId: zod.string().optional(),
-  createdAt: zod.iso.datetime({ offset: true }).optional(),
-  endingAt: zod.iso.datetime({ offset: true }).optional(),
-  id: zod.string().optional(),
-  planId: zod.string().optional(),
-  reasonMessage: zod.string().optional(),
-  requestMessage: zod.string().optional(),
-  startingAt: zod.iso.datetime({ offset: true }).optional(),
-  status: zod.string().optional(),
-  tenantId: zod.string().optional(),
-  updatedAt: zod.iso.datetime({ offset: true }).optional(),
-});
+  "apiId": zod.string().optional(),
+  "applicationId": zod.string().optional(),
+  "createdAt": zod.iso.datetime({"offset":true}).optional(),
+  "endingAt": zod.iso.datetime({"offset":true}).optional(),
+  "id": zod.string().optional(),
+  "planId": zod.string().optional(),
+  "reasonMessage": zod.string().optional(),
+  "requestMessage": zod.string().optional(),
+  "startingAt": zod.iso.datetime({"offset":true}).optional(),
+  "status": zod.string().optional(),
+  "tenantId": zod.string().optional(),
+  "updatedAt": zod.iso.datetime({"offset":true}).optional()
+})
 
 /**
  * @summary Replace subscription
  */
 export const replaceSubscriptionPathTenantRegExp = new RegExp('^[a-z0-9-]+$');
 
+
 export const ReplaceSubscriptionParams = zod.object({
-  tenant: zod
-    .string()
-    .regex(replaceSubscriptionPathTenantRegExp)
-    .describe('Tenant slug (e.g. `default`, `acme`).'),
-  id: zod.uuid().describe('Resource id (UUID).'),
-});
+  "tenant": zod.string().regex(replaceSubscriptionPathTenantRegExp).describe('Tenant slug (e.g. `default`, `acme`).'),
+  "id": zod.uuid().describe('Resource id (UUID).')
+})
 
 export const ReplaceSubscriptionBody = zod.object({
-  endingAt: zod.iso.datetime({ offset: true }).optional(),
-  reasonMessage: zod.string().optional(),
-  startingAt: zod.iso.datetime({ offset: true }).optional(),
-  status: zod.string().optional(),
-});
+  "endingAt": zod.iso.datetime({"offset":true}).optional(),
+  "reasonMessage": zod.string().optional(),
+  "startingAt": zod.iso.datetime({"offset":true}).optional(),
+  "status": zod.string().optional()
+})
 
 export const ReplaceSubscriptionResponse = zod.object({
-  apiId: zod.string().optional(),
-  applicationId: zod.string().optional(),
-  createdAt: zod.iso.datetime({ offset: true }).optional(),
-  endingAt: zod.iso.datetime({ offset: true }).optional(),
-  id: zod.string().optional(),
-  planId: zod.string().optional(),
-  reasonMessage: zod.string().optional(),
-  requestMessage: zod.string().optional(),
-  startingAt: zod.iso.datetime({ offset: true }).optional(),
-  status: zod.string().optional(),
-  tenantId: zod.string().optional(),
-  updatedAt: zod.iso.datetime({ offset: true }).optional(),
-});
+  "apiId": zod.string().optional(),
+  "applicationId": zod.string().optional(),
+  "createdAt": zod.iso.datetime({"offset":true}).optional(),
+  "endingAt": zod.iso.datetime({"offset":true}).optional(),
+  "id": zod.string().optional(),
+  "planId": zod.string().optional(),
+  "reasonMessage": zod.string().optional(),
+  "requestMessage": zod.string().optional(),
+  "startingAt": zod.iso.datetime({"offset":true}).optional(),
+  "status": zod.string().optional(),
+  "tenantId": zod.string().optional(),
+  "updatedAt": zod.iso.datetime({"offset":true}).optional()
+})
+

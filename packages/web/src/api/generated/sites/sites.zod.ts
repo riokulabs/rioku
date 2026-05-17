@@ -23,173 +23,157 @@ Conventions:
  */
 import * as zod from 'zod';
 
+
 /**
  * @summary List sites
  */
 export const listSitesPathTenantRegExp = new RegExp('^[a-z0-9-]+$');
 
+
 export const ListSitesParams = zod.object({
-  tenant: zod
-    .string()
-    .regex(listSitesPathTenantRegExp)
-    .describe('Tenant slug (e.g. `default`, `acme`).'),
-});
+  "tenant": zod.string().regex(listSitesPathTenantRegExp).describe('Tenant slug (e.g. `default`, `acme`).')
+})
 
 export const ListSitesResponse = zod.object({
-  items: zod
-    .array(
-      zod.object({
-        basicAuthEnabled: zod.boolean().optional(),
-        basicAuthRealm: zod.string().optional(),
-        createdAt: zod.iso.datetime({ offset: true }).optional(),
-        domain: zod.string().optional(),
-        enabled: zod.boolean().optional(),
-        id: zod.string().optional(),
-        name: zod.string().optional(),
-        rateLimitPreset: zod.string().optional(),
-        redirectRules: zod.string().optional(),
-        tenantId: zod.string().optional(),
-        tlsMode: zod.string().optional(),
-        updatedAt: zod.iso.datetime({ offset: true }).optional(),
-        upstreamServiceId: zod.string().optional(),
-      }),
-    )
-    .optional(),
-  total: zod.number().optional(),
-});
+  "items": zod.array(zod.object({
+  "basicAuthEnabled": zod.boolean().optional(),
+  "basicAuthRealm": zod.string().optional(),
+  "createdAt": zod.iso.datetime({"offset":true}).optional(),
+  "domain": zod.string().optional(),
+  "enabled": zod.boolean().optional(),
+  "id": zod.string().optional(),
+  "name": zod.string().optional(),
+  "rateLimitPreset": zod.string().optional(),
+  "redirectRules": zod.string().optional(),
+  "tenantId": zod.string().optional(),
+  "tlsMode": zod.string().optional(),
+  "updatedAt": zod.iso.datetime({"offset":true}).optional(),
+  "upstreamServiceId": zod.string().optional()
+})).optional(),
+  "total": zod.number().optional()
+})
 
 /**
  * @summary Create site
  */
 export const createSitePathTenantRegExp = new RegExp('^[a-z0-9-]+$');
 
+
 export const CreateSiteParams = zod.object({
-  tenant: zod
-    .string()
-    .regex(createSitePathTenantRegExp)
-    .describe('Tenant slug (e.g. `default`, `acme`).'),
-});
+  "tenant": zod.string().regex(createSitePathTenantRegExp).describe('Tenant slug (e.g. `default`, `acme`).')
+})
 
 export const CreateSiteBody = zod.object({
-  basicAuthEnabled: zod.boolean().optional(),
-  basicAuthRealm: zod.string().optional(),
-  domain: zod.string(),
-  name: zod.string(),
-  rateLimitPreset: zod.string().optional(),
-  redirectRules: zod.string().optional(),
-  tlsMode: zod.string().optional(),
-  upstreamServiceId: zod.string().optional(),
-});
+  "basicAuthEnabled": zod.boolean().optional(),
+  "basicAuthRealm": zod.string().optional(),
+  "domain": zod.string(),
+  "name": zod.string(),
+  "rateLimitPreset": zod.string().optional(),
+  "redirectRules": zod.string().optional(),
+  "tlsMode": zod.string().optional(),
+  "upstreamServiceId": zod.string().optional()
+})
 
 export const deleteSitePathTenantRegExp = new RegExp('^[a-z0-9-]+$');
 
+
 export const DeleteSiteParams = zod.object({
-  tenant: zod
-    .string()
-    .regex(deleteSitePathTenantRegExp)
-    .describe('Tenant slug (e.g. `default`, `acme`).'),
-  id: zod.uuid().describe('Resource id (UUID).'),
-});
+  "tenant": zod.string().regex(deleteSitePathTenantRegExp).describe('Tenant slug (e.g. `default`, `acme`).'),
+  "id": zod.uuid().describe('Resource id (UUID).')
+})
 
 export const getSitePathTenantRegExp = new RegExp('^[a-z0-9-]+$');
 
+
 export const GetSiteParams = zod.object({
-  tenant: zod
-    .string()
-    .regex(getSitePathTenantRegExp)
-    .describe('Tenant slug (e.g. `default`, `acme`).'),
-  id: zod.uuid().describe('Resource id (UUID).'),
-});
+  "tenant": zod.string().regex(getSitePathTenantRegExp).describe('Tenant slug (e.g. `default`, `acme`).'),
+  "id": zod.uuid().describe('Resource id (UUID).')
+})
 
 export const GetSiteResponse = zod.object({
-  basicAuthEnabled: zod.boolean().optional(),
-  basicAuthRealm: zod.string().optional(),
-  createdAt: zod.iso.datetime({ offset: true }).optional(),
-  domain: zod.string().optional(),
-  enabled: zod.boolean().optional(),
-  id: zod.string().optional(),
-  name: zod.string().optional(),
-  rateLimitPreset: zod.string().optional(),
-  redirectRules: zod.string().optional(),
-  tenantId: zod.string().optional(),
-  tlsMode: zod.string().optional(),
-  updatedAt: zod.iso.datetime({ offset: true }).optional(),
-  upstreamServiceId: zod.string().optional(),
-});
+  "basicAuthEnabled": zod.boolean().optional(),
+  "basicAuthRealm": zod.string().optional(),
+  "createdAt": zod.iso.datetime({"offset":true}).optional(),
+  "domain": zod.string().optional(),
+  "enabled": zod.boolean().optional(),
+  "id": zod.string().optional(),
+  "name": zod.string().optional(),
+  "rateLimitPreset": zod.string().optional(),
+  "redirectRules": zod.string().optional(),
+  "tenantId": zod.string().optional(),
+  "tlsMode": zod.string().optional(),
+  "updatedAt": zod.iso.datetime({"offset":true}).optional(),
+  "upstreamServiceId": zod.string().optional()
+})
 
 export const patchSitePathTenantRegExp = new RegExp('^[a-z0-9-]+$');
 
+
 export const PatchSiteParams = zod.object({
-  tenant: zod
-    .string()
-    .regex(patchSitePathTenantRegExp)
-    .describe('Tenant slug (e.g. `default`, `acme`).'),
-  id: zod.uuid().describe('Resource id (UUID).'),
-});
+  "tenant": zod.string().regex(patchSitePathTenantRegExp).describe('Tenant slug (e.g. `default`, `acme`).'),
+  "id": zod.uuid().describe('Resource id (UUID).')
+})
 
 export const PatchSiteResponse = zod.object({
-  basicAuthEnabled: zod.boolean().optional(),
-  basicAuthRealm: zod.string().optional(),
-  createdAt: zod.iso.datetime({ offset: true }).optional(),
-  domain: zod.string().optional(),
-  enabled: zod.boolean().optional(),
-  id: zod.string().optional(),
-  name: zod.string().optional(),
-  rateLimitPreset: zod.string().optional(),
-  redirectRules: zod.string().optional(),
-  tenantId: zod.string().optional(),
-  tlsMode: zod.string().optional(),
-  updatedAt: zod.iso.datetime({ offset: true }).optional(),
-  upstreamServiceId: zod.string().optional(),
-});
+  "basicAuthEnabled": zod.boolean().optional(),
+  "basicAuthRealm": zod.string().optional(),
+  "createdAt": zod.iso.datetime({"offset":true}).optional(),
+  "domain": zod.string().optional(),
+  "enabled": zod.boolean().optional(),
+  "id": zod.string().optional(),
+  "name": zod.string().optional(),
+  "rateLimitPreset": zod.string().optional(),
+  "redirectRules": zod.string().optional(),
+  "tenantId": zod.string().optional(),
+  "tlsMode": zod.string().optional(),
+  "updatedAt": zod.iso.datetime({"offset":true}).optional(),
+  "upstreamServiceId": zod.string().optional()
+})
 
 export const replaceSitePathTenantRegExp = new RegExp('^[a-z0-9-]+$');
 
+
 export const ReplaceSiteParams = zod.object({
-  tenant: zod
-    .string()
-    .regex(replaceSitePathTenantRegExp)
-    .describe('Tenant slug (e.g. `default`, `acme`).'),
-  id: zod.uuid().describe('Resource id (UUID).'),
-});
+  "tenant": zod.string().regex(replaceSitePathTenantRegExp).describe('Tenant slug (e.g. `default`, `acme`).'),
+  "id": zod.uuid().describe('Resource id (UUID).')
+})
 
 export const ReplaceSiteBody = zod.object({
-  basicAuthEnabled: zod.boolean().optional(),
-  basicAuthRealm: zod.string().optional(),
-  domain: zod.string().optional(),
-  name: zod.string().optional(),
-  rateLimitPreset: zod.string().optional(),
-  redirectRules: zod.string().optional(),
-  tlsMode: zod.string().optional(),
-  upstreamServiceId: zod.string().optional(),
-});
+  "basicAuthEnabled": zod.boolean().optional(),
+  "basicAuthRealm": zod.string().optional(),
+  "domain": zod.string().optional(),
+  "name": zod.string().optional(),
+  "rateLimitPreset": zod.string().optional(),
+  "redirectRules": zod.string().optional(),
+  "tlsMode": zod.string().optional(),
+  "upstreamServiceId": zod.string().optional()
+})
 
 export const ReplaceSiteResponse = zod.object({
-  basicAuthEnabled: zod.boolean().optional(),
-  basicAuthRealm: zod.string().optional(),
-  createdAt: zod.iso.datetime({ offset: true }).optional(),
-  domain: zod.string().optional(),
-  enabled: zod.boolean().optional(),
-  id: zod.string().optional(),
-  name: zod.string().optional(),
-  rateLimitPreset: zod.string().optional(),
-  redirectRules: zod.string().optional(),
-  tenantId: zod.string().optional(),
-  tlsMode: zod.string().optional(),
-  updatedAt: zod.iso.datetime({ offset: true }).optional(),
-  upstreamServiceId: zod.string().optional(),
-});
+  "basicAuthEnabled": zod.boolean().optional(),
+  "basicAuthRealm": zod.string().optional(),
+  "createdAt": zod.iso.datetime({"offset":true}).optional(),
+  "domain": zod.string().optional(),
+  "enabled": zod.boolean().optional(),
+  "id": zod.string().optional(),
+  "name": zod.string().optional(),
+  "rateLimitPreset": zod.string().optional(),
+  "redirectRules": zod.string().optional(),
+  "tenantId": zod.string().optional(),
+  "tlsMode": zod.string().optional(),
+  "updatedAt": zod.iso.datetime({"offset":true}).optional(),
+  "upstreamServiceId": zod.string().optional()
+})
 
 export const toggleSitePathTenantRegExp = new RegExp('^[a-z0-9-]+$');
 
+
 export const ToggleSiteParams = zod.object({
-  tenant: zod
-    .string()
-    .regex(toggleSitePathTenantRegExp)
-    .describe('Tenant slug (e.g. `default`, `acme`).'),
-  id: zod.uuid().describe('Resource id (UUID).'),
-});
+  "tenant": zod.string().regex(toggleSitePathTenantRegExp).describe('Tenant slug (e.g. `default`, `acme`).'),
+  "id": zod.uuid().describe('Resource id (UUID).')
+})
 
 export const ToggleSiteBody = zod.object({
-  enabled: zod.boolean(),
-});
+  "enabled": zod.boolean()
+})
+

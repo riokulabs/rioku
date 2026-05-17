@@ -23,411 +23,397 @@ Conventions:
  */
 import * as zod from 'zod';
 
+
 export const APIManagementServiceListApplicationsResponse = zod.object({
-  applications: zod
-    .array(
-      zod.object({
-        createdAt: zod.iso.datetime({ offset: true }).optional(),
-        description: zod.string().optional(),
-        id: zod.string().optional(),
-        name: zod.string().optional(),
-        ownerUserId: zod.string().optional(),
-        status: zod.string().optional(),
-        tenantId: zod.string().optional(),
-        updatedAt: zod.iso.datetime({ offset: true }).optional(),
-      }),
-    )
-    .optional(),
-});
+  "applications": zod.array(zod.object({
+  "createdAt": zod.iso.datetime({"offset":true}).optional(),
+  "description": zod.string().optional(),
+  "id": zod.string().optional(),
+  "name": zod.string().optional(),
+  "ownerUserId": zod.string().optional(),
+  "status": zod.string().optional(),
+  "tenantId": zod.string().optional(),
+  "updatedAt": zod.iso.datetime({"offset":true}).optional()
+})).optional()
+})
 
 /**
  * @summary Applications.
  */
 export const APIManagementServiceCreateApplicationBody = zod.object({
-  description: zod.string().optional(),
-  id: zod.string().optional(),
-  name: zod.string().optional(),
-  ownerUserId: zod.string().optional(),
-});
+  "description": zod.string().optional(),
+  "id": zod.string().optional(),
+  "name": zod.string().optional(),
+  "ownerUserId": zod.string().optional()
+})
 
 export const APIManagementServiceCreateApplicationResponse = zod.object({
-  createdAt: zod.iso.datetime({ offset: true }).optional(),
-  description: zod.string().optional(),
-  id: zod.string().optional(),
-  name: zod.string().optional(),
-  ownerUserId: zod.string().optional(),
-  status: zod.string().optional(),
-  tenantId: zod.string().optional(),
-  updatedAt: zod.iso.datetime({ offset: true }).optional(),
-});
+  "createdAt": zod.iso.datetime({"offset":true}).optional(),
+  "description": zod.string().optional(),
+  "id": zod.string().optional(),
+  "name": zod.string().optional(),
+  "ownerUserId": zod.string().optional(),
+  "status": zod.string().optional(),
+  "tenantId": zod.string().optional(),
+  "updatedAt": zod.iso.datetime({"offset":true}).optional()
+})
 
 export const APIManagementServiceDeleteApplicationParams = zod.object({
-  id: zod.string(),
-});
+  "id": zod.string()
+})
 
 export const APIManagementServiceDeleteApplicationResponse = zod.object({
-  actor: zod.string().optional(),
-  configVersion: zod.string().optional(),
-  mutatedAt: zod.iso.datetime({ offset: true }).optional(),
-});
+  "actor": zod.string().optional(),
+  "configVersion": zod.string().optional(),
+  "mutatedAt": zod.iso.datetime({"offset":true}).optional()
+})
 
 export const APIManagementServiceGetApplicationParams = zod.object({
-  id: zod.string(),
-});
+  "id": zod.string()
+})
 
 export const APIManagementServiceGetApplicationResponse = zod.object({
-  createdAt: zod.iso.datetime({ offset: true }).optional(),
-  description: zod.string().optional(),
-  id: zod.string().optional(),
-  name: zod.string().optional(),
-  ownerUserId: zod.string().optional(),
-  status: zod.string().optional(),
-  tenantId: zod.string().optional(),
-  updatedAt: zod.iso.datetime({ offset: true }).optional(),
-});
+  "createdAt": zod.iso.datetime({"offset":true}).optional(),
+  "description": zod.string().optional(),
+  "id": zod.string().optional(),
+  "name": zod.string().optional(),
+  "ownerUserId": zod.string().optional(),
+  "status": zod.string().optional(),
+  "tenantId": zod.string().optional(),
+  "updatedAt": zod.iso.datetime({"offset":true}).optional()
+})
 
 export const APIManagementServiceUpdateApplicationParams = zod.object({
-  id: zod.string(),
-});
+  "id": zod.string()
+})
 
 export const APIManagementServiceUpdateApplicationBody = zod.object({
-  clearOwner: zod.boolean().optional(),
-  description: zod.string().optional(),
-  name: zod.string().optional(),
-  ownerUserId: zod.string().optional(),
-});
+  "clearOwner": zod.boolean().optional(),
+  "description": zod.string().optional(),
+  "name": zod.string().optional(),
+  "ownerUserId": zod.string().optional()
+})
 
 export const APIManagementServiceUpdateApplicationResponse = zod.object({
-  createdAt: zod.iso.datetime({ offset: true }).optional(),
-  description: zod.string().optional(),
-  id: zod.string().optional(),
-  name: zod.string().optional(),
-  ownerUserId: zod.string().optional(),
-  status: zod.string().optional(),
-  tenantId: zod.string().optional(),
-  updatedAt: zod.iso.datetime({ offset: true }).optional(),
-});
+  "createdAt": zod.iso.datetime({"offset":true}).optional(),
+  "description": zod.string().optional(),
+  "id": zod.string().optional(),
+  "name": zod.string().optional(),
+  "ownerUserId": zod.string().optional(),
+  "status": zod.string().optional(),
+  "tenantId": zod.string().optional(),
+  "updatedAt": zod.iso.datetime({"offset":true}).optional()
+})
 
 export const APIManagementServiceTransitionApplicationParams = zod.object({
-  id: zod.string(),
-});
+  "id": zod.string()
+})
 
 export const APIManagementServiceTransitionApplicationBody = zod.object({
-  status: zod.string().optional(),
-});
+  "status": zod.string().optional()
+})
 
 export const APIManagementServiceTransitionApplicationResponse = zod.object({
-  createdAt: zod.iso.datetime({ offset: true }).optional(),
-  description: zod.string().optional(),
-  id: zod.string().optional(),
-  name: zod.string().optional(),
-  ownerUserId: zod.string().optional(),
-  status: zod.string().optional(),
-  tenantId: zod.string().optional(),
-  updatedAt: zod.iso.datetime({ offset: true }).optional(),
-});
+  "createdAt": zod.iso.datetime({"offset":true}).optional(),
+  "description": zod.string().optional(),
+  "id": zod.string().optional(),
+  "name": zod.string().optional(),
+  "ownerUserId": zod.string().optional(),
+  "status": zod.string().optional(),
+  "tenantId": zod.string().optional(),
+  "updatedAt": zod.iso.datetime({"offset":true}).optional()
+})
 
 export const APIManagementServiceListPlansQueryParams = zod.object({
-  apiId: zod.string().optional(),
-});
+  "apiId": zod.string().optional()
+})
 
 export const APIManagementServiceListPlansResponse = zod.object({
-  plans: zod
-    .array(
-      zod.object({
-        apiId: zod.string().optional(),
-        createdAt: zod.iso.datetime({ offset: true }).optional(),
-        description: zod.string().optional(),
-        id: zod.string().optional(),
-        name: zod.string().optional(),
-        quotaPerDay: zod.number().optional(),
-        rateLimitPerMinute: zod.number().optional(),
-        securityType: zod.string().optional(),
-        selectionRule: zod.string().optional(),
-        status: zod.string().optional(),
-        tenantId: zod.string().optional(),
-        updatedAt: zod.iso.datetime({ offset: true }).optional(),
-        validation: zod.string().optional(),
-      }),
-    )
-    .optional(),
-});
+  "plans": zod.array(zod.object({
+  "apiId": zod.string().optional(),
+  "createdAt": zod.iso.datetime({"offset":true}).optional(),
+  "description": zod.string().optional(),
+  "id": zod.string().optional(),
+  "name": zod.string().optional(),
+  "quotaPerDay": zod.number().optional(),
+  "rateLimitPerMinute": zod.number().optional(),
+  "securityType": zod.string().optional(),
+  "selectionRule": zod.string().optional(),
+  "status": zod.string().optional(),
+  "tenantId": zod.string().optional(),
+  "updatedAt": zod.iso.datetime({"offset":true}).optional(),
+  "validation": zod.string().optional()
+})).optional()
+})
 
 /**
  * @summary Plans.
  */
 export const APIManagementServiceCreatePlan2Body = zod.object({
-  apiId: zod.string().optional(),
-  description: zod.string().optional(),
-  id: zod.string().optional(),
-  name: zod.string().optional(),
-  quotaPerDay: zod.number().optional(),
-  rateLimitPerMinute: zod.number().optional(),
-  securityType: zod.string().optional(),
-  selectionRule: zod.string().optional(),
-  validation: zod.string().optional(),
-});
+  "apiId": zod.string().optional(),
+  "description": zod.string().optional(),
+  "id": zod.string().optional(),
+  "name": zod.string().optional(),
+  "quotaPerDay": zod.number().optional(),
+  "rateLimitPerMinute": zod.number().optional(),
+  "securityType": zod.string().optional(),
+  "selectionRule": zod.string().optional(),
+  "validation": zod.string().optional()
+})
 
 export const APIManagementServiceCreatePlan2Response = zod.object({
-  apiId: zod.string().optional(),
-  createdAt: zod.iso.datetime({ offset: true }).optional(),
-  description: zod.string().optional(),
-  id: zod.string().optional(),
-  name: zod.string().optional(),
-  quotaPerDay: zod.number().optional(),
-  rateLimitPerMinute: zod.number().optional(),
-  securityType: zod.string().optional(),
-  selectionRule: zod.string().optional(),
-  status: zod.string().optional(),
-  tenantId: zod.string().optional(),
-  updatedAt: zod.iso.datetime({ offset: true }).optional(),
-  validation: zod.string().optional(),
-});
+  "apiId": zod.string().optional(),
+  "createdAt": zod.iso.datetime({"offset":true}).optional(),
+  "description": zod.string().optional(),
+  "id": zod.string().optional(),
+  "name": zod.string().optional(),
+  "quotaPerDay": zod.number().optional(),
+  "rateLimitPerMinute": zod.number().optional(),
+  "securityType": zod.string().optional(),
+  "selectionRule": zod.string().optional(),
+  "status": zod.string().optional(),
+  "tenantId": zod.string().optional(),
+  "updatedAt": zod.iso.datetime({"offset":true}).optional(),
+  "validation": zod.string().optional()
+})
 
 export const APIManagementServiceDeletePlanParams = zod.object({
-  id: zod.string(),
-});
+  "id": zod.string()
+})
 
 export const APIManagementServiceDeletePlanResponse = zod.object({
-  actor: zod.string().optional(),
-  configVersion: zod.string().optional(),
-  mutatedAt: zod.iso.datetime({ offset: true }).optional(),
-});
+  "actor": zod.string().optional(),
+  "configVersion": zod.string().optional(),
+  "mutatedAt": zod.iso.datetime({"offset":true}).optional()
+})
 
 export const APIManagementServiceGetPlanParams = zod.object({
-  id: zod.string(),
-});
+  "id": zod.string()
+})
 
 export const APIManagementServiceGetPlanResponse = zod.object({
-  apiId: zod.string().optional(),
-  createdAt: zod.iso.datetime({ offset: true }).optional(),
-  description: zod.string().optional(),
-  id: zod.string().optional(),
-  name: zod.string().optional(),
-  quotaPerDay: zod.number().optional(),
-  rateLimitPerMinute: zod.number().optional(),
-  securityType: zod.string().optional(),
-  selectionRule: zod.string().optional(),
-  status: zod.string().optional(),
-  tenantId: zod.string().optional(),
-  updatedAt: zod.iso.datetime({ offset: true }).optional(),
-  validation: zod.string().optional(),
-});
+  "apiId": zod.string().optional(),
+  "createdAt": zod.iso.datetime({"offset":true}).optional(),
+  "description": zod.string().optional(),
+  "id": zod.string().optional(),
+  "name": zod.string().optional(),
+  "quotaPerDay": zod.number().optional(),
+  "rateLimitPerMinute": zod.number().optional(),
+  "securityType": zod.string().optional(),
+  "selectionRule": zod.string().optional(),
+  "status": zod.string().optional(),
+  "tenantId": zod.string().optional(),
+  "updatedAt": zod.iso.datetime({"offset":true}).optional(),
+  "validation": zod.string().optional()
+})
 
 export const APIManagementServiceUpdatePlanParams = zod.object({
-  id: zod.string(),
-});
+  "id": zod.string()
+})
 
 export const APIManagementServiceUpdatePlanBody = zod.object({
-  description: zod.string().optional(),
-  name: zod.string().optional(),
-  quotaPerDay: zod.number().optional(),
-  rateLimitPerMinute: zod.number().optional(),
-  securityType: zod.string().optional(),
-  selectionRule: zod.string().optional(),
-  validation: zod.string().optional(),
-});
+  "description": zod.string().optional(),
+  "name": zod.string().optional(),
+  "quotaPerDay": zod.number().optional(),
+  "rateLimitPerMinute": zod.number().optional(),
+  "securityType": zod.string().optional(),
+  "selectionRule": zod.string().optional(),
+  "validation": zod.string().optional()
+})
 
 export const APIManagementServiceUpdatePlanResponse = zod.object({
-  apiId: zod.string().optional(),
-  createdAt: zod.iso.datetime({ offset: true }).optional(),
-  description: zod.string().optional(),
-  id: zod.string().optional(),
-  name: zod.string().optional(),
-  quotaPerDay: zod.number().optional(),
-  rateLimitPerMinute: zod.number().optional(),
-  securityType: zod.string().optional(),
-  selectionRule: zod.string().optional(),
-  status: zod.string().optional(),
-  tenantId: zod.string().optional(),
-  updatedAt: zod.iso.datetime({ offset: true }).optional(),
-  validation: zod.string().optional(),
-});
+  "apiId": zod.string().optional(),
+  "createdAt": zod.iso.datetime({"offset":true}).optional(),
+  "description": zod.string().optional(),
+  "id": zod.string().optional(),
+  "name": zod.string().optional(),
+  "quotaPerDay": zod.number().optional(),
+  "rateLimitPerMinute": zod.number().optional(),
+  "securityType": zod.string().optional(),
+  "selectionRule": zod.string().optional(),
+  "status": zod.string().optional(),
+  "tenantId": zod.string().optional(),
+  "updatedAt": zod.iso.datetime({"offset":true}).optional(),
+  "validation": zod.string().optional()
+})
 
 export const APIManagementServiceTransitionPlanParams = zod.object({
-  id: zod.string(),
-});
+  "id": zod.string()
+})
 
 export const APIManagementServiceTransitionPlanBody = zod.object({
-  status: zod.string().optional(),
-});
+  "status": zod.string().optional()
+})
 
 export const APIManagementServiceTransitionPlanResponse = zod.object({
-  apiId: zod.string().optional(),
-  createdAt: zod.iso.datetime({ offset: true }).optional(),
-  description: zod.string().optional(),
-  id: zod.string().optional(),
-  name: zod.string().optional(),
-  quotaPerDay: zod.number().optional(),
-  rateLimitPerMinute: zod.number().optional(),
-  securityType: zod.string().optional(),
-  selectionRule: zod.string().optional(),
-  status: zod.string().optional(),
-  tenantId: zod.string().optional(),
-  updatedAt: zod.iso.datetime({ offset: true }).optional(),
-  validation: zod.string().optional(),
-});
+  "apiId": zod.string().optional(),
+  "createdAt": zod.iso.datetime({"offset":true}).optional(),
+  "description": zod.string().optional(),
+  "id": zod.string().optional(),
+  "name": zod.string().optional(),
+  "quotaPerDay": zod.number().optional(),
+  "rateLimitPerMinute": zod.number().optional(),
+  "securityType": zod.string().optional(),
+  "selectionRule": zod.string().optional(),
+  "status": zod.string().optional(),
+  "tenantId": zod.string().optional(),
+  "updatedAt": zod.iso.datetime({"offset":true}).optional(),
+  "validation": zod.string().optional()
+})
 
 export const APIManagementServiceListSubscriptionsQueryParams = zod.object({
-  applicationId: zod
-    .string()
-    .optional()
-    .describe(
-      'Optional filters; only one of these should be set per call,\nbut the server tolerates both being set (ANDs them).',
-    ),
-  planId: zod.string().optional(),
-});
+  "applicationId": zod.string().optional().describe('Optional filters; only one of these should be set per call,\nbut the server tolerates both being set (ANDs them).'),
+  "planId": zod.string().optional()
+})
 
 export const APIManagementServiceListSubscriptionsResponse = zod.object({
-  subscriptions: zod
-    .array(
-      zod.object({
-        apiId: zod.string().optional(),
-        applicationId: zod.string().optional(),
-        createdAt: zod.iso.datetime({ offset: true }).optional(),
-        endingAt: zod.iso.datetime({ offset: true }).optional(),
-        id: zod.string().optional(),
-        planId: zod.string().optional(),
-        reasonMessage: zod.string().optional(),
-        requestMessage: zod.string().optional(),
-        startingAt: zod.iso.datetime({ offset: true }).optional(),
-        status: zod.string().optional(),
-        tenantId: zod.string().optional(),
-        updatedAt: zod.iso.datetime({ offset: true }).optional(),
-      }),
-    )
-    .optional(),
-});
+  "subscriptions": zod.array(zod.object({
+  "apiId": zod.string().optional(),
+  "applicationId": zod.string().optional(),
+  "createdAt": zod.iso.datetime({"offset":true}).optional(),
+  "endingAt": zod.iso.datetime({"offset":true}).optional(),
+  "id": zod.string().optional(),
+  "planId": zod.string().optional(),
+  "reasonMessage": zod.string().optional(),
+  "requestMessage": zod.string().optional(),
+  "startingAt": zod.iso.datetime({"offset":true}).optional(),
+  "status": zod.string().optional(),
+  "tenantId": zod.string().optional(),
+  "updatedAt": zod.iso.datetime({"offset":true}).optional()
+})).optional()
+})
 
 /**
  * @summary Subscriptions.
  */
 export const APIManagementServiceCreateSubscriptionBody = zod.object({
-  apiId: zod.string().optional(),
-  applicationId: zod.string().optional(),
-  id: zod.string().optional(),
-  planId: zod.string().optional(),
-  requestMessage: zod.string().optional(),
-});
+  "apiId": zod.string().optional(),
+  "applicationId": zod.string().optional(),
+  "id": zod.string().optional(),
+  "planId": zod.string().optional(),
+  "requestMessage": zod.string().optional()
+})
 
 export const APIManagementServiceCreateSubscriptionResponse = zod.object({
-  apiId: zod.string().optional(),
-  applicationId: zod.string().optional(),
-  createdAt: zod.iso.datetime({ offset: true }).optional(),
-  endingAt: zod.iso.datetime({ offset: true }).optional(),
-  id: zod.string().optional(),
-  planId: zod.string().optional(),
-  reasonMessage: zod.string().optional(),
-  requestMessage: zod.string().optional(),
-  startingAt: zod.iso.datetime({ offset: true }).optional(),
-  status: zod.string().optional(),
-  tenantId: zod.string().optional(),
-  updatedAt: zod.iso.datetime({ offset: true }).optional(),
-});
+  "apiId": zod.string().optional(),
+  "applicationId": zod.string().optional(),
+  "createdAt": zod.iso.datetime({"offset":true}).optional(),
+  "endingAt": zod.iso.datetime({"offset":true}).optional(),
+  "id": zod.string().optional(),
+  "planId": zod.string().optional(),
+  "reasonMessage": zod.string().optional(),
+  "requestMessage": zod.string().optional(),
+  "startingAt": zod.iso.datetime({"offset":true}).optional(),
+  "status": zod.string().optional(),
+  "tenantId": zod.string().optional(),
+  "updatedAt": zod.iso.datetime({"offset":true}).optional()
+})
 
 export const APIManagementServiceGetSubscriptionParams = zod.object({
-  id: zod.string(),
-});
+  "id": zod.string()
+})
 
 export const APIManagementServiceGetSubscriptionResponse = zod.object({
-  apiId: zod.string().optional(),
-  applicationId: zod.string().optional(),
-  createdAt: zod.iso.datetime({ offset: true }).optional(),
-  endingAt: zod.iso.datetime({ offset: true }).optional(),
-  id: zod.string().optional(),
-  planId: zod.string().optional(),
-  reasonMessage: zod.string().optional(),
-  requestMessage: zod.string().optional(),
-  startingAt: zod.iso.datetime({ offset: true }).optional(),
-  status: zod.string().optional(),
-  tenantId: zod.string().optional(),
-  updatedAt: zod.iso.datetime({ offset: true }).optional(),
-});
+  "apiId": zod.string().optional(),
+  "applicationId": zod.string().optional(),
+  "createdAt": zod.iso.datetime({"offset":true}).optional(),
+  "endingAt": zod.iso.datetime({"offset":true}).optional(),
+  "id": zod.string().optional(),
+  "planId": zod.string().optional(),
+  "reasonMessage": zod.string().optional(),
+  "requestMessage": zod.string().optional(),
+  "startingAt": zod.iso.datetime({"offset":true}).optional(),
+  "status": zod.string().optional(),
+  "tenantId": zod.string().optional(),
+  "updatedAt": zod.iso.datetime({"offset":true}).optional()
+})
 
 export const APIManagementServiceUpdateSubscriptionParams = zod.object({
-  id: zod.string(),
-});
+  "id": zod.string()
+})
 
 export const APIManagementServiceUpdateSubscriptionBody = zod.object({
-  clearEndingAt: zod.boolean().optional(),
-  clearStartingAt: zod.boolean().optional(),
-  endingAt: zod.iso.datetime({ offset: true }).optional(),
-  reasonMessage: zod.string().optional(),
-  requestMessage: zod.string().optional(),
-  startingAt: zod.iso.datetime({ offset: true }).optional(),
-});
+  "clearEndingAt": zod.boolean().optional(),
+  "clearStartingAt": zod.boolean().optional(),
+  "endingAt": zod.iso.datetime({"offset":true}).optional(),
+  "reasonMessage": zod.string().optional(),
+  "requestMessage": zod.string().optional(),
+  "startingAt": zod.iso.datetime({"offset":true}).optional()
+})
 
 export const APIManagementServiceUpdateSubscriptionResponse = zod.object({
-  apiId: zod.string().optional(),
-  applicationId: zod.string().optional(),
-  createdAt: zod.iso.datetime({ offset: true }).optional(),
-  endingAt: zod.iso.datetime({ offset: true }).optional(),
-  id: zod.string().optional(),
-  planId: zod.string().optional(),
-  reasonMessage: zod.string().optional(),
-  requestMessage: zod.string().optional(),
-  startingAt: zod.iso.datetime({ offset: true }).optional(),
-  status: zod.string().optional(),
-  tenantId: zod.string().optional(),
-  updatedAt: zod.iso.datetime({ offset: true }).optional(),
-});
+  "apiId": zod.string().optional(),
+  "applicationId": zod.string().optional(),
+  "createdAt": zod.iso.datetime({"offset":true}).optional(),
+  "endingAt": zod.iso.datetime({"offset":true}).optional(),
+  "id": zod.string().optional(),
+  "planId": zod.string().optional(),
+  "reasonMessage": zod.string().optional(),
+  "requestMessage": zod.string().optional(),
+  "startingAt": zod.iso.datetime({"offset":true}).optional(),
+  "status": zod.string().optional(),
+  "tenantId": zod.string().optional(),
+  "updatedAt": zod.iso.datetime({"offset":true}).optional()
+})
 
 export const APIManagementServiceTransitionSubscriptionParams = zod.object({
-  id: zod.string(),
-});
+  "id": zod.string()
+})
 
 export const APIManagementServiceTransitionSubscriptionBody = zod.object({
-  reason: zod.string().optional(),
-  status: zod.string().optional(),
-});
+  "reason": zod.string().optional(),
+  "status": zod.string().optional()
+})
 
 export const APIManagementServiceTransitionSubscriptionResponse = zod.object({
-  apiId: zod.string().optional(),
-  applicationId: zod.string().optional(),
-  createdAt: zod.iso.datetime({ offset: true }).optional(),
-  endingAt: zod.iso.datetime({ offset: true }).optional(),
-  id: zod.string().optional(),
-  planId: zod.string().optional(),
-  reasonMessage: zod.string().optional(),
-  requestMessage: zod.string().optional(),
-  startingAt: zod.iso.datetime({ offset: true }).optional(),
-  status: zod.string().optional(),
-  tenantId: zod.string().optional(),
-  updatedAt: zod.iso.datetime({ offset: true }).optional(),
-});
+  "apiId": zod.string().optional(),
+  "applicationId": zod.string().optional(),
+  "createdAt": zod.iso.datetime({"offset":true}).optional(),
+  "endingAt": zod.iso.datetime({"offset":true}).optional(),
+  "id": zod.string().optional(),
+  "planId": zod.string().optional(),
+  "reasonMessage": zod.string().optional(),
+  "requestMessage": zod.string().optional(),
+  "startingAt": zod.iso.datetime({"offset":true}).optional(),
+  "status": zod.string().optional(),
+  "tenantId": zod.string().optional(),
+  "updatedAt": zod.iso.datetime({"offset":true}).optional()
+})
 
 /**
  * @summary Plans.
  */
 export const aPIManagementServiceCreatePlanPathIdRegExp = new RegExp('[^\/]+');
 
+
 export const APIManagementServiceCreatePlanParams = zod.object({
-  id: zod.string().regex(aPIManagementServiceCreatePlanPathIdRegExp),
-});
+  "id": zod.string().regex(aPIManagementServiceCreatePlanPathIdRegExp)
+})
 
 export const APIManagementServiceCreatePlanBody = zod.object({
-  apiId: zod.string().optional(),
-  description: zod.string().optional(),
-  name: zod.string().optional(),
-  quotaPerDay: zod.number().optional(),
-  rateLimitPerMinute: zod.number().optional(),
-  securityType: zod.string().optional(),
-  selectionRule: zod.string().optional(),
-  validation: zod.string().optional(),
-});
+  "apiId": zod.string().optional(),
+  "description": zod.string().optional(),
+  "name": zod.string().optional(),
+  "quotaPerDay": zod.number().optional(),
+  "rateLimitPerMinute": zod.number().optional(),
+  "securityType": zod.string().optional(),
+  "selectionRule": zod.string().optional(),
+  "validation": zod.string().optional()
+})
 
 export const APIManagementServiceCreatePlanResponse = zod.object({
-  apiId: zod.string().optional(),
-  createdAt: zod.iso.datetime({ offset: true }).optional(),
-  description: zod.string().optional(),
-  id: zod.string().optional(),
-  name: zod.string().optional(),
-  quotaPerDay: zod.number().optional(),
-  rateLimitPerMinute: zod.number().optional(),
-  securityType: zod.string().optional(),
-  selectionRule: zod.string().optional(),
-  status: zod.string().optional(),
-  tenantId: zod.string().optional(),
-  updatedAt: zod.iso.datetime({ offset: true }).optional(),
-  validation: zod.string().optional(),
-});
+  "apiId": zod.string().optional(),
+  "createdAt": zod.iso.datetime({"offset":true}).optional(),
+  "description": zod.string().optional(),
+  "id": zod.string().optional(),
+  "name": zod.string().optional(),
+  "quotaPerDay": zod.number().optional(),
+  "rateLimitPerMinute": zod.number().optional(),
+  "securityType": zod.string().optional(),
+  "selectionRule": zod.string().optional(),
+  "status": zod.string().optional(),
+  "tenantId": zod.string().optional(),
+  "updatedAt": zod.iso.datetime({"offset":true}).optional(),
+  "validation": zod.string().optional()
+})
+

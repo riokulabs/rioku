@@ -23,235 +23,207 @@ Conventions:
  */
 import * as zod from 'zod';
 
+
 /**
  * @summary List AI agents
  */
 export const listAIAgentsPathTenantRegExp = new RegExp('^[a-z0-9-]+$');
 
+
 export const ListAIAgentsParams = zod.object({
-  tenant: zod
-    .string()
-    .regex(listAIAgentsPathTenantRegExp)
-    .describe('Tenant slug (e.g. `default`, `acme`).'),
-});
+  "tenant": zod.string().regex(listAIAgentsPathTenantRegExp).describe('Tenant slug (e.g. `default`, `acme`).')
+})
 
 export const ListAIAgentsResponse = zod.object({
-  items: zod
-    .array(
-      zod.object({
-        createdAt: zod.iso.datetime({ offset: true }),
-        description: zod.string().optional(),
-        enabled: zod.boolean(),
-        guardrails: zod.record(zod.string(), zod.unknown()).optional(),
-        id: zod.string(),
-        model: zod.string(),
-        name: zod.string(),
-        providerId: zod.string().nullish(),
-        systemPrompt: zod.string(),
-        tenantId: zod.string(),
-        updatedAt: zod.iso.datetime({ offset: true }),
-      }),
-    )
-    .optional(),
-  total: zod.number().optional(),
-});
+  "items": zod.array(zod.object({
+  "createdAt": zod.iso.datetime({"offset":true}),
+  "description": zod.string().optional(),
+  "enabled": zod.boolean(),
+  "guardrails": zod.record(zod.string(), zod.unknown()).optional(),
+  "id": zod.string(),
+  "model": zod.string(),
+  "name": zod.string(),
+  "providerId": zod.string().nullish(),
+  "systemPrompt": zod.string(),
+  "tenantId": zod.string(),
+  "updatedAt": zod.iso.datetime({"offset":true})
+})).optional(),
+  "total": zod.number().optional()
+})
 
 /**
  * @summary Create an AI agent
  */
 export const createAIAgentPathTenantRegExp = new RegExp('^[a-z0-9-]+$');
 
+
 export const CreateAIAgentParams = zod.object({
-  tenant: zod
-    .string()
-    .regex(createAIAgentPathTenantRegExp)
-    .describe('Tenant slug (e.g. `default`, `acme`).'),
-});
+  "tenant": zod.string().regex(createAIAgentPathTenantRegExp).describe('Tenant slug (e.g. `default`, `acme`).')
+})
 
 export const CreateAIAgentBody = zod.object({
-  description: zod.string().optional(),
-  guardrails: zod.record(zod.string(), zod.unknown()).optional(),
-  model: zod.string().optional(),
-  name: zod.string(),
-  providerId: zod.string().nullish(),
-  systemPrompt: zod.string().optional(),
-});
+  "description": zod.string().optional(),
+  "guardrails": zod.record(zod.string(), zod.unknown()).optional(),
+  "model": zod.string().optional(),
+  "name": zod.string(),
+  "providerId": zod.string().nullish(),
+  "systemPrompt": zod.string().optional()
+})
 
 export const deleteAIAgentPathTenantRegExp = new RegExp('^[a-z0-9-]+$');
 
+
 export const DeleteAIAgentParams = zod.object({
-  tenant: zod
-    .string()
-    .regex(deleteAIAgentPathTenantRegExp)
-    .describe('Tenant slug (e.g. `default`, `acme`).'),
-  id: zod.uuid().describe('Resource id (UUID).'),
-});
+  "tenant": zod.string().regex(deleteAIAgentPathTenantRegExp).describe('Tenant slug (e.g. `default`, `acme`).'),
+  "id": zod.uuid().describe('Resource id (UUID).')
+})
 
 export const getAIAgentPathTenantRegExp = new RegExp('^[a-z0-9-]+$');
 
+
 export const GetAIAgentParams = zod.object({
-  tenant: zod
-    .string()
-    .regex(getAIAgentPathTenantRegExp)
-    .describe('Tenant slug (e.g. `default`, `acme`).'),
-  id: zod.uuid().describe('Resource id (UUID).'),
-});
+  "tenant": zod.string().regex(getAIAgentPathTenantRegExp).describe('Tenant slug (e.g. `default`, `acme`).'),
+  "id": zod.uuid().describe('Resource id (UUID).')
+})
 
 export const GetAIAgentResponse = zod.object({
-  createdAt: zod.iso.datetime({ offset: true }),
-  description: zod.string().optional(),
-  enabled: zod.boolean(),
-  guardrails: zod.record(zod.string(), zod.unknown()).optional(),
-  id: zod.string(),
-  model: zod.string(),
-  name: zod.string(),
-  providerId: zod.string().nullish(),
-  systemPrompt: zod.string(),
-  tenantId: zod.string(),
-  updatedAt: zod.iso.datetime({ offset: true }),
-});
+  "createdAt": zod.iso.datetime({"offset":true}),
+  "description": zod.string().optional(),
+  "enabled": zod.boolean(),
+  "guardrails": zod.record(zod.string(), zod.unknown()).optional(),
+  "id": zod.string(),
+  "model": zod.string(),
+  "name": zod.string(),
+  "providerId": zod.string().nullish(),
+  "systemPrompt": zod.string(),
+  "tenantId": zod.string(),
+  "updatedAt": zod.iso.datetime({"offset":true})
+})
 
 export const patchAIAgentPathTenantRegExp = new RegExp('^[a-z0-9-]+$');
 
+
 export const PatchAIAgentParams = zod.object({
-  tenant: zod
-    .string()
-    .regex(patchAIAgentPathTenantRegExp)
-    .describe('Tenant slug (e.g. `default`, `acme`).'),
-  id: zod.uuid().describe('Resource id (UUID).'),
-});
+  "tenant": zod.string().regex(patchAIAgentPathTenantRegExp).describe('Tenant slug (e.g. `default`, `acme`).'),
+  "id": zod.uuid().describe('Resource id (UUID).')
+})
 
 export const PatchAIAgentResponse = zod.object({
-  createdAt: zod.iso.datetime({ offset: true }),
-  description: zod.string().optional(),
-  enabled: zod.boolean(),
-  guardrails: zod.record(zod.string(), zod.unknown()).optional(),
-  id: zod.string(),
-  model: zod.string(),
-  name: zod.string(),
-  providerId: zod.string().nullish(),
-  systemPrompt: zod.string(),
-  tenantId: zod.string(),
-  updatedAt: zod.iso.datetime({ offset: true }),
-});
+  "createdAt": zod.iso.datetime({"offset":true}),
+  "description": zod.string().optional(),
+  "enabled": zod.boolean(),
+  "guardrails": zod.record(zod.string(), zod.unknown()).optional(),
+  "id": zod.string(),
+  "model": zod.string(),
+  "name": zod.string(),
+  "providerId": zod.string().nullish(),
+  "systemPrompt": zod.string(),
+  "tenantId": zod.string(),
+  "updatedAt": zod.iso.datetime({"offset":true})
+})
 
 export const updateAIAgentPathTenantRegExp = new RegExp('^[a-z0-9-]+$');
 
+
 export const UpdateAIAgentParams = zod.object({
-  tenant: zod
-    .string()
-    .regex(updateAIAgentPathTenantRegExp)
-    .describe('Tenant slug (e.g. `default`, `acme`).'),
-  id: zod.uuid().describe('Resource id (UUID).'),
-});
+  "tenant": zod.string().regex(updateAIAgentPathTenantRegExp).describe('Tenant slug (e.g. `default`, `acme`).'),
+  "id": zod.uuid().describe('Resource id (UUID).')
+})
 
 export const UpdateAIAgentBody = zod.object({
-  description: zod.string().optional(),
-  enabled: zod.boolean().optional(),
-  guardrails: zod.record(zod.string(), zod.unknown()).optional(),
-  model: zod.string().optional(),
-  name: zod.string().optional(),
-  providerId: zod.string().nullish(),
-  systemPrompt: zod.string().optional(),
-});
+  "description": zod.string().optional(),
+  "enabled": zod.boolean().optional(),
+  "guardrails": zod.record(zod.string(), zod.unknown()).optional(),
+  "model": zod.string().optional(),
+  "name": zod.string().optional(),
+  "providerId": zod.string().nullish(),
+  "systemPrompt": zod.string().optional()
+})
 
 export const UpdateAIAgentResponse = zod.object({
-  createdAt: zod.iso.datetime({ offset: true }),
-  description: zod.string().optional(),
-  enabled: zod.boolean(),
-  guardrails: zod.record(zod.string(), zod.unknown()).optional(),
-  id: zod.string(),
-  model: zod.string(),
-  name: zod.string(),
-  providerId: zod.string().nullish(),
-  systemPrompt: zod.string(),
-  tenantId: zod.string(),
-  updatedAt: zod.iso.datetime({ offset: true }),
-});
+  "createdAt": zod.iso.datetime({"offset":true}),
+  "description": zod.string().optional(),
+  "enabled": zod.boolean(),
+  "guardrails": zod.record(zod.string(), zod.unknown()).optional(),
+  "id": zod.string(),
+  "model": zod.string(),
+  "name": zod.string(),
+  "providerId": zod.string().nullish(),
+  "systemPrompt": zod.string(),
+  "tenantId": zod.string(),
+  "updatedAt": zod.iso.datetime({"offset":true})
+})
 
 /**
  * @summary Rotate scoped credential for the agent
  */
 export const rotateAIAgentCredentialPathTenantRegExp = new RegExp('^[a-z0-9-]+$');
 
+
 export const RotateAIAgentCredentialParams = zod.object({
-  tenant: zod
-    .string()
-    .regex(rotateAIAgentCredentialPathTenantRegExp)
-    .describe('Tenant slug (e.g. `default`, `acme`).'),
-  id: zod.uuid().describe('Resource id (UUID).'),
-});
+  "tenant": zod.string().regex(rotateAIAgentCredentialPathTenantRegExp).describe('Tenant slug (e.g. `default`, `acme`).'),
+  "id": zod.uuid().describe('Resource id (UUID).')
+})
 
 export const RotateAIAgentCredentialResponse = zod.object({
-  agentId: zod.string().optional(),
-  note: zod.string().optional(),
-  ok: zod.boolean().optional(),
-});
+  "agentId": zod.string().optional(),
+  "note": zod.string().optional(),
+  "ok": zod.boolean().optional()
+})
 
 /**
  * @summary List tool bindings for an agent
  */
 export const listAIAgentToolsPathTenantRegExp = new RegExp('^[a-z0-9-]+$');
 
+
 export const ListAIAgentToolsParams = zod.object({
-  tenant: zod
-    .string()
-    .regex(listAIAgentToolsPathTenantRegExp)
-    .describe('Tenant slug (e.g. `default`, `acme`).'),
-  id: zod.uuid().describe('Resource id (UUID).'),
-});
+  "tenant": zod.string().regex(listAIAgentToolsPathTenantRegExp).describe('Tenant slug (e.g. `default`, `acme`).'),
+  "id": zod.uuid().describe('Resource id (UUID).')
+})
 
 export const ListAIAgentToolsResponse = zod.object({
-  items: zod
-    .array(
-      zod.object({
-        agentId: zod.string(),
-        condition: zod.string().optional(),
-        createdAt: zod.iso.datetime({ offset: true }),
-        enabled: zod.boolean(),
-        id: zod.string(),
-        tenantId: zod.string(),
-        toolId: zod.string(),
-        updatedAt: zod.iso.datetime({ offset: true }),
-      }),
-    )
-    .optional(),
-  total: zod.number().optional(),
-});
+  "items": zod.array(zod.object({
+  "agentId": zod.string(),
+  "condition": zod.string().optional(),
+  "createdAt": zod.iso.datetime({"offset":true}),
+  "enabled": zod.boolean(),
+  "id": zod.string(),
+  "tenantId": zod.string(),
+  "toolId": zod.string(),
+  "updatedAt": zod.iso.datetime({"offset":true})
+})).optional(),
+  "total": zod.number().optional()
+})
 
 /**
  * @summary List traces for an agent
  */
 export const listAIAgentTracesPathTenantRegExp = new RegExp('^[a-z0-9-]+$');
 
+
 export const ListAIAgentTracesParams = zod.object({
-  tenant: zod
-    .string()
-    .regex(listAIAgentTracesPathTenantRegExp)
-    .describe('Tenant slug (e.g. `default`, `acme`).'),
-  id: zod.uuid().describe('Resource id (UUID).'),
-});
+  "tenant": zod.string().regex(listAIAgentTracesPathTenantRegExp).describe('Tenant slug (e.g. `default`, `acme`).'),
+  "id": zod.uuid().describe('Resource id (UUID).')
+})
 
 export const ListAIAgentTracesResponse = zod.object({
-  items: zod
-    .array(
-      zod.object({
-        agentId: zod.string().nullish(),
-        completion: zod.string().nullish().describe('Gated by ai-trace:read-sensitive'),
-        durationMs: zod.number(),
-        error: zod.string().nullish(),
-        id: zod.string(),
-        inputTokens: zod.number(),
-        model: zod.string(),
-        occurredAt: zod.iso.datetime({ offset: true }),
-        outputTokens: zod.number(),
-        prompt: zod.string().nullish().describe('Gated by ai-trace:read-sensitive'),
-        providerId: zod.string().nullish(),
-        status: zod.string(),
-        tenantId: zod.string(),
-        toolCalls: zod.array(zod.record(zod.string(), zod.unknown())).optional(),
-      }),
-    )
-    .optional(),
-  total: zod.number().optional(),
-});
+  "items": zod.array(zod.object({
+  "agentId": zod.string().nullish(),
+  "completion": zod.string().nullish().describe('Gated by ai-trace:read-sensitive'),
+  "durationMs": zod.number(),
+  "error": zod.string().nullish(),
+  "id": zod.string(),
+  "inputTokens": zod.number(),
+  "model": zod.string(),
+  "occurredAt": zod.iso.datetime({"offset":true}),
+  "outputTokens": zod.number(),
+  "prompt": zod.string().nullish().describe('Gated by ai-trace:read-sensitive'),
+  "providerId": zod.string().nullish(),
+  "status": zod.string(),
+  "tenantId": zod.string(),
+  "toolCalls": zod.array(zod.record(zod.string(), zod.unknown())).optional()
+})).optional(),
+  "total": zod.number().optional()
+})
+

@@ -23,216 +23,145 @@ Conventions:
  */
 import * as zod from 'zod';
 
+
 export const pluginServiceListPluginsQueryTypeDefault = `PLUGIN_TYPE_UNSPECIFIED`;
 export const pluginServiceListPluginsQueryStatusDefault = `PLUGIN_STATUS_UNSPECIFIED`;
 
 export const PluginServiceListPluginsQueryParams = zod.object({
-  type: zod
-    .enum([
-      'PLUGIN_TYPE_UNSPECIFIED',
-      'PLUGIN_TYPE_TRAFFIC',
-      'PLUGIN_TYPE_MIDDLEWARE',
-      'PLUGIN_TYPE_CLI',
-      'PLUGIN_TYPE_WEB',
-      'PLUGIN_TYPE_AGENTIC',
-    ])
-    .default(pluginServiceListPluginsQueryTypeDefault),
-  status: zod
-    .enum([
-      'PLUGIN_STATUS_UNSPECIFIED',
-      'PLUGIN_STATUS_INSTALLING',
-      'PLUGIN_STATUS_ACTIVE',
-      'PLUGIN_STATUS_DISABLED',
-      'PLUGIN_STATUS_ERROR',
-      'PLUGIN_STATUS_REBUILDING',
-    ])
-    .default(pluginServiceListPluginsQueryStatusDefault),
-  'page.pageSize': zod.number().optional(),
-  'page.pageToken': zod.string().optional(),
-});
+  "type": zod.enum(['PLUGIN_TYPE_UNSPECIFIED', 'PLUGIN_TYPE_TRAFFIC', 'PLUGIN_TYPE_MIDDLEWARE', 'PLUGIN_TYPE_CLI', 'PLUGIN_TYPE_WEB', 'PLUGIN_TYPE_AGENTIC']).default(pluginServiceListPluginsQueryTypeDefault),
+  "status": zod.enum(['PLUGIN_STATUS_UNSPECIFIED', 'PLUGIN_STATUS_INSTALLING', 'PLUGIN_STATUS_ACTIVE', 'PLUGIN_STATUS_DISABLED', 'PLUGIN_STATUS_ERROR', 'PLUGIN_STATUS_REBUILDING']).default(pluginServiceListPluginsQueryStatusDefault),
+  "page.pageSize": zod.number().optional(),
+  "page.pageToken": zod.string().optional()
+})
 
 export const pluginServiceListPluginsResponsePluginsItemStatusDefault = `PLUGIN_STATUS_UNSPECIFIED`;
 export const pluginServiceListPluginsResponsePluginsItemTypeDefault = `PLUGIN_TYPE_UNSPECIFIED`;
 
 export const PluginServiceListPluginsResponse = zod.object({
-  page: zod
-    .object({
-      nextPageToken: zod.string().optional(),
-      total: zod.string().optional(),
-    })
-    .optional(),
-  plugins: zod
-    .array(
-      zod.object({
-        caddyDeps: zod.array(zod.string()).optional(),
-        config: zod.looseObject({}).optional(),
-        configSchema: zod.looseObject({}).optional(),
-        id: zod.string().optional(),
-        installedAt: zod.iso.datetime({ offset: true }).optional(),
-        labels: zod
-          .object({
-            labels: zod.record(zod.string(), zod.string()).optional(),
-          })
-          .optional(),
-        modulePath: zod.string().optional(),
-        name: zod.string().optional(),
-        status: zod
-          .enum([
-            'PLUGIN_STATUS_UNSPECIFIED',
-            'PLUGIN_STATUS_INSTALLING',
-            'PLUGIN_STATUS_ACTIVE',
-            'PLUGIN_STATUS_DISABLED',
-            'PLUGIN_STATUS_ERROR',
-            'PLUGIN_STATUS_REBUILDING',
-          ])
-          .default(pluginServiceListPluginsResponsePluginsItemStatusDefault),
-        type: zod
-          .enum([
-            'PLUGIN_TYPE_UNSPECIFIED',
-            'PLUGIN_TYPE_TRAFFIC',
-            'PLUGIN_TYPE_MIDDLEWARE',
-            'PLUGIN_TYPE_CLI',
-            'PLUGIN_TYPE_WEB',
-            'PLUGIN_TYPE_AGENTIC',
-          ])
-          .default(pluginServiceListPluginsResponsePluginsItemTypeDefault),
-        updatedAt: zod.iso.datetime({ offset: true }).optional(),
-        version: zod.string().optional(),
-      }),
-    )
-    .optional(),
-});
+  "page": zod.object({
+  "nextPageToken": zod.string().optional(),
+  "total": zod.string().optional()
+}).optional(),
+  "plugins": zod.array(zod.object({
+  "caddyDeps": zod.array(zod.string()).optional(),
+  "config": zod.looseObject({
+
+}).optional(),
+  "configSchema": zod.looseObject({
+
+}).optional(),
+  "id": zod.string().optional(),
+  "installedAt": zod.iso.datetime({"offset":true}).optional(),
+  "labels": zod.object({
+  "labels": zod.record(zod.string(), zod.string()).optional()
+}).optional(),
+  "modulePath": zod.string().optional(),
+  "name": zod.string().optional(),
+  "status": zod.enum(['PLUGIN_STATUS_UNSPECIFIED', 'PLUGIN_STATUS_INSTALLING', 'PLUGIN_STATUS_ACTIVE', 'PLUGIN_STATUS_DISABLED', 'PLUGIN_STATUS_ERROR', 'PLUGIN_STATUS_REBUILDING']).default(pluginServiceListPluginsResponsePluginsItemStatusDefault),
+  "type": zod.enum(['PLUGIN_TYPE_UNSPECIFIED', 'PLUGIN_TYPE_TRAFFIC', 'PLUGIN_TYPE_MIDDLEWARE', 'PLUGIN_TYPE_CLI', 'PLUGIN_TYPE_WEB', 'PLUGIN_TYPE_AGENTIC']).default(pluginServiceListPluginsResponsePluginsItemTypeDefault),
+  "updatedAt": zod.iso.datetime({"offset":true}).optional(),
+  "version": zod.string().optional()
+})).optional()
+})
 
 export const PluginServiceInstallPluginBody = zod.object({
-  deferBuild: zod.boolean().optional(),
-  initialConfig: zod.looseObject({}).optional(),
-  modulePath: zod.string().optional(),
-});
+  "deferBuild": zod.boolean().optional(),
+  "initialConfig": zod.looseObject({
+
+}).optional(),
+  "modulePath": zod.string().optional()
+})
 
 export const pluginServiceInstallPluginResponseResultPluginStatusDefault = `PLUGIN_STATUS_UNSPECIFIED`;
 export const pluginServiceInstallPluginResponseResultPluginTypeDefault = `PLUGIN_TYPE_UNSPECIFIED`;
 export const pluginServiceInstallPluginResponseResultStageDefault = `STAGE_UNSPECIFIED`;
 
 export const PluginServiceInstallPluginResponse = zod.object({
-  error: zod
-    .object({
-      code: zod.number().optional(),
-      details: zod
-        .array(
-          zod.object({
-            '@type': zod.string().optional(),
-          }),
-        )
-        .optional(),
-      message: zod.string().optional(),
-    })
-    .optional(),
-  result: zod
-    .object({
-      error: zod.string().optional(),
-      message: zod.string().optional(),
-      occurredAt: zod.iso.datetime({ offset: true }).optional(),
-      plugin: zod
-        .object({
-          caddyDeps: zod.array(zod.string()).optional(),
-          config: zod.looseObject({}).optional(),
-          configSchema: zod.looseObject({}).optional(),
-          id: zod.string().optional(),
-          installedAt: zod.iso.datetime({ offset: true }).optional(),
-          labels: zod
-            .object({
-              labels: zod.record(zod.string(), zod.string()).optional(),
-            })
-            .optional(),
-          modulePath: zod.string().optional(),
-          name: zod.string().optional(),
-          status: zod
-            .enum([
-              'PLUGIN_STATUS_UNSPECIFIED',
-              'PLUGIN_STATUS_INSTALLING',
-              'PLUGIN_STATUS_ACTIVE',
-              'PLUGIN_STATUS_DISABLED',
-              'PLUGIN_STATUS_ERROR',
-              'PLUGIN_STATUS_REBUILDING',
-            ])
-            .default(pluginServiceInstallPluginResponseResultPluginStatusDefault),
-          type: zod
-            .enum([
-              'PLUGIN_TYPE_UNSPECIFIED',
-              'PLUGIN_TYPE_TRAFFIC',
-              'PLUGIN_TYPE_MIDDLEWARE',
-              'PLUGIN_TYPE_CLI',
-              'PLUGIN_TYPE_WEB',
-              'PLUGIN_TYPE_AGENTIC',
-            ])
-            .default(pluginServiceInstallPluginResponseResultPluginTypeDefault),
-          updatedAt: zod.iso.datetime({ offset: true }).optional(),
-          version: zod.string().optional(),
-        })
-        .optional(),
-      stage: zod
-        .enum([
-          'STAGE_UNSPECIFIED',
-          'STAGE_RESOLVING',
-          'STAGE_FETCHING',
-          'STAGE_VALIDATING',
-          'STAGE_BUILDING',
-          'STAGE_SWAPPING',
-          'STAGE_COMPLETE',
-          'STAGE_FAILED',
-        ])
-        .default(pluginServiceInstallPluginResponseResultStageDefault),
-    })
-    .optional(),
-});
+  "error": zod.object({
+  "code": zod.number().optional(),
+  "details": zod.array(zod.object({
+  "@type": zod.string().optional()
+})).optional(),
+  "message": zod.string().optional()
+}).optional(),
+  "result": zod.object({
+  "error": zod.string().optional(),
+  "message": zod.string().optional(),
+  "occurredAt": zod.iso.datetime({"offset":true}).optional(),
+  "plugin": zod.object({
+  "caddyDeps": zod.array(zod.string()).optional(),
+  "config": zod.looseObject({
+
+}).optional(),
+  "configSchema": zod.looseObject({
+
+}).optional(),
+  "id": zod.string().optional(),
+  "installedAt": zod.iso.datetime({"offset":true}).optional(),
+  "labels": zod.object({
+  "labels": zod.record(zod.string(), zod.string()).optional()
+}).optional(),
+  "modulePath": zod.string().optional(),
+  "name": zod.string().optional(),
+  "status": zod.enum(['PLUGIN_STATUS_UNSPECIFIED', 'PLUGIN_STATUS_INSTALLING', 'PLUGIN_STATUS_ACTIVE', 'PLUGIN_STATUS_DISABLED', 'PLUGIN_STATUS_ERROR', 'PLUGIN_STATUS_REBUILDING']).default(pluginServiceInstallPluginResponseResultPluginStatusDefault),
+  "type": zod.enum(['PLUGIN_TYPE_UNSPECIFIED', 'PLUGIN_TYPE_TRAFFIC', 'PLUGIN_TYPE_MIDDLEWARE', 'PLUGIN_TYPE_CLI', 'PLUGIN_TYPE_WEB', 'PLUGIN_TYPE_AGENTIC']).default(pluginServiceInstallPluginResponseResultPluginTypeDefault),
+  "updatedAt": zod.iso.datetime({"offset":true}).optional(),
+  "version": zod.string().optional()
+}).optional(),
+  "stage": zod.enum(['STAGE_UNSPECIFIED', 'STAGE_RESOLVING', 'STAGE_FETCHING', 'STAGE_VALIDATING', 'STAGE_BUILDING', 'STAGE_SWAPPING', 'STAGE_COMPLETE', 'STAGE_FAILED']).default(pluginServiceInstallPluginResponseResultStageDefault)
+}).optional()
+})
 
 export const PluginServiceRemovePluginParams = zod.object({
-  pluginId: zod.string(),
-});
+  "pluginId": zod.string()
+})
 
 export const PluginServiceRemovePluginQueryParams = zod.object({
-  purgeConfig: zod.boolean().optional(),
-  deferBuild: zod.boolean().optional(),
-});
+  "purgeConfig": zod.boolean().optional(),
+  "deferBuild": zod.boolean().optional()
+})
 
 export const PluginServiceRemovePluginResponse = zod.object({
-  meta: zod
-    .object({
-      actor: zod.string().optional(),
-      configVersion: zod.string().optional(),
-      mutatedAt: zod.iso.datetime({ offset: true }).optional(),
-    })
-    .optional(),
-  rebuildTriggered: zod.boolean().optional(),
-});
+  "meta": zod.object({
+  "actor": zod.string().optional(),
+  "configVersion": zod.string().optional(),
+  "mutatedAt": zod.iso.datetime({"offset":true}).optional()
+}).optional(),
+  "rebuildTriggered": zod.boolean().optional()
+})
 
 export const PluginServiceGetPluginConfigParams = zod.object({
-  pluginId: zod.string(),
-});
+  "pluginId": zod.string()
+})
 
 export const PluginServiceGetPluginConfigResponse = zod.object({
-  config: zod.looseObject({}).optional(),
-  pluginId: zod.string().optional(),
-  schema: zod.record(zod.string(), zod.unknown()).optional(),
-  updatedAt: zod.iso.datetime({ offset: true }).optional(),
-});
+  "config": zod.looseObject({
+
+}).optional(),
+  "pluginId": zod.string().optional(),
+  "schema": zod.record(zod.string(), zod.unknown()).optional(),
+  "updatedAt": zod.iso.datetime({"offset":true}).optional()
+})
 
 export const PluginServiceSetPluginConfigParams = zod.object({
-  pluginId: zod.string(),
-});
+  "pluginId": zod.string()
+})
 
 export const PluginServiceSetPluginConfigBody = zod.object({
-  config: zod.looseObject({}).optional(),
-  merge: zod.boolean().optional(),
-});
+  "config": zod.looseObject({
+
+}).optional(),
+  "merge": zod.boolean().optional()
+})
 
 export const PluginServiceSetPluginConfigResponse = zod.object({
-  config: zod.looseObject({}).optional(),
-  meta: zod
-    .object({
-      actor: zod.string().optional(),
-      configVersion: zod.string().optional(),
-      mutatedAt: zod.iso.datetime({ offset: true }).optional(),
-    })
-    .optional(),
-});
+  "config": zod.looseObject({
+
+}).optional(),
+  "meta": zod.object({
+  "actor": zod.string().optional(),
+  "configVersion": zod.string().optional(),
+  "mutatedAt": zod.iso.datetime({"offset":true}).optional()
+}).optional()
+})
+

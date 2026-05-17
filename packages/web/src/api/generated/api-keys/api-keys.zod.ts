@@ -23,153 +23,122 @@ Conventions:
  */
 import * as zod from 'zod';
 
+
 /**
  * @summary List API keys
  */
 export const listAPIKeysPathTenantRegExp = new RegExp('^[a-z0-9-]+$');
 
+
 export const ListAPIKeysParams = zod.object({
-  tenant: zod
-    .string()
-    .regex(listAPIKeysPathTenantRegExp)
-    .describe('Tenant slug (e.g. `default`, `acme`).'),
-});
+  "tenant": zod.string().regex(listAPIKeysPathTenantRegExp).describe('Tenant slug (e.g. `default`, `acme`).')
+})
 
 export const ListAPIKeysResponse = zod.object({
-  apiKeys: zod
-    .array(
-      zod.object({
-        createdAt: zod.iso.datetime({ offset: true }).optional(),
-        expiresAt: zod.iso.datetime({ offset: true }).optional(),
-        id: zod.string().optional(),
-        lastUsedAt: zod.iso.datetime({ offset: true }).optional(),
-        name: zod.string().optional(),
-        ownerId: zod.string().optional(),
-        prefix: zod.string().optional(),
-        revokedAt: zod.iso.datetime({ offset: true }).optional(),
-        scopes: zod.array(zod.string()).optional(),
-        tenantId: zod.string().optional(),
-        usageCount: zod.number().optional(),
-      }),
-    )
-    .optional(),
-  nextPageToken: zod.string().optional(),
-});
+  "apiKeys": zod.array(zod.object({
+  "createdAt": zod.iso.datetime({"offset":true}).optional(),
+  "expiresAt": zod.iso.datetime({"offset":true}).optional(),
+  "id": zod.string().optional(),
+  "lastUsedAt": zod.iso.datetime({"offset":true}).optional(),
+  "name": zod.string().optional(),
+  "ownerId": zod.string().optional(),
+  "prefix": zod.string().optional(),
+  "revokedAt": zod.iso.datetime({"offset":true}).optional(),
+  "scopes": zod.array(zod.string()).optional(),
+  "tenantId": zod.string().optional(),
+  "usageCount": zod.number().optional()
+})).optional(),
+  "nextPageToken": zod.string().optional()
+})
 
 /**
  * @summary Create an API key
  */
 export const createAPIKeyPathTenantRegExp = new RegExp('^[a-z0-9-]+$');
 
+
 export const CreateAPIKeyParams = zod.object({
-  tenant: zod
-    .string()
-    .regex(createAPIKeyPathTenantRegExp)
-    .describe('Tenant slug (e.g. `default`, `acme`).'),
-});
+  "tenant": zod.string().regex(createAPIKeyPathTenantRegExp).describe('Tenant slug (e.g. `default`, `acme`).')
+})
 
 export const CreateAPIKeyBody = zod.object({
-  expires: zod.string().optional().describe('Go duration string (e.g. 720h, 30d)'),
-  name: zod.string(),
-  scopes: zod.string().optional().describe('Comma-separated scopes'),
-});
+  "expires": zod.string().optional().describe('Go duration string (e.g. 720h, 30d)'),
+  "name": zod.string(),
+  "scopes": zod.string().optional().describe('Comma-separated scopes')
+})
 
 /**
  * @summary Revoke (delete alias)
  */
 export const deleteAPIKeyPathTenantRegExp = new RegExp('^[a-z0-9-]+$');
 
+
 export const DeleteAPIKeyParams = zod.object({
-  tenant: zod
-    .string()
-    .regex(deleteAPIKeyPathTenantRegExp)
-    .describe('Tenant slug (e.g. `default`, `acme`).'),
-  id: zod.uuid().describe('Resource id (UUID).'),
-});
+  "tenant": zod.string().regex(deleteAPIKeyPathTenantRegExp).describe('Tenant slug (e.g. `default`, `acme`).'),
+  "id": zod.uuid().describe('Resource id (UUID).')
+})
 
 /**
  * @summary Get an API key
  */
 export const getAPIKeyPathTenantRegExp = new RegExp('^[a-z0-9-]+$');
 
+
 export const GetAPIKeyParams = zod.object({
-  tenant: zod
-    .string()
-    .regex(getAPIKeyPathTenantRegExp)
-    .describe('Tenant slug (e.g. `default`, `acme`).'),
-  id: zod.uuid().describe('Resource id (UUID).'),
-});
+  "tenant": zod.string().regex(getAPIKeyPathTenantRegExp).describe('Tenant slug (e.g. `default`, `acme`).'),
+  "id": zod.uuid().describe('Resource id (UUID).')
+})
 
 export const GetAPIKeyResponse = zod.object({
-  _links: zod
-    .record(
-      zod.string(),
-      zod
-        .object({
-          href: zod.string(),
-          templated: zod.boolean().optional(),
-        })
-        .describe(
-          'OpenAPI\/HAL hypermedia reference. Every resource emits a\n`_links` map keyed by relation name (`self`, `owner`, `tools`,\n`traces`, etc.) with a Link object.\n',
-        ),
-    )
-    .optional(),
-  createdAt: zod.iso.datetime({ offset: true }).optional(),
-  expiresAt: zod.iso.datetime({ offset: true }).optional(),
-  id: zod.string().optional(),
-  lastUsedAt: zod.iso.datetime({ offset: true }).optional(),
-  name: zod.string().optional(),
-  ownerId: zod.string().optional(),
-  prefix: zod
-    .string()
-    .optional()
-    .describe(
-      'Non-secret display fragment of the raw key (e.g. rku_tok_AbCd). Empty for legacy keys created before migration #51.',
-    ),
-  revokedAt: zod.iso.datetime({ offset: true }).optional(),
-  scopes: zod.array(zod.string()).optional(),
-  tenantId: zod.string().optional(),
-  usageCount: zod.number().optional(),
-});
+  "_links": zod.record(zod.string(), zod.object({
+  "href": zod.string(),
+  "templated": zod.boolean().optional()
+}).describe('OpenAPI\/HAL hypermedia reference. Every resource emits a\n`_links` map keyed by relation name (`self`, `owner`, `tools`,\n`traces`, etc.) with a Link object.\n')).optional(),
+  "createdAt": zod.iso.datetime({"offset":true}).optional(),
+  "expiresAt": zod.iso.datetime({"offset":true}).optional(),
+  "id": zod.string().optional(),
+  "lastUsedAt": zod.iso.datetime({"offset":true}).optional(),
+  "name": zod.string().optional(),
+  "ownerId": zod.string().optional(),
+  "prefix": zod.string().optional().describe('Non-secret display fragment of the raw key (e.g. rku_tok_AbCd). Empty for legacy keys created before migration #51.'),
+  "revokedAt": zod.iso.datetime({"offset":true}).optional(),
+  "scopes": zod.array(zod.string()).optional(),
+  "tenantId": zod.string().optional(),
+  "usageCount": zod.number().optional()
+})
 
 /**
  * @summary Patch API key metadata
  */
 export const patchAPIKeyPathTenantRegExp = new RegExp('^[a-z0-9-]+$');
 
+
 export const PatchAPIKeyParams = zod.object({
-  tenant: zod
-    .string()
-    .regex(patchAPIKeyPathTenantRegExp)
-    .describe('Tenant slug (e.g. `default`, `acme`).'),
-  id: zod.uuid().describe('Resource id (UUID).'),
-});
+  "tenant": zod.string().regex(patchAPIKeyPathTenantRegExp).describe('Tenant slug (e.g. `default`, `acme`).'),
+  "id": zod.uuid().describe('Resource id (UUID).')
+})
 
 /**
  * @summary Replace API key metadata
  */
 export const replaceAPIKeyPathTenantRegExp = new RegExp('^[a-z0-9-]+$');
 
+
 export const ReplaceAPIKeyParams = zod.object({
-  tenant: zod
-    .string()
-    .regex(replaceAPIKeyPathTenantRegExp)
-    .describe('Tenant slug (e.g. `default`, `acme`).'),
-  id: zod.uuid().describe('Resource id (UUID).'),
-});
+  "tenant": zod.string().regex(replaceAPIKeyPathTenantRegExp).describe('Tenant slug (e.g. `default`, `acme`).'),
+  "id": zod.uuid().describe('Resource id (UUID).')
+})
 
 /**
  * @summary Revoke (action alias)
  */
 export const revokeAPIKeyPathTenantRegExp = new RegExp('^[a-z0-9-]+$');
 
+
 export const RevokeAPIKeyParams = zod.object({
-  tenant: zod
-    .string()
-    .regex(revokeAPIKeyPathTenantRegExp)
-    .describe('Tenant slug (e.g. `default`, `acme`).'),
-  id: zod.uuid().describe('Resource id (UUID).'),
-});
+  "tenant": zod.string().regex(revokeAPIKeyPathTenantRegExp).describe('Tenant slug (e.g. `default`, `acme`).'),
+  "id": zod.uuid().describe('Resource id (UUID).')
+})
 
 /**
  * Mints a new key with the same name + scopes + owner + expiry,
@@ -180,42 +149,30 @@ prior id. The old id stays in the audit log; the secret is gone.
  */
 export const rotateAPIKeyPathTenantRegExp = new RegExp('^[a-z0-9-]+$');
 
+
 export const RotateAPIKeyParams = zod.object({
-  tenant: zod
-    .string()
-    .regex(rotateAPIKeyPathTenantRegExp)
-    .describe('Tenant slug (e.g. `default`, `acme`).'),
-  id: zod.uuid().describe('Resource id (UUID).'),
-});
+  "tenant": zod.string().regex(rotateAPIKeyPathTenantRegExp).describe('Tenant slug (e.g. `default`, `acme`).'),
+  "id": zod.uuid().describe('Resource id (UUID).')
+})
 
 export const RotateAPIKeyResponse = zod.object({
-  _links: zod
-    .record(
-      zod.string(),
-      zod
-        .object({
-          href: zod.string(),
-          templated: zod.boolean().optional(),
-        })
-        .describe(
-          'OpenAPI\/HAL hypermedia reference. Every resource emits a\n`_links` map keyed by relation name (`self`, `owner`, `tools`,\n`traces`, etc.) with a Link object.\n',
-        ),
-    )
-    .optional(),
-  id: zod.string().optional().describe('New key id'),
-  key: zod.string().optional().describe('Plaintext secret (returned once)'),
-  prefix: zod.string().optional().describe('Non-secret display fragment of the new raw key'),
-});
+  "_links": zod.record(zod.string(), zod.object({
+  "href": zod.string(),
+  "templated": zod.boolean().optional()
+}).describe('OpenAPI\/HAL hypermedia reference. Every resource emits a\n`_links` map keyed by relation name (`self`, `owner`, `tools`,\n`traces`, etc.) with a Link object.\n')).optional(),
+  "id": zod.string().optional().describe('New key id'),
+  "key": zod.string().optional().describe('Plaintext secret (returned once)'),
+  "prefix": zod.string().optional().describe('Non-secret display fragment of the new raw key')
+})
 
 /**
  * @summary Get usage stats
  */
 export const getAPIKeyUsagePathTenantRegExp = new RegExp('^[a-z0-9-]+$');
 
+
 export const GetAPIKeyUsageParams = zod.object({
-  tenant: zod
-    .string()
-    .regex(getAPIKeyUsagePathTenantRegExp)
-    .describe('Tenant slug (e.g. `default`, `acme`).'),
-  id: zod.uuid().describe('Resource id (UUID).'),
-});
+  "tenant": zod.string().regex(getAPIKeyUsagePathTenantRegExp).describe('Tenant slug (e.g. `default`, `acme`).'),
+  "id": zod.uuid().describe('Resource id (UUID).')
+})
+

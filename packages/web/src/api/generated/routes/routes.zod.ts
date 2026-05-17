@@ -23,291 +23,171 @@ Conventions:
  */
 import * as zod from 'zod';
 
+
 /**
  * @summary List routes
  */
 export const listRoutesPathTenantRegExp = new RegExp('^[a-z0-9-]+$');
 
+
 export const ListRoutesParams = zod.object({
-  tenant: zod
-    .string()
-    .regex(listRoutesPathTenantRegExp)
-    .describe('Tenant slug (e.g. `default`, `acme`).'),
-});
+  "tenant": zod.string().regex(listRoutesPathTenantRegExp).describe('Tenant slug (e.g. `default`, `acme`).')
+})
 
 /**
  * @summary Create a route
  */
 export const createRoutePathTenantRegExp = new RegExp('^[a-z0-9-]+$');
 
+
 export const CreateRouteParams = zod.object({
-  tenant: zod
-    .string()
-    .regex(createRoutePathTenantRegExp)
-    .describe('Tenant slug (e.g. `default`, `acme`).'),
-});
+  "tenant": zod.string().regex(createRoutePathTenantRegExp).describe('Tenant slug (e.g. `default`, `acme`).')
+})
 
 export const createRouteBodyMatchersItemPathsItemTypeDefault = `TYPE_UNSPECIFIED`;
 export const createRouteBodyUpstreamTlsDefault = `TLS_MODE_UNSPECIFIED`;
 
 export const CreateRouteBody = zod.object({
-  createdAt: zod.iso.datetime({ offset: true }).optional(),
-  enabled: zod.boolean().optional(),
-  id: zod.string().optional(),
-  labels: zod
-    .object({
-      labels: zod.record(zod.string(), zod.string()).optional(),
-    })
-    .optional(),
-  matchers: zod
-    .array(
-      zod.object({
-        expression: zod
-          .string()
-          .optional()
-          .describe(
-            'expression is a CEL expression evaluated against the request.\nCompiles to Caddy\'s `expression` matcher; empty means \"no\nexpression\". Use this for conditions that don\'t fit the simpler\nhost\/path\/method\/header\/query primitives — e.g. cross-field\nchecks, time-based routing, or value transforms.',
-          ),
-        headers: zod
-          .array(
-            zod.object({
-              invert: zod.boolean().optional(),
-              name: zod.string().optional(),
-              regexp: zod
-                .boolean()
-                .optional()
-                .describe(
-                  'regexp marks the value as a regex pattern. The compiler emits\n`header_regexp` instead of `header` for this entry. invert is\nignored for regexp entries (Caddy\'s header_regexp doesn\'t support\na \"!\" prefix); wrap the matcher in `not` instead.',
-                ),
-              value: zod.string().optional(),
-            }),
-          )
-          .optional(),
-        hosts: zod.array(zod.string()).optional(),
-        methods: zod.array(zod.string()).optional(),
-        not: zod
-          .array(zod.unknown())
-          .optional()
-          .describe(
-            "not is a list of nested Matcher sets that, when ANY matches the\nrequest, cause this Matcher to NOT match. Compiles to Caddy's\n`not` matcher (an array of nested match sets — OR semantics\nbetween entries; AND semantics within each entry's primitives).\nUseful for `match X but not Y`.",
-          ),
-        paths: zod
-          .array(
-            zod.object({
-              type: zod
-                .enum(['TYPE_UNSPECIFIED', 'TYPE_EXACT', 'TYPE_PREFIX', 'TYPE_REGEXP'])
-                .default(createRouteBodyMatchersItemPathsItemTypeDefault),
-              value: zod.string().optional(),
-            }),
-          )
-          .optional(),
-        queries: zod
-          .array(
-            zod
-              .object({
-                key: zod.string().optional(),
-                value: zod.string().optional(),
-              })
-              .describe(
-                'QueryMatcher matches a single query string parameter. An empty\n`value` matches any value (existence-only). To match multiple\npermitted values for the same key, repeat the QueryMatcher with the\nsame `key` — the compiler folds them into a single\n`{ key: [v1, v2, ...] }` entry in Caddy.',
-              ),
-          )
-          .optional()
-          .describe(
-            "queries match against URL query string parameters. Compiles to\nCaddy's `query` matcher: a map of parameter name to permitted\nvalues. An empty value matches any value (existence-only).",
-          ),
-      }),
-    )
-    .optional(),
-  name: zod.string().optional(),
-  policyIds: zod.array(zod.string()).optional(),
-  serviceId: zod.string().optional(),
-  updatedAt: zod.iso.datetime({ offset: true }).optional(),
-  upstream: zod
-    .object({
-      address: zod.string().optional(),
-      tls: zod
-        .enum([
-          'TLS_MODE_UNSPECIFIED',
-          'TLS_MODE_OFF',
-          'TLS_MODE_AUTO',
-          'TLS_MODE_CUSTOM',
-          'TLS_MODE_INTERNAL',
-        ])
-        .default(createRouteBodyUpstreamTlsDefault),
-    })
-    .optional(),
-});
+  "createdAt": zod.iso.datetime({"offset":true}).optional(),
+  "enabled": zod.boolean().optional(),
+  "id": zod.string().optional(),
+  "labels": zod.object({
+  "labels": zod.record(zod.string(), zod.string()).optional()
+}).optional(),
+  "matchers": zod.array(zod.object({
+  "expression": zod.string().optional().describe('expression is a CEL expression evaluated against the request.\nCompiles to Caddy\'s `expression` matcher; empty means \"no\nexpression\". Use this for conditions that don\'t fit the simpler\nhost\/path\/method\/header\/query primitives — e.g. cross-field\nchecks, time-based routing, or value transforms.'),
+  "headers": zod.array(zod.object({
+  "invert": zod.boolean().optional(),
+  "name": zod.string().optional(),
+  "regexp": zod.boolean().optional().describe('regexp marks the value as a regex pattern. The compiler emits\n`header_regexp` instead of `header` for this entry. invert is\nignored for regexp entries (Caddy\'s header_regexp doesn\'t support\na \"!\" prefix); wrap the matcher in `not` instead.'),
+  "value": zod.string().optional()
+})).optional(),
+  "hosts": zod.array(zod.string()).optional(),
+  "methods": zod.array(zod.string()).optional(),
+  "not": zod.array(zod.unknown()).optional().describe('not is a list of nested Matcher sets that, when ANY matches the\nrequest, cause this Matcher to NOT match. Compiles to Caddy\'s\n`not` matcher (an array of nested match sets — OR semantics\nbetween entries; AND semantics within each entry\'s primitives).\nUseful for `match X but not Y`.'),
+  "paths": zod.array(zod.object({
+  "type": zod.enum(['TYPE_UNSPECIFIED', 'TYPE_EXACT', 'TYPE_PREFIX', 'TYPE_REGEXP']).default(createRouteBodyMatchersItemPathsItemTypeDefault),
+  "value": zod.string().optional()
+})).optional(),
+  "queries": zod.array(zod.object({
+  "key": zod.string().optional(),
+  "value": zod.string().optional()
+}).describe('QueryMatcher matches a single query string parameter. An empty\n`value` matches any value (existence-only). To match multiple\npermitted values for the same key, repeat the QueryMatcher with the\nsame `key` — the compiler folds them into a single\n`{ key: [v1, v2, ...] }` entry in Caddy.')).optional().describe('queries match against URL query string parameters. Compiles to\nCaddy\'s `query` matcher: a map of parameter name to permitted\nvalues. An empty value matches any value (existence-only).')
+})).optional(),
+  "name": zod.string().optional(),
+  "policyIds": zod.array(zod.string()).optional(),
+  "serviceId": zod.string().optional(),
+  "updatedAt": zod.iso.datetime({"offset":true}).optional(),
+  "upstream": zod.object({
+  "address": zod.string().optional(),
+  "tls": zod.enum(['TLS_MODE_UNSPECIFIED', 'TLS_MODE_OFF', 'TLS_MODE_AUTO', 'TLS_MODE_CUSTOM', 'TLS_MODE_INTERNAL']).default(createRouteBodyUpstreamTlsDefault)
+}).optional()
+})
 
 export const deleteRoutePathTenantRegExp = new RegExp('^[a-z0-9-]+$');
 
+
 export const DeleteRouteParams = zod.object({
-  tenant: zod
-    .string()
-    .regex(deleteRoutePathTenantRegExp)
-    .describe('Tenant slug (e.g. `default`, `acme`).'),
-  id: zod.uuid().describe('Resource id (UUID).'),
-});
+  "tenant": zod.string().regex(deleteRoutePathTenantRegExp).describe('Tenant slug (e.g. `default`, `acme`).'),
+  "id": zod.uuid().describe('Resource id (UUID).')
+})
 
 export const getRoutePathTenantRegExp = new RegExp('^[a-z0-9-]+$');
 
+
 export const GetRouteParams = zod.object({
-  tenant: zod
-    .string()
-    .regex(getRoutePathTenantRegExp)
-    .describe('Tenant slug (e.g. `default`, `acme`).'),
-  id: zod.uuid().describe('Resource id (UUID).'),
-});
+  "tenant": zod.string().regex(getRoutePathTenantRegExp).describe('Tenant slug (e.g. `default`, `acme`).'),
+  "id": zod.uuid().describe('Resource id (UUID).')
+})
 
 export const patchRoutePathTenantRegExp = new RegExp('^[a-z0-9-]+$');
 
+
 export const PatchRouteParams = zod.object({
-  tenant: zod
-    .string()
-    .regex(patchRoutePathTenantRegExp)
-    .describe('Tenant slug (e.g. `default`, `acme`).'),
-  id: zod.uuid().describe('Resource id (UUID).'),
-});
+  "tenant": zod.string().regex(patchRoutePathTenantRegExp).describe('Tenant slug (e.g. `default`, `acme`).'),
+  "id": zod.uuid().describe('Resource id (UUID).')
+})
 
 export const replaceRoutePathTenantRegExp = new RegExp('^[a-z0-9-]+$');
 
+
 export const ReplaceRouteParams = zod.object({
-  tenant: zod
-    .string()
-    .regex(replaceRoutePathTenantRegExp)
-    .describe('Tenant slug (e.g. `default`, `acme`).'),
-  id: zod.uuid().describe('Resource id (UUID).'),
-});
+  "tenant": zod.string().regex(replaceRoutePathTenantRegExp).describe('Tenant slug (e.g. `default`, `acme`).'),
+  "id": zod.uuid().describe('Resource id (UUID).')
+})
 
 export const replaceRouteBodyMatchersItemPathsItemTypeDefault = `TYPE_UNSPECIFIED`;
 export const replaceRouteBodyUpstreamTlsDefault = `TLS_MODE_UNSPECIFIED`;
 
 export const ReplaceRouteBody = zod.object({
-  createdAt: zod.iso.datetime({ offset: true }).optional(),
-  enabled: zod.boolean().optional(),
-  id: zod.string().optional(),
-  labels: zod
-    .object({
-      labels: zod.record(zod.string(), zod.string()).optional(),
-    })
-    .optional(),
-  matchers: zod
-    .array(
-      zod.object({
-        expression: zod
-          .string()
-          .optional()
-          .describe(
-            'expression is a CEL expression evaluated against the request.\nCompiles to Caddy\'s `expression` matcher; empty means \"no\nexpression\". Use this for conditions that don\'t fit the simpler\nhost\/path\/method\/header\/query primitives — e.g. cross-field\nchecks, time-based routing, or value transforms.',
-          ),
-        headers: zod
-          .array(
-            zod.object({
-              invert: zod.boolean().optional(),
-              name: zod.string().optional(),
-              regexp: zod
-                .boolean()
-                .optional()
-                .describe(
-                  'regexp marks the value as a regex pattern. The compiler emits\n`header_regexp` instead of `header` for this entry. invert is\nignored for regexp entries (Caddy\'s header_regexp doesn\'t support\na \"!\" prefix); wrap the matcher in `not` instead.',
-                ),
-              value: zod.string().optional(),
-            }),
-          )
-          .optional(),
-        hosts: zod.array(zod.string()).optional(),
-        methods: zod.array(zod.string()).optional(),
-        not: zod
-          .array(zod.unknown())
-          .optional()
-          .describe(
-            "not is a list of nested Matcher sets that, when ANY matches the\nrequest, cause this Matcher to NOT match. Compiles to Caddy's\n`not` matcher (an array of nested match sets — OR semantics\nbetween entries; AND semantics within each entry's primitives).\nUseful for `match X but not Y`.",
-          ),
-        paths: zod
-          .array(
-            zod.object({
-              type: zod
-                .enum(['TYPE_UNSPECIFIED', 'TYPE_EXACT', 'TYPE_PREFIX', 'TYPE_REGEXP'])
-                .default(replaceRouteBodyMatchersItemPathsItemTypeDefault),
-              value: zod.string().optional(),
-            }),
-          )
-          .optional(),
-        queries: zod
-          .array(
-            zod
-              .object({
-                key: zod.string().optional(),
-                value: zod.string().optional(),
-              })
-              .describe(
-                'QueryMatcher matches a single query string parameter. An empty\n`value` matches any value (existence-only). To match multiple\npermitted values for the same key, repeat the QueryMatcher with the\nsame `key` — the compiler folds them into a single\n`{ key: [v1, v2, ...] }` entry in Caddy.',
-              ),
-          )
-          .optional()
-          .describe(
-            "queries match against URL query string parameters. Compiles to\nCaddy's `query` matcher: a map of parameter name to permitted\nvalues. An empty value matches any value (existence-only).",
-          ),
-      }),
-    )
-    .optional(),
-  name: zod.string().optional(),
-  policyIds: zod.array(zod.string()).optional(),
-  serviceId: zod.string().optional(),
-  updatedAt: zod.iso.datetime({ offset: true }).optional(),
-  upstream: zod
-    .object({
-      address: zod.string().optional(),
-      tls: zod
-        .enum([
-          'TLS_MODE_UNSPECIFIED',
-          'TLS_MODE_OFF',
-          'TLS_MODE_AUTO',
-          'TLS_MODE_CUSTOM',
-          'TLS_MODE_INTERNAL',
-        ])
-        .default(replaceRouteBodyUpstreamTlsDefault),
-    })
-    .optional(),
-});
+  "createdAt": zod.iso.datetime({"offset":true}).optional(),
+  "enabled": zod.boolean().optional(),
+  "id": zod.string().optional(),
+  "labels": zod.object({
+  "labels": zod.record(zod.string(), zod.string()).optional()
+}).optional(),
+  "matchers": zod.array(zod.object({
+  "expression": zod.string().optional().describe('expression is a CEL expression evaluated against the request.\nCompiles to Caddy\'s `expression` matcher; empty means \"no\nexpression\". Use this for conditions that don\'t fit the simpler\nhost\/path\/method\/header\/query primitives — e.g. cross-field\nchecks, time-based routing, or value transforms.'),
+  "headers": zod.array(zod.object({
+  "invert": zod.boolean().optional(),
+  "name": zod.string().optional(),
+  "regexp": zod.boolean().optional().describe('regexp marks the value as a regex pattern. The compiler emits\n`header_regexp` instead of `header` for this entry. invert is\nignored for regexp entries (Caddy\'s header_regexp doesn\'t support\na \"!\" prefix); wrap the matcher in `not` instead.'),
+  "value": zod.string().optional()
+})).optional(),
+  "hosts": zod.array(zod.string()).optional(),
+  "methods": zod.array(zod.string()).optional(),
+  "not": zod.array(zod.unknown()).optional().describe('not is a list of nested Matcher sets that, when ANY matches the\nrequest, cause this Matcher to NOT match. Compiles to Caddy\'s\n`not` matcher (an array of nested match sets — OR semantics\nbetween entries; AND semantics within each entry\'s primitives).\nUseful for `match X but not Y`.'),
+  "paths": zod.array(zod.object({
+  "type": zod.enum(['TYPE_UNSPECIFIED', 'TYPE_EXACT', 'TYPE_PREFIX', 'TYPE_REGEXP']).default(replaceRouteBodyMatchersItemPathsItemTypeDefault),
+  "value": zod.string().optional()
+})).optional(),
+  "queries": zod.array(zod.object({
+  "key": zod.string().optional(),
+  "value": zod.string().optional()
+}).describe('QueryMatcher matches a single query string parameter. An empty\n`value` matches any value (existence-only). To match multiple\npermitted values for the same key, repeat the QueryMatcher with the\nsame `key` — the compiler folds them into a single\n`{ key: [v1, v2, ...] }` entry in Caddy.')).optional().describe('queries match against URL query string parameters. Compiles to\nCaddy\'s `query` matcher: a map of parameter name to permitted\nvalues. An empty value matches any value (existence-only).')
+})).optional(),
+  "name": zod.string().optional(),
+  "policyIds": zod.array(zod.string()).optional(),
+  "serviceId": zod.string().optional(),
+  "updatedAt": zod.iso.datetime({"offset":true}).optional(),
+  "upstream": zod.object({
+  "address": zod.string().optional(),
+  "tls": zod.enum(['TLS_MODE_UNSPECIFIED', 'TLS_MODE_OFF', 'TLS_MODE_AUTO', 'TLS_MODE_CUSTOM', 'TLS_MODE_INTERNAL']).default(replaceRouteBodyUpstreamTlsDefault)
+}).optional()
+})
 
 /**
  * @summary List policies bound to a route
  */
 export const listPoliciesByRoutePathTenantRegExp = new RegExp('^[a-z0-9-]+$');
 
+
 export const ListPoliciesByRouteParams = zod.object({
-  tenant: zod
-    .string()
-    .regex(listPoliciesByRoutePathTenantRegExp)
-    .describe('Tenant slug (e.g. `default`, `acme`).'),
-  id: zod.uuid().describe('Resource id (UUID).'),
-});
+  "tenant": zod.string().regex(listPoliciesByRoutePathTenantRegExp).describe('Tenant slug (e.g. `default`, `acme`).'),
+  "id": zod.uuid().describe('Resource id (UUID).')
+})
 
 /**
  * @summary Detach a policy from a route
  */
 export const detachPolicyFromRoutePathTenantRegExp = new RegExp('^[a-z0-9-]+$');
 
+
 export const DetachPolicyFromRouteParams = zod.object({
-  tenant: zod
-    .string()
-    .regex(detachPolicyFromRoutePathTenantRegExp)
-    .describe('Tenant slug (e.g. `default`, `acme`).'),
-  id: zod.uuid().describe('Resource id (UUID).'),
-  policyId: zod.string(),
-});
+  "tenant": zod.string().regex(detachPolicyFromRoutePathTenantRegExp).describe('Tenant slug (e.g. `default`, `acme`).'),
+  "id": zod.uuid().describe('Resource id (UUID).'),
+  "policyId": zod.string()
+})
 
 /**
  * @summary Attach a policy to a route
  */
 export const attachPolicyToRoutePathTenantRegExp = new RegExp('^[a-z0-9-]+$');
 
+
 export const AttachPolicyToRouteParams = zod.object({
-  tenant: zod
-    .string()
-    .regex(attachPolicyToRoutePathTenantRegExp)
-    .describe('Tenant slug (e.g. `default`, `acme`).'),
-  id: zod.uuid().describe('Resource id (UUID).'),
-  policyId: zod.string(),
-});
+  "tenant": zod.string().regex(attachPolicyToRoutePathTenantRegExp).describe('Tenant slug (e.g. `default`, `acme`).'),
+  "id": zod.uuid().describe('Resource id (UUID).'),
+  "policyId": zod.string()
+})
+

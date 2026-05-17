@@ -23,117 +23,90 @@ Conventions:
  */
 import * as zod from 'zod';
 
+
 /**
  * @summary Bulk update widget layouts after drag-drop reorder
  */
 export const updateDashboardLayoutPathTenantRegExp = new RegExp('^[a-z0-9-]+$');
 
+
 export const UpdateDashboardLayoutParams = zod.object({
-  tenant: zod
-    .string()
-    .regex(updateDashboardLayoutPathTenantRegExp)
-    .describe('Tenant slug (e.g. `default`, `acme`).'),
-  id: zod.uuid().describe('Resource id (UUID).'),
-});
+  "tenant": zod.string().regex(updateDashboardLayoutPathTenantRegExp).describe('Tenant slug (e.g. `default`, `acme`).'),
+  "id": zod.uuid().describe('Resource id (UUID).')
+})
 
 export const UpdateDashboardLayoutBody = zod.object({
-  layouts: zod
-    .record(
-      zod.string(),
-      zod.object({
-        h: zod.number().optional(),
-        w: zod.number().optional(),
-        x: zod.number().optional(),
-        y: zod.number().optional(),
-      }),
-    )
-    .describe(
-      'Map of widget id → layout `{x,y,w,h}` object. Sent as a single bulk update after drag-drop reorder.',
-    ),
-});
+  "layouts": zod.record(zod.string(), zod.object({
+  "h": zod.number().optional(),
+  "w": zod.number().optional(),
+  "x": zod.number().optional(),
+  "y": zod.number().optional()
+})).describe('Map of widget id → layout `{x,y,w,h}` object. Sent as a single bulk update after drag-drop reorder.')
+})
 
 /**
  * @summary List widgets for a dashboard
  */
 export const listWidgetsPathTenantRegExp = new RegExp('^[a-z0-9-]+$');
 
+
 export const ListWidgetsParams = zod.object({
-  tenant: zod
-    .string()
-    .regex(listWidgetsPathTenantRegExp)
-    .describe('Tenant slug (e.g. `default`, `acme`).'),
-  id: zod.uuid().describe('Resource id (UUID).'),
-});
+  "tenant": zod.string().regex(listWidgetsPathTenantRegExp).describe('Tenant slug (e.g. `default`, `acme`).'),
+  "id": zod.uuid().describe('Resource id (UUID).')
+})
 
 export const ListWidgetsResponse = zod.object({
-  items: zod.array(
-    zod.object({
-      config: zod.record(zod.string(), zod.unknown()),
-      createdAt: zod.iso.datetime({ offset: true }),
-      dashboardId: zod.string(),
-      dataSource: zod
-        .string()
-        .describe('Logical source: `promql`, `audit`, `notifications`, `traces`, etc.'),
-      id: zod.string(),
-      kind: zod
-        .string()
-        .describe('Widget kind. Built-ins: `line-chart`, `bar`, `single-stat`, `table`.'),
-      layout: zod.object({
-        h: zod.number(),
-        w: zod.number(),
-        x: zod.number(),
-        y: zod.number(),
-      }),
-      lockedAdvanced: zod
-        .boolean()
-        .describe(
-          'True when the user flipped the widget to advanced mode and the wizard form is locked.',
-        ),
-      rawQuery: zod
-        .string()
-        .nullish()
-        .describe('Raw PromQL or other query when `lockedAdvanced` is true.'),
-      title: zod.string(),
-      updatedAt: zod.iso.datetime({ offset: true }),
-    }),
-  ),
-  total: zod.number(),
-});
+  "items": zod.array(zod.object({
+  "config": zod.record(zod.string(), zod.unknown()),
+  "createdAt": zod.iso.datetime({"offset":true}),
+  "dashboardId": zod.string(),
+  "dataSource": zod.string().describe('Logical source: `promql`, `audit`, `notifications`, `traces`, etc.'),
+  "id": zod.string(),
+  "kind": zod.string().describe('Widget kind. Built-ins: `line-chart`, `bar`, `single-stat`, `table`.'),
+  "layout": zod.object({
+  "h": zod.number(),
+  "w": zod.number(),
+  "x": zod.number(),
+  "y": zod.number()
+}),
+  "lockedAdvanced": zod.boolean().describe('True when the user flipped the widget to advanced mode and the wizard form is locked.'),
+  "rawQuery": zod.string().nullish().describe('Raw PromQL or other query when `lockedAdvanced` is true.'),
+  "title": zod.string(),
+  "updatedAt": zod.iso.datetime({"offset":true})
+})),
+  "total": zod.number()
+})
 
 /**
  * @summary Add a widget to the dashboard
  */
 export const createWidgetPathTenantRegExp = new RegExp('^[a-z0-9-]+$');
 
+
 export const CreateWidgetParams = zod.object({
-  tenant: zod
-    .string()
-    .regex(createWidgetPathTenantRegExp)
-    .describe('Tenant slug (e.g. `default`, `acme`).'),
-  id: zod.uuid().describe('Resource id (UUID).'),
-});
+  "tenant": zod.string().regex(createWidgetPathTenantRegExp).describe('Tenant slug (e.g. `default`, `acme`).'),
+  "id": zod.uuid().describe('Resource id (UUID).')
+})
 
 export const CreateWidgetBody = zod.object({
-  config: zod.record(zod.string(), zod.unknown()).optional(),
-  dataSource: zod.string().optional(),
-  kind: zod.string(),
-  layout: zod.record(zod.string(), zod.unknown()).optional(),
-  title: zod.string(),
-});
+  "config": zod.record(zod.string(), zod.unknown()).optional(),
+  "dataSource": zod.string().optional(),
+  "kind": zod.string(),
+  "layout": zod.record(zod.string(), zod.unknown()).optional(),
+  "title": zod.string()
+})
 
 /**
  * @summary Remove a widget from a dashboard
  */
 export const deleteWidgetPathTenantRegExp = new RegExp('^[a-z0-9-]+$');
 
+
 export const DeleteWidgetParams = zod.object({
-  tenant: zod
-    .string()
-    .regex(deleteWidgetPathTenantRegExp)
-    .describe('Tenant slug (e.g. `default`, `acme`).'),
-  id: zod.uuid().describe('Resource id (UUID).'),
-  wid: zod.string(),
-});
+  "tenant": zod.string().regex(deleteWidgetPathTenantRegExp).describe('Tenant slug (e.g. `default`, `acme`).'),
+  "id": zod.uuid().describe('Resource id (UUID).'),
+  "wid": zod.string()
+})
 
 /**
  * Dashboard-builder query engine (#236, plan-16c). Reuses the
@@ -145,209 +118,150 @@ across tenants. Subject to a per-tenant token-bucket rate limit
  */
 export const queryWidgetPathTenantRegExp = new RegExp('^[a-z0-9-]+$');
 
+
 export const QueryWidgetParams = zod.object({
-  tenant: zod
-    .string()
-    .regex(queryWidgetPathTenantRegExp)
-    .describe('Tenant slug (e.g. `default`, `acme`).'),
-});
+  "tenant": zod.string().regex(queryWidgetPathTenantRegExp).describe('Tenant slug (e.g. `default`, `acme`).')
+})
 
-export const QueryWidgetBody = zod
-  .object({
-    end: zod.string().optional().describe('Range\/series query window end.'),
-    expr: zod.string().optional().describe('PromQL expression for instant\/range queries.'),
-    match: zod.array(zod.string()).optional().describe('Series query match[] selectors.'),
-    start: zod.string().optional().describe('Range\/series query window start.'),
-    step: zod.string().optional().describe('Range query step (e.g. `30s`, `1m`).'),
-    time: zod.string().optional().describe('Instant query timestamp (Prometheus-formatted).'),
-    type: zod.enum(['instant', 'range', 'series']),
-  })
-  .describe(
-    'Dashboard widget query body. The daemon dispatches to the\nPrometheus endpoint matching `type`:\n\n- `instant` → `\/api\/v1\/query` (uses `expr`, optional `time`)\n- `range`   → `\/api\/v1\/query_range` (uses `expr`, `start`, `end`, `step`)\n- `series`  → `\/api\/v1\/series` (uses `match[]`, optional `start`\/`end`)\n\nTenant isolation is enforced at the AST layer — every\nVectorSelector \/ `match[]` selector is rewritten with\n`tenant_id=\"<tenant>\"` and selected bypass patterns\n(label_replace targeting tenant_id, on\/ignoring with tenant_id,\nregex `__name__` matchers, mismatched explicit tenant_id) are\nrejected with HTTP 400.\n',
-  );
+export const QueryWidgetBody = zod.object({
+  "end": zod.string().optional().describe('Range\/series query window end.'),
+  "expr": zod.string().optional().describe('PromQL expression for instant\/range queries.'),
+  "match": zod.array(zod.string()).optional().describe('Series query match[] selectors.'),
+  "start": zod.string().optional().describe('Range\/series query window start.'),
+  "step": zod.string().optional().describe('Range query step (e.g. `30s`, `1m`).'),
+  "time": zod.string().optional().describe('Instant query timestamp (Prometheus-formatted).'),
+  "type": zod.enum(['instant', 'range', 'series'])
+}).describe('Dashboard widget query body. The daemon dispatches to the\nPrometheus endpoint matching `type`:\n\n- `instant` → `\/api\/v1\/query` (uses `expr`, optional `time`)\n- `range`   → `\/api\/v1\/query_range` (uses `expr`, `start`, `end`, `step`)\n- `series`  → `\/api\/v1\/series` (uses `match[]`, optional `start`\/`end`)\n\nTenant isolation is enforced at the AST layer — every\nVectorSelector \/ `match[]` selector is rewritten with\n`tenant_id=\"<tenant>\"` and selected bypass patterns\n(label_replace targeting tenant_id, on\/ignoring with tenant_id,\nregex `__name__` matchers, mismatched explicit tenant_id) are\nrejected with HTTP 400.\n')
 
-export const QueryWidgetResponse = zod
-  .record(zod.string(), zod.unknown())
-  .describe('Prometheus HTTP API response shape, forwarded verbatim with tenant-scoped data.');
+export const QueryWidgetResponse = zod.record(zod.string(), zod.unknown()).describe('Prometheus HTTP API response shape, forwarded verbatim with tenant-scoped data.')
 
 /**
  * @summary Patch a widget
  */
 export const patchWidgetPathTenantRegExp = new RegExp('^[a-z0-9-]+$');
 
+
 export const PatchWidgetParams = zod.object({
-  tenant: zod
-    .string()
-    .regex(patchWidgetPathTenantRegExp)
-    .describe('Tenant slug (e.g. `default`, `acme`).'),
-  id: zod.uuid().describe('Resource id (UUID).'),
-});
+  "tenant": zod.string().regex(patchWidgetPathTenantRegExp).describe('Tenant slug (e.g. `default`, `acme`).'),
+  "id": zod.uuid().describe('Resource id (UUID).')
+})
 
 export const PatchWidgetResponse = zod.object({
-  config: zod.record(zod.string(), zod.unknown()),
-  createdAt: zod.iso.datetime({ offset: true }),
-  dashboardId: zod.string(),
-  dataSource: zod
-    .string()
-    .describe('Logical source: `promql`, `audit`, `notifications`, `traces`, etc.'),
-  id: zod.string(),
-  kind: zod
-    .string()
-    .describe('Widget kind. Built-ins: `line-chart`, `bar`, `single-stat`, `table`.'),
-  layout: zod.object({
-    h: zod.number(),
-    w: zod.number(),
-    x: zod.number(),
-    y: zod.number(),
-  }),
-  lockedAdvanced: zod
-    .boolean()
-    .describe(
-      'True when the user flipped the widget to advanced mode and the wizard form is locked.',
-    ),
-  rawQuery: zod
-    .string()
-    .nullish()
-    .describe('Raw PromQL or other query when `lockedAdvanced` is true.'),
-  title: zod.string(),
-  updatedAt: zod.iso.datetime({ offset: true }),
-});
+  "config": zod.record(zod.string(), zod.unknown()),
+  "createdAt": zod.iso.datetime({"offset":true}),
+  "dashboardId": zod.string(),
+  "dataSource": zod.string().describe('Logical source: `promql`, `audit`, `notifications`, `traces`, etc.'),
+  "id": zod.string(),
+  "kind": zod.string().describe('Widget kind. Built-ins: `line-chart`, `bar`, `single-stat`, `table`.'),
+  "layout": zod.object({
+  "h": zod.number(),
+  "w": zod.number(),
+  "x": zod.number(),
+  "y": zod.number()
+}),
+  "lockedAdvanced": zod.boolean().describe('True when the user flipped the widget to advanced mode and the wizard form is locked.'),
+  "rawQuery": zod.string().nullish().describe('Raw PromQL or other query when `lockedAdvanced` is true.'),
+  "title": zod.string(),
+  "updatedAt": zod.iso.datetime({"offset":true})
+})
 
 /**
  * @summary Update a widget
  */
 export const updateWidgetPathTenantRegExp = new RegExp('^[a-z0-9-]+$');
 
+
 export const UpdateWidgetParams = zod.object({
-  tenant: zod
-    .string()
-    .regex(updateWidgetPathTenantRegExp)
-    .describe('Tenant slug (e.g. `default`, `acme`).'),
-  id: zod.uuid().describe('Resource id (UUID).'),
-});
+  "tenant": zod.string().regex(updateWidgetPathTenantRegExp).describe('Tenant slug (e.g. `default`, `acme`).'),
+  "id": zod.uuid().describe('Resource id (UUID).')
+})
 
 export const UpdateWidgetBody = zod.object({
-  config: zod.record(zod.string(), zod.unknown()).optional(),
-  dataSource: zod.string().optional(),
-  kind: zod.string().optional(),
-  layout: zod.record(zod.string(), zod.unknown()).optional(),
-  lockedAdvanced: zod.boolean().optional(),
-  rawQuery: zod.string().nullish(),
-  title: zod.string().optional(),
-});
+  "config": zod.record(zod.string(), zod.unknown()).optional(),
+  "dataSource": zod.string().optional(),
+  "kind": zod.string().optional(),
+  "layout": zod.record(zod.string(), zod.unknown()).optional(),
+  "lockedAdvanced": zod.boolean().optional(),
+  "rawQuery": zod.string().nullish(),
+  "title": zod.string().optional()
+})
 
 export const UpdateWidgetResponse = zod.object({
-  config: zod.record(zod.string(), zod.unknown()),
-  createdAt: zod.iso.datetime({ offset: true }),
-  dashboardId: zod.string(),
-  dataSource: zod
-    .string()
-    .describe('Logical source: `promql`, `audit`, `notifications`, `traces`, etc.'),
-  id: zod.string(),
-  kind: zod
-    .string()
-    .describe('Widget kind. Built-ins: `line-chart`, `bar`, `single-stat`, `table`.'),
-  layout: zod.object({
-    h: zod.number(),
-    w: zod.number(),
-    x: zod.number(),
-    y: zod.number(),
-  }),
-  lockedAdvanced: zod
-    .boolean()
-    .describe(
-      'True when the user flipped the widget to advanced mode and the wizard form is locked.',
-    ),
-  rawQuery: zod
-    .string()
-    .nullish()
-    .describe('Raw PromQL or other query when `lockedAdvanced` is true.'),
-  title: zod.string(),
-  updatedAt: zod.iso.datetime({ offset: true }),
-});
+  "config": zod.record(zod.string(), zod.unknown()),
+  "createdAt": zod.iso.datetime({"offset":true}),
+  "dashboardId": zod.string(),
+  "dataSource": zod.string().describe('Logical source: `promql`, `audit`, `notifications`, `traces`, etc.'),
+  "id": zod.string(),
+  "kind": zod.string().describe('Widget kind. Built-ins: `line-chart`, `bar`, `single-stat`, `table`.'),
+  "layout": zod.object({
+  "h": zod.number(),
+  "w": zod.number(),
+  "x": zod.number(),
+  "y": zod.number()
+}),
+  "lockedAdvanced": zod.boolean().describe('True when the user flipped the widget to advanced mode and the wizard form is locked.'),
+  "rawQuery": zod.string().nullish().describe('Raw PromQL or other query when `lockedAdvanced` is true.'),
+  "title": zod.string(),
+  "updatedAt": zod.iso.datetime({"offset":true})
+})
 
 /**
  * @summary Lock the widget into advanced (raw query) mode
  */
 export const flipWidgetAdvancedPathTenantRegExp = new RegExp('^[a-z0-9-]+$');
 
+
 export const FlipWidgetAdvancedParams = zod.object({
-  tenant: zod
-    .string()
-    .regex(flipWidgetAdvancedPathTenantRegExp)
-    .describe('Tenant slug (e.g. `default`, `acme`).'),
-  id: zod.uuid().describe('Resource id (UUID).'),
-});
+  "tenant": zod.string().regex(flipWidgetAdvancedPathTenantRegExp).describe('Tenant slug (e.g. `default`, `acme`).'),
+  "id": zod.uuid().describe('Resource id (UUID).')
+})
 
 export const FlipWidgetAdvancedResponse = zod.object({
-  config: zod.record(zod.string(), zod.unknown()),
-  createdAt: zod.iso.datetime({ offset: true }),
-  dashboardId: zod.string(),
-  dataSource: zod
-    .string()
-    .describe('Logical source: `promql`, `audit`, `notifications`, `traces`, etc.'),
-  id: zod.string(),
-  kind: zod
-    .string()
-    .describe('Widget kind. Built-ins: `line-chart`, `bar`, `single-stat`, `table`.'),
-  layout: zod.object({
-    h: zod.number(),
-    w: zod.number(),
-    x: zod.number(),
-    y: zod.number(),
-  }),
-  lockedAdvanced: zod
-    .boolean()
-    .describe(
-      'True when the user flipped the widget to advanced mode and the wizard form is locked.',
-    ),
-  rawQuery: zod
-    .string()
-    .nullish()
-    .describe('Raw PromQL or other query when `lockedAdvanced` is true.'),
-  title: zod.string(),
-  updatedAt: zod.iso.datetime({ offset: true }),
-});
+  "config": zod.record(zod.string(), zod.unknown()),
+  "createdAt": zod.iso.datetime({"offset":true}),
+  "dashboardId": zod.string(),
+  "dataSource": zod.string().describe('Logical source: `promql`, `audit`, `notifications`, `traces`, etc.'),
+  "id": zod.string(),
+  "kind": zod.string().describe('Widget kind. Built-ins: `line-chart`, `bar`, `single-stat`, `table`.'),
+  "layout": zod.object({
+  "h": zod.number(),
+  "w": zod.number(),
+  "x": zod.number(),
+  "y": zod.number()
+}),
+  "lockedAdvanced": zod.boolean().describe('True when the user flipped the widget to advanced mode and the wizard form is locked.'),
+  "rawQuery": zod.string().nullish().describe('Raw PromQL or other query when `lockedAdvanced` is true.'),
+  "title": zod.string(),
+  "updatedAt": zod.iso.datetime({"offset":true})
+})
 
 /**
  * @summary Unlock the widget back to wizard (form) mode
  */
 export const flipWidgetWizardPathTenantRegExp = new RegExp('^[a-z0-9-]+$');
 
+
 export const FlipWidgetWizardParams = zod.object({
-  tenant: zod
-    .string()
-    .regex(flipWidgetWizardPathTenantRegExp)
-    .describe('Tenant slug (e.g. `default`, `acme`).'),
-  id: zod.uuid().describe('Resource id (UUID).'),
-});
+  "tenant": zod.string().regex(flipWidgetWizardPathTenantRegExp).describe('Tenant slug (e.g. `default`, `acme`).'),
+  "id": zod.uuid().describe('Resource id (UUID).')
+})
 
 export const FlipWidgetWizardResponse = zod.object({
-  config: zod.record(zod.string(), zod.unknown()),
-  createdAt: zod.iso.datetime({ offset: true }),
-  dashboardId: zod.string(),
-  dataSource: zod
-    .string()
-    .describe('Logical source: `promql`, `audit`, `notifications`, `traces`, etc.'),
-  id: zod.string(),
-  kind: zod
-    .string()
-    .describe('Widget kind. Built-ins: `line-chart`, `bar`, `single-stat`, `table`.'),
-  layout: zod.object({
-    h: zod.number(),
-    w: zod.number(),
-    x: zod.number(),
-    y: zod.number(),
-  }),
-  lockedAdvanced: zod
-    .boolean()
-    .describe(
-      'True when the user flipped the widget to advanced mode and the wizard form is locked.',
-    ),
-  rawQuery: zod
-    .string()
-    .nullish()
-    .describe('Raw PromQL or other query when `lockedAdvanced` is true.'),
-  title: zod.string(),
-  updatedAt: zod.iso.datetime({ offset: true }),
-});
+  "config": zod.record(zod.string(), zod.unknown()),
+  "createdAt": zod.iso.datetime({"offset":true}),
+  "dashboardId": zod.string(),
+  "dataSource": zod.string().describe('Logical source: `promql`, `audit`, `notifications`, `traces`, etc.'),
+  "id": zod.string(),
+  "kind": zod.string().describe('Widget kind. Built-ins: `line-chart`, `bar`, `single-stat`, `table`.'),
+  "layout": zod.object({
+  "h": zod.number(),
+  "w": zod.number(),
+  "x": zod.number(),
+  "y": zod.number()
+}),
+  "lockedAdvanced": zod.boolean().describe('True when the user flipped the widget to advanced mode and the wizard form is locked.'),
+  "rawQuery": zod.string().nullish().describe('Raw PromQL or other query when `lockedAdvanced` is true.'),
+  "title": zod.string(),
+  "updatedAt": zod.iso.datetime({"offset":true})
+})
+

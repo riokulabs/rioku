@@ -23,392 +23,375 @@ Conventions:
  */
 import * as zod from 'zod';
 
+
 export const AIGatewayServiceListVirtualKeysResponse = zod.object({
-  virtualKeys: zod
-    .array(
-      zod.object({
-        allowedModels: zod.array(zod.string()).optional(),
-        budgetUsd: zod.number().optional(),
-        budgetWindow: zod.string().optional(),
-        createdAt: zod.iso.datetime({ offset: true }).optional(),
-        createdBy: zod.string().optional(),
-        credentialRef: zod.string().optional(),
-        id: zod.string().optional(),
-        name: zod.string().optional(),
-        providerId: zod.string().optional(),
-        revokedAt: zod.iso.datetime({ offset: true }).optional(),
-        rpmLimit: zod.number().optional(),
-        tenantId: zod.string().optional(),
-        tpmLimit: zod.number().optional(),
-        updatedAt: zod.iso.datetime({ offset: true }).optional(),
-      }),
-    )
-    .optional(),
-});
+  "virtualKeys": zod.array(zod.object({
+  "allowedModels": zod.array(zod.string()).optional(),
+  "budgetUsd": zod.number().optional(),
+  "budgetWindow": zod.string().optional(),
+  "createdAt": zod.iso.datetime({"offset":true}).optional(),
+  "createdBy": zod.string().optional(),
+  "credentialRef": zod.string().optional(),
+  "id": zod.string().optional(),
+  "name": zod.string().optional(),
+  "providerId": zod.string().optional(),
+  "revokedAt": zod.iso.datetime({"offset":true}).optional(),
+  "rpmLimit": zod.number().optional(),
+  "tenantId": zod.string().optional(),
+  "tpmLimit": zod.number().optional(),
+  "updatedAt": zod.iso.datetime({"offset":true}).optional()
+})).optional()
+})
 
 /**
  * @summary Virtual keys
  */
 export const AIGatewayServiceCreateVirtualKeyBody = zod.object({
-  allowedModels: zod.array(zod.string()).optional(),
-  budgetUsd: zod.number().optional(),
-  budgetWindow: zod.string().optional(),
-  credentialRef: zod.string().optional(),
-  id: zod.string().optional(),
-  name: zod.string().optional(),
-  providerId: zod.string().optional(),
-  rpmLimit: zod.number().optional(),
-  tpmLimit: zod.number().optional(),
-});
+  "allowedModels": zod.array(zod.string()).optional(),
+  "budgetUsd": zod.number().optional(),
+  "budgetWindow": zod.string().optional(),
+  "credentialRef": zod.string().optional(),
+  "id": zod.string().optional(),
+  "name": zod.string().optional(),
+  "providerId": zod.string().optional(),
+  "rpmLimit": zod.number().optional(),
+  "tpmLimit": zod.number().optional()
+})
 
 export const AIGatewayServiceCreateVirtualKeyResponse = zod.object({
-  allowedModels: zod.array(zod.string()).optional(),
-  budgetUsd: zod.number().optional(),
-  budgetWindow: zod.string().optional(),
-  createdAt: zod.iso.datetime({ offset: true }).optional(),
-  createdBy: zod.string().optional(),
-  credentialRef: zod.string().optional(),
-  id: zod.string().optional(),
-  name: zod.string().optional(),
-  providerId: zod.string().optional(),
-  revokedAt: zod.iso.datetime({ offset: true }).optional(),
-  rpmLimit: zod.number().optional(),
-  tenantId: zod.string().optional(),
-  tpmLimit: zod.number().optional(),
-  updatedAt: zod.iso.datetime({ offset: true }).optional(),
-});
+  "allowedModels": zod.array(zod.string()).optional(),
+  "budgetUsd": zod.number().optional(),
+  "budgetWindow": zod.string().optional(),
+  "createdAt": zod.iso.datetime({"offset":true}).optional(),
+  "createdBy": zod.string().optional(),
+  "credentialRef": zod.string().optional(),
+  "id": zod.string().optional(),
+  "name": zod.string().optional(),
+  "providerId": zod.string().optional(),
+  "revokedAt": zod.iso.datetime({"offset":true}).optional(),
+  "rpmLimit": zod.number().optional(),
+  "tenantId": zod.string().optional(),
+  "tpmLimit": zod.number().optional(),
+  "updatedAt": zod.iso.datetime({"offset":true}).optional()
+})
 
 export const AIGatewayServiceDeleteVirtualKeyParams = zod.object({
-  id: zod.string(),
-});
+  "id": zod.string()
+})
 
 export const AIGatewayServiceDeleteVirtualKeyResponse = zod.object({
-  actor: zod.string().optional(),
-  configVersion: zod.string().optional(),
-  mutatedAt: zod.iso.datetime({ offset: true }).optional(),
-});
+  "actor": zod.string().optional(),
+  "configVersion": zod.string().optional(),
+  "mutatedAt": zod.iso.datetime({"offset":true}).optional()
+})
 
 export const AIGatewayServiceGetVirtualKeyParams = zod.object({
-  id: zod.string(),
-});
+  "id": zod.string()
+})
 
 export const AIGatewayServiceGetVirtualKeyResponse = zod.object({
-  allowedModels: zod.array(zod.string()).optional(),
-  budgetUsd: zod.number().optional(),
-  budgetWindow: zod.string().optional(),
-  createdAt: zod.iso.datetime({ offset: true }).optional(),
-  createdBy: zod.string().optional(),
-  credentialRef: zod.string().optional(),
-  id: zod.string().optional(),
-  name: zod.string().optional(),
-  providerId: zod.string().optional(),
-  revokedAt: zod.iso.datetime({ offset: true }).optional(),
-  rpmLimit: zod.number().optional(),
-  tenantId: zod.string().optional(),
-  tpmLimit: zod.number().optional(),
-  updatedAt: zod.iso.datetime({ offset: true }).optional(),
-});
+  "allowedModels": zod.array(zod.string()).optional(),
+  "budgetUsd": zod.number().optional(),
+  "budgetWindow": zod.string().optional(),
+  "createdAt": zod.iso.datetime({"offset":true}).optional(),
+  "createdBy": zod.string().optional(),
+  "credentialRef": zod.string().optional(),
+  "id": zod.string().optional(),
+  "name": zod.string().optional(),
+  "providerId": zod.string().optional(),
+  "revokedAt": zod.iso.datetime({"offset":true}).optional(),
+  "rpmLimit": zod.number().optional(),
+  "tenantId": zod.string().optional(),
+  "tpmLimit": zod.number().optional(),
+  "updatedAt": zod.iso.datetime({"offset":true}).optional()
+})
 
 export const AIGatewayServiceUpdateVirtualKeyParams = zod.object({
-  id: zod.string(),
-});
+  "id": zod.string()
+})
 
 export const AIGatewayServiceUpdateVirtualKeyBody = zod.object({
-  allowedModels: zod
-    .array(zod.string())
-    .optional()
-    .describe(
-      'To clear allowed_models replace with an empty list and set\nreplace_allowed_models = true (clients must be explicit so an\nunset list does not accidentally drop the existing filter).',
-    ),
-  budgetUsd: zod.number().optional(),
-  budgetWindow: zod.string().optional(),
-  credentialRef: zod.string().optional(),
-  name: zod.string().optional(),
-  providerId: zod.string().optional(),
-  replaceAllowedModels: zod.boolean().optional(),
-  rpmLimit: zod.number().optional(),
-  tpmLimit: zod.number().optional(),
-});
+  "allowedModels": zod.array(zod.string()).optional().describe('To clear allowed_models replace with an empty list and set\nreplace_allowed_models = true (clients must be explicit so an\nunset list does not accidentally drop the existing filter).'),
+  "budgetUsd": zod.number().optional(),
+  "budgetWindow": zod.string().optional(),
+  "credentialRef": zod.string().optional(),
+  "name": zod.string().optional(),
+  "providerId": zod.string().optional(),
+  "replaceAllowedModels": zod.boolean().optional(),
+  "rpmLimit": zod.number().optional(),
+  "tpmLimit": zod.number().optional()
+})
 
 export const AIGatewayServiceUpdateVirtualKeyResponse = zod.object({
-  allowedModels: zod.array(zod.string()).optional(),
-  budgetUsd: zod.number().optional(),
-  budgetWindow: zod.string().optional(),
-  createdAt: zod.iso.datetime({ offset: true }).optional(),
-  createdBy: zod.string().optional(),
-  credentialRef: zod.string().optional(),
-  id: zod.string().optional(),
-  name: zod.string().optional(),
-  providerId: zod.string().optional(),
-  revokedAt: zod.iso.datetime({ offset: true }).optional(),
-  rpmLimit: zod.number().optional(),
-  tenantId: zod.string().optional(),
-  tpmLimit: zod.number().optional(),
-  updatedAt: zod.iso.datetime({ offset: true }).optional(),
-});
+  "allowedModels": zod.array(zod.string()).optional(),
+  "budgetUsd": zod.number().optional(),
+  "budgetWindow": zod.string().optional(),
+  "createdAt": zod.iso.datetime({"offset":true}).optional(),
+  "createdBy": zod.string().optional(),
+  "credentialRef": zod.string().optional(),
+  "id": zod.string().optional(),
+  "name": zod.string().optional(),
+  "providerId": zod.string().optional(),
+  "revokedAt": zod.iso.datetime({"offset":true}).optional(),
+  "rpmLimit": zod.number().optional(),
+  "tenantId": zod.string().optional(),
+  "tpmLimit": zod.number().optional(),
+  "updatedAt": zod.iso.datetime({"offset":true}).optional()
+})
 
 export const AIGatewayServiceRevokeVirtualKeyParams = zod.object({
-  id: zod.string(),
-});
+  "id": zod.string()
+})
 
-export const AIGatewayServiceRevokeVirtualKeyBody = zod.looseObject({});
+export const AIGatewayServiceRevokeVirtualKeyBody = zod.looseObject({
+
+})
 
 export const AIGatewayServiceRevokeVirtualKeyResponse = zod.object({
-  actor: zod.string().optional(),
-  configVersion: zod.string().optional(),
-  mutatedAt: zod.iso.datetime({ offset: true }).optional(),
-});
+  "actor": zod.string().optional(),
+  "configVersion": zod.string().optional(),
+  "mutatedAt": zod.iso.datetime({"offset":true}).optional()
+})
 
 export const AIGatewayServiceRotateVirtualKeyParams = zod.object({
-  id: zod.string(),
-});
+  "id": zod.string()
+})
 
 export const AIGatewayServiceRotateVirtualKeyBody = zod.object({
-  newCredentialRef: zod.string().optional(),
-});
+  "newCredentialRef": zod.string().optional()
+})
 
 export const AIGatewayServiceRotateVirtualKeyResponse = zod.object({
-  allowedModels: zod.array(zod.string()).optional(),
-  budgetUsd: zod.number().optional(),
-  budgetWindow: zod.string().optional(),
-  createdAt: zod.iso.datetime({ offset: true }).optional(),
-  createdBy: zod.string().optional(),
-  credentialRef: zod.string().optional(),
-  id: zod.string().optional(),
-  name: zod.string().optional(),
-  providerId: zod.string().optional(),
-  revokedAt: zod.iso.datetime({ offset: true }).optional(),
-  rpmLimit: zod.number().optional(),
-  tenantId: zod.string().optional(),
-  tpmLimit: zod.number().optional(),
-  updatedAt: zod.iso.datetime({ offset: true }).optional(),
-});
+  "allowedModels": zod.array(zod.string()).optional(),
+  "budgetUsd": zod.number().optional(),
+  "budgetWindow": zod.string().optional(),
+  "createdAt": zod.iso.datetime({"offset":true}).optional(),
+  "createdBy": zod.string().optional(),
+  "credentialRef": zod.string().optional(),
+  "id": zod.string().optional(),
+  "name": zod.string().optional(),
+  "providerId": zod.string().optional(),
+  "revokedAt": zod.iso.datetime({"offset":true}).optional(),
+  "rpmLimit": zod.number().optional(),
+  "tenantId": zod.string().optional(),
+  "tpmLimit": zod.number().optional(),
+  "updatedAt": zod.iso.datetime({"offset":true}).optional()
+})
 
 export const AIGatewayServiceRemoveMCPTeamPermissionParams = zod.object({
-  id: zod.string(),
-});
+  "id": zod.string()
+})
 
 export const AIGatewayServiceRemoveMCPTeamPermissionResponse = zod.object({
-  actor: zod.string().optional(),
-  configVersion: zod.string().optional(),
-  mutatedAt: zod.iso.datetime({ offset: true }).optional(),
-});
+  "actor": zod.string().optional(),
+  "configVersion": zod.string().optional(),
+  "mutatedAt": zod.iso.datetime({"offset":true}).optional()
+})
 
 export const AIGatewayServiceListMCPRoutesResponse = zod.object({
-  routes: zod
-    .array(
-      zod.object({
-        authPassthrough: zod.string().optional(),
-        createdAt: zod.iso.datetime({ offset: true }).optional(),
-        enabled: zod.boolean().optional(),
-        hostname: zod.string().optional(),
-        id: zod.string().optional(),
-        mcpServerId: zod.string().optional(),
-        name: zod.string().optional(),
-        pathPrefix: zod.string().optional(),
-        tenantId: zod.string().optional(),
-        updatedAt: zod.iso.datetime({ offset: true }).optional(),
-      }),
-    )
-    .optional(),
-});
+  "routes": zod.array(zod.object({
+  "authPassthrough": zod.string().optional(),
+  "createdAt": zod.iso.datetime({"offset":true}).optional(),
+  "enabled": zod.boolean().optional(),
+  "hostname": zod.string().optional(),
+  "id": zod.string().optional(),
+  "mcpServerId": zod.string().optional(),
+  "name": zod.string().optional(),
+  "pathPrefix": zod.string().optional(),
+  "tenantId": zod.string().optional(),
+  "updatedAt": zod.iso.datetime({"offset":true}).optional()
+})).optional()
+})
 
 /**
  * @summary MCP routes
  */
 export const AIGatewayServiceCreateMCPRouteBody = zod.object({
-  authPassthrough: zod.string().optional(),
-  enabled: zod.boolean().optional(),
-  hostname: zod.string().optional(),
-  id: zod.string().optional(),
-  mcpServerId: zod.string().optional(),
-  name: zod.string().optional(),
-  pathPrefix: zod.string().optional(),
-});
+  "authPassthrough": zod.string().optional(),
+  "enabled": zod.boolean().optional(),
+  "hostname": zod.string().optional(),
+  "id": zod.string().optional(),
+  "mcpServerId": zod.string().optional(),
+  "name": zod.string().optional(),
+  "pathPrefix": zod.string().optional()
+})
 
 export const AIGatewayServiceCreateMCPRouteResponse = zod.object({
-  authPassthrough: zod.string().optional(),
-  createdAt: zod.iso.datetime({ offset: true }).optional(),
-  enabled: zod.boolean().optional(),
-  hostname: zod.string().optional(),
-  id: zod.string().optional(),
-  mcpServerId: zod.string().optional(),
-  name: zod.string().optional(),
-  pathPrefix: zod.string().optional(),
-  tenantId: zod.string().optional(),
-  updatedAt: zod.iso.datetime({ offset: true }).optional(),
-});
+  "authPassthrough": zod.string().optional(),
+  "createdAt": zod.iso.datetime({"offset":true}).optional(),
+  "enabled": zod.boolean().optional(),
+  "hostname": zod.string().optional(),
+  "id": zod.string().optional(),
+  "mcpServerId": zod.string().optional(),
+  "name": zod.string().optional(),
+  "pathPrefix": zod.string().optional(),
+  "tenantId": zod.string().optional(),
+  "updatedAt": zod.iso.datetime({"offset":true}).optional()
+})
 
 export const AIGatewayServiceDeleteMCPRouteParams = zod.object({
-  id: zod.string(),
-});
+  "id": zod.string()
+})
 
 export const AIGatewayServiceDeleteMCPRouteResponse = zod.object({
-  actor: zod.string().optional(),
-  configVersion: zod.string().optional(),
-  mutatedAt: zod.iso.datetime({ offset: true }).optional(),
-});
+  "actor": zod.string().optional(),
+  "configVersion": zod.string().optional(),
+  "mutatedAt": zod.iso.datetime({"offset":true}).optional()
+})
 
 export const AIGatewayServiceGetMCPRouteParams = zod.object({
-  id: zod.string(),
-});
+  "id": zod.string()
+})
 
 export const AIGatewayServiceGetMCPRouteResponse = zod.object({
-  authPassthrough: zod.string().optional(),
-  createdAt: zod.iso.datetime({ offset: true }).optional(),
-  enabled: zod.boolean().optional(),
-  hostname: zod.string().optional(),
-  id: zod.string().optional(),
-  mcpServerId: zod.string().optional(),
-  name: zod.string().optional(),
-  pathPrefix: zod.string().optional(),
-  tenantId: zod.string().optional(),
-  updatedAt: zod.iso.datetime({ offset: true }).optional(),
-});
+  "authPassthrough": zod.string().optional(),
+  "createdAt": zod.iso.datetime({"offset":true}).optional(),
+  "enabled": zod.boolean().optional(),
+  "hostname": zod.string().optional(),
+  "id": zod.string().optional(),
+  "mcpServerId": zod.string().optional(),
+  "name": zod.string().optional(),
+  "pathPrefix": zod.string().optional(),
+  "tenantId": zod.string().optional(),
+  "updatedAt": zod.iso.datetime({"offset":true}).optional()
+})
 
 export const AIGatewayServiceUpdateMCPRouteParams = zod.object({
-  id: zod.string(),
-});
+  "id": zod.string()
+})
 
 export const AIGatewayServiceUpdateMCPRouteBody = zod.object({
-  authPassthrough: zod.string().optional(),
-  enabled: zod.boolean().optional(),
-  hostname: zod.string().optional(),
-  mcpServerId: zod.string().optional(),
-  name: zod.string().optional(),
-  pathPrefix: zod.string().optional(),
-});
+  "authPassthrough": zod.string().optional(),
+  "enabled": zod.boolean().optional(),
+  "hostname": zod.string().optional(),
+  "mcpServerId": zod.string().optional(),
+  "name": zod.string().optional(),
+  "pathPrefix": zod.string().optional()
+})
 
 export const AIGatewayServiceUpdateMCPRouteResponse = zod.object({
-  authPassthrough: zod.string().optional(),
-  createdAt: zod.iso.datetime({ offset: true }).optional(),
-  enabled: zod.boolean().optional(),
-  hostname: zod.string().optional(),
-  id: zod.string().optional(),
-  mcpServerId: zod.string().optional(),
-  name: zod.string().optional(),
-  pathPrefix: zod.string().optional(),
-  tenantId: zod.string().optional(),
-  updatedAt: zod.iso.datetime({ offset: true }).optional(),
-});
+  "authPassthrough": zod.string().optional(),
+  "createdAt": zod.iso.datetime({"offset":true}).optional(),
+  "enabled": zod.boolean().optional(),
+  "hostname": zod.string().optional(),
+  "id": zod.string().optional(),
+  "mcpServerId": zod.string().optional(),
+  "name": zod.string().optional(),
+  "pathPrefix": zod.string().optional(),
+  "tenantId": zod.string().optional(),
+  "updatedAt": zod.iso.datetime({"offset":true}).optional()
+})
 
 export const AIGatewayServiceListMCPTeamsResponse = zod.object({
-  teams: zod
-    .array(
-      zod.object({
-        createdAt: zod.iso.datetime({ offset: true }).optional(),
-        description: zod.string().optional(),
-        id: zod.string().optional(),
-        name: zod.string().optional(),
-        status: zod.string().optional(),
-        tenantId: zod.string().optional(),
-        updatedAt: zod.iso.datetime({ offset: true }).optional(),
-      }),
-    )
-    .optional(),
-});
+  "teams": zod.array(zod.object({
+  "createdAt": zod.iso.datetime({"offset":true}).optional(),
+  "description": zod.string().optional(),
+  "id": zod.string().optional(),
+  "name": zod.string().optional(),
+  "status": zod.string().optional(),
+  "tenantId": zod.string().optional(),
+  "updatedAt": zod.iso.datetime({"offset":true}).optional()
+})).optional()
+})
 
 /**
  * @summary MCP teams
  */
 export const AIGatewayServiceCreateMCPTeamBody = zod.object({
-  description: zod.string().optional(),
-  id: zod.string().optional(),
-  name: zod.string().optional(),
-  status: zod.string().optional(),
-});
+  "description": zod.string().optional(),
+  "id": zod.string().optional(),
+  "name": zod.string().optional(),
+  "status": zod.string().optional()
+})
 
 export const AIGatewayServiceCreateMCPTeamResponse = zod.object({
-  createdAt: zod.iso.datetime({ offset: true }).optional(),
-  description: zod.string().optional(),
-  id: zod.string().optional(),
-  name: zod.string().optional(),
-  status: zod.string().optional(),
-  tenantId: zod.string().optional(),
-  updatedAt: zod.iso.datetime({ offset: true }).optional(),
-});
+  "createdAt": zod.iso.datetime({"offset":true}).optional(),
+  "description": zod.string().optional(),
+  "id": zod.string().optional(),
+  "name": zod.string().optional(),
+  "status": zod.string().optional(),
+  "tenantId": zod.string().optional(),
+  "updatedAt": zod.iso.datetime({"offset":true}).optional()
+})
 
 export const AIGatewayServiceDeleteMCPTeamParams = zod.object({
-  id: zod.string(),
-});
+  "id": zod.string()
+})
 
 export const AIGatewayServiceDeleteMCPTeamResponse = zod.object({
-  actor: zod.string().optional(),
-  configVersion: zod.string().optional(),
-  mutatedAt: zod.iso.datetime({ offset: true }).optional(),
-});
+  "actor": zod.string().optional(),
+  "configVersion": zod.string().optional(),
+  "mutatedAt": zod.iso.datetime({"offset":true}).optional()
+})
 
 export const AIGatewayServiceGetMCPTeamParams = zod.object({
-  id: zod.string(),
-});
+  "id": zod.string()
+})
 
 export const AIGatewayServiceGetMCPTeamResponse = zod.object({
-  createdAt: zod.iso.datetime({ offset: true }).optional(),
-  description: zod.string().optional(),
-  id: zod.string().optional(),
-  name: zod.string().optional(),
-  status: zod.string().optional(),
-  tenantId: zod.string().optional(),
-  updatedAt: zod.iso.datetime({ offset: true }).optional(),
-});
+  "createdAt": zod.iso.datetime({"offset":true}).optional(),
+  "description": zod.string().optional(),
+  "id": zod.string().optional(),
+  "name": zod.string().optional(),
+  "status": zod.string().optional(),
+  "tenantId": zod.string().optional(),
+  "updatedAt": zod.iso.datetime({"offset":true}).optional()
+})
 
 export const AIGatewayServiceUpdateMCPTeamParams = zod.object({
-  id: zod.string(),
-});
+  "id": zod.string()
+})
 
 export const AIGatewayServiceUpdateMCPTeamBody = zod.object({
-  description: zod.string().optional(),
-  name: zod.string().optional(),
-  status: zod.string().optional(),
-});
+  "description": zod.string().optional(),
+  "name": zod.string().optional(),
+  "status": zod.string().optional()
+})
 
 export const AIGatewayServiceUpdateMCPTeamResponse = zod.object({
-  createdAt: zod.iso.datetime({ offset: true }).optional(),
-  description: zod.string().optional(),
-  id: zod.string().optional(),
-  name: zod.string().optional(),
-  status: zod.string().optional(),
-  tenantId: zod.string().optional(),
-  updatedAt: zod.iso.datetime({ offset: true }).optional(),
-});
+  "createdAt": zod.iso.datetime({"offset":true}).optional(),
+  "description": zod.string().optional(),
+  "id": zod.string().optional(),
+  "name": zod.string().optional(),
+  "status": zod.string().optional(),
+  "tenantId": zod.string().optional(),
+  "updatedAt": zod.iso.datetime({"offset":true}).optional()
+})
 
 export const AIGatewayServiceListMCPTeamPermissionsParams = zod.object({
-  teamId: zod.string(),
-});
+  "teamId": zod.string()
+})
 
 export const AIGatewayServiceListMCPTeamPermissionsResponse = zod.object({
-  permissions: zod
-    .array(
-      zod.object({
-        createdAt: zod.iso.datetime({ offset: true }).optional(),
-        id: zod.string().optional(),
-        mcpServerId: zod.string().optional(),
-        teamId: zod.string().optional(),
-        tenantId: zod.string().optional(),
-        toolName: zod.string().optional(),
-      }),
-    )
-    .optional(),
-});
+  "permissions": zod.array(zod.object({
+  "createdAt": zod.iso.datetime({"offset":true}).optional(),
+  "id": zod.string().optional(),
+  "mcpServerId": zod.string().optional(),
+  "teamId": zod.string().optional(),
+  "tenantId": zod.string().optional(),
+  "toolName": zod.string().optional()
+})).optional()
+})
 
 /**
  * @summary MCP team permissions
  */
 export const AIGatewayServiceAddMCPTeamPermissionParams = zod.object({
-  teamId: zod.string(),
-});
+  "teamId": zod.string()
+})
 
 export const AIGatewayServiceAddMCPTeamPermissionBody = zod.object({
-  id: zod.string().optional(),
-  mcpServerId: zod.string().optional(),
-  toolName: zod.string().optional(),
-});
+  "id": zod.string().optional(),
+  "mcpServerId": zod.string().optional(),
+  "toolName": zod.string().optional()
+})
 
 export const AIGatewayServiceAddMCPTeamPermissionResponse = zod.object({
-  createdAt: zod.iso.datetime({ offset: true }).optional(),
-  id: zod.string().optional(),
-  mcpServerId: zod.string().optional(),
-  teamId: zod.string().optional(),
-  tenantId: zod.string().optional(),
-  toolName: zod.string().optional(),
-});
+  "createdAt": zod.iso.datetime({"offset":true}).optional(),
+  "id": zod.string().optional(),
+  "mcpServerId": zod.string().optional(),
+  "teamId": zod.string().optional(),
+  "tenantId": zod.string().optional(),
+  "toolName": zod.string().optional()
+})
+

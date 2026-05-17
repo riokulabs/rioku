@@ -23,37 +23,28 @@ Conventions:
  */
 import * as zod from 'zod';
 
+
 export const WAFServiceListWAFDenialsQueryParams = zod.object({
-  routeId: zod.string().optional().describe('Optional filters; AND-narrowing.'),
-  ruleId: zod.string().optional(),
-  severity: zod.string().optional(),
-  cursor: zod
-    .string()
-    .optional()
-    .describe(
-      'Cursor pagination — empty = first page. The server returns\nnext_cursor in the response when more rows are available.',
-    ),
-  limit: zod.number().optional().describe('Limit caps page size (default 50, max 500).'),
-});
+  "routeId": zod.string().optional().describe('Optional filters; AND-narrowing.'),
+  "ruleId": zod.string().optional(),
+  "severity": zod.string().optional(),
+  "cursor": zod.string().optional().describe('Cursor pagination — empty = first page. The server returns\nnext_cursor in the response when more rows are available.'),
+  "limit": zod.number().optional().describe('Limit caps page size (default 50, max 500).')
+})
 
 export const WAFServiceListWAFDenialsResponse = zod.object({
-  denials: zod
-    .array(
-      zod
-        .object({
-          action: zod.string().optional(),
-          clientIp: zod.string().optional(),
-          id: zod.string().optional(),
-          matchedAt: zod.iso.datetime({ offset: true }).optional(),
-          metadata: zod.string().optional(),
-          requestUri: zod.string().optional(),
-          routeId: zod.string().optional(),
-          ruleId: zod.string().optional(),
-          severity: zod.string().optional(),
-          tenantId: zod.string().optional(),
-        })
-        .describe('WAFDenial is one Coraza-block event captured by the data plane.'),
-    )
-    .optional(),
-  nextCursor: zod.string().optional(),
-});
+  "denials": zod.array(zod.object({
+  "action": zod.string().optional(),
+  "clientIp": zod.string().optional(),
+  "id": zod.string().optional(),
+  "matchedAt": zod.iso.datetime({"offset":true}).optional(),
+  "metadata": zod.string().optional(),
+  "requestUri": zod.string().optional(),
+  "routeId": zod.string().optional(),
+  "ruleId": zod.string().optional(),
+  "severity": zod.string().optional(),
+  "tenantId": zod.string().optional()
+}).describe('WAFDenial is one Coraza-block event captured by the data plane.')).optional(),
+  "nextCursor": zod.string().optional()
+})
+

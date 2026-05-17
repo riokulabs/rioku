@@ -23,9 +23,10 @@ Conventions:
  */
 import * as zod from 'zod';
 
+
 export const HealthServiceGetHealthQueryParams = zod.object({
-  verbose: zod.boolean().optional(),
-});
+  "verbose": zod.boolean().optional()
+})
 
 export const healthServiceGetHealthResponseCaddyStateDefault = `HEALTH_STATE_UNSPECIFIED`;
 export const healthServiceGetHealthResponseCertmgrStateDefault = `HEALTH_STATE_UNSPECIFIED`;
@@ -34,91 +35,42 @@ export const healthServiceGetHealthResponseOverallDefault = `HEALTH_STATE_UNSPEC
 export const healthServiceGetHealthResponseStoreStateDefault = `HEALTH_STATE_UNSPECIFIED`;
 
 export const HealthServiceGetHealthResponse = zod.object({
-  caddy: zod
-    .object({
-      detail: zod.record(zod.string(), zod.string()).optional(),
-      message: zod.string().optional(),
-      state: zod
-        .enum([
-          'HEALTH_STATE_UNSPECIFIED',
-          'HEALTH_STATE_OK',
-          'HEALTH_STATE_DEGRADED',
-          'HEALTH_STATE_UNHEALTHY',
-        ])
-        .default(healthServiceGetHealthResponseCaddyStateDefault),
-    })
-    .optional(),
-  certmgr: zod
-    .object({
-      detail: zod.record(zod.string(), zod.string()).optional(),
-      message: zod.string().optional(),
-      state: zod
-        .enum([
-          'HEALTH_STATE_UNSPECIFIED',
-          'HEALTH_STATE_OK',
-          'HEALTH_STATE_DEGRADED',
-          'HEALTH_STATE_UNHEALTHY',
-        ])
-        .default(healthServiceGetHealthResponseCertmgrStateDefault),
-    })
-    .optional(),
-  checkedAt: zod.iso.datetime({ offset: true }).optional(),
-  cluster: zod
-    .object({
-      detail: zod.record(zod.string(), zod.string()).optional(),
-      message: zod.string().optional(),
-      state: zod
-        .enum([
-          'HEALTH_STATE_UNSPECIFIED',
-          'HEALTH_STATE_OK',
-          'HEALTH_STATE_DEGRADED',
-          'HEALTH_STATE_UNHEALTHY',
-        ])
-        .default(healthServiceGetHealthResponseClusterStateDefault),
-    })
-    .optional(),
-  overall: zod
-    .enum([
-      'HEALTH_STATE_UNSPECIFIED',
-      'HEALTH_STATE_OK',
-      'HEALTH_STATE_DEGRADED',
-      'HEALTH_STATE_UNHEALTHY',
-    ])
-    .default(healthServiceGetHealthResponseOverallDefault),
-  store: zod
-    .object({
-      detail: zod.record(zod.string(), zod.string()).optional(),
-      message: zod.string().optional(),
-      state: zod
-        .enum([
-          'HEALTH_STATE_UNSPECIFIED',
-          'HEALTH_STATE_OK',
-          'HEALTH_STATE_DEGRADED',
-          'HEALTH_STATE_UNHEALTHY',
-        ])
-        .default(healthServiceGetHealthResponseStoreStateDefault),
-    })
-    .optional(),
-  uptimeSeconds: zod.string().optional(),
-  version: zod.string().optional(),
-});
+  "caddy": zod.object({
+  "detail": zod.record(zod.string(), zod.string()).optional(),
+  "message": zod.string().optional(),
+  "state": zod.enum(['HEALTH_STATE_UNSPECIFIED', 'HEALTH_STATE_OK', 'HEALTH_STATE_DEGRADED', 'HEALTH_STATE_UNHEALTHY']).default(healthServiceGetHealthResponseCaddyStateDefault)
+}).optional(),
+  "certmgr": zod.object({
+  "detail": zod.record(zod.string(), zod.string()).optional(),
+  "message": zod.string().optional(),
+  "state": zod.enum(['HEALTH_STATE_UNSPECIFIED', 'HEALTH_STATE_OK', 'HEALTH_STATE_DEGRADED', 'HEALTH_STATE_UNHEALTHY']).default(healthServiceGetHealthResponseCertmgrStateDefault)
+}).optional(),
+  "checkedAt": zod.iso.datetime({"offset":true}).optional(),
+  "cluster": zod.object({
+  "detail": zod.record(zod.string(), zod.string()).optional(),
+  "message": zod.string().optional(),
+  "state": zod.enum(['HEALTH_STATE_UNSPECIFIED', 'HEALTH_STATE_OK', 'HEALTH_STATE_DEGRADED', 'HEALTH_STATE_UNHEALTHY']).default(healthServiceGetHealthResponseClusterStateDefault)
+}).optional(),
+  "overall": zod.enum(['HEALTH_STATE_UNSPECIFIED', 'HEALTH_STATE_OK', 'HEALTH_STATE_DEGRADED', 'HEALTH_STATE_UNHEALTHY']).default(healthServiceGetHealthResponseOverallDefault),
+  "store": zod.object({
+  "detail": zod.record(zod.string(), zod.string()).optional(),
+  "message": zod.string().optional(),
+  "state": zod.enum(['HEALTH_STATE_UNSPECIFIED', 'HEALTH_STATE_OK', 'HEALTH_STATE_DEGRADED', 'HEALTH_STATE_UNHEALTHY']).default(healthServiceGetHealthResponseStoreStateDefault)
+}).optional(),
+  "uptimeSeconds": zod.string().optional(),
+  "version": zod.string().optional()
+})
 
 export const healthServiceGetCaddyStatusResponseStateDefault = `HEALTH_STATE_UNSPECIFIED`;
 
 export const HealthServiceGetCaddyStatusResponse = zod.object({
-  checkedAt: zod.iso.datetime({ offset: true }).optional(),
-  loadedConfigVersion: zod.string().optional(),
-  pid: zod.number().optional(),
-  running: zod.boolean().optional(),
-  state: zod
-    .enum([
-      'HEALTH_STATE_UNSPECIFIED',
-      'HEALTH_STATE_OK',
-      'HEALTH_STATE_DEGRADED',
-      'HEALTH_STATE_UNHEALTHY',
-    ])
-    .default(healthServiceGetCaddyStatusResponseStateDefault),
-  upstreamsHealthy: zod.number().optional(),
-  upstreamsTotal: zod.number().optional(),
-  version: zod.string().optional(),
-});
+  "checkedAt": zod.iso.datetime({"offset":true}).optional(),
+  "loadedConfigVersion": zod.string().optional(),
+  "pid": zod.number().optional(),
+  "running": zod.boolean().optional(),
+  "state": zod.enum(['HEALTH_STATE_UNSPECIFIED', 'HEALTH_STATE_OK', 'HEALTH_STATE_DEGRADED', 'HEALTH_STATE_UNHEALTHY']).default(healthServiceGetCaddyStatusResponseStateDefault),
+  "upstreamsHealthy": zod.number().optional(),
+  "upstreamsTotal": zod.number().optional(),
+  "version": zod.string().optional()
+})
+

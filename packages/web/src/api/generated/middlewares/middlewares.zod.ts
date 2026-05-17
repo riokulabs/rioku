@@ -23,137 +23,123 @@ Conventions:
  */
 import * as zod from 'zod';
 
+
 /**
  * @summary List middlewares
  */
 export const listMiddlewaresPathTenantRegExp = new RegExp('^[a-z0-9-]+$');
 
+
 export const ListMiddlewaresParams = zod.object({
-  tenant: zod
-    .string()
-    .regex(listMiddlewaresPathTenantRegExp)
-    .describe('Tenant slug (e.g. `default`, `acme`).'),
-});
+  "tenant": zod.string().regex(listMiddlewaresPathTenantRegExp).describe('Tenant slug (e.g. `default`, `acme`).')
+})
 
 export const ListMiddlewaresResponse = zod.object({
-  items: zod
-    .array(
-      zod.object({
-        config: zod.record(zod.string(), zod.unknown()).optional(),
-        createdAt: zod.iso.datetime({ offset: true }).optional(),
-        enabled: zod.boolean().optional(),
-        id: zod.string().optional(),
-        kind: zod.string().optional(),
-        name: zod.string().optional(),
-        orderHint: zod.number().optional(),
-        tenantId: zod.string().optional(),
-        updatedAt: zod.iso.datetime({ offset: true }).optional(),
-      }),
-    )
-    .optional(),
-  total: zod.number().optional(),
-});
+  "items": zod.array(zod.object({
+  "config": zod.record(zod.string(), zod.unknown()).optional(),
+  "createdAt": zod.iso.datetime({"offset":true}).optional(),
+  "enabled": zod.boolean().optional(),
+  "id": zod.string().optional(),
+  "kind": zod.string().optional(),
+  "name": zod.string().optional(),
+  "orderHint": zod.number().optional(),
+  "tenantId": zod.string().optional(),
+  "updatedAt": zod.iso.datetime({"offset":true}).optional()
+})).optional(),
+  "total": zod.number().optional()
+})
 
 /**
  * @summary Create middleware
  */
 export const createMiddlewarePathTenantRegExp = new RegExp('^[a-z0-9-]+$');
 
+
 export const CreateMiddlewareParams = zod.object({
-  tenant: zod
-    .string()
-    .regex(createMiddlewarePathTenantRegExp)
-    .describe('Tenant slug (e.g. `default`, `acme`).'),
-});
+  "tenant": zod.string().regex(createMiddlewarePathTenantRegExp).describe('Tenant slug (e.g. `default`, `acme`).')
+})
 
 export const CreateMiddlewareBody = zod.object({
-  config: zod.record(zod.string(), zod.unknown()).optional(),
-  enabled: zod.boolean().optional(),
-  kind: zod.string(),
-  name: zod.string(),
-  orderHint: zod.number().optional(),
-});
+  "config": zod.record(zod.string(), zod.unknown()).optional(),
+  "enabled": zod.boolean().optional(),
+  "kind": zod.string(),
+  "name": zod.string(),
+  "orderHint": zod.number().optional()
+})
 
 export const deleteMiddlewarePathTenantRegExp = new RegExp('^[a-z0-9-]+$');
 
+
 export const DeleteMiddlewareParams = zod.object({
-  tenant: zod
-    .string()
-    .regex(deleteMiddlewarePathTenantRegExp)
-    .describe('Tenant slug (e.g. `default`, `acme`).'),
-  id: zod.uuid().describe('Resource id (UUID).'),
-});
+  "tenant": zod.string().regex(deleteMiddlewarePathTenantRegExp).describe('Tenant slug (e.g. `default`, `acme`).'),
+  "id": zod.uuid().describe('Resource id (UUID).')
+})
 
 export const getMiddlewarePathTenantRegExp = new RegExp('^[a-z0-9-]+$');
 
+
 export const GetMiddlewareParams = zod.object({
-  tenant: zod
-    .string()
-    .regex(getMiddlewarePathTenantRegExp)
-    .describe('Tenant slug (e.g. `default`, `acme`).'),
-  id: zod.uuid().describe('Resource id (UUID).'),
-});
+  "tenant": zod.string().regex(getMiddlewarePathTenantRegExp).describe('Tenant slug (e.g. `default`, `acme`).'),
+  "id": zod.uuid().describe('Resource id (UUID).')
+})
 
 export const GetMiddlewareResponse = zod.object({
-  config: zod.record(zod.string(), zod.unknown()).optional(),
-  createdAt: zod.iso.datetime({ offset: true }).optional(),
-  enabled: zod.boolean().optional(),
-  id: zod.string().optional(),
-  kind: zod.string().optional(),
-  name: zod.string().optional(),
-  orderHint: zod.number().optional(),
-  tenantId: zod.string().optional(),
-  updatedAt: zod.iso.datetime({ offset: true }).optional(),
-});
+  "config": zod.record(zod.string(), zod.unknown()).optional(),
+  "createdAt": zod.iso.datetime({"offset":true}).optional(),
+  "enabled": zod.boolean().optional(),
+  "id": zod.string().optional(),
+  "kind": zod.string().optional(),
+  "name": zod.string().optional(),
+  "orderHint": zod.number().optional(),
+  "tenantId": zod.string().optional(),
+  "updatedAt": zod.iso.datetime({"offset":true}).optional()
+})
 
 export const patchMiddlewarePathTenantRegExp = new RegExp('^[a-z0-9-]+$');
 
+
 export const PatchMiddlewareParams = zod.object({
-  tenant: zod
-    .string()
-    .regex(patchMiddlewarePathTenantRegExp)
-    .describe('Tenant slug (e.g. `default`, `acme`).'),
-  id: zod.uuid().describe('Resource id (UUID).'),
-});
+  "tenant": zod.string().regex(patchMiddlewarePathTenantRegExp).describe('Tenant slug (e.g. `default`, `acme`).'),
+  "id": zod.uuid().describe('Resource id (UUID).')
+})
 
 export const PatchMiddlewareResponse = zod.object({
-  config: zod.record(zod.string(), zod.unknown()).optional(),
-  createdAt: zod.iso.datetime({ offset: true }).optional(),
-  enabled: zod.boolean().optional(),
-  id: zod.string().optional(),
-  kind: zod.string().optional(),
-  name: zod.string().optional(),
-  orderHint: zod.number().optional(),
-  tenantId: zod.string().optional(),
-  updatedAt: zod.iso.datetime({ offset: true }).optional(),
-});
+  "config": zod.record(zod.string(), zod.unknown()).optional(),
+  "createdAt": zod.iso.datetime({"offset":true}).optional(),
+  "enabled": zod.boolean().optional(),
+  "id": zod.string().optional(),
+  "kind": zod.string().optional(),
+  "name": zod.string().optional(),
+  "orderHint": zod.number().optional(),
+  "tenantId": zod.string().optional(),
+  "updatedAt": zod.iso.datetime({"offset":true}).optional()
+})
 
 export const replaceMiddlewarePathTenantRegExp = new RegExp('^[a-z0-9-]+$');
 
+
 export const ReplaceMiddlewareParams = zod.object({
-  tenant: zod
-    .string()
-    .regex(replaceMiddlewarePathTenantRegExp)
-    .describe('Tenant slug (e.g. `default`, `acme`).'),
-  id: zod.uuid().describe('Resource id (UUID).'),
-});
+  "tenant": zod.string().regex(replaceMiddlewarePathTenantRegExp).describe('Tenant slug (e.g. `default`, `acme`).'),
+  "id": zod.uuid().describe('Resource id (UUID).')
+})
 
 export const ReplaceMiddlewareBody = zod.object({
-  config: zod.record(zod.string(), zod.unknown()).optional(),
-  enabled: zod.boolean().optional(),
-  kind: zod.string().optional(),
-  name: zod.string().optional(),
-  orderHint: zod.number().optional(),
-});
+  "config": zod.record(zod.string(), zod.unknown()).optional(),
+  "enabled": zod.boolean().optional(),
+  "kind": zod.string().optional(),
+  "name": zod.string().optional(),
+  "orderHint": zod.number().optional()
+})
 
 export const ReplaceMiddlewareResponse = zod.object({
-  config: zod.record(zod.string(), zod.unknown()).optional(),
-  createdAt: zod.iso.datetime({ offset: true }).optional(),
-  enabled: zod.boolean().optional(),
-  id: zod.string().optional(),
-  kind: zod.string().optional(),
-  name: zod.string().optional(),
-  orderHint: zod.number().optional(),
-  tenantId: zod.string().optional(),
-  updatedAt: zod.iso.datetime({ offset: true }).optional(),
-});
+  "config": zod.record(zod.string(), zod.unknown()).optional(),
+  "createdAt": zod.iso.datetime({"offset":true}).optional(),
+  "enabled": zod.boolean().optional(),
+  "id": zod.string().optional(),
+  "kind": zod.string().optional(),
+  "name": zod.string().optional(),
+  "orderHint": zod.number().optional(),
+  "tenantId": zod.string().optional(),
+  "updatedAt": zod.iso.datetime({"offset":true}).optional()
+})
+

@@ -23,120 +23,104 @@ Conventions:
  */
 import * as zod from 'zod';
 
+
 /**
  * @summary List RBAC policies
  */
 export const listRbacPoliciesPathTenantRegExp = new RegExp('^[a-z0-9-]+$');
 
+
 export const ListRbacPoliciesParams = zod.object({
-  tenant: zod
-    .string()
-    .regex(listRbacPoliciesPathTenantRegExp)
-    .describe('Tenant slug (e.g. `default`, `acme`).'),
-});
+  "tenant": zod.string().regex(listRbacPoliciesPathTenantRegExp).describe('Tenant slug (e.g. `default`, `acme`).')
+})
 
 export const ListRbacPoliciesResponse = zod.object({
-  nextPageToken: zod.string().optional(),
-  rbacPolicies: zod
-    .array(
-      zod.object({
-        createdAt: zod.iso.datetime({ offset: true }).optional(),
-        description: zod.string().optional(),
-        enabled: zod.boolean().optional(),
-        id: zod.string().optional(),
-        name: zod.string().optional(),
-        roleId: zod.string().optional(),
-        subjectId: zod.string().optional(),
-        subjectType: zod.enum(['user', 'group', 'service-account']).optional(),
-        tenantId: zod.string().optional(),
-      }),
-    )
-    .optional(),
-});
+  "nextPageToken": zod.string().optional(),
+  "rbacPolicies": zod.array(zod.object({
+  "createdAt": zod.iso.datetime({"offset":true}).optional(),
+  "description": zod.string().optional(),
+  "enabled": zod.boolean().optional(),
+  "id": zod.string().optional(),
+  "name": zod.string().optional(),
+  "roleId": zod.string().optional(),
+  "subjectId": zod.string().optional(),
+  "subjectType": zod.enum(['user', 'group', 'service-account']).optional(),
+  "tenantId": zod.string().optional()
+})).optional()
+})
 
 /**
  * @summary Create an RBAC policy
  */
 export const createRbacPolicyPathTenantRegExp = new RegExp('^[a-z0-9-]+$');
 
+
 export const CreateRbacPolicyParams = zod.object({
-  tenant: zod
-    .string()
-    .regex(createRbacPolicyPathTenantRegExp)
-    .describe('Tenant slug (e.g. `default`, `acme`).'),
-});
+  "tenant": zod.string().regex(createRbacPolicyPathTenantRegExp).describe('Tenant slug (e.g. `default`, `acme`).')
+})
 
 export const createRbacPolicyBodyEnabledDefault = true;
 
 export const CreateRbacPolicyBody = zod.object({
-  description: zod.string().optional(),
-  enabled: zod.boolean().default(createRbacPolicyBodyEnabledDefault),
-  name: zod.string(),
-  roleId: zod.string(),
-  subjectId: zod.string(),
-  subjectType: zod.enum(['user', 'group', 'service-account']),
-});
+  "description": zod.string().optional(),
+  "enabled": zod.boolean().default(createRbacPolicyBodyEnabledDefault),
+  "name": zod.string(),
+  "roleId": zod.string(),
+  "subjectId": zod.string(),
+  "subjectType": zod.enum(['user', 'group', 'service-account'])
+})
 
 export const deleteRbacPolicyPathTenantRegExp = new RegExp('^[a-z0-9-]+$');
 
+
 export const DeleteRbacPolicyParams = zod.object({
-  tenant: zod
-    .string()
-    .regex(deleteRbacPolicyPathTenantRegExp)
-    .describe('Tenant slug (e.g. `default`, `acme`).'),
-  id: zod.uuid().describe('Resource id (UUID).'),
-});
+  "tenant": zod.string().regex(deleteRbacPolicyPathTenantRegExp).describe('Tenant slug (e.g. `default`, `acme`).'),
+  "id": zod.uuid().describe('Resource id (UUID).')
+})
 
 export const getRbacPolicyPathTenantRegExp = new RegExp('^[a-z0-9-]+$');
 
+
 export const GetRbacPolicyParams = zod.object({
-  tenant: zod
-    .string()
-    .regex(getRbacPolicyPathTenantRegExp)
-    .describe('Tenant slug (e.g. `default`, `acme`).'),
-  id: zod.uuid().describe('Resource id (UUID).'),
-});
+  "tenant": zod.string().regex(getRbacPolicyPathTenantRegExp).describe('Tenant slug (e.g. `default`, `acme`).'),
+  "id": zod.uuid().describe('Resource id (UUID).')
+})
 
 export const patchRbacPolicyPathTenantRegExp = new RegExp('^[a-z0-9-]+$');
 
+
 export const PatchRbacPolicyParams = zod.object({
-  tenant: zod
-    .string()
-    .regex(patchRbacPolicyPathTenantRegExp)
-    .describe('Tenant slug (e.g. `default`, `acme`).'),
-  id: zod.uuid().describe('Resource id (UUID).'),
-});
+  "tenant": zod.string().regex(patchRbacPolicyPathTenantRegExp).describe('Tenant slug (e.g. `default`, `acme`).'),
+  "id": zod.uuid().describe('Resource id (UUID).')
+})
 
 export const replaceRbacPolicyPathTenantRegExp = new RegExp('^[a-z0-9-]+$');
 
+
 export const ReplaceRbacPolicyParams = zod.object({
-  tenant: zod
-    .string()
-    .regex(replaceRbacPolicyPathTenantRegExp)
-    .describe('Tenant slug (e.g. `default`, `acme`).'),
-  id: zod.uuid().describe('Resource id (UUID).'),
-});
+  "tenant": zod.string().regex(replaceRbacPolicyPathTenantRegExp).describe('Tenant slug (e.g. `default`, `acme`).'),
+  "id": zod.uuid().describe('Resource id (UUID).')
+})
 
 /**
  * @summary Dry-run an RBAC policy against a candidate subject
  */
 export const testRbacPolicyPathTenantRegExp = new RegExp('^[a-z0-9-]+$');
 
+
 export const TestRbacPolicyParams = zod.object({
-  tenant: zod
-    .string()
-    .regex(testRbacPolicyPathTenantRegExp)
-    .describe('Tenant slug (e.g. `default`, `acme`).'),
-  id: zod.uuid().describe('Resource id (UUID).'),
-});
+  "tenant": zod.string().regex(testRbacPolicyPathTenantRegExp).describe('Tenant slug (e.g. `default`, `acme`).'),
+  "id": zod.uuid().describe('Resource id (UUID).')
+})
 
 export const TestRbacPolicyBody = zod.object({
-  subjectId: zod.string(),
-  subjectType: zod.string(),
-});
+  "subjectId": zod.string(),
+  "subjectType": zod.string()
+})
 
 export const TestRbacPolicyResponse = zod.object({
-  matched: zod.boolean().optional(),
-  policyId: zod.string().optional(),
-  roleId: zod.string().optional().describe('Only present when matched is true'),
-});
+  "matched": zod.boolean().optional(),
+  "policyId": zod.string().optional(),
+  "roleId": zod.string().optional().describe('Only present when matched is true')
+})
+

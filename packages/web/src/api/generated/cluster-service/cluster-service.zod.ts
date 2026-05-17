@@ -23,148 +23,89 @@ Conventions:
  */
 import * as zod from 'zod';
 
+
 export const ClusterServiceJoinBody = zod.object({
-  caFingerprint: zod.string().optional(),
-  csrPem: zod.string().optional(),
-  nodeAddress: zod.string().optional(),
-  nodeName: zod.string().optional(),
-});
+  "caFingerprint": zod.string().optional(),
+  "csrPem": zod.string().optional(),
+  "nodeAddress": zod.string().optional(),
+  "nodeName": zod.string().optional()
+})
 
 export const clusterServiceJoinResponseMembersItemHealthDefault = `HEALTH_STATE_UNSPECIFIED`;
 export const clusterServiceJoinResponseMembersItemRoleDefault = `NODE_ROLE_UNSPECIFIED`;
 export const clusterServiceJoinResponseMembersItemStateDefault = `NODE_STATE_UNSPECIFIED`;
 
 export const ClusterServiceJoinResponse = zod.object({
-  caCertPem: zod.string().optional(),
-  members: zod
-    .array(
-      zod.object({
-        address: zod.string().optional(),
-        caddyVersion: zod.string().optional(),
-        certFingerprint: zod.string().optional(),
-        daemonVersion: zod.string().optional(),
-        health: zod
-          .enum([
-            'HEALTH_STATE_UNSPECIFIED',
-            'HEALTH_STATE_OK',
-            'HEALTH_STATE_DEGRADED',
-            'HEALTH_STATE_UNHEALTHY',
-          ])
-          .default(clusterServiceJoinResponseMembersItemHealthDefault),
-        id: zod.string().optional(),
-        isLeader: zod.boolean().optional(),
-        joinedAt: zod.iso.datetime({ offset: true }).optional(),
-        labels: zod
-          .object({
-            labels: zod.record(zod.string(), zod.string()).optional(),
-          })
-          .optional(),
-        lastSeenAt: zod.iso.datetime({ offset: true }).optional(),
-        name: zod.string().optional(),
-        role: zod
-          .enum(['NODE_ROLE_UNSPECIFIED', 'NODE_ROLE_BOOTSTRAP', 'NODE_ROLE_MEMBER'])
-          .default(clusterServiceJoinResponseMembersItemRoleDefault),
-        state: zod
-          .enum([
-            'NODE_STATE_UNSPECIFIED',
-            'NODE_STATE_JOINING',
-            'NODE_STATE_ACTIVE',
-            'NODE_STATE_DEGRADED',
-            'NODE_STATE_LEAVING',
-            'NODE_STATE_UNREACHABLE',
-          ])
-          .default(clusterServiceJoinResponseMembersItemStateDefault),
-        storeMode: zod.string().optional(),
-      }),
-    )
-    .optional(),
-  nodeCertPem: zod.string().optional(),
-  nodeId: zod.string().optional(),
-});
+  "caCertPem": zod.string().optional(),
+  "members": zod.array(zod.object({
+  "address": zod.string().optional(),
+  "caddyVersion": zod.string().optional(),
+  "certFingerprint": zod.string().optional(),
+  "daemonVersion": zod.string().optional(),
+  "health": zod.enum(['HEALTH_STATE_UNSPECIFIED', 'HEALTH_STATE_OK', 'HEALTH_STATE_DEGRADED', 'HEALTH_STATE_UNHEALTHY']).default(clusterServiceJoinResponseMembersItemHealthDefault),
+  "id": zod.string().optional(),
+  "isLeader": zod.boolean().optional(),
+  "joinedAt": zod.iso.datetime({"offset":true}).optional(),
+  "labels": zod.object({
+  "labels": zod.record(zod.string(), zod.string()).optional()
+}).optional(),
+  "lastSeenAt": zod.iso.datetime({"offset":true}).optional(),
+  "name": zod.string().optional(),
+  "role": zod.enum(['NODE_ROLE_UNSPECIFIED', 'NODE_ROLE_BOOTSTRAP', 'NODE_ROLE_MEMBER']).default(clusterServiceJoinResponseMembersItemRoleDefault),
+  "state": zod.enum(['NODE_STATE_UNSPECIFIED', 'NODE_STATE_JOINING', 'NODE_STATE_ACTIVE', 'NODE_STATE_DEGRADED', 'NODE_STATE_LEAVING', 'NODE_STATE_UNREACHABLE']).default(clusterServiceJoinResponseMembersItemStateDefault),
+  "storeMode": zod.string().optional()
+})).optional(),
+  "nodeCertPem": zod.string().optional(),
+  "nodeId": zod.string().optional()
+})
 
 export const ClusterServiceLeaveBody = zod.object({
-  deregister: zod.boolean().optional(),
-  nodeId: zod.string().optional(),
-});
+  "deregister": zod.boolean().optional(),
+  "nodeId": zod.string().optional()
+})
 
 export const ClusterServiceLeaveResponse = zod.object({
-  meta: zod
-    .object({
-      actor: zod.string().optional(),
-      configVersion: zod.string().optional(),
-      mutatedAt: zod.iso.datetime({ offset: true }).optional(),
-    })
-    .optional(),
-});
+  "meta": zod.object({
+  "actor": zod.string().optional(),
+  "configVersion": zod.string().optional(),
+  "mutatedAt": zod.iso.datetime({"offset":true}).optional()
+}).optional()
+})
 
 export const clusterServiceListNodesQueryStateDefault = `NODE_STATE_UNSPECIFIED`;
 
 export const ClusterServiceListNodesQueryParams = zod.object({
-  state: zod
-    .enum([
-      'NODE_STATE_UNSPECIFIED',
-      'NODE_STATE_JOINING',
-      'NODE_STATE_ACTIVE',
-      'NODE_STATE_DEGRADED',
-      'NODE_STATE_LEAVING',
-      'NODE_STATE_UNREACHABLE',
-    ])
-    .default(clusterServiceListNodesQueryStateDefault),
-  'page.pageSize': zod.number().optional(),
-  'page.pageToken': zod.string().optional(),
-});
+  "state": zod.enum(['NODE_STATE_UNSPECIFIED', 'NODE_STATE_JOINING', 'NODE_STATE_ACTIVE', 'NODE_STATE_DEGRADED', 'NODE_STATE_LEAVING', 'NODE_STATE_UNREACHABLE']).default(clusterServiceListNodesQueryStateDefault),
+  "page.pageSize": zod.number().optional(),
+  "page.pageToken": zod.string().optional()
+})
 
 export const clusterServiceListNodesResponseNodesItemHealthDefault = `HEALTH_STATE_UNSPECIFIED`;
 export const clusterServiceListNodesResponseNodesItemRoleDefault = `NODE_ROLE_UNSPECIFIED`;
 export const clusterServiceListNodesResponseNodesItemStateDefault = `NODE_STATE_UNSPECIFIED`;
 
 export const ClusterServiceListNodesResponse = zod.object({
-  nodes: zod
-    .array(
-      zod.object({
-        address: zod.string().optional(),
-        caddyVersion: zod.string().optional(),
-        certFingerprint: zod.string().optional(),
-        daemonVersion: zod.string().optional(),
-        health: zod
-          .enum([
-            'HEALTH_STATE_UNSPECIFIED',
-            'HEALTH_STATE_OK',
-            'HEALTH_STATE_DEGRADED',
-            'HEALTH_STATE_UNHEALTHY',
-          ])
-          .default(clusterServiceListNodesResponseNodesItemHealthDefault),
-        id: zod.string().optional(),
-        isLeader: zod.boolean().optional(),
-        joinedAt: zod.iso.datetime({ offset: true }).optional(),
-        labels: zod
-          .object({
-            labels: zod.record(zod.string(), zod.string()).optional(),
-          })
-          .optional(),
-        lastSeenAt: zod.iso.datetime({ offset: true }).optional(),
-        name: zod.string().optional(),
-        role: zod
-          .enum(['NODE_ROLE_UNSPECIFIED', 'NODE_ROLE_BOOTSTRAP', 'NODE_ROLE_MEMBER'])
-          .default(clusterServiceListNodesResponseNodesItemRoleDefault),
-        state: zod
-          .enum([
-            'NODE_STATE_UNSPECIFIED',
-            'NODE_STATE_JOINING',
-            'NODE_STATE_ACTIVE',
-            'NODE_STATE_DEGRADED',
-            'NODE_STATE_LEAVING',
-            'NODE_STATE_UNREACHABLE',
-          ])
-          .default(clusterServiceListNodesResponseNodesItemStateDefault),
-        storeMode: zod.string().optional(),
-      }),
-    )
-    .optional(),
-  page: zod
-    .object({
-      nextPageToken: zod.string().optional(),
-      total: zod.string().optional(),
-    })
-    .optional(),
-});
+  "nodes": zod.array(zod.object({
+  "address": zod.string().optional(),
+  "caddyVersion": zod.string().optional(),
+  "certFingerprint": zod.string().optional(),
+  "daemonVersion": zod.string().optional(),
+  "health": zod.enum(['HEALTH_STATE_UNSPECIFIED', 'HEALTH_STATE_OK', 'HEALTH_STATE_DEGRADED', 'HEALTH_STATE_UNHEALTHY']).default(clusterServiceListNodesResponseNodesItemHealthDefault),
+  "id": zod.string().optional(),
+  "isLeader": zod.boolean().optional(),
+  "joinedAt": zod.iso.datetime({"offset":true}).optional(),
+  "labels": zod.object({
+  "labels": zod.record(zod.string(), zod.string()).optional()
+}).optional(),
+  "lastSeenAt": zod.iso.datetime({"offset":true}).optional(),
+  "name": zod.string().optional(),
+  "role": zod.enum(['NODE_ROLE_UNSPECIFIED', 'NODE_ROLE_BOOTSTRAP', 'NODE_ROLE_MEMBER']).default(clusterServiceListNodesResponseNodesItemRoleDefault),
+  "state": zod.enum(['NODE_STATE_UNSPECIFIED', 'NODE_STATE_JOINING', 'NODE_STATE_ACTIVE', 'NODE_STATE_DEGRADED', 'NODE_STATE_LEAVING', 'NODE_STATE_UNREACHABLE']).default(clusterServiceListNodesResponseNodesItemStateDefault),
+  "storeMode": zod.string().optional()
+})).optional(),
+  "page": zod.object({
+  "nextPageToken": zod.string().optional(),
+  "total": zod.string().optional()
+}).optional()
+})
+

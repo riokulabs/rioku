@@ -23,6 +23,7 @@ Conventions:
  */
 import * as zod from 'zod';
 
+
 /**
  * Requires `admin:cross-tenant-read`. Returns hash-chained super-admin
 audit entries. Until migration 26 lands the daemon proxies the
@@ -31,115 +32,110 @@ per-tenant audit log filtered to `entity_type = "tenant"` operations.
  * @summary Cross-tenant admin audit log (super-admin)
  */
 export const ListAdminAuditResponse = zod.object({
-  items: zod.array(zod.looseObject({})).optional(),
-  note: zod.string().optional(),
-  total: zod.number().optional(),
-});
+  "items": zod.array(zod.looseObject({
+
+})).optional(),
+  "note": zod.string().optional(),
+  "total": zod.number().optional()
+})
 
 /**
  * Requires `admin:cross-tenant-read`. Returns every tenant in the cluster.
  * @summary List all tenants (super-admin)
  */
 export const ListAdminTenantsResponse = zod.object({
-  items: zod
-    .array(
-      zod.object({
-        accent: zod.string().nullish(),
-        createdAt: zod.iso.datetime({ offset: true }).optional(),
-        defaultDashboardId: zod.string().nullish(),
-        id: zod.string().optional(),
-        logoUrl: zod.string().nullish(),
-        name: zod.string().optional(),
-        plan: zod.string().optional(),
-        slug: zod.string().optional(),
-        updatedAt: zod.iso.datetime({ offset: true }).optional(),
-        urlMode: zod.string().optional(),
-      }),
-    )
-    .optional(),
-  total: zod.number().optional(),
-});
+  "items": zod.array(zod.object({
+  "accent": zod.string().nullish(),
+  "createdAt": zod.iso.datetime({"offset":true}).optional(),
+  "defaultDashboardId": zod.string().nullish(),
+  "id": zod.string().optional(),
+  "logoUrl": zod.string().nullish(),
+  "name": zod.string().optional(),
+  "plan": zod.string().optional(),
+  "slug": zod.string().optional(),
+  "updatedAt": zod.iso.datetime({"offset":true}).optional(),
+  "urlMode": zod.string().optional()
+})).optional(),
+  "total": zod.number().optional()
+})
 
 /**
  * Requires `admin:cross-tenant-write`.
  * @summary Create tenant (super-admin)
  */
 export const CreateAdminTenantBody = zod.object({
-  name: zod.string(),
-  plan: zod.enum(['community', 'pro', 'enterprise']).optional(),
-  slug: zod.string(),
-  urlMode: zod.enum(['path', 'subdomain']).optional(),
-});
+  "name": zod.string(),
+  "plan": zod.enum(['community', 'pro', 'enterprise']).optional(),
+  "slug": zod.string(),
+  "urlMode": zod.enum(['path', 'subdomain']).optional()
+})
 
 /**
  * @summary Delete tenant (super-admin)
  */
 export const DeleteAdminTenantParams = zod.object({
-  id: zod.string(),
-});
+  "id": zod.string()
+})
 
 /**
  * @summary Get tenant detail (super-admin)
  */
 export const GetAdminTenantParams = zod.object({
-  id: zod.string(),
-});
+  "id": zod.string()
+})
 
 export const GetAdminTenantResponse = zod.object({
-  accent: zod.string().nullish(),
-  createdAt: zod.iso.datetime({ offset: true }).optional(),
-  defaultDashboardId: zod.string().nullish(),
-  id: zod.string().optional(),
-  logoUrl: zod.string().nullish(),
-  name: zod.string().optional(),
-  plan: zod.string().optional(),
-  slug: zod.string().optional(),
-  updatedAt: zod.iso.datetime({ offset: true }).optional(),
-  urlMode: zod.string().optional(),
-});
+  "accent": zod.string().nullish(),
+  "createdAt": zod.iso.datetime({"offset":true}).optional(),
+  "defaultDashboardId": zod.string().nullish(),
+  "id": zod.string().optional(),
+  "logoUrl": zod.string().nullish(),
+  "name": zod.string().optional(),
+  "plan": zod.string().optional(),
+  "slug": zod.string().optional(),
+  "updatedAt": zod.iso.datetime({"offset":true}).optional(),
+  "urlMode": zod.string().optional()
+})
 
 /**
  * @summary Update tenant (super-admin)
  */
 export const UpdateAdminTenantParams = zod.object({
-  id: zod.string(),
-});
+  "id": zod.string()
+})
 
 export const UpdateAdminTenantBody = zod.object({
-  accent: zod.string().nullish(),
-  defaultDashboardId: zod.string().nullish(),
-  logoUrl: zod.string().nullish(),
-  name: zod.string().optional(),
-  plan: zod.string().optional(),
-  urlMode: zod.string().optional(),
-});
+  "accent": zod.string().nullish(),
+  "defaultDashboardId": zod.string().nullish(),
+  "logoUrl": zod.string().nullish(),
+  "name": zod.string().optional(),
+  "plan": zod.string().optional(),
+  "urlMode": zod.string().optional()
+})
 
 export const UpdateAdminTenantResponse = zod.object({
-  accent: zod.string().nullish(),
-  createdAt: zod.iso.datetime({ offset: true }).optional(),
-  defaultDashboardId: zod.string().nullish(),
-  id: zod.string().optional(),
-  logoUrl: zod.string().nullish(),
-  name: zod.string().optional(),
-  plan: zod.string().optional(),
-  slug: zod.string().optional(),
-  updatedAt: zod.iso.datetime({ offset: true }).optional(),
-  urlMode: zod.string().optional(),
-});
+  "accent": zod.string().nullish(),
+  "createdAt": zod.iso.datetime({"offset":true}).optional(),
+  "defaultDashboardId": zod.string().nullish(),
+  "id": zod.string().optional(),
+  "logoUrl": zod.string().nullish(),
+  "name": zod.string().optional(),
+  "plan": zod.string().optional(),
+  "slug": zod.string().optional(),
+  "updatedAt": zod.iso.datetime({"offset":true}).optional(),
+  "urlMode": zod.string().optional()
+})
 
 /**
  * Requires `admin:cross-tenant-read`.
  * @summary List all users across tenants (super-admin)
  */
 export const ListAdminUsersResponse = zod.object({
-  items: zod
-    .array(
-      zod.object({
-        id: zod.string().optional(),
-        status: zod.string().optional(),
-        username: zod.string().optional(),
-      }),
-    )
-    .optional(),
-  total: zod.number().optional(),
-});
+  "items": zod.array(zod.object({
+  "id": zod.string().optional(),
+  "status": zod.string().optional(),
+  "username": zod.string().optional()
+})).optional(),
+  "total": zod.number().optional()
+})
+

@@ -23,55 +23,48 @@ Conventions:
  */
 import * as zod from 'zod';
 
+
 export const listAccessPoliciesPathTenantRegExp = new RegExp('^[a-z0-9-]+$');
 
+
 export const ListAccessPoliciesParams = zod.object({
-  tenant: zod
-    .string()
-    .regex(listAccessPoliciesPathTenantRegExp)
-    .describe('Tenant slug (e.g. `default`, `acme`).'),
-});
+  "tenant": zod.string().regex(listAccessPoliciesPathTenantRegExp).describe('Tenant slug (e.g. `default`, `acme`).')
+})
 
 export const ListAccessPoliciesResponse = zod.object({
-  accessPolicies: zod
-    .array(
-      zod.object({
-        createdAt: zod.iso.datetime({ offset: true }).optional(),
-        description: zod.string().optional(),
-        effect: zod.enum(['allow', 'deny']).optional(),
-        enabled: zod.boolean().optional(),
-        expression: zod.string().optional(),
-        id: zod.string().optional(),
-        name: zod.string().optional(),
-        priority: zod.number().optional(),
-        tenantId: zod.string().optional(),
-        updatedAt: zod.iso.datetime({ offset: true }).optional(),
-      }),
-    )
-    .optional(),
-  nextPageToken: zod.string().optional(),
-});
+  "accessPolicies": zod.array(zod.object({
+  "createdAt": zod.iso.datetime({"offset":true}).optional(),
+  "description": zod.string().optional(),
+  "effect": zod.enum(['allow', 'deny']).optional(),
+  "enabled": zod.boolean().optional(),
+  "expression": zod.string().optional(),
+  "id": zod.string().optional(),
+  "name": zod.string().optional(),
+  "priority": zod.number().optional(),
+  "tenantId": zod.string().optional(),
+  "updatedAt": zod.iso.datetime({"offset":true}).optional()
+})).optional(),
+  "nextPageToken": zod.string().optional()
+})
 
 export const createAccessPolicyPathTenantRegExp = new RegExp('^[a-z0-9-]+$');
 
+
 export const CreateAccessPolicyParams = zod.object({
-  tenant: zod
-    .string()
-    .regex(createAccessPolicyPathTenantRegExp)
-    .describe('Tenant slug (e.g. `default`, `acme`).'),
-});
+  "tenant": zod.string().regex(createAccessPolicyPathTenantRegExp).describe('Tenant slug (e.g. `default`, `acme`).')
+})
 
 export const createAccessPolicyBodyEffectDefault = `allow`;
 export const createAccessPolicyBodyEnabledDefault = true;
 
 export const CreateAccessPolicyBody = zod.object({
-  description: zod.string().optional(),
-  effect: zod.enum(['allow', 'deny']).default(createAccessPolicyBodyEffectDefault),
-  enabled: zod.boolean().default(createAccessPolicyBodyEnabledDefault),
-  expression: zod.string().describe('CEL expression evaluated against the request context.'),
-  name: zod.string(),
-  priority: zod.number().optional().describe('Lower priority numbers evaluate first.'),
-});
+  "description": zod.string().optional(),
+  "effect": zod.enum(['allow', 'deny']).default(createAccessPolicyBodyEffectDefault),
+  "enabled": zod.boolean().default(createAccessPolicyBodyEnabledDefault),
+  "expression": zod.string().describe('CEL expression evaluated against the request context.'),
+  "name": zod.string(),
+  "priority": zod.number().optional().describe('Lower priority numbers evaluate first.')
+})
 
 /**
  * Compiles the given CEL expression and evaluates it against the supplied
@@ -83,111 +76,99 @@ response with the matched flag false.
  */
 export const testAccessPolicyCelPathTenantRegExp = new RegExp('^[a-z0-9-]+$');
 
+
 export const TestAccessPolicyCelParams = zod.object({
-  tenant: zod
-    .string()
-    .regex(testAccessPolicyCelPathTenantRegExp)
-    .describe('Tenant slug (e.g. `default`, `acme`).'),
-});
+  "tenant": zod.string().regex(testAccessPolicyCelPathTenantRegExp).describe('Tenant slug (e.g. `default`, `acme`).')
+})
 
 export const TestAccessPolicyCelBody = zod.object({
-  expr: zod.string().describe('CEL expression to evaluate.'),
-  sample: zod
-    .record(zod.string(), zod.unknown())
-    .optional()
-    .describe('Sample event variables (request, user, env, etc.).'),
-});
+  "expr": zod.string().describe('CEL expression to evaluate.'),
+  "sample": zod.record(zod.string(), zod.unknown()).optional().describe('Sample event variables (request, user, env, etc.).')
+})
 
 export const TestAccessPolicyCelResponse = zod.object({
-  durationMs: zod.number().optional(),
-  error: zod.string().optional(),
-  matched: zod.boolean().optional(),
-});
+  "durationMs": zod.number().optional(),
+  "error": zod.string().optional(),
+  "matched": zod.boolean().optional()
+})
 
 export const deleteAccessPolicyPathTenantRegExp = new RegExp('^[a-z0-9-]+$');
 
+
 export const DeleteAccessPolicyParams = zod.object({
-  tenant: zod
-    .string()
-    .regex(deleteAccessPolicyPathTenantRegExp)
-    .describe('Tenant slug (e.g. `default`, `acme`).'),
-  id: zod.uuid().describe('Resource id (UUID).'),
-});
+  "tenant": zod.string().regex(deleteAccessPolicyPathTenantRegExp).describe('Tenant slug (e.g. `default`, `acme`).'),
+  "id": zod.uuid().describe('Resource id (UUID).')
+})
 
 export const getAccessPolicyPathTenantRegExp = new RegExp('^[a-z0-9-]+$');
 
+
 export const GetAccessPolicyParams = zod.object({
-  tenant: zod
-    .string()
-    .regex(getAccessPolicyPathTenantRegExp)
-    .describe('Tenant slug (e.g. `default`, `acme`).'),
-  id: zod.uuid().describe('Resource id (UUID).'),
-});
+  "tenant": zod.string().regex(getAccessPolicyPathTenantRegExp).describe('Tenant slug (e.g. `default`, `acme`).'),
+  "id": zod.uuid().describe('Resource id (UUID).')
+})
 
 export const GetAccessPolicyResponse = zod.object({
-  createdAt: zod.iso.datetime({ offset: true }).optional(),
-  description: zod.string().optional(),
-  effect: zod.enum(['allow', 'deny']).optional(),
-  enabled: zod.boolean().optional(),
-  expression: zod.string().optional(),
-  id: zod.string().optional(),
-  name: zod.string().optional(),
-  priority: zod.number().optional(),
-  tenantId: zod.string().optional(),
-  updatedAt: zod.iso.datetime({ offset: true }).optional(),
-});
+  "createdAt": zod.iso.datetime({"offset":true}).optional(),
+  "description": zod.string().optional(),
+  "effect": zod.enum(['allow', 'deny']).optional(),
+  "enabled": zod.boolean().optional(),
+  "expression": zod.string().optional(),
+  "id": zod.string().optional(),
+  "name": zod.string().optional(),
+  "priority": zod.number().optional(),
+  "tenantId": zod.string().optional(),
+  "updatedAt": zod.iso.datetime({"offset":true}).optional()
+})
 
 export const patchAccessPolicyPathTenantRegExp = new RegExp('^[a-z0-9-]+$');
 
+
 export const PatchAccessPolicyParams = zod.object({
-  tenant: zod
-    .string()
-    .regex(patchAccessPolicyPathTenantRegExp)
-    .describe('Tenant slug (e.g. `default`, `acme`).'),
-  id: zod.uuid().describe('Resource id (UUID).'),
-});
+  "tenant": zod.string().regex(patchAccessPolicyPathTenantRegExp).describe('Tenant slug (e.g. `default`, `acme`).'),
+  "id": zod.uuid().describe('Resource id (UUID).')
+})
 
 export const PatchAccessPolicyResponse = zod.object({
-  createdAt: zod.iso.datetime({ offset: true }).optional(),
-  description: zod.string().optional(),
-  effect: zod.enum(['allow', 'deny']).optional(),
-  enabled: zod.boolean().optional(),
-  expression: zod.string().optional(),
-  id: zod.string().optional(),
-  name: zod.string().optional(),
-  priority: zod.number().optional(),
-  tenantId: zod.string().optional(),
-  updatedAt: zod.iso.datetime({ offset: true }).optional(),
-});
+  "createdAt": zod.iso.datetime({"offset":true}).optional(),
+  "description": zod.string().optional(),
+  "effect": zod.enum(['allow', 'deny']).optional(),
+  "enabled": zod.boolean().optional(),
+  "expression": zod.string().optional(),
+  "id": zod.string().optional(),
+  "name": zod.string().optional(),
+  "priority": zod.number().optional(),
+  "tenantId": zod.string().optional(),
+  "updatedAt": zod.iso.datetime({"offset":true}).optional()
+})
 
 export const replaceAccessPolicyPathTenantRegExp = new RegExp('^[a-z0-9-]+$');
 
+
 export const ReplaceAccessPolicyParams = zod.object({
-  tenant: zod
-    .string()
-    .regex(replaceAccessPolicyPathTenantRegExp)
-    .describe('Tenant slug (e.g. `default`, `acme`).'),
-  id: zod.uuid().describe('Resource id (UUID).'),
-});
+  "tenant": zod.string().regex(replaceAccessPolicyPathTenantRegExp).describe('Tenant slug (e.g. `default`, `acme`).'),
+  "id": zod.uuid().describe('Resource id (UUID).')
+})
 
 export const ReplaceAccessPolicyBody = zod.object({
-  description: zod.string().optional(),
-  effect: zod.enum(['allow', 'deny']).optional(),
-  enabled: zod.boolean().optional(),
-  expression: zod.string().optional(),
-  name: zod.string().optional(),
-  priority: zod.number().optional(),
-});
+  "description": zod.string().optional(),
+  "effect": zod.enum(['allow', 'deny']).optional(),
+  "enabled": zod.boolean().optional(),
+  "expression": zod.string().optional(),
+  "name": zod.string().optional(),
+  "priority": zod.number().optional()
+})
 
 export const ReplaceAccessPolicyResponse = zod.object({
-  createdAt: zod.iso.datetime({ offset: true }).optional(),
-  description: zod.string().optional(),
-  effect: zod.enum(['allow', 'deny']).optional(),
-  enabled: zod.boolean().optional(),
-  expression: zod.string().optional(),
-  id: zod.string().optional(),
-  name: zod.string().optional(),
-  priority: zod.number().optional(),
-  tenantId: zod.string().optional(),
-  updatedAt: zod.iso.datetime({ offset: true }).optional(),
-});
+  "createdAt": zod.iso.datetime({"offset":true}).optional(),
+  "description": zod.string().optional(),
+  "effect": zod.enum(['allow', 'deny']).optional(),
+  "enabled": zod.boolean().optional(),
+  "expression": zod.string().optional(),
+  "id": zod.string().optional(),
+  "name": zod.string().optional(),
+  "priority": zod.number().optional(),
+  "tenantId": zod.string().optional(),
+  "updatedAt": zod.iso.datetime({"offset":true}).optional()
+})
+

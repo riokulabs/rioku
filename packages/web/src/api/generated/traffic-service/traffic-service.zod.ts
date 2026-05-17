@@ -23,312 +23,264 @@ Conventions:
  */
 import * as zod from 'zod';
 
+
 export const TrafficServiceListSessionsQueryParams = zod.object({
-  activeOnly: zod.boolean().optional(),
-  agentId: zod.string().optional(),
-  since: zod.iso.datetime({ offset: true }).optional(),
-  'page.pageSize': zod.number().optional(),
-  'page.pageToken': zod.string().optional(),
-});
+  "activeOnly": zod.boolean().optional(),
+  "agentId": zod.string().optional(),
+  "since": zod.iso.datetime({"offset":true}).optional(),
+  "page.pageSize": zod.number().optional(),
+  "page.pageToken": zod.string().optional()
+})
 
 export const TrafficServiceListSessionsResponse = zod.object({
-  page: zod
-    .object({
-      nextPageToken: zod.string().optional(),
-      total: zod.string().optional(),
-    })
-    .optional(),
-  sessions: zod
-    .array(
-      zod.object({
-        active: zod.boolean().optional(),
-        agentId: zod.string().optional(),
-        agentName: zod.string().optional(),
-        anomalous: zod.boolean().optional(),
-        anomalyReason: zod.string().optional(),
-        estimatedCostUsd: zod.number().optional(),
-        lastSeenAt: zod.iso.datetime({ offset: true }).optional(),
-        sessionId: zod.string().optional(),
-        startedAt: zod.iso.datetime({ offset: true }).optional(),
-        totalTokens: zod.string().optional(),
-        turnCount: zod.number().optional(),
-      }),
-    )
-    .optional(),
-});
+  "page": zod.object({
+  "nextPageToken": zod.string().optional(),
+  "total": zod.string().optional()
+}).optional(),
+  "sessions": zod.array(zod.object({
+  "active": zod.boolean().optional(),
+  "agentId": zod.string().optional(),
+  "agentName": zod.string().optional(),
+  "anomalous": zod.boolean().optional(),
+  "anomalyReason": zod.string().optional(),
+  "estimatedCostUsd": zod.number().optional(),
+  "lastSeenAt": zod.iso.datetime({"offset":true}).optional(),
+  "sessionId": zod.string().optional(),
+  "startedAt": zod.iso.datetime({"offset":true}).optional(),
+  "totalTokens": zod.string().optional(),
+  "turnCount": zod.number().optional()
+})).optional()
+})
 
 export const TrafficServiceGetSessionParams = zod.object({
-  sessionId: zod.string(),
-});
+  "sessionId": zod.string()
+})
 
 export const TrafficServiceGetSessionResponse = zod.object({
-  session: zod
-    .object({
-      active: zod.boolean().optional(),
-      agentId: zod.string().optional(),
-      agentName: zod.string().optional(),
-      anomalous: zod.boolean().optional(),
-      anomalyReason: zod.string().optional(),
-      estimatedCostUsd: zod.number().optional(),
-      lastSeenAt: zod.iso.datetime({ offset: true }).optional(),
-      sessionId: zod.string().optional(),
-      startedAt: zod.iso.datetime({ offset: true }).optional(),
-      totalTokens: zod.string().optional(),
-      turnCount: zod.number().optional(),
-    })
-    .optional(),
-  turns: zod
-    .array(
-      zod.object({
-        actorId: zod.string().optional(),
-        actorType: zod.string().optional(),
-        ai: zod
-          .object({
-            agentId: zod.string().optional(),
-            cacheHitTokens: zod.string().optional(),
-            contentTruncated: zod.boolean().optional(),
-            estimatedCostUsd: zod.number().optional(),
-            finishReason: zod.string().optional(),
-            inputTokens: zod.string().optional(),
-            isStreaming: zod.boolean().optional(),
-            model: zod.string().optional(),
-            outputTokens: zod.string().optional(),
-            parentTraceId: zod.string().optional(),
-            provider: zod.string().optional(),
-            toolCalls: zod
-              .array(
-                zod.object({
-                  durationMs: zod.string().optional(),
-                  error: zod.string().optional(),
-                  success: zod.boolean().optional(),
-                  toolId: zod.string().optional(),
-                  toolName: zod.string().optional(),
-                }),
-              )
-              .optional(),
-            totalTokens: zod.string().optional(),
-            turnNumber: zod.number().optional(),
-          })
-          .optional(),
-        authResult: zod.string().optional(),
-        bytesRecv: zod.string().optional(),
-        bytesSent: zod.string().optional(),
-        durationMs: zod.string().optional(),
-        host: zod.string().optional(),
-        method: zod.string().optional(),
-        path: zod.string().optional(),
-        policyIds: zod.array(zod.string()).optional(),
-        rateLimitHit: zod.boolean().optional(),
-        routeId: zod.string().optional(),
-        serviceId: zod.string().optional(),
-        sessionId: zod.string().optional(),
-        spanId: zod.string().optional(),
-        startedAt: zod.iso.datetime({ offset: true }).optional(),
-        statusCode: zod.number().optional(),
-        traceId: zod.string().optional(),
-        upstreamAddr: zod.string().optional(),
-        upstreamDurationMs: zod.string().optional(),
-      }),
-    )
-    .optional(),
-});
+  "session": zod.object({
+  "active": zod.boolean().optional(),
+  "agentId": zod.string().optional(),
+  "agentName": zod.string().optional(),
+  "anomalous": zod.boolean().optional(),
+  "anomalyReason": zod.string().optional(),
+  "estimatedCostUsd": zod.number().optional(),
+  "lastSeenAt": zod.iso.datetime({"offset":true}).optional(),
+  "sessionId": zod.string().optional(),
+  "startedAt": zod.iso.datetime({"offset":true}).optional(),
+  "totalTokens": zod.string().optional(),
+  "turnCount": zod.number().optional()
+}).optional(),
+  "turns": zod.array(zod.object({
+  "actorId": zod.string().optional(),
+  "actorType": zod.string().optional(),
+  "ai": zod.object({
+  "agentId": zod.string().optional(),
+  "cacheHitTokens": zod.string().optional(),
+  "contentTruncated": zod.boolean().optional(),
+  "estimatedCostUsd": zod.number().optional(),
+  "finishReason": zod.string().optional(),
+  "inputTokens": zod.string().optional(),
+  "isStreaming": zod.boolean().optional(),
+  "model": zod.string().optional(),
+  "outputTokens": zod.string().optional(),
+  "parentTraceId": zod.string().optional(),
+  "provider": zod.string().optional(),
+  "toolCalls": zod.array(zod.object({
+  "durationMs": zod.string().optional(),
+  "error": zod.string().optional(),
+  "success": zod.boolean().optional(),
+  "toolId": zod.string().optional(),
+  "toolName": zod.string().optional()
+})).optional(),
+  "totalTokens": zod.string().optional(),
+  "turnNumber": zod.number().optional()
+}).optional(),
+  "authResult": zod.string().optional(),
+  "bytesRecv": zod.string().optional(),
+  "bytesSent": zod.string().optional(),
+  "durationMs": zod.string().optional(),
+  "host": zod.string().optional(),
+  "method": zod.string().optional(),
+  "path": zod.string().optional(),
+  "policyIds": zod.array(zod.string()).optional(),
+  "rateLimitHit": zod.boolean().optional(),
+  "routeId": zod.string().optional(),
+  "serviceId": zod.string().optional(),
+  "sessionId": zod.string().optional(),
+  "spanId": zod.string().optional(),
+  "startedAt": zod.iso.datetime({"offset":true}).optional(),
+  "statusCode": zod.number().optional(),
+  "traceId": zod.string().optional(),
+  "upstreamAddr": zod.string().optional(),
+  "upstreamDurationMs": zod.string().optional()
+})).optional()
+})
 
 export const TrafficServiceGetStatsQueryParams = zod.object({
-  since: zod.iso.datetime({ offset: true }).optional(),
-  until: zod.iso.datetime({ offset: true }).optional(),
-  interval: zod.string().optional().describe('\"minute\" | \"hour\" | \"day\"'),
-  routeIds: zod.array(zod.string()).optional(),
-});
+  "since": zod.iso.datetime({"offset":true}).optional(),
+  "until": zod.iso.datetime({"offset":true}).optional(),
+  "interval": zod.string().optional().describe('\"minute\" | \"hour\" | \"day\"'),
+  "routeIds": zod.array(zod.string()).optional()
+})
 
 export const TrafficServiceGetStatsResponse = zod.object({
-  buckets: zod
-    .array(
-      zod.object({
-        bucketStart: zod.iso.datetime({ offset: true }).optional(),
-        bytesRecv: zod.string().optional(),
-        bytesSent: zod.string().optional(),
-        errorCount: zod.string().optional(),
-        errorRate: zod.number().optional(),
-        p50LatencyMs: zod.string().optional(),
-        p95LatencyMs: zod.string().optional(),
-        p99LatencyMs: zod.string().optional(),
-        requestCount: zod.string().optional(),
-      }),
-    )
-    .optional(),
-});
+  "buckets": zod.array(zod.object({
+  "bucketStart": zod.iso.datetime({"offset":true}).optional(),
+  "bytesRecv": zod.string().optional(),
+  "bytesSent": zod.string().optional(),
+  "errorCount": zod.string().optional(),
+  "errorRate": zod.number().optional(),
+  "p50LatencyMs": zod.string().optional(),
+  "p95LatencyMs": zod.string().optional(),
+  "p99LatencyMs": zod.string().optional(),
+  "requestCount": zod.string().optional()
+})).optional()
+})
 
 export const TrafficServiceGetTokenStatsQueryParams = zod.object({
-  since: zod.iso.datetime({ offset: true }).optional(),
-  until: zod.iso.datetime({ offset: true }).optional(),
-  interval: zod.string().optional(),
-  actorId: zod.string().optional(),
-  model: zod.string().optional(),
-  provider: zod.string().optional(),
-});
+  "since": zod.iso.datetime({"offset":true}).optional(),
+  "until": zod.iso.datetime({"offset":true}).optional(),
+  "interval": zod.string().optional(),
+  "actorId": zod.string().optional(),
+  "model": zod.string().optional(),
+  "provider": zod.string().optional()
+})
 
 export const TrafficServiceGetTokenStatsResponse = zod.object({
-  buckets: zod
-    .array(
-      zod.object({
-        bucketStart: zod.iso.datetime({ offset: true }).optional(),
-        estimatedCostUsd: zod.number().optional(),
-        inputTokens: zod.string().optional(),
-        outputTokens: zod.string().optional(),
-        requestCount: zod.string().optional(),
-        totalTokens: zod.string().optional(),
-      }),
-    )
-    .optional(),
-  modelBreakdown: zod
-    .array(
-      zod.object({
-        estimatedCostUsd: zod.number().optional(),
-        model: zod.string().optional(),
-        provider: zod.string().optional(),
-        requestCount: zod.string().optional(),
-        totalTokens: zod.string().optional(),
-      }),
-    )
-    .optional(),
-  totals: zod
-    .object({
-      budgetUsedPct: zod.number().optional(),
-      estimatedCostUsd: zod.number().optional(),
-      inputTokens: zod.string().optional(),
-      outputTokens: zod.string().optional(),
-      requestCount: zod.string().optional(),
-      totalTokens: zod.string().optional(),
-    })
-    .optional(),
-});
+  "buckets": zod.array(zod.object({
+  "bucketStart": zod.iso.datetime({"offset":true}).optional(),
+  "estimatedCostUsd": zod.number().optional(),
+  "inputTokens": zod.string().optional(),
+  "outputTokens": zod.string().optional(),
+  "requestCount": zod.string().optional(),
+  "totalTokens": zod.string().optional()
+})).optional(),
+  "modelBreakdown": zod.array(zod.object({
+  "estimatedCostUsd": zod.number().optional(),
+  "model": zod.string().optional(),
+  "provider": zod.string().optional(),
+  "requestCount": zod.string().optional(),
+  "totalTokens": zod.string().optional()
+})).optional(),
+  "totals": zod.object({
+  "budgetUsedPct": zod.number().optional(),
+  "estimatedCostUsd": zod.number().optional(),
+  "inputTokens": zod.string().optional(),
+  "outputTokens": zod.string().optional(),
+  "requestCount": zod.string().optional(),
+  "totalTokens": zod.string().optional()
+}).optional()
+})
 
 export const TrafficServiceQueryTracesQueryParams = zod.object({
-  since: zod.iso.datetime({ offset: true }).optional(),
-  until: zod.iso.datetime({ offset: true }).optional(),
-  routeIds: zod.array(zod.string()).optional(),
-  statusCodes: zod.array(zod.number()).optional(),
-  actorId: zod.string().optional(),
-  sessionId: zod.string().optional(),
-  aiOnly: zod.boolean().optional(),
-  'page.pageSize': zod.number().optional(),
-  'page.pageToken': zod.string().optional(),
-});
+  "since": zod.iso.datetime({"offset":true}).optional(),
+  "until": zod.iso.datetime({"offset":true}).optional(),
+  "routeIds": zod.array(zod.string()).optional(),
+  "statusCodes": zod.array(zod.number()).optional(),
+  "actorId": zod.string().optional(),
+  "sessionId": zod.string().optional(),
+  "aiOnly": zod.boolean().optional(),
+  "page.pageSize": zod.number().optional(),
+  "page.pageToken": zod.string().optional()
+})
 
 export const TrafficServiceQueryTracesResponse = zod.object({
-  page: zod
-    .object({
-      nextPageToken: zod.string().optional(),
-      total: zod.string().optional(),
-    })
-    .optional(),
-  traces: zod
-    .array(
-      zod.object({
-        actorId: zod.string().optional(),
-        actorType: zod.string().optional(),
-        ai: zod
-          .object({
-            agentId: zod.string().optional(),
-            cacheHitTokens: zod.string().optional(),
-            contentTruncated: zod.boolean().optional(),
-            estimatedCostUsd: zod.number().optional(),
-            finishReason: zod.string().optional(),
-            inputTokens: zod.string().optional(),
-            isStreaming: zod.boolean().optional(),
-            model: zod.string().optional(),
-            outputTokens: zod.string().optional(),
-            parentTraceId: zod.string().optional(),
-            provider: zod.string().optional(),
-            toolCalls: zod
-              .array(
-                zod.object({
-                  durationMs: zod.string().optional(),
-                  error: zod.string().optional(),
-                  success: zod.boolean().optional(),
-                  toolId: zod.string().optional(),
-                  toolName: zod.string().optional(),
-                }),
-              )
-              .optional(),
-            totalTokens: zod.string().optional(),
-            turnNumber: zod.number().optional(),
-          })
-          .optional(),
-        authResult: zod.string().optional(),
-        bytesRecv: zod.string().optional(),
-        bytesSent: zod.string().optional(),
-        durationMs: zod.string().optional(),
-        host: zod.string().optional(),
-        method: zod.string().optional(),
-        path: zod.string().optional(),
-        policyIds: zod.array(zod.string()).optional(),
-        rateLimitHit: zod.boolean().optional(),
-        routeId: zod.string().optional(),
-        serviceId: zod.string().optional(),
-        sessionId: zod.string().optional(),
-        spanId: zod.string().optional(),
-        startedAt: zod.iso.datetime({ offset: true }).optional(),
-        statusCode: zod.number().optional(),
-        traceId: zod.string().optional(),
-        upstreamAddr: zod.string().optional(),
-        upstreamDurationMs: zod.string().optional(),
-      }),
-    )
-    .optional(),
-});
+  "page": zod.object({
+  "nextPageToken": zod.string().optional(),
+  "total": zod.string().optional()
+}).optional(),
+  "traces": zod.array(zod.object({
+  "actorId": zod.string().optional(),
+  "actorType": zod.string().optional(),
+  "ai": zod.object({
+  "agentId": zod.string().optional(),
+  "cacheHitTokens": zod.string().optional(),
+  "contentTruncated": zod.boolean().optional(),
+  "estimatedCostUsd": zod.number().optional(),
+  "finishReason": zod.string().optional(),
+  "inputTokens": zod.string().optional(),
+  "isStreaming": zod.boolean().optional(),
+  "model": zod.string().optional(),
+  "outputTokens": zod.string().optional(),
+  "parentTraceId": zod.string().optional(),
+  "provider": zod.string().optional(),
+  "toolCalls": zod.array(zod.object({
+  "durationMs": zod.string().optional(),
+  "error": zod.string().optional(),
+  "success": zod.boolean().optional(),
+  "toolId": zod.string().optional(),
+  "toolName": zod.string().optional()
+})).optional(),
+  "totalTokens": zod.string().optional(),
+  "turnNumber": zod.number().optional()
+}).optional(),
+  "authResult": zod.string().optional(),
+  "bytesRecv": zod.string().optional(),
+  "bytesSent": zod.string().optional(),
+  "durationMs": zod.string().optional(),
+  "host": zod.string().optional(),
+  "method": zod.string().optional(),
+  "path": zod.string().optional(),
+  "policyIds": zod.array(zod.string()).optional(),
+  "rateLimitHit": zod.boolean().optional(),
+  "routeId": zod.string().optional(),
+  "serviceId": zod.string().optional(),
+  "sessionId": zod.string().optional(),
+  "spanId": zod.string().optional(),
+  "startedAt": zod.iso.datetime({"offset":true}).optional(),
+  "statusCode": zod.number().optional(),
+  "traceId": zod.string().optional(),
+  "upstreamAddr": zod.string().optional(),
+  "upstreamDurationMs": zod.string().optional()
+})).optional()
+})
 
 export const TrafficServiceGetTraceParams = zod.object({
-  traceId: zod.string(),
-});
+  "traceId": zod.string()
+})
 
 export const TrafficServiceGetTraceResponse = zod.object({
-  actorId: zod.string().optional(),
-  actorType: zod.string().optional(),
-  ai: zod
-    .object({
-      agentId: zod.string().optional(),
-      cacheHitTokens: zod.string().optional(),
-      contentTruncated: zod.boolean().optional(),
-      estimatedCostUsd: zod.number().optional(),
-      finishReason: zod.string().optional(),
-      inputTokens: zod.string().optional(),
-      isStreaming: zod.boolean().optional(),
-      model: zod.string().optional(),
-      outputTokens: zod.string().optional(),
-      parentTraceId: zod.string().optional(),
-      provider: zod.string().optional(),
-      toolCalls: zod
-        .array(
-          zod.object({
-            durationMs: zod.string().optional(),
-            error: zod.string().optional(),
-            success: zod.boolean().optional(),
-            toolId: zod.string().optional(),
-            toolName: zod.string().optional(),
-          }),
-        )
-        .optional(),
-      totalTokens: zod.string().optional(),
-      turnNumber: zod.number().optional(),
-    })
-    .optional(),
-  authResult: zod.string().optional(),
-  bytesRecv: zod.string().optional(),
-  bytesSent: zod.string().optional(),
-  durationMs: zod.string().optional(),
-  host: zod.string().optional(),
-  method: zod.string().optional(),
-  path: zod.string().optional(),
-  policyIds: zod.array(zod.string()).optional(),
-  rateLimitHit: zod.boolean().optional(),
-  routeId: zod.string().optional(),
-  serviceId: zod.string().optional(),
-  sessionId: zod.string().optional(),
-  spanId: zod.string().optional(),
-  startedAt: zod.iso.datetime({ offset: true }).optional(),
-  statusCode: zod.number().optional(),
-  traceId: zod.string().optional(),
-  upstreamAddr: zod.string().optional(),
-  upstreamDurationMs: zod.string().optional(),
-});
+  "actorId": zod.string().optional(),
+  "actorType": zod.string().optional(),
+  "ai": zod.object({
+  "agentId": zod.string().optional(),
+  "cacheHitTokens": zod.string().optional(),
+  "contentTruncated": zod.boolean().optional(),
+  "estimatedCostUsd": zod.number().optional(),
+  "finishReason": zod.string().optional(),
+  "inputTokens": zod.string().optional(),
+  "isStreaming": zod.boolean().optional(),
+  "model": zod.string().optional(),
+  "outputTokens": zod.string().optional(),
+  "parentTraceId": zod.string().optional(),
+  "provider": zod.string().optional(),
+  "toolCalls": zod.array(zod.object({
+  "durationMs": zod.string().optional(),
+  "error": zod.string().optional(),
+  "success": zod.boolean().optional(),
+  "toolId": zod.string().optional(),
+  "toolName": zod.string().optional()
+})).optional(),
+  "totalTokens": zod.string().optional(),
+  "turnNumber": zod.number().optional()
+}).optional(),
+  "authResult": zod.string().optional(),
+  "bytesRecv": zod.string().optional(),
+  "bytesSent": zod.string().optional(),
+  "durationMs": zod.string().optional(),
+  "host": zod.string().optional(),
+  "method": zod.string().optional(),
+  "path": zod.string().optional(),
+  "policyIds": zod.array(zod.string()).optional(),
+  "rateLimitHit": zod.boolean().optional(),
+  "routeId": zod.string().optional(),
+  "serviceId": zod.string().optional(),
+  "sessionId": zod.string().optional(),
+  "spanId": zod.string().optional(),
+  "startedAt": zod.iso.datetime({"offset":true}).optional(),
+  "statusCode": zod.number().optional(),
+  "traceId": zod.string().optional(),
+  "upstreamAddr": zod.string().optional(),
+  "upstreamDurationMs": zod.string().optional()
+})
+

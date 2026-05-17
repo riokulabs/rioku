@@ -23,6 +23,7 @@ Conventions:
  */
 import * as zod from 'zod';
 
+
 /**
  * Mirrors `/api/v1/t/{tenant}/plugin-marketplace` but is reachable
 without a tenant scope, for marketplace browse views that are
@@ -31,108 +32,96 @@ rendered before tenant resolution.
  * @summary Curated marketplace catalog (cross-tenant alias)
  */
 export const ListMarketplaceCatalogResponse = zod.object({
-  items: zod.array(
-    zod.object({
-      author: zod.string().optional(),
-      description: zod.string().optional(),
-      id: zod.string(),
-      manifest_url: zod.string(),
-      name: zod.string(),
-      signer_fingerprint: zod.string().optional(),
-      tags: zod.array(zod.string()).optional(),
-      verified: zod.boolean().optional(),
-      version: zod.string(),
-    }),
-  ),
-  total: zod.number(),
-});
+  "items": zod.array(zod.object({
+  "author": zod.string().optional(),
+  "description": zod.string().optional(),
+  "id": zod.string(),
+  "manifest_url": zod.string(),
+  "name": zod.string(),
+  "signer_fingerprint": zod.string().optional(),
+  "tags": zod.array(zod.string()).optional(),
+  "verified": zod.boolean().optional(),
+  "version": zod.string()
+})),
+  "total": zod.number()
+})
 
 /**
  * @summary Curated marketplace catalog (tenant-scoped)
  */
 export const listTenantMarketplaceCatalogPathTenantRegExp = new RegExp('^[a-z0-9-]+$');
 
+
 export const ListTenantMarketplaceCatalogParams = zod.object({
-  tenant: zod
-    .string()
-    .regex(listTenantMarketplaceCatalogPathTenantRegExp)
-    .describe('Tenant slug (e.g. `default`, `acme`).'),
-});
+  "tenant": zod.string().regex(listTenantMarketplaceCatalogPathTenantRegExp).describe('Tenant slug (e.g. `default`, `acme`).')
+})
 
 export const ListTenantMarketplaceCatalogResponse = zod.object({
-  items: zod.array(
-    zod.object({
-      author: zod.string().optional(),
-      description: zod.string().optional(),
-      id: zod.string(),
-      manifest_url: zod.string(),
-      name: zod.string(),
-      signer_fingerprint: zod.string().optional(),
-      tags: zod.array(zod.string()).optional(),
-      verified: zod.boolean().optional(),
-      version: zod.string(),
-    }),
-  ),
-  total: zod.number(),
-});
+  "items": zod.array(zod.object({
+  "author": zod.string().optional(),
+  "description": zod.string().optional(),
+  "id": zod.string(),
+  "manifest_url": zod.string(),
+  "name": zod.string(),
+  "signer_fingerprint": zod.string().optional(),
+  "tags": zod.array(zod.string()).optional(),
+  "verified": zod.boolean().optional(),
+  "version": zod.string()
+})),
+  "total": zod.number()
+})
 
 /**
  * @summary Curated marketplace entry
  */
 export const getMarketplaceCatalogEntryPathTenantRegExp = new RegExp('^[a-z0-9-]+$');
 
+
 export const GetMarketplaceCatalogEntryParams = zod.object({
-  tenant: zod
-    .string()
-    .regex(getMarketplaceCatalogEntryPathTenantRegExp)
-    .describe('Tenant slug (e.g. `default`, `acme`).'),
-  id: zod.string(),
-});
+  "tenant": zod.string().regex(getMarketplaceCatalogEntryPathTenantRegExp).describe('Tenant slug (e.g. `default`, `acme`).'),
+  "id": zod.string()
+})
 
 export const GetMarketplaceCatalogEntryResponse = zod.object({
-  author: zod.string().optional(),
-  description: zod.string().optional(),
-  id: zod.string(),
-  manifest_url: zod.string(),
-  name: zod.string(),
-  signer_fingerprint: zod.string().optional(),
-  tags: zod.array(zod.string()).optional(),
-  verified: zod.boolean().optional(),
-  version: zod.string(),
-});
+  "author": zod.string().optional(),
+  "description": zod.string().optional(),
+  "id": zod.string(),
+  "manifest_url": zod.string(),
+  "name": zod.string(),
+  "signer_fingerprint": zod.string().optional(),
+  "tags": zod.array(zod.string()).optional(),
+  "verified": zod.boolean().optional(),
+  "version": zod.string()
+})
 
 /**
  * @summary List installed plugins
  */
 export const listPluginsPathTenantRegExp = new RegExp('^[a-z0-9-]+$');
 
+
 export const ListPluginsParams = zod.object({
-  tenant: zod
-    .string()
-    .regex(listPluginsPathTenantRegExp)
-    .describe('Tenant slug (e.g. `default`, `acme`).'),
-});
+  "tenant": zod.string().regex(listPluginsPathTenantRegExp).describe('Tenant slug (e.g. `default`, `acme`).')
+})
 
 export const ListPluginsResponse = zod.object({
-  items: zod.array(
-    zod.object({
-      buildState: zod.enum(['stable', 'building', 'failed', 'ready', 'pending-build']),
-      config: zod.record(zod.string(), zod.unknown()),
-      cosignVerified: zod.boolean(),
-      enabled: zod.boolean(),
-      id: zod.string(),
-      installedAt: zod.iso.datetime({ offset: true }),
-      metadata: zod.record(zod.string(), zod.unknown()),
-      name: zod.string(),
-      signerId: zod.string().nullish(),
-      slug: zod.string(),
-      tenantScope: zod.string().nullish(),
-      updatedAt: zod.iso.datetime({ offset: true }),
-      version: zod.string(),
-    }),
-  ),
-  total: zod.number(),
-});
+  "items": zod.array(zod.object({
+  "buildState": zod.enum(['stable', 'building', 'failed', 'ready', 'pending-build']),
+  "config": zod.record(zod.string(), zod.unknown()),
+  "cosignVerified": zod.boolean(),
+  "enabled": zod.boolean(),
+  "id": zod.string(),
+  "installedAt": zod.iso.datetime({"offset":true}),
+  "metadata": zod.record(zod.string(), zod.unknown()),
+  "name": zod.string(),
+  "signerId": zod.string().nullish(),
+  "slug": zod.string(),
+  "tenantScope": zod.string().nullish(),
+  "updatedAt": zod.iso.datetime({"offset":true}),
+  "version": zod.string()
+})),
+  "total": zod.number()
+})
 
 /**
  * Stage-2 stub. Inserts a plugin record with `buildState=building`.
@@ -144,18 +133,16 @@ Use `install-from-marketplace` for curated installs and
  */
 export const installPluginPathTenantRegExp = new RegExp('^[a-z0-9-]+$');
 
+
 export const InstallPluginParams = zod.object({
-  tenant: zod
-    .string()
-    .regex(installPluginPathTenantRegExp)
-    .describe('Tenant slug (e.g. `default`, `acme`).'),
-});
+  "tenant": zod.string().regex(installPluginPathTenantRegExp).describe('Tenant slug (e.g. `default`, `acme`).')
+})
 
 export const InstallPluginBody = zod.object({
-  name: zod.string(),
-  slug: zod.string(),
-  version: zod.string(),
-});
+  "name": zod.string(),
+  "slug": zod.string(),
+  "version": zod.string()
+})
 
 /**
  * Queues a build + install for a plugin referenced by its
@@ -166,17 +153,15 @@ poll via `/build-log`.
  */
 export const installFromMarketplacePathTenantRegExp = new RegExp('^[a-z0-9-]+$');
 
+
 export const InstallFromMarketplaceParams = zod.object({
-  tenant: zod
-    .string()
-    .regex(installFromMarketplacePathTenantRegExp)
-    .describe('Tenant slug (e.g. `default`, `acme`).'),
-});
+  "tenant": zod.string().regex(installFromMarketplacePathTenantRegExp).describe('Tenant slug (e.g. `default`, `acme`).')
+})
 
 export const InstallFromMarketplaceBody = zod.object({
-  config: zod.record(zod.string(), zod.unknown()).optional(),
-  marketplaceId: zod.string(),
-});
+  "config": zod.record(zod.string(), zod.unknown()).optional(),
+  "marketplaceId": zod.string()
+})
 
 /**
  * Returns `{valid, errors[]}` for a candidate manifest. Errors
@@ -187,24 +172,20 @@ carry a JSON pointer in `path` and a human-readable
  */
 export const validatePluginManifestPathTenantRegExp = new RegExp('^[a-z0-9-]+$');
 
-export const ValidatePluginManifestParams = zod.object({
-  tenant: zod
-    .string()
-    .regex(validatePluginManifestPathTenantRegExp)
-    .describe('Tenant slug (e.g. `default`, `acme`).'),
-});
 
-export const ValidatePluginManifestBody = zod.record(zod.string(), zod.unknown());
+export const ValidatePluginManifestParams = zod.object({
+  "tenant": zod.string().regex(validatePluginManifestPathTenantRegExp).describe('Tenant slug (e.g. `default`, `acme`).')
+})
+
+export const ValidatePluginManifestBody = zod.record(zod.string(), zod.unknown())
 
 export const ValidatePluginManifestResponse = zod.object({
-  errors: zod.array(
-    zod.object({
-      message: zod.string(),
-      path: zod.string(),
-    }),
-  ),
-  valid: zod.boolean(),
-});
+  "errors": zod.array(zod.object({
+  "message": zod.string(),
+  "path": zod.string()
+})),
+  "valid": zod.boolean()
+})
 
 /**
  * Uploads a pre-built plugin binary together with its manifest.
@@ -224,69 +205,58 @@ non-empty `Signer-Fingerprint` header that resolves to a
  */
 export const sideloadPluginPathTenantRegExp = new RegExp('^[a-z0-9-]+$');
 
+
 export const SideloadPluginParams = zod.object({
-  tenant: zod
-    .string()
-    .regex(sideloadPluginPathTenantRegExp)
-    .describe('Tenant slug (e.g. `default`, `acme`).'),
-});
+  "tenant": zod.string().regex(sideloadPluginPathTenantRegExp).describe('Tenant slug (e.g. `default`, `acme`).')
+})
 
 export const SideloadPluginHeader = zod.object({
-  'Signer-Fingerprint': zod
-    .string()
-    .optional()
-    .describe(
-      'When present, the signature is verified against the\nreferenced tenant plugin-signer (status must be\n`verified`).\n',
-    ),
-});
+  "Signer-Fingerprint": zod.string().optional().describe('When present, the signature is verified against the\nreferenced tenant plugin-signer (status must be\n`verified`).\n')
+})
 
 export const SideloadPluginBody = zod.object({
-  archive: zod.instanceof(File),
-  manifest: zod.instanceof(File),
-  signature: zod.instanceof(File).optional(),
-});
+  "archive": zod.instanceof(File),
+  "manifest": zod.instanceof(File),
+  "signature": zod.instanceof(File).optional()
+})
 
 /**
  * @summary Uninstall a plugin
  */
 export const uninstallPluginPathTenantRegExp = new RegExp('^[a-z0-9-]+$');
 
+
 export const UninstallPluginParams = zod.object({
-  tenant: zod
-    .string()
-    .regex(uninstallPluginPathTenantRegExp)
-    .describe('Tenant slug (e.g. `default`, `acme`).'),
-  id: zod.string(),
-});
+  "tenant": zod.string().regex(uninstallPluginPathTenantRegExp).describe('Tenant slug (e.g. `default`, `acme`).'),
+  "id": zod.string()
+})
 
 /**
  * @summary Get a plugin
  */
 export const getPluginPathTenantRegExp = new RegExp('^[a-z0-9-]+$');
 
+
 export const GetPluginParams = zod.object({
-  tenant: zod
-    .string()
-    .regex(getPluginPathTenantRegExp)
-    .describe('Tenant slug (e.g. `default`, `acme`).'),
-  id: zod.string(),
-});
+  "tenant": zod.string().regex(getPluginPathTenantRegExp).describe('Tenant slug (e.g. `default`, `acme`).'),
+  "id": zod.string()
+})
 
 export const GetPluginResponse = zod.object({
-  buildState: zod.enum(['stable', 'building', 'failed', 'ready', 'pending-build']),
-  config: zod.record(zod.string(), zod.unknown()),
-  cosignVerified: zod.boolean(),
-  enabled: zod.boolean(),
-  id: zod.string(),
-  installedAt: zod.iso.datetime({ offset: true }),
-  metadata: zod.record(zod.string(), zod.unknown()),
-  name: zod.string(),
-  signerId: zod.string().nullish(),
-  slug: zod.string(),
-  tenantScope: zod.string().nullish(),
-  updatedAt: zod.iso.datetime({ offset: true }),
-  version: zod.string(),
-});
+  "buildState": zod.enum(['stable', 'building', 'failed', 'ready', 'pending-build']),
+  "config": zod.record(zod.string(), zod.unknown()),
+  "cosignVerified": zod.boolean(),
+  "enabled": zod.boolean(),
+  "id": zod.string(),
+  "installedAt": zod.iso.datetime({"offset":true}),
+  "metadata": zod.record(zod.string(), zod.unknown()),
+  "name": zod.string(),
+  "signerId": zod.string().nullish(),
+  "slug": zod.string(),
+  "tenantScope": zod.string().nullish(),
+  "updatedAt": zod.iso.datetime({"offset":true}),
+  "version": zod.string()
+})
 
 /**
  * Returns the most recent build output for the plugin. Stage-2
@@ -297,74 +267,69 @@ with the build pipeline (#142).
  */
 export const getPluginBuildLogPathTenantRegExp = new RegExp('^[a-z0-9-]+$');
 
+
 export const GetPluginBuildLogParams = zod.object({
-  tenant: zod
-    .string()
-    .regex(getPluginBuildLogPathTenantRegExp)
-    .describe('Tenant slug (e.g. `default`, `acme`).'),
-  id: zod.string(),
-});
+  "tenant": zod.string().regex(getPluginBuildLogPathTenantRegExp).describe('Tenant slug (e.g. `default`, `acme`).'),
+  "id": zod.string()
+})
 
 export const GetPluginBuildLogResponse = zod.object({
-  buildState: zod.enum(['stable', 'building', 'failed', 'ready', 'pending-build']),
-  log: zod.string(),
-  pluginId: zod.string(),
-});
+  "buildState": zod.enum(['stable', 'building', 'failed', 'ready', 'pending-build']),
+  "log": zod.string(),
+  "pluginId": zod.string()
+})
 
 /**
  * @summary Disable a plugin
  */
 export const disablePluginPathTenantRegExp = new RegExp('^[a-z0-9-]+$');
 
+
 export const DisablePluginParams = zod.object({
-  tenant: zod
-    .string()
-    .regex(disablePluginPathTenantRegExp)
-    .describe('Tenant slug (e.g. `default`, `acme`).'),
-  id: zod.string(),
-});
+  "tenant": zod.string().regex(disablePluginPathTenantRegExp).describe('Tenant slug (e.g. `default`, `acme`).'),
+  "id": zod.string()
+})
 
 export const DisablePluginResponse = zod.object({
-  buildState: zod.enum(['stable', 'building', 'failed', 'ready', 'pending-build']),
-  config: zod.record(zod.string(), zod.unknown()),
-  cosignVerified: zod.boolean(),
-  enabled: zod.boolean(),
-  id: zod.string(),
-  installedAt: zod.iso.datetime({ offset: true }),
-  metadata: zod.record(zod.string(), zod.unknown()),
-  name: zod.string(),
-  signerId: zod.string().nullish(),
-  slug: zod.string(),
-  tenantScope: zod.string().nullish(),
-  updatedAt: zod.iso.datetime({ offset: true }),
-  version: zod.string(),
-});
+  "buildState": zod.enum(['stable', 'building', 'failed', 'ready', 'pending-build']),
+  "config": zod.record(zod.string(), zod.unknown()),
+  "cosignVerified": zod.boolean(),
+  "enabled": zod.boolean(),
+  "id": zod.string(),
+  "installedAt": zod.iso.datetime({"offset":true}),
+  "metadata": zod.record(zod.string(), zod.unknown()),
+  "name": zod.string(),
+  "signerId": zod.string().nullish(),
+  "slug": zod.string(),
+  "tenantScope": zod.string().nullish(),
+  "updatedAt": zod.iso.datetime({"offset":true}),
+  "version": zod.string()
+})
 
 /**
  * @summary Enable a plugin
  */
 export const enablePluginPathTenantRegExp = new RegExp('^[a-z0-9-]+$');
 
+
 export const EnablePluginParams = zod.object({
-  tenant: zod
-    .string()
-    .regex(enablePluginPathTenantRegExp)
-    .describe('Tenant slug (e.g. `default`, `acme`).'),
-  id: zod.string(),
-});
+  "tenant": zod.string().regex(enablePluginPathTenantRegExp).describe('Tenant slug (e.g. `default`, `acme`).'),
+  "id": zod.string()
+})
 
 export const EnablePluginResponse = zod.object({
-  buildState: zod.enum(['stable', 'building', 'failed', 'ready', 'pending-build']),
-  config: zod.record(zod.string(), zod.unknown()),
-  cosignVerified: zod.boolean(),
-  enabled: zod.boolean(),
-  id: zod.string(),
-  installedAt: zod.iso.datetime({ offset: true }),
-  metadata: zod.record(zod.string(), zod.unknown()),
-  name: zod.string(),
-  signerId: zod.string().nullish(),
-  slug: zod.string(),
-  tenantScope: zod.string().nullish(),
-  updatedAt: zod.iso.datetime({ offset: true }),
-  version: zod.string(),
-});
+  "buildState": zod.enum(['stable', 'building', 'failed', 'ready', 'pending-build']),
+  "config": zod.record(zod.string(), zod.unknown()),
+  "cosignVerified": zod.boolean(),
+  "enabled": zod.boolean(),
+  "id": zod.string(),
+  "installedAt": zod.iso.datetime({"offset":true}),
+  "metadata": zod.record(zod.string(), zod.unknown()),
+  "name": zod.string(),
+  "signerId": zod.string().nullish(),
+  "slug": zod.string(),
+  "tenantScope": zod.string().nullish(),
+  "updatedAt": zod.iso.datetime({"offset":true}),
+  "version": zod.string()
+})
+

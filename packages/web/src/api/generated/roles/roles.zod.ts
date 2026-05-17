@@ -23,167 +23,134 @@ Conventions:
  */
 import * as zod from 'zod';
 
+
 /**
  * @summary List roles
  */
 export const listRolesPathTenantRegExp = new RegExp('^[a-z0-9-]+$');
 
+
 export const ListRolesParams = zod.object({
-  tenant: zod
-    .string()
-    .regex(listRolesPathTenantRegExp)
-    .describe('Tenant slug (e.g. `default`, `acme`).'),
-});
+  "tenant": zod.string().regex(listRolesPathTenantRegExp).describe('Tenant slug (e.g. `default`, `acme`).')
+})
 
 export const ListRolesResponse = zod.object({
-  nextPageToken: zod.string().optional(),
-  roles: zod
-    .array(
-      zod.object({
-        createdAt: zod.iso.datetime({ offset: true }).optional(),
-        description: zod.string().optional(),
-        id: zod.string().optional(),
-        name: zod.string().optional(),
-        permissions: zod.array(zod.string()).optional(),
-        source: zod.enum(['builtin', 'custom', 'plugin-manifest', 'plugin-dynamic']).optional(),
-        tenantId: zod.string().optional(),
-      }),
-    )
-    .optional(),
-});
+  "nextPageToken": zod.string().optional(),
+  "roles": zod.array(zod.object({
+  "createdAt": zod.iso.datetime({"offset":true}).optional(),
+  "description": zod.string().optional(),
+  "id": zod.string().optional(),
+  "name": zod.string().optional(),
+  "permissions": zod.array(zod.string()).optional(),
+  "source": zod.enum(['builtin', 'custom', 'plugin-manifest', 'plugin-dynamic']).optional(),
+  "tenantId": zod.string().optional()
+})).optional()
+})
 
 /**
  * @summary Create a role
  */
 export const createRolePathTenantRegExp = new RegExp('^[a-z0-9-]+$');
 
+
 export const CreateRoleParams = zod.object({
-  tenant: zod
-    .string()
-    .regex(createRolePathTenantRegExp)
-    .describe('Tenant slug (e.g. `default`, `acme`).'),
-});
+  "tenant": zod.string().regex(createRolePathTenantRegExp).describe('Tenant slug (e.g. `default`, `acme`).')
+})
 
 export const CreateRoleBody = zod.object({
-  description: zod.string().optional(),
-  name: zod.string(),
-  permissions: zod.array(zod.string()).optional(),
-});
+  "description": zod.string().optional(),
+  "name": zod.string(),
+  "permissions": zod.array(zod.string()).optional()
+})
 
 export const deleteRolePathTenantRegExp = new RegExp('^[a-z0-9-]+$');
 
+
 export const DeleteRoleParams = zod.object({
-  tenant: zod
-    .string()
-    .regex(deleteRolePathTenantRegExp)
-    .describe('Tenant slug (e.g. `default`, `acme`).'),
-  id: zod.uuid().describe('Resource id (UUID).'),
-});
+  "tenant": zod.string().regex(deleteRolePathTenantRegExp).describe('Tenant slug (e.g. `default`, `acme`).'),
+  "id": zod.uuid().describe('Resource id (UUID).')
+})
 
 export const getRolePathTenantRegExp = new RegExp('^[a-z0-9-]+$');
 
+
 export const GetRoleParams = zod.object({
-  tenant: zod
-    .string()
-    .regex(getRolePathTenantRegExp)
-    .describe('Tenant slug (e.g. `default`, `acme`).'),
-  id: zod.uuid().describe('Resource id (UUID).'),
-});
+  "tenant": zod.string().regex(getRolePathTenantRegExp).describe('Tenant slug (e.g. `default`, `acme`).'),
+  "id": zod.uuid().describe('Resource id (UUID).')
+})
 
 export const GetRoleResponse = zod.object({
-  _links: zod
-    .record(
-      zod.string(),
-      zod
-        .object({
-          href: zod.string(),
-          templated: zod.boolean().optional(),
-        })
-        .describe(
-          'OpenAPI\/HAL hypermedia reference. Every resource emits a\n`_links` map keyed by relation name (`self`, `owner`, `tools`,\n`traces`, etc.) with a Link object.\n',
-        ),
-    )
-    .optional(),
-  createdAt: zod.iso.datetime({ offset: true }).optional(),
-  description: zod.string().optional(),
-  id: zod.string().optional(),
-  name: zod.string().optional(),
-  permissions: zod.array(zod.string()).optional(),
-  source: zod.enum(['builtin', 'custom', 'plugin-manifest', 'plugin-dynamic']).optional(),
-  tenantId: zod.string().optional(),
-});
+  "_links": zod.record(zod.string(), zod.object({
+  "href": zod.string(),
+  "templated": zod.boolean().optional()
+}).describe('OpenAPI\/HAL hypermedia reference. Every resource emits a\n`_links` map keyed by relation name (`self`, `owner`, `tools`,\n`traces`, etc.) with a Link object.\n')).optional(),
+  "createdAt": zod.iso.datetime({"offset":true}).optional(),
+  "description": zod.string().optional(),
+  "id": zod.string().optional(),
+  "name": zod.string().optional(),
+  "permissions": zod.array(zod.string()).optional(),
+  "source": zod.enum(['builtin', 'custom', 'plugin-manifest', 'plugin-dynamic']).optional(),
+  "tenantId": zod.string().optional()
+})
 
 export const patchRolePathTenantRegExp = new RegExp('^[a-z0-9-]+$');
 
+
 export const PatchRoleParams = zod.object({
-  tenant: zod
-    .string()
-    .regex(patchRolePathTenantRegExp)
-    .describe('Tenant slug (e.g. `default`, `acme`).'),
-  id: zod.uuid().describe('Resource id (UUID).'),
-});
+  "tenant": zod.string().regex(patchRolePathTenantRegExp).describe('Tenant slug (e.g. `default`, `acme`).'),
+  "id": zod.uuid().describe('Resource id (UUID).')
+})
 
 export const replaceRolePathTenantRegExp = new RegExp('^[a-z0-9-]+$');
 
+
 export const ReplaceRoleParams = zod.object({
-  tenant: zod
-    .string()
-    .regex(replaceRolePathTenantRegExp)
-    .describe('Tenant slug (e.g. `default`, `acme`).'),
-  id: zod.uuid().describe('Resource id (UUID).'),
-});
+  "tenant": zod.string().regex(replaceRolePathTenantRegExp).describe('Tenant slug (e.g. `default`, `acme`).'),
+  "id": zod.uuid().describe('Resource id (UUID).')
+})
 
 /**
  * @summary List roles assigned to a user
  */
 export const listUserRolesPathTenantRegExp = new RegExp('^[a-z0-9-]+$');
 
+
 export const ListUserRolesParams = zod.object({
-  tenant: zod
-    .string()
-    .regex(listUserRolesPathTenantRegExp)
-    .describe('Tenant slug (e.g. `default`, `acme`).'),
-  id: zod.uuid().describe('Resource id (UUID).'),
-});
+  "tenant": zod.string().regex(listUserRolesPathTenantRegExp).describe('Tenant slug (e.g. `default`, `acme`).'),
+  "id": zod.uuid().describe('Resource id (UUID).')
+})
 
 export const ListUserRolesResponse = zod.object({
-  roles: zod
-    .array(
-      zod.object({
-        id: zod.string().optional(),
-        name: zod.string().optional(),
-      }),
-    )
-    .optional(),
-});
+  "roles": zod.array(zod.object({
+  "id": zod.string().optional(),
+  "name": zod.string().optional()
+})).optional()
+})
 
 /**
  * @summary Assign a role to a user
  */
 export const assignUserRolePathTenantRegExp = new RegExp('^[a-z0-9-]+$');
 
+
 export const AssignUserRoleParams = zod.object({
-  tenant: zod
-    .string()
-    .regex(assignUserRolePathTenantRegExp)
-    .describe('Tenant slug (e.g. `default`, `acme`).'),
-  id: zod.uuid().describe('Resource id (UUID).'),
-});
+  "tenant": zod.string().regex(assignUserRolePathTenantRegExp).describe('Tenant slug (e.g. `default`, `acme`).'),
+  "id": zod.uuid().describe('Resource id (UUID).')
+})
 
 export const AssignUserRoleBody = zod.object({
-  roleId: zod.string(),
-});
+  "roleId": zod.string()
+})
 
 /**
  * @summary Revoke a role from a user
  */
 export const revokeUserRolePathTenantRegExp = new RegExp('^[a-z0-9-]+$');
 
+
 export const RevokeUserRoleParams = zod.object({
-  tenant: zod
-    .string()
-    .regex(revokeUserRolePathTenantRegExp)
-    .describe('Tenant slug (e.g. `default`, `acme`).'),
-  id: zod.uuid().describe('Resource id (UUID).'),
-  roleId: zod.string(),
-});
+  "tenant": zod.string().regex(revokeUserRolePathTenantRegExp).describe('Tenant slug (e.g. `default`, `acme`).'),
+  "id": zod.uuid().describe('Resource id (UUID).'),
+  "roleId": zod.string()
+})
+

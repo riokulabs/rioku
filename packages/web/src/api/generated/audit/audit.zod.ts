@@ -23,6 +23,7 @@ Conventions:
  */
 import * as zod from 'zod';
 
+
 /**
  * Returns audit entries newest-first matching the supplied filters.
 Total unpaginated match count is returned in the `X-Total-Count`
@@ -33,12 +34,10 @@ count call.
  */
 export const listAuditEntriesPathTenantRegExp = new RegExp('^[a-z0-9-]+$');
 
+
 export const ListAuditEntriesParams = zod.object({
-  tenant: zod
-    .string()
-    .regex(listAuditEntriesPathTenantRegExp)
-    .describe('Tenant slug (e.g. `default`, `acme`).'),
-});
+  "tenant": zod.string().regex(listAuditEntriesPathTenantRegExp).describe('Tenant slug (e.g. `default`, `acme`).')
+})
 
 export const listAuditEntriesQueryLimitDefault = 100;
 export const listAuditEntriesQueryLimitMin = 0;
@@ -47,82 +46,59 @@ export const listAuditEntriesQueryLimitMax = 1000;
 export const listAuditEntriesQueryOffsetDefault = 0;
 export const listAuditEntriesQueryOffsetMin = 0;
 
+
+
 export const ListAuditEntriesQueryParams = zod.object({
-  actor: zod.string().optional().describe('Filter by actor id (exact match).'),
-  entity_type: zod
-    .string()
-    .optional()
-    .describe('Filter by entity type (e.g. service, route, policy).'),
-  entity_id: zod.string().optional().describe('Filter by entity id.'),
-  range: zod
-    .string()
-    .optional()
-    .describe('Convenience range — Go-ish duration with `h` or `d` suffix (e.g. 24h, 7d).'),
-  since: zod.iso
-    .datetime({ offset: true })
-    .optional()
-    .describe('RFC3339 timestamp; takes precedence over `range`.'),
-  until: zod.iso.datetime({ offset: true }).optional().describe('RFC3339 upper bound.'),
-  limit: zod
-    .number()
-    .min(listAuditEntriesQueryLimitMin)
-    .max(listAuditEntriesQueryLimitMax)
-    .default(listAuditEntriesQueryLimitDefault),
-  offset: zod
-    .number()
-    .min(listAuditEntriesQueryOffsetMin)
-    .default(listAuditEntriesQueryOffsetDefault),
-});
+  "actor": zod.string().optional().describe('Filter by actor id (exact match).'),
+  "entity_type": zod.string().optional().describe('Filter by entity type (e.g. service, route, policy).'),
+  "entity_id": zod.string().optional().describe('Filter by entity id.'),
+  "range": zod.string().optional().describe('Convenience range — Go-ish duration with `h` or `d` suffix (e.g. 24h, 7d).'),
+  "since": zod.iso.datetime({"offset":true}).optional().describe('RFC3339 timestamp; takes precedence over `range`.'),
+  "until": zod.iso.datetime({"offset":true}).optional().describe('RFC3339 upper bound.'),
+  "limit": zod.number().min(listAuditEntriesQueryLimitMin).max(listAuditEntriesQueryLimitMax).default(listAuditEntriesQueryLimitDefault),
+  "offset": zod.number().min(listAuditEntriesQueryOffsetMin).default(listAuditEntriesQueryOffsetDefault)
+})
 
 export const ListAuditEntriesResponseItem = zod.object({
-  _links: zod
-    .record(
-      zod.string(),
-      zod
-        .object({
-          href: zod.string(),
-          templated: zod.boolean().optional(),
-        })
-        .describe(
-          'OpenAPI\/HAL hypermedia reference. Every resource emits a\n`_links` map keyed by relation name (`self`, `owner`, `tools`,\n`traces`, etc.) with a Link object.\n',
-        ),
-    )
-    .optional(),
-  actor: zod.string().optional(),
-  configVersion: zod.number().optional(),
-  diff: zod.string().optional(),
-  entityId: zod.string().optional(),
-  entityType: zod.string().optional(),
-  id: zod.string().optional(),
-  occurredAt: zod.iso.datetime({ offset: true }).optional(),
-  operation: zod.string().optional(),
-});
-export const ListAuditEntriesResponse = zod.array(ListAuditEntriesResponseItem);
+  "_links": zod.record(zod.string(), zod.object({
+  "href": zod.string(),
+  "templated": zod.boolean().optional()
+}).describe('OpenAPI\/HAL hypermedia reference. Every resource emits a\n`_links` map keyed by relation name (`self`, `owner`, `tools`,\n`traces`, etc.) with a Link object.\n')).optional(),
+  "actor": zod.string().optional(),
+  "configVersion": zod.number().optional(),
+  "diff": zod.string().optional(),
+  "entityId": zod.string().optional(),
+  "entityType": zod.string().optional(),
+  "id": zod.string().optional(),
+  "occurredAt": zod.iso.datetime({"offset":true}).optional(),
+  "operation": zod.string().optional()
+})
+export const ListAuditEntriesResponse = zod.array(ListAuditEntriesResponseItem)
 
 /**
  * @summary Distinct audit actor typeahead
  */
 export const listAuditActorsPathTenantRegExp = new RegExp('^[a-z0-9-]+$');
 
+
 export const ListAuditActorsParams = zod.object({
-  tenant: zod
-    .string()
-    .regex(listAuditActorsPathTenantRegExp)
-    .describe('Tenant slug (e.g. `default`, `acme`).'),
-});
+  "tenant": zod.string().regex(listAuditActorsPathTenantRegExp).describe('Tenant slug (e.g. `default`, `acme`).')
+})
 
 export const listAuditActorsQueryLimitDefault = 50;
 export const listAuditActorsQueryLimitMax = 1000;
 
+
+
 export const ListAuditActorsQueryParams = zod.object({
-  q: zod.string().optional().describe('Optional prefix filter.'),
-  limit: zod.number().max(listAuditActorsQueryLimitMax).default(listAuditActorsQueryLimitDefault),
-});
+  "q": zod.string().optional().describe('Optional prefix filter.'),
+  "limit": zod.number().max(listAuditActorsQueryLimitMax).default(listAuditActorsQueryLimitDefault)
+})
 
 export const ListAuditActorsResponse = zod.object({
-  items: zod.array(zod.string()).optional(),
-  total: zod.number().optional(),
-});
+  "items": zod.array(zod.string()).optional(),
+  "total": zod.number().optional()
+})
 
 /**
  * Streams Content-Disposition: attachment CSV. Honours the same filter set as GET /audit.
@@ -130,21 +106,19 @@ export const ListAuditActorsResponse = zod.object({
  */
 export const exportAuditCSVPathTenantRegExp = new RegExp('^[a-z0-9-]+$');
 
+
 export const ExportAuditCSVParams = zod.object({
-  tenant: zod
-    .string()
-    .regex(exportAuditCSVPathTenantRegExp)
-    .describe('Tenant slug (e.g. `default`, `acme`).'),
-});
+  "tenant": zod.string().regex(exportAuditCSVPathTenantRegExp).describe('Tenant slug (e.g. `default`, `acme`).')
+})
 
 export const ExportAuditCSVQueryParams = zod.object({
-  actor: zod.string().optional(),
-  entity_type: zod.string().optional(),
-  entity_id: zod.string().optional(),
-  range: zod.string().optional(),
-  since: zod.iso.datetime({ offset: true }).optional(),
-  until: zod.iso.datetime({ offset: true }).optional(),
-});
+  "actor": zod.string().optional(),
+  "entity_type": zod.string().optional(),
+  "entity_id": zod.string().optional(),
+  "range": zod.string().optional(),
+  "since": zod.iso.datetime({"offset":true}).optional(),
+  "until": zod.iso.datetime({"offset":true}).optional()
+})
 
 /**
  * Streams Content-Disposition: attachment NDJSON.
@@ -152,54 +126,46 @@ export const ExportAuditCSVQueryParams = zod.object({
  */
 export const exportAuditJSONLPathTenantRegExp = new RegExp('^[a-z0-9-]+$');
 
+
 export const ExportAuditJSONLParams = zod.object({
-  tenant: zod
-    .string()
-    .regex(exportAuditJSONLPathTenantRegExp)
-    .describe('Tenant slug (e.g. `default`, `acme`).'),
-});
+  "tenant": zod.string().regex(exportAuditJSONLPathTenantRegExp).describe('Tenant slug (e.g. `default`, `acme`).')
+})
 
 export const ExportAuditJSONLQueryParams = zod.object({
-  actor: zod.string().optional(),
-  entity_type: zod.string().optional(),
-  entity_id: zod.string().optional(),
-  range: zod.string().optional(),
-  since: zod.iso.datetime({ offset: true }).optional(),
-  until: zod.iso.datetime({ offset: true }).optional(),
-});
+  "actor": zod.string().optional(),
+  "entity_type": zod.string().optional(),
+  "entity_id": zod.string().optional(),
+  "range": zod.string().optional(),
+  "since": zod.iso.datetime({"offset":true}).optional(),
+  "until": zod.iso.datetime({"offset":true}).optional()
+})
 
 /**
  * @summary Distinct audit entity-id typeahead
  */
 export const listAuditResourceIDsPathTenantRegExp = new RegExp('^[a-z0-9-]+$');
 
+
 export const ListAuditResourceIDsParams = zod.object({
-  tenant: zod
-    .string()
-    .regex(listAuditResourceIDsPathTenantRegExp)
-    .describe('Tenant slug (e.g. `default`, `acme`).'),
-});
+  "tenant": zod.string().regex(listAuditResourceIDsPathTenantRegExp).describe('Tenant slug (e.g. `default`, `acme`).')
+})
 
 export const listAuditResourceIDsQueryLimitDefault = 50;
 export const listAuditResourceIDsQueryLimitMax = 1000;
 
+
+
 export const ListAuditResourceIDsQueryParams = zod.object({
-  entity_type: zod
-    .string()
-    .optional()
-    .describe('Optional entity_type filter (e.g. route, service).'),
-  q: zod.string().optional().describe('Optional prefix filter.'),
-  limit: zod
-    .number()
-    .max(listAuditResourceIDsQueryLimitMax)
-    .default(listAuditResourceIDsQueryLimitDefault),
-});
+  "entity_type": zod.string().optional().describe('Optional entity_type filter (e.g. route, service).'),
+  "q": zod.string().optional().describe('Optional prefix filter.'),
+  "limit": zod.number().max(listAuditResourceIDsQueryLimitMax).default(listAuditResourceIDsQueryLimitDefault)
+})
 
 export const ListAuditResourceIDsResponse = zod.object({
-  entityType: zod.string().optional(),
-  items: zod.array(zod.string()).optional(),
-  total: zod.number().optional(),
-});
+  "entityType": zod.string().optional(),
+  "items": zod.array(zod.string()).optional(),
+  "total": zod.number().optional()
+})
 
 /**
  * Returns defaults if no row exists for the tenant.
@@ -207,35 +173,31 @@ export const ListAuditResourceIDsResponse = zod.object({
  */
 export const getAuditRetentionConfigPathTenantRegExp = new RegExp('^[a-z0-9-]+$');
 
+
 export const GetAuditRetentionConfigParams = zod.object({
-  tenant: zod
-    .string()
-    .regex(getAuditRetentionConfigPathTenantRegExp)
-    .describe('Tenant slug (e.g. `default`, `acme`).'),
-});
+  "tenant": zod.string().regex(getAuditRetentionConfigPathTenantRegExp).describe('Tenant slug (e.g. `default`, `acme`).')
+})
 
 export const GetAuditRetentionConfigResponse = zod.object({
-  autoExport: zod.string().optional(),
-  autoExportDestination: zod.string().nullish(),
-  autoExportFormat: zod.string().optional(),
-  retentionDaysDestructive: zod.number().optional(),
-  retentionDaysRead: zod.number().optional(),
-  retentionDaysWrite: zod.number().optional(),
-  tenantId: zod.string().optional(),
-  updatedAt: zod.iso.datetime({ offset: true }).optional(),
-});
+  "autoExport": zod.string().optional(),
+  "autoExportDestination": zod.string().nullish(),
+  "autoExportFormat": zod.string().optional(),
+  "retentionDaysDestructive": zod.number().optional(),
+  "retentionDaysRead": zod.number().optional(),
+  "retentionDaysWrite": zod.number().optional(),
+  "tenantId": zod.string().optional(),
+  "updatedAt": zod.iso.datetime({"offset":true}).optional()
+})
 
 /**
  * @summary Replace audit-retention config
  */
 export const upsertAuditRetentionConfigPathTenantRegExp = new RegExp('^[a-z0-9-]+$');
 
+
 export const UpsertAuditRetentionConfigParams = zod.object({
-  tenant: zod
-    .string()
-    .regex(upsertAuditRetentionConfigPathTenantRegExp)
-    .describe('Tenant slug (e.g. `default`, `acme`).'),
-});
+  "tenant": zod.string().regex(upsertAuditRetentionConfigPathTenantRegExp).describe('Tenant slug (e.g. `default`, `acme`).')
+})
 
 export const upsertAuditRetentionConfigBodyRetentionDaysDestructiveMax = 3650;
 
@@ -243,37 +205,27 @@ export const upsertAuditRetentionConfigBodyRetentionDaysReadMax = 3650;
 
 export const upsertAuditRetentionConfigBodyRetentionDaysWriteMax = 3650;
 
+
+
 export const UpsertAuditRetentionConfigBody = zod.object({
-  autoExport: zod.enum(['off', 'on']).optional(),
-  autoExportDestination: zod.string().nullish(),
-  autoExportFormat: zod.enum(['csv', 'jsonl']).optional(),
-  retentionDaysDestructive: zod
-    .number()
-    .min(1)
-    .max(upsertAuditRetentionConfigBodyRetentionDaysDestructiveMax)
-    .optional(),
-  retentionDaysRead: zod
-    .number()
-    .min(1)
-    .max(upsertAuditRetentionConfigBodyRetentionDaysReadMax)
-    .optional(),
-  retentionDaysWrite: zod
-    .number()
-    .min(1)
-    .max(upsertAuditRetentionConfigBodyRetentionDaysWriteMax)
-    .optional(),
-});
+  "autoExport": zod.enum(['off', 'on']).optional(),
+  "autoExportDestination": zod.string().nullish(),
+  "autoExportFormat": zod.enum(['csv', 'jsonl']).optional(),
+  "retentionDaysDestructive": zod.number().min(1).max(upsertAuditRetentionConfigBodyRetentionDaysDestructiveMax).optional(),
+  "retentionDaysRead": zod.number().min(1).max(upsertAuditRetentionConfigBodyRetentionDaysReadMax).optional(),
+  "retentionDaysWrite": zod.number().min(1).max(upsertAuditRetentionConfigBodyRetentionDaysWriteMax).optional()
+})
 
 export const UpsertAuditRetentionConfigResponse = zod.object({
-  autoExport: zod.string().optional(),
-  autoExportDestination: zod.string().nullish(),
-  autoExportFormat: zod.string().optional(),
-  retentionDaysDestructive: zod.number().optional(),
-  retentionDaysRead: zod.number().optional(),
-  retentionDaysWrite: zod.number().optional(),
-  tenantId: zod.string().optional(),
-  updatedAt: zod.iso.datetime({ offset: true }).optional(),
-});
+  "autoExport": zod.string().optional(),
+  "autoExportDestination": zod.string().nullish(),
+  "autoExportFormat": zod.string().optional(),
+  "retentionDaysDestructive": zod.number().optional(),
+  "retentionDaysRead": zod.number().optional(),
+  "retentionDaysWrite": zod.number().optional(),
+  "tenantId": zod.string().optional(),
+  "updatedAt": zod.iso.datetime({"offset":true}).optional()
+})
 
 /**
  * Server-Sent Events feed. Each event is named `audit` with a JSON
@@ -285,49 +237,36 @@ watcher lands.
  */
 export const streamAuditEntriesPathTenantRegExp = new RegExp('^[a-z0-9-]+$');
 
+
 export const StreamAuditEntriesParams = zod.object({
-  tenant: zod
-    .string()
-    .regex(streamAuditEntriesPathTenantRegExp)
-    .describe('Tenant slug (e.g. `default`, `acme`).'),
-});
+  "tenant": zod.string().regex(streamAuditEntriesPathTenantRegExp).describe('Tenant slug (e.g. `default`, `acme`).')
+})
 
 /**
  * @summary Get a single audit entry by id
  */
 export const getAuditEntryPathTenantRegExp = new RegExp('^[a-z0-9-]+$');
 
+
 export const GetAuditEntryParams = zod.object({
-  tenant: zod
-    .string()
-    .regex(getAuditEntryPathTenantRegExp)
-    .describe('Tenant slug (e.g. `default`, `acme`).'),
-  id: zod.uuid().describe('Resource id (UUID).'),
-});
+  "tenant": zod.string().regex(getAuditEntryPathTenantRegExp).describe('Tenant slug (e.g. `default`, `acme`).'),
+  "id": zod.uuid().describe('Resource id (UUID).')
+})
 
 export const GetAuditEntryResponse = zod.object({
-  _links: zod
-    .record(
-      zod.string(),
-      zod
-        .object({
-          href: zod.string(),
-          templated: zod.boolean().optional(),
-        })
-        .describe(
-          'OpenAPI\/HAL hypermedia reference. Every resource emits a\n`_links` map keyed by relation name (`self`, `owner`, `tools`,\n`traces`, etc.) with a Link object.\n',
-        ),
-    )
-    .optional(),
-  actor: zod.string().optional(),
-  configVersion: zod.number().optional(),
-  diff: zod.string().optional(),
-  entityId: zod.string().optional(),
-  entityType: zod.string().optional(),
-  id: zod.string().optional(),
-  occurredAt: zod.iso.datetime({ offset: true }).optional(),
-  operation: zod.string().optional(),
-});
+  "_links": zod.record(zod.string(), zod.object({
+  "href": zod.string(),
+  "templated": zod.boolean().optional()
+}).describe('OpenAPI\/HAL hypermedia reference. Every resource emits a\n`_links` map keyed by relation name (`self`, `owner`, `tools`,\n`traces`, etc.) with a Link object.\n')).optional(),
+  "actor": zod.string().optional(),
+  "configVersion": zod.number().optional(),
+  "diff": zod.string().optional(),
+  "entityId": zod.string().optional(),
+  "entityType": zod.string().optional(),
+  "id": zod.string().optional(),
+  "occurredAt": zod.iso.datetime({"offset":true}).optional(),
+  "operation": zod.string().optional()
+})
 
 /**
  * Records a follow-up audit row capturing the reveal action and the
@@ -339,72 +278,48 @@ the `audit:read-sensitive` permission.
  */
 export const revealAuditEntryPathTenantRegExp = new RegExp('^[a-z0-9-]+$');
 
+
 export const RevealAuditEntryParams = zod.object({
-  tenant: zod
-    .string()
-    .regex(revealAuditEntryPathTenantRegExp)
-    .describe('Tenant slug (e.g. `default`, `acme`).'),
-  id: zod.uuid().describe('Resource id (UUID).'),
-});
+  "tenant": zod.string().regex(revealAuditEntryPathTenantRegExp).describe('Tenant slug (e.g. `default`, `acme`).'),
+  "id": zod.uuid().describe('Resource id (UUID).')
+})
 
 export const revealAuditEntryBodyReasonMin = 4;
 
+
+
 export const RevealAuditEntryBody = zod.object({
-  reason: zod
-    .string()
-    .min(revealAuditEntryBodyReasonMin)
-    .describe('Compliance justification, persisted with the new audit row.'),
-});
+  "reason": zod.string().min(revealAuditEntryBodyReasonMin).describe('Compliance justification, persisted with the new audit row.')
+})
 
 export const RevealAuditEntryResponse = zod.object({
-  entry: zod
-    .object({
-      _links: zod
-        .record(
-          zod.string(),
-          zod
-            .object({
-              href: zod.string(),
-              templated: zod.boolean().optional(),
-            })
-            .describe(
-              'OpenAPI\/HAL hypermedia reference. Every resource emits a\n`_links` map keyed by relation name (`self`, `owner`, `tools`,\n`traces`, etc.) with a Link object.\n',
-            ),
-        )
-        .optional(),
-      actor: zod.string().optional(),
-      configVersion: zod.number().optional(),
-      diff: zod.string().optional(),
-      entityId: zod.string().optional(),
-      entityType: zod.string().optional(),
-      id: zod.string().optional(),
-      occurredAt: zod.iso.datetime({ offset: true }).optional(),
-      operation: zod.string().optional(),
-    })
-    .optional(),
-  revealEntry: zod
-    .object({
-      _links: zod
-        .record(
-          zod.string(),
-          zod
-            .object({
-              href: zod.string(),
-              templated: zod.boolean().optional(),
-            })
-            .describe(
-              'OpenAPI\/HAL hypermedia reference. Every resource emits a\n`_links` map keyed by relation name (`self`, `owner`, `tools`,\n`traces`, etc.) with a Link object.\n',
-            ),
-        )
-        .optional(),
-      actor: zod.string().optional(),
-      configVersion: zod.number().optional(),
-      diff: zod.string().optional(),
-      entityId: zod.string().optional(),
-      entityType: zod.string().optional(),
-      id: zod.string().optional(),
-      occurredAt: zod.iso.datetime({ offset: true }).optional(),
-      operation: zod.string().optional(),
-    })
-    .optional(),
-});
+  "entry": zod.object({
+  "_links": zod.record(zod.string(), zod.object({
+  "href": zod.string(),
+  "templated": zod.boolean().optional()
+}).describe('OpenAPI\/HAL hypermedia reference. Every resource emits a\n`_links` map keyed by relation name (`self`, `owner`, `tools`,\n`traces`, etc.) with a Link object.\n')).optional(),
+  "actor": zod.string().optional(),
+  "configVersion": zod.number().optional(),
+  "diff": zod.string().optional(),
+  "entityId": zod.string().optional(),
+  "entityType": zod.string().optional(),
+  "id": zod.string().optional(),
+  "occurredAt": zod.iso.datetime({"offset":true}).optional(),
+  "operation": zod.string().optional()
+}).optional(),
+  "revealEntry": zod.object({
+  "_links": zod.record(zod.string(), zod.object({
+  "href": zod.string(),
+  "templated": zod.boolean().optional()
+}).describe('OpenAPI\/HAL hypermedia reference. Every resource emits a\n`_links` map keyed by relation name (`self`, `owner`, `tools`,\n`traces`, etc.) with a Link object.\n')).optional(),
+  "actor": zod.string().optional(),
+  "configVersion": zod.number().optional(),
+  "diff": zod.string().optional(),
+  "entityId": zod.string().optional(),
+  "entityType": zod.string().optional(),
+  "id": zod.string().optional(),
+  "occurredAt": zod.iso.datetime({"offset":true}).optional(),
+  "operation": zod.string().optional()
+}).optional()
+})
+

@@ -23,148 +23,133 @@ Conventions:
  */
 import * as zod from 'zod';
 
+
 /**
  * @summary List MCP servers
  */
 export const listMCPServersPathTenantRegExp = new RegExp('^[a-z0-9-]+$');
 
+
 export const ListMCPServersParams = zod.object({
-  tenant: zod
-    .string()
-    .regex(listMCPServersPathTenantRegExp)
-    .describe('Tenant slug (e.g. `default`, `acme`).'),
-});
+  "tenant": zod.string().regex(listMCPServersPathTenantRegExp).describe('Tenant slug (e.g. `default`, `acme`).')
+})
 
 export const ListMCPServersResponse = zod.object({
-  items: zod
-    .array(
-      zod.object({
-        authKind: zod.string(),
-        authorizedAgentIds: zod.array(zod.string()).optional(),
-        createdAt: zod.iso.datetime({ offset: true }),
-        enabled: zod.boolean(),
-        health: zod.string(),
-        id: zod.string(),
-        lastCheckedAt: zod.iso.datetime({ offset: true }).nullish(),
-        name: zod.string(),
-        tenantId: zod.string(),
-        updatedAt: zod.iso.datetime({ offset: true }),
-        url: zod.string(),
-      }),
-    )
-    .optional(),
-  total: zod.number().optional(),
-});
+  "items": zod.array(zod.object({
+  "authKind": zod.string(),
+  "authorizedAgentIds": zod.array(zod.string()).optional(),
+  "createdAt": zod.iso.datetime({"offset":true}),
+  "enabled": zod.boolean(),
+  "health": zod.string(),
+  "id": zod.string(),
+  "lastCheckedAt": zod.iso.datetime({"offset":true}).nullish(),
+  "name": zod.string(),
+  "tenantId": zod.string(),
+  "updatedAt": zod.iso.datetime({"offset":true}),
+  "url": zod.string()
+})).optional(),
+  "total": zod.number().optional()
+})
 
 /**
  * @summary Create an MCP server
  */
 export const createMCPServerPathTenantRegExp = new RegExp('^[a-z0-9-]+$');
 
+
 export const CreateMCPServerParams = zod.object({
-  tenant: zod
-    .string()
-    .regex(createMCPServerPathTenantRegExp)
-    .describe('Tenant slug (e.g. `default`, `acme`).'),
-});
+  "tenant": zod.string().regex(createMCPServerPathTenantRegExp).describe('Tenant slug (e.g. `default`, `acme`).')
+})
 
 export const CreateMCPServerBody = zod.object({
-  authCredential: zod.string().nullish(),
-  authKind: zod.string().optional(),
-  name: zod.string(),
-  url: zod.string(),
-});
+  "authCredential": zod.string().nullish(),
+  "authKind": zod.string().optional(),
+  "name": zod.string(),
+  "url": zod.string()
+})
 
 export const deleteMCPServerPathTenantRegExp = new RegExp('^[a-z0-9-]+$');
 
+
 export const DeleteMCPServerParams = zod.object({
-  tenant: zod
-    .string()
-    .regex(deleteMCPServerPathTenantRegExp)
-    .describe('Tenant slug (e.g. `default`, `acme`).'),
-  id: zod.uuid().describe('Resource id (UUID).'),
-});
+  "tenant": zod.string().regex(deleteMCPServerPathTenantRegExp).describe('Tenant slug (e.g. `default`, `acme`).'),
+  "id": zod.uuid().describe('Resource id (UUID).')
+})
 
 export const getMCPServerPathTenantRegExp = new RegExp('^[a-z0-9-]+$');
 
+
 export const GetMCPServerParams = zod.object({
-  tenant: zod
-    .string()
-    .regex(getMCPServerPathTenantRegExp)
-    .describe('Tenant slug (e.g. `default`, `acme`).'),
-  id: zod.uuid().describe('Resource id (UUID).'),
-});
+  "tenant": zod.string().regex(getMCPServerPathTenantRegExp).describe('Tenant slug (e.g. `default`, `acme`).'),
+  "id": zod.uuid().describe('Resource id (UUID).')
+})
 
 export const GetMCPServerResponse = zod.object({
-  authKind: zod.string(),
-  authorizedAgentIds: zod.array(zod.string()).optional(),
-  createdAt: zod.iso.datetime({ offset: true }),
-  enabled: zod.boolean(),
-  health: zod.string(),
-  id: zod.string(),
-  lastCheckedAt: zod.iso.datetime({ offset: true }).nullish(),
-  name: zod.string(),
-  tenantId: zod.string(),
-  updatedAt: zod.iso.datetime({ offset: true }),
-  url: zod.string(),
-});
+  "authKind": zod.string(),
+  "authorizedAgentIds": zod.array(zod.string()).optional(),
+  "createdAt": zod.iso.datetime({"offset":true}),
+  "enabled": zod.boolean(),
+  "health": zod.string(),
+  "id": zod.string(),
+  "lastCheckedAt": zod.iso.datetime({"offset":true}).nullish(),
+  "name": zod.string(),
+  "tenantId": zod.string(),
+  "updatedAt": zod.iso.datetime({"offset":true}),
+  "url": zod.string()
+})
 
 export const patchMCPServerPathTenantRegExp = new RegExp('^[a-z0-9-]+$');
 
+
 export const PatchMCPServerParams = zod.object({
-  tenant: zod
-    .string()
-    .regex(patchMCPServerPathTenantRegExp)
-    .describe('Tenant slug (e.g. `default`, `acme`).'),
-  id: zod.uuid().describe('Resource id (UUID).'),
-});
+  "tenant": zod.string().regex(patchMCPServerPathTenantRegExp).describe('Tenant slug (e.g. `default`, `acme`).'),
+  "id": zod.uuid().describe('Resource id (UUID).')
+})
 
 export const PatchMCPServerResponse = zod.object({
-  authKind: zod.string(),
-  authorizedAgentIds: zod.array(zod.string()).optional(),
-  createdAt: zod.iso.datetime({ offset: true }),
-  enabled: zod.boolean(),
-  health: zod.string(),
-  id: zod.string(),
-  lastCheckedAt: zod.iso.datetime({ offset: true }).nullish(),
-  name: zod.string(),
-  tenantId: zod.string(),
-  updatedAt: zod.iso.datetime({ offset: true }),
-  url: zod.string(),
-});
+  "authKind": zod.string(),
+  "authorizedAgentIds": zod.array(zod.string()).optional(),
+  "createdAt": zod.iso.datetime({"offset":true}),
+  "enabled": zod.boolean(),
+  "health": zod.string(),
+  "id": zod.string(),
+  "lastCheckedAt": zod.iso.datetime({"offset":true}).nullish(),
+  "name": zod.string(),
+  "tenantId": zod.string(),
+  "updatedAt": zod.iso.datetime({"offset":true}),
+  "url": zod.string()
+})
 
 export const updateMCPServerPathTenantRegExp = new RegExp('^[a-z0-9-]+$');
 
+
 export const UpdateMCPServerParams = zod.object({
-  tenant: zod
-    .string()
-    .regex(updateMCPServerPathTenantRegExp)
-    .describe('Tenant slug (e.g. `default`, `acme`).'),
-  id: zod.uuid().describe('Resource id (UUID).'),
-});
+  "tenant": zod.string().regex(updateMCPServerPathTenantRegExp).describe('Tenant slug (e.g. `default`, `acme`).'),
+  "id": zod.uuid().describe('Resource id (UUID).')
+})
 
 export const UpdateMCPServerBody = zod.object({
-  authCredential: zod.string().nullish(),
-  authKind: zod.string().optional(),
-  authorizedAgentIds: zod.array(zod.string()).optional(),
-  enabled: zod.boolean().optional(),
-  name: zod.string().optional(),
-  url: zod.string().optional(),
-});
+  "authCredential": zod.string().nullish(),
+  "authKind": zod.string().optional(),
+  "authorizedAgentIds": zod.array(zod.string()).optional(),
+  "enabled": zod.boolean().optional(),
+  "name": zod.string().optional(),
+  "url": zod.string().optional()
+})
 
 export const UpdateMCPServerResponse = zod.object({
-  authKind: zod.string(),
-  authorizedAgentIds: zod.array(zod.string()).optional(),
-  createdAt: zod.iso.datetime({ offset: true }),
-  enabled: zod.boolean(),
-  health: zod.string(),
-  id: zod.string(),
-  lastCheckedAt: zod.iso.datetime({ offset: true }).nullish(),
-  name: zod.string(),
-  tenantId: zod.string(),
-  updatedAt: zod.iso.datetime({ offset: true }),
-  url: zod.string(),
-});
+  "authKind": zod.string(),
+  "authorizedAgentIds": zod.array(zod.string()).optional(),
+  "createdAt": zod.iso.datetime({"offset":true}),
+  "enabled": zod.boolean(),
+  "health": zod.string(),
+  "id": zod.string(),
+  "lastCheckedAt": zod.iso.datetime({"offset":true}).nullish(),
+  "name": zod.string(),
+  "tenantId": zod.string(),
+  "updatedAt": zod.iso.datetime({"offset":true}),
+  "url": zod.string()
+})
 
 /**
  * Issues a short HTTP probe (5s timeout) against the MCP server's
@@ -176,52 +161,44 @@ connectivity (many MCP endpoints respond 401/404 to a bare GET).
  */
 export const testMCPServerPathTenantRegExp = new RegExp('^[a-z0-9-]+$');
 
+
 export const TestMCPServerParams = zod.object({
-  tenant: zod
-    .string()
-    .regex(testMCPServerPathTenantRegExp)
-    .describe('Tenant slug (e.g. `default`, `acme`).'),
-  id: zod.uuid().describe('Resource id (UUID).'),
-});
+  "tenant": zod.string().regex(testMCPServerPathTenantRegExp).describe('Tenant slug (e.g. `default`, `acme`).'),
+  "id": zod.uuid().describe('Resource id (UUID).')
+})
 
 export const testMCPServerResponseLatencyMsMin = 0;
 
+
+
 export const TestMCPServerResponse = zod.object({
-  error: zod.string().optional(),
-  latencyMs: zod.number().min(testMCPServerResponseLatencyMsMin),
-  mcpServerId: zod.string(),
-  ok: zod.boolean(),
-  serverVersion: zod.string().optional(),
-});
+  "error": zod.string().optional(),
+  "latencyMs": zod.number().min(testMCPServerResponseLatencyMsMin),
+  "mcpServerId": zod.string(),
+  "ok": zod.boolean(),
+  "serverVersion": zod.string().optional()
+})
 
 /**
  * @summary List tools provided by an MCP server
  */
 export const listMCPServerToolsPathTenantRegExp = new RegExp('^[a-z0-9-]+$');
 
+
 export const ListMCPServerToolsParams = zod.object({
-  tenant: zod
-    .string()
-    .regex(listMCPServerToolsPathTenantRegExp)
-    .describe('Tenant slug (e.g. `default`, `acme`).'),
-  id: zod.uuid().describe('Resource id (UUID).'),
-});
+  "tenant": zod.string().regex(listMCPServerToolsPathTenantRegExp).describe('Tenant slug (e.g. `default`, `acme`).'),
+  "id": zod.uuid().describe('Resource id (UUID).')
+})
 
 export const ListMCPServerToolsResponse = zod.object({
-  items: zod
-    .array(
-      zod.object({
-        argSchema: zod
-          .string()
-          .optional()
-          .describe('JSON-schema string for the tool input arguments.'),
-        dangerous: zod.boolean().optional(),
-        description: zod.string().optional(),
-        enabled: zod.boolean().optional(),
-        id: zod.string(),
-        name: zod.string(),
-      }),
-    )
-    .optional(),
-  total: zod.number().optional(),
-});
+  "items": zod.array(zod.object({
+  "argSchema": zod.string().optional().describe('JSON-schema string for the tool input arguments.'),
+  "dangerous": zod.boolean().optional(),
+  "description": zod.string().optional(),
+  "enabled": zod.boolean().optional(),
+  "id": zod.string(),
+  "name": zod.string()
+})).optional(),
+  "total": zod.number().optional()
+})
+

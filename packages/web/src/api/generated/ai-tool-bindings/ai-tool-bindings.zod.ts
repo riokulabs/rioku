@@ -23,165 +23,145 @@ Conventions:
  */
 import * as zod from 'zod';
 
+
 /**
  * @summary List tool bindings
  */
 export const listAIToolBindingsPathTenantRegExp = new RegExp('^[a-z0-9-]+$');
 
+
 export const ListAIToolBindingsParams = zod.object({
-  tenant: zod
-    .string()
-    .regex(listAIToolBindingsPathTenantRegExp)
-    .describe('Tenant slug (e.g. `default`, `acme`).'),
-});
+  "tenant": zod.string().regex(listAIToolBindingsPathTenantRegExp).describe('Tenant slug (e.g. `default`, `acme`).')
+})
 
 export const ListAIToolBindingsResponse = zod.object({
-  items: zod
-    .array(
-      zod.object({
-        agentId: zod.string(),
-        condition: zod.string().optional(),
-        createdAt: zod.iso.datetime({ offset: true }),
-        enabled: zod.boolean(),
-        id: zod.string(),
-        tenantId: zod.string(),
-        toolId: zod.string(),
-        updatedAt: zod.iso.datetime({ offset: true }),
-      }),
-    )
-    .optional(),
-  total: zod.number().optional(),
-});
+  "items": zod.array(zod.object({
+  "agentId": zod.string(),
+  "condition": zod.string().optional(),
+  "createdAt": zod.iso.datetime({"offset":true}),
+  "enabled": zod.boolean(),
+  "id": zod.string(),
+  "tenantId": zod.string(),
+  "toolId": zod.string(),
+  "updatedAt": zod.iso.datetime({"offset":true})
+})).optional(),
+  "total": zod.number().optional()
+})
 
 /**
  * @summary Create a tool binding
  */
 export const createAIToolBindingPathTenantRegExp = new RegExp('^[a-z0-9-]+$');
 
+
 export const CreateAIToolBindingParams = zod.object({
-  tenant: zod
-    .string()
-    .regex(createAIToolBindingPathTenantRegExp)
-    .describe('Tenant slug (e.g. `default`, `acme`).'),
-});
+  "tenant": zod.string().regex(createAIToolBindingPathTenantRegExp).describe('Tenant slug (e.g. `default`, `acme`).')
+})
 
 export const CreateAIToolBindingBody = zod.object({
-  agentId: zod.string(),
-  condition: zod.string().optional(),
-  toolId: zod.string(),
-});
+  "agentId": zod.string(),
+  "condition": zod.string().optional(),
+  "toolId": zod.string()
+})
 
 /**
  * @summary Bulk-attach tools to a single agent
  */
 export const bulkAttachAIToolBindingsPathTenantRegExp = new RegExp('^[a-z0-9-]+$');
 
+
 export const BulkAttachAIToolBindingsParams = zod.object({
-  tenant: zod
-    .string()
-    .regex(bulkAttachAIToolBindingsPathTenantRegExp)
-    .describe('Tenant slug (e.g. `default`, `acme`).'),
-});
+  "tenant": zod.string().regex(bulkAttachAIToolBindingsPathTenantRegExp).describe('Tenant slug (e.g. `default`, `acme`).')
+})
 
 export const BulkAttachAIToolBindingsBody = zod.object({
-  agentId: zod.string(),
-  toolIds: zod.array(zod.string()),
-});
+  "agentId": zod.string(),
+  "toolIds": zod.array(zod.string())
+})
 
 export const BulkAttachAIToolBindingsResponse = zod.object({
-  items: zod
-    .array(
-      zod.object({
-        agentId: zod.string(),
-        condition: zod.string().optional(),
-        createdAt: zod.iso.datetime({ offset: true }),
-        enabled: zod.boolean(),
-        id: zod.string(),
-        tenantId: zod.string(),
-        toolId: zod.string(),
-        updatedAt: zod.iso.datetime({ offset: true }),
-      }),
-    )
-    .optional(),
-  total: zod.number().optional(),
-});
+  "items": zod.array(zod.object({
+  "agentId": zod.string(),
+  "condition": zod.string().optional(),
+  "createdAt": zod.iso.datetime({"offset":true}),
+  "enabled": zod.boolean(),
+  "id": zod.string(),
+  "tenantId": zod.string(),
+  "toolId": zod.string(),
+  "updatedAt": zod.iso.datetime({"offset":true})
+})).optional(),
+  "total": zod.number().optional()
+})
 
 /**
  * @summary Preview a CEL condition against a sample envelope (stage-2 stub)
  */
 export const previewAIToolBindingConditionPathTenantRegExp = new RegExp('^[a-z0-9-]+$');
 
+
 export const PreviewAIToolBindingConditionParams = zod.object({
-  tenant: zod
-    .string()
-    .regex(previewAIToolBindingConditionPathTenantRegExp)
-    .describe('Tenant slug (e.g. `default`, `acme`).'),
-});
+  "tenant": zod.string().regex(previewAIToolBindingConditionPathTenantRegExp).describe('Tenant slug (e.g. `default`, `acme`).')
+})
 
 export const PreviewAIToolBindingConditionBody = zod.object({
-  condition: zod.string().optional(),
-  envelope: zod.record(zod.string(), zod.unknown()).optional(),
-});
+  "condition": zod.string().optional(),
+  "envelope": zod.record(zod.string(), zod.unknown()).optional()
+})
 
 export const PreviewAIToolBindingConditionResponse = zod.object({
-  condition: zod.string().optional(),
-  matched: zod.boolean().optional(),
-  note: zod.string().optional(),
-});
+  "condition": zod.string().optional(),
+  "matched": zod.boolean().optional(),
+  "note": zod.string().optional()
+})
 
 export const deleteAIToolBindingPathTenantRegExp = new RegExp('^[a-z0-9-]+$');
 
+
 export const DeleteAIToolBindingParams = zod.object({
-  tenant: zod
-    .string()
-    .regex(deleteAIToolBindingPathTenantRegExp)
-    .describe('Tenant slug (e.g. `default`, `acme`).'),
-  id: zod.uuid().describe('Resource id (UUID).'),
-});
+  "tenant": zod.string().regex(deleteAIToolBindingPathTenantRegExp).describe('Tenant slug (e.g. `default`, `acme`).'),
+  "id": zod.uuid().describe('Resource id (UUID).')
+})
 
 export const getAIToolBindingPathTenantRegExp = new RegExp('^[a-z0-9-]+$');
 
+
 export const GetAIToolBindingParams = zod.object({
-  tenant: zod
-    .string()
-    .regex(getAIToolBindingPathTenantRegExp)
-    .describe('Tenant slug (e.g. `default`, `acme`).'),
-  id: zod.uuid().describe('Resource id (UUID).'),
-});
+  "tenant": zod.string().regex(getAIToolBindingPathTenantRegExp).describe('Tenant slug (e.g. `default`, `acme`).'),
+  "id": zod.uuid().describe('Resource id (UUID).')
+})
 
 export const GetAIToolBindingResponse = zod.object({
-  agentId: zod.string(),
-  condition: zod.string().optional(),
-  createdAt: zod.iso.datetime({ offset: true }),
-  enabled: zod.boolean(),
-  id: zod.string(),
-  tenantId: zod.string(),
-  toolId: zod.string(),
-  updatedAt: zod.iso.datetime({ offset: true }),
-});
+  "agentId": zod.string(),
+  "condition": zod.string().optional(),
+  "createdAt": zod.iso.datetime({"offset":true}),
+  "enabled": zod.boolean(),
+  "id": zod.string(),
+  "tenantId": zod.string(),
+  "toolId": zod.string(),
+  "updatedAt": zod.iso.datetime({"offset":true})
+})
 
 export const updateAIToolBindingPathTenantRegExp = new RegExp('^[a-z0-9-]+$');
 
+
 export const UpdateAIToolBindingParams = zod.object({
-  tenant: zod
-    .string()
-    .regex(updateAIToolBindingPathTenantRegExp)
-    .describe('Tenant slug (e.g. `default`, `acme`).'),
-  id: zod.uuid().describe('Resource id (UUID).'),
-});
+  "tenant": zod.string().regex(updateAIToolBindingPathTenantRegExp).describe('Tenant slug (e.g. `default`, `acme`).'),
+  "id": zod.uuid().describe('Resource id (UUID).')
+})
 
 export const UpdateAIToolBindingBody = zod.object({
-  condition: zod.string().optional(),
-  enabled: zod.boolean().optional(),
-});
+  "condition": zod.string().optional(),
+  "enabled": zod.boolean().optional()
+})
 
 export const UpdateAIToolBindingResponse = zod.object({
-  agentId: zod.string(),
-  condition: zod.string().optional(),
-  createdAt: zod.iso.datetime({ offset: true }),
-  enabled: zod.boolean(),
-  id: zod.string(),
-  tenantId: zod.string(),
-  toolId: zod.string(),
-  updatedAt: zod.iso.datetime({ offset: true }),
-});
+  "agentId": zod.string(),
+  "condition": zod.string().optional(),
+  "createdAt": zod.iso.datetime({"offset":true}),
+  "enabled": zod.boolean(),
+  "id": zod.string(),
+  "tenantId": zod.string(),
+  "toolId": zod.string(),
+  "updatedAt": zod.iso.datetime({"offset":true})
+})
+

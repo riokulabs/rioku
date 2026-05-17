@@ -23,99 +23,84 @@ Conventions:
  */
 import * as zod from 'zod';
 
+
 /**
  * @summary SSE stream of recent + live daemon log lines
  */
 export const tailObservabilityLogsPathTenantRegExp = new RegExp('^[a-z0-9-]+$');
 
+
 export const TailObservabilityLogsParams = zod.object({
-  tenant: zod
-    .string()
-    .regex(tailObservabilityLogsPathTenantRegExp)
-    .describe('Tenant slug (e.g. `default`, `acme`).'),
-});
+  "tenant": zod.string().regex(tailObservabilityLogsPathTenantRegExp).describe('Tenant slug (e.g. `default`, `acme`).')
+})
 
 /**
  * @summary Get tenant auth policy
  */
 export const getSettingsAuthPolicyPathTenantRegExp = new RegExp('^[a-z0-9-]+$');
 
+
 export const GetSettingsAuthPolicyParams = zod.object({
-  tenant: zod
-    .string()
-    .regex(getSettingsAuthPolicyPathTenantRegExp)
-    .describe('Tenant slug (e.g. `default`, `acme`).'),
-});
+  "tenant": zod.string().regex(getSettingsAuthPolicyPathTenantRegExp).describe('Tenant slug (e.g. `default`, `acme`).')
+})
 
 export const getSettingsAuthPolicyResponsePasswordMinLengthMin = 6;
 export const getSettingsAuthPolicyResponsePasswordMinLengthMax = 256;
 
+
+
 export const GetSettingsAuthPolicyResponse = zod.object({
-  absoluteSessionTimeoutSeconds: zod.number().optional(),
-  idleSessionTimeoutSeconds: zod.number().optional(),
-  passwordMinLength: zod
-    .number()
-    .min(getSettingsAuthPolicyResponsePasswordMinLengthMin)
-    .max(getSettingsAuthPolicyResponsePasswordMinLengthMax)
-    .optional(),
-  totpPolicy: zod.enum(['all', 'admins', 'optional']).optional(),
-});
+  "absoluteSessionTimeoutSeconds": zod.number().optional(),
+  "idleSessionTimeoutSeconds": zod.number().optional(),
+  "passwordMinLength": zod.number().min(getSettingsAuthPolicyResponsePasswordMinLengthMin).max(getSettingsAuthPolicyResponsePasswordMinLengthMax).optional(),
+  "totpPolicy": zod.enum(['all', 'admins', 'optional']).optional()
+})
 
 /**
  * @summary Replace tenant auth policy
  */
 export const putSettingsAuthPolicyPathTenantRegExp = new RegExp('^[a-z0-9-]+$');
 
+
 export const PutSettingsAuthPolicyParams = zod.object({
-  tenant: zod
-    .string()
-    .regex(putSettingsAuthPolicyPathTenantRegExp)
-    .describe('Tenant slug (e.g. `default`, `acme`).'),
-});
+  "tenant": zod.string().regex(putSettingsAuthPolicyPathTenantRegExp).describe('Tenant slug (e.g. `default`, `acme`).')
+})
 
 export const putSettingsAuthPolicyBodyPasswordMinLengthMin = 6;
 export const putSettingsAuthPolicyBodyPasswordMinLengthMax = 256;
 
+
+
 export const PutSettingsAuthPolicyBody = zod.object({
-  absoluteSessionTimeoutSeconds: zod.number().optional(),
-  idleSessionTimeoutSeconds: zod.number().optional(),
-  passwordMinLength: zod
-    .number()
-    .min(putSettingsAuthPolicyBodyPasswordMinLengthMin)
-    .max(putSettingsAuthPolicyBodyPasswordMinLengthMax)
-    .optional(),
-  totpPolicy: zod.enum(['all', 'admins', 'optional']).optional(),
-});
+  "absoluteSessionTimeoutSeconds": zod.number().optional(),
+  "idleSessionTimeoutSeconds": zod.number().optional(),
+  "passwordMinLength": zod.number().min(putSettingsAuthPolicyBodyPasswordMinLengthMin).max(putSettingsAuthPolicyBodyPasswordMinLengthMax).optional(),
+  "totpPolicy": zod.enum(['all', 'admins', 'optional']).optional()
+})
 
 export const putSettingsAuthPolicyResponsePasswordMinLengthMin = 6;
 export const putSettingsAuthPolicyResponsePasswordMinLengthMax = 256;
 
+
+
 export const PutSettingsAuthPolicyResponse = zod.object({
-  absoluteSessionTimeoutSeconds: zod.number().optional(),
-  idleSessionTimeoutSeconds: zod.number().optional(),
-  passwordMinLength: zod
-    .number()
-    .min(putSettingsAuthPolicyResponsePasswordMinLengthMin)
-    .max(putSettingsAuthPolicyResponsePasswordMinLengthMax)
-    .optional(),
-  totpPolicy: zod.enum(['all', 'admins', 'optional']).optional(),
-});
+  "absoluteSessionTimeoutSeconds": zod.number().optional(),
+  "idleSessionTimeoutSeconds": zod.number().optional(),
+  "passwordMinLength": zod.number().min(putSettingsAuthPolicyResponsePasswordMinLengthMin).max(putSettingsAuthPolicyResponsePasswordMinLengthMax).optional(),
+  "totpPolicy": zod.enum(['all', 'admins', 'optional']).optional()
+})
 
 /**
  * @summary Export the entire tenant as a JSON dump
  */
 export const getDangerExportPathTenantRegExp = new RegExp('^[a-z0-9-]+$');
 
-export const GetDangerExportParams = zod.object({
-  tenant: zod
-    .string()
-    .regex(getDangerExportPathTenantRegExp)
-    .describe('Tenant slug (e.g. `default`, `acme`).'),
-});
 
-export const GetDangerExportResponse = zod
-  .record(zod.string(), zod.unknown())
-  .describe('Full tenant export blob (services, routes, policies, members, etc.)');
+export const GetDangerExportParams = zod.object({
+  "tenant": zod.string().regex(getDangerExportPathTenantRegExp).describe('Tenant slug (e.g. `default`, `acme`).')
+})
+
+export const GetDangerExportResponse = zod.record(zod.string(), zod.unknown()).describe('Full tenant export blob (services, routes, policies, members, etc.)')
 
 /**
  * Clears all non-config data for the tenant: traces, audit entries,
@@ -127,241 +112,199 @@ slug three times in the request body as `confirmation`.
  */
 export const postDangerHardResetPathTenantRegExp = new RegExp('^[a-z0-9-]+$');
 
+
 export const PostDangerHardResetParams = zod.object({
-  tenant: zod
-    .string()
-    .regex(postDangerHardResetPathTenantRegExp)
-    .describe('Tenant slug (e.g. `default`, `acme`).'),
-});
+  "tenant": zod.string().regex(postDangerHardResetPathTenantRegExp).describe('Tenant slug (e.g. `default`, `acme`).')
+})
 
 export const PostDangerHardResetBody = zod.object({
-  confirmation: zod.string().describe('tenant slug repeated three times, joined by newlines'),
-});
+  "confirmation": zod.string().describe('tenant slug repeated three times, joined by newlines')
+})
 
 export const PostDangerHardResetResponse = zod.object({
-  ok: zod.boolean().optional(),
-  resetAt: zod.iso.datetime({ offset: true }).optional(),
-});
+  "ok": zod.boolean().optional(),
+  "resetAt": zod.iso.datetime({"offset":true}).optional()
+})
 
 /**
  * @summary Soft-delete the tenant (super-admin; restorable for 30d)
  */
 export const deleteDangerTenantPathTenantRegExp = new RegExp('^[a-z0-9-]+$');
 
+
 export const DeleteDangerTenantParams = zod.object({
-  tenant: zod
-    .string()
-    .regex(deleteDangerTenantPathTenantRegExp)
-    .describe('Tenant slug (e.g. `default`, `acme`).'),
-});
+  "tenant": zod.string().regex(deleteDangerTenantPathTenantRegExp).describe('Tenant slug (e.g. `default`, `acme`).')
+})
 
 /**
  * @summary Get tenant integrations config
  */
 export const getSettingsIntegrationsPathTenantRegExp = new RegExp('^[a-z0-9-]+$');
 
+
 export const GetSettingsIntegrationsParams = zod.object({
-  tenant: zod
-    .string()
-    .regex(getSettingsIntegrationsPathTenantRegExp)
-    .describe('Tenant slug (e.g. `default`, `acme`).'),
-});
+  "tenant": zod.string().regex(getSettingsIntegrationsPathTenantRegExp).describe('Tenant slug (e.g. `default`, `acme`).')
+})
 
 export const GetSettingsIntegrationsResponse = zod.object({
-  pagerduty: zod
-    .object({
-      enabled: zod.boolean().optional(),
-      integrationKey: zod.string().optional(),
-    })
-    .optional(),
-  slack: zod
-    .object({
-      channel: zod.string().optional(),
-      enabled: zod.boolean().optional(),
-      webhookUrl: zod.string().optional(),
-    })
-    .optional(),
-  webhooks: zod
-    .array(
-      zod.object({
-        enabled: zod.boolean().optional(),
-        events: zod.array(zod.string()).optional(),
-        id: zod.string().optional(),
-        name: zod.string().optional(),
-        url: zod.string().optional(),
-      }),
-    )
-    .optional(),
-});
+  "pagerduty": zod.object({
+  "enabled": zod.boolean().optional(),
+  "integrationKey": zod.string().optional()
+}).optional(),
+  "slack": zod.object({
+  "channel": zod.string().optional(),
+  "enabled": zod.boolean().optional(),
+  "webhookUrl": zod.string().optional()
+}).optional(),
+  "webhooks": zod.array(zod.object({
+  "enabled": zod.boolean().optional(),
+  "events": zod.array(zod.string()).optional(),
+  "id": zod.string().optional(),
+  "name": zod.string().optional(),
+  "url": zod.string().optional()
+})).optional()
+})
 
 /**
  * @summary Replace tenant integrations config
  */
 export const putSettingsIntegrationsPathTenantRegExp = new RegExp('^[a-z0-9-]+$');
 
+
 export const PutSettingsIntegrationsParams = zod.object({
-  tenant: zod
-    .string()
-    .regex(putSettingsIntegrationsPathTenantRegExp)
-    .describe('Tenant slug (e.g. `default`, `acme`).'),
-});
+  "tenant": zod.string().regex(putSettingsIntegrationsPathTenantRegExp).describe('Tenant slug (e.g. `default`, `acme`).')
+})
 
 export const PutSettingsIntegrationsBody = zod.object({
-  pagerduty: zod
-    .object({
-      enabled: zod.boolean().optional(),
-      integrationKey: zod.string().optional(),
-    })
-    .optional(),
-  slack: zod
-    .object({
-      channel: zod.string().optional(),
-      enabled: zod.boolean().optional(),
-      webhookUrl: zod.string().optional(),
-    })
-    .optional(),
-  webhooks: zod
-    .array(
-      zod.object({
-        enabled: zod.boolean().optional(),
-        events: zod.array(zod.string()).optional(),
-        id: zod.string().optional(),
-        name: zod.string().optional(),
-        url: zod.string().optional(),
-      }),
-    )
-    .optional(),
-});
+  "pagerduty": zod.object({
+  "enabled": zod.boolean().optional(),
+  "integrationKey": zod.string().optional()
+}).optional(),
+  "slack": zod.object({
+  "channel": zod.string().optional(),
+  "enabled": zod.boolean().optional(),
+  "webhookUrl": zod.string().optional()
+}).optional(),
+  "webhooks": zod.array(zod.object({
+  "enabled": zod.boolean().optional(),
+  "events": zod.array(zod.string()).optional(),
+  "id": zod.string().optional(),
+  "name": zod.string().optional(),
+  "url": zod.string().optional()
+})).optional()
+})
 
 export const PutSettingsIntegrationsResponse = zod.object({
-  pagerduty: zod
-    .object({
-      enabled: zod.boolean().optional(),
-      integrationKey: zod.string().optional(),
-    })
-    .optional(),
-  slack: zod
-    .object({
-      channel: zod.string().optional(),
-      enabled: zod.boolean().optional(),
-      webhookUrl: zod.string().optional(),
-    })
-    .optional(),
-  webhooks: zod
-    .array(
-      zod.object({
-        enabled: zod.boolean().optional(),
-        events: zod.array(zod.string()).optional(),
-        id: zod.string().optional(),
-        name: zod.string().optional(),
-        url: zod.string().optional(),
-      }),
-    )
-    .optional(),
-});
+  "pagerduty": zod.object({
+  "enabled": zod.boolean().optional(),
+  "integrationKey": zod.string().optional()
+}).optional(),
+  "slack": zod.object({
+  "channel": zod.string().optional(),
+  "enabled": zod.boolean().optional(),
+  "webhookUrl": zod.string().optional()
+}).optional(),
+  "webhooks": zod.array(zod.object({
+  "enabled": zod.boolean().optional(),
+  "events": zod.array(zod.string()).optional(),
+  "id": zod.string().optional(),
+  "name": zod.string().optional(),
+  "url": zod.string().optional()
+})).optional()
+})
 
 /**
  * @summary Get the current user's profile
  */
 export const getSettingsProfilePathTenantRegExp = new RegExp('^[a-z0-9-]+$');
 
+
 export const GetSettingsProfileParams = zod.object({
-  tenant: zod
-    .string()
-    .regex(getSettingsProfilePathTenantRegExp)
-    .describe('Tenant slug (e.g. `default`, `acme`).'),
-});
+  "tenant": zod.string().regex(getSettingsProfilePathTenantRegExp).describe('Tenant slug (e.g. `default`, `acme`).')
+})
 
 export const GetSettingsProfileResponse = zod.object({
-  avatarUrl: zod.string().optional(),
-  email: zod.email().optional().describe('Read-only — managed by the auth provider.'),
-  id: zod.string().optional(),
-  mfaEnabled: zod.boolean().optional(),
-  name: zod.string().optional(),
-  preferences: zod.record(zod.string(), zod.unknown()).optional(),
-  updatedAt: zod.iso.datetime({ offset: true }).optional(),
-});
+  "avatarUrl": zod.string().optional(),
+  "email": zod.email().optional().describe('Read-only — managed by the auth provider.'),
+  "id": zod.string().optional(),
+  "mfaEnabled": zod.boolean().optional(),
+  "name": zod.string().optional(),
+  "preferences": zod.record(zod.string(), zod.unknown()).optional(),
+  "updatedAt": zod.iso.datetime({"offset":true}).optional()
+})
 
 /**
  * @summary Patch the current user's profile (RFC 7396 merge-patch)
  */
 export const patchSettingsProfilePathTenantRegExp = new RegExp('^[a-z0-9-]+$');
 
+
 export const PatchSettingsProfileParams = zod.object({
-  tenant: zod
-    .string()
-    .regex(patchSettingsProfilePathTenantRegExp)
-    .describe('Tenant slug (e.g. `default`, `acme`).'),
-});
+  "tenant": zod.string().regex(patchSettingsProfilePathTenantRegExp).describe('Tenant slug (e.g. `default`, `acme`).')
+})
 
 export const PatchSettingsProfileResponse = zod.object({
-  avatarUrl: zod.string().optional(),
-  email: zod.email().optional().describe('Read-only — managed by the auth provider.'),
-  id: zod.string().optional(),
-  mfaEnabled: zod.boolean().optional(),
-  name: zod.string().optional(),
-  preferences: zod.record(zod.string(), zod.unknown()).optional(),
-  updatedAt: zod.iso.datetime({ offset: true }).optional(),
-});
+  "avatarUrl": zod.string().optional(),
+  "email": zod.email().optional().describe('Read-only — managed by the auth provider.'),
+  "id": zod.string().optional(),
+  "mfaEnabled": zod.boolean().optional(),
+  "name": zod.string().optional(),
+  "preferences": zod.record(zod.string(), zod.unknown()).optional(),
+  "updatedAt": zod.iso.datetime({"offset":true}).optional()
+})
 
 /**
  * @summary Regenerate the current user's TOTP backup codes
  */
 export const postSettingsBackupCodesResetPathTenantRegExp = new RegExp('^[a-z0-9-]+$');
 
+
 export const PostSettingsBackupCodesResetParams = zod.object({
-  tenant: zod
-    .string()
-    .regex(postSettingsBackupCodesResetPathTenantRegExp)
-    .describe('Tenant slug (e.g. `default`, `acme`).'),
-});
+  "tenant": zod.string().regex(postSettingsBackupCodesResetPathTenantRegExp).describe('Tenant slug (e.g. `default`, `acme`).')
+})
 
 export const PostSettingsBackupCodesResetResponse = zod.object({
-  codes: zod.array(zod.string()).optional(),
-  generatedAt: zod.iso.datetime({ offset: true }).optional(),
-});
+  "codes": zod.array(zod.string()).optional(),
+  "generatedAt": zod.iso.datetime({"offset":true}).optional()
+})
 
 /**
  * @summary Change the current user's password
  */
 export const postSettingsPasswordPathTenantRegExp = new RegExp('^[a-z0-9-]+$');
 
+
 export const PostSettingsPasswordParams = zod.object({
-  tenant: zod
-    .string()
-    .regex(postSettingsPasswordPathTenantRegExp)
-    .describe('Tenant slug (e.g. `default`, `acme`).'),
-});
+  "tenant": zod.string().regex(postSettingsPasswordPathTenantRegExp).describe('Tenant slug (e.g. `default`, `acme`).')
+})
 
 export const PostSettingsPasswordBody = zod.object({
-  currentPassword: zod.string(),
-  newPassword: zod.string(),
-});
+  "currentPassword": zod.string(),
+  "newPassword": zod.string()
+})
 
 export const PostSettingsPasswordResponse = zod.object({
-  ok: zod.boolean().optional(),
-});
+  "ok": zod.boolean().optional()
+})
 
 /**
  * @summary Get tenant network settings
  */
 export const getSettingsNetworkPathTenantRegExp = new RegExp('^[a-z0-9-]+$');
 
+
 export const GetSettingsNetworkParams = zod.object({
-  tenant: zod
-    .string()
-    .regex(getSettingsNetworkPathTenantRegExp)
-    .describe('Tenant slug (e.g. `default`, `acme`).'),
-});
+  "tenant": zod.string().regex(getSettingsNetworkPathTenantRegExp).describe('Tenant slug (e.g. `default`, `acme`).')
+})
 
 export const GetSettingsNetworkResponse = zod.object({
-  caddyOverrides: zod.record(zod.string(), zod.unknown()).optional(),
-  http3Enabled: zod.boolean().optional(),
-  idleTimeoutSeconds: zod.number().optional(),
-  listenAddresses: zod.array(zod.string()).optional(),
-  readTimeoutSeconds: zod.number().optional(),
-  writeTimeoutSeconds: zod.number().optional(),
-});
+  "caddyOverrides": zod.record(zod.string(), zod.unknown()).optional(),
+  "http3Enabled": zod.boolean().optional(),
+  "idleTimeoutSeconds": zod.number().optional(),
+  "listenAddresses": zod.array(zod.string()).optional(),
+  "readTimeoutSeconds": zod.number().optional(),
+  "writeTimeoutSeconds": zod.number().optional()
+})
 
 /**
  * After persist the daemon invokes `caddy.Reload()` to apply the new
@@ -372,885 +315,755 @@ the config-store write and the Caddy reload completed.
  */
 export const putSettingsNetworkPathTenantRegExp = new RegExp('^[a-z0-9-]+$');
 
+
 export const PutSettingsNetworkParams = zod.object({
-  tenant: zod
-    .string()
-    .regex(putSettingsNetworkPathTenantRegExp)
-    .describe('Tenant slug (e.g. `default`, `acme`).'),
-});
+  "tenant": zod.string().regex(putSettingsNetworkPathTenantRegExp).describe('Tenant slug (e.g. `default`, `acme`).')
+})
 
 export const PutSettingsNetworkBody = zod.object({
-  caddyOverrides: zod.record(zod.string(), zod.unknown()).optional(),
-  http3Enabled: zod.boolean().optional(),
-  idleTimeoutSeconds: zod.number().optional(),
-  listenAddresses: zod.array(zod.string()).optional(),
-  readTimeoutSeconds: zod.number().optional(),
-  writeTimeoutSeconds: zod.number().optional(),
-});
+  "caddyOverrides": zod.record(zod.string(), zod.unknown()).optional(),
+  "http3Enabled": zod.boolean().optional(),
+  "idleTimeoutSeconds": zod.number().optional(),
+  "listenAddresses": zod.array(zod.string()).optional(),
+  "readTimeoutSeconds": zod.number().optional(),
+  "writeTimeoutSeconds": zod.number().optional()
+})
 
 export const PutSettingsNetworkResponse = zod.object({
-  caddyOverrides: zod.record(zod.string(), zod.unknown()).optional(),
-  http3Enabled: zod.boolean().optional(),
-  idleTimeoutSeconds: zod.number().optional(),
-  listenAddresses: zod.array(zod.string()).optional(),
-  readTimeoutSeconds: zod.number().optional(),
-  writeTimeoutSeconds: zod.number().optional(),
-});
+  "caddyOverrides": zod.record(zod.string(), zod.unknown()).optional(),
+  "http3Enabled": zod.boolean().optional(),
+  "idleTimeoutSeconds": zod.number().optional(),
+  "listenAddresses": zod.array(zod.string()).optional(),
+  "readTimeoutSeconds": zod.number().optional(),
+  "writeTimeoutSeconds": zod.number().optional()
+})
 
 /**
  * @summary Get observability logs config
  */
 export const getSettingsObservabilityLogsPathTenantRegExp = new RegExp('^[a-z0-9-]+$');
 
+
 export const GetSettingsObservabilityLogsParams = zod.object({
-  tenant: zod
-    .string()
-    .regex(getSettingsObservabilityLogsPathTenantRegExp)
-    .describe('Tenant slug (e.g. `default`, `acme`).'),
-});
+  "tenant": zod.string().regex(getSettingsObservabilityLogsPathTenantRegExp).describe('Tenant slug (e.g. `default`, `acme`).')
+})
 
 export const GetSettingsObservabilityLogsResponse = zod.object({
-  format: zod.enum(['json', 'text']).optional(),
-  level: zod.enum(['debug', 'info', 'warn', 'error']).optional(),
-  rotationDays: zod.number().optional(),
-});
+  "format": zod.enum(['json', 'text']).optional(),
+  "level": zod.enum(['debug', 'info', 'warn', 'error']).optional(),
+  "rotationDays": zod.number().optional()
+})
 
 /**
  * @summary Replace observability logs config
  */
 export const putSettingsObservabilityLogsPathTenantRegExp = new RegExp('^[a-z0-9-]+$');
 
+
 export const PutSettingsObservabilityLogsParams = zod.object({
-  tenant: zod
-    .string()
-    .regex(putSettingsObservabilityLogsPathTenantRegExp)
-    .describe('Tenant slug (e.g. `default`, `acme`).'),
-});
+  "tenant": zod.string().regex(putSettingsObservabilityLogsPathTenantRegExp).describe('Tenant slug (e.g. `default`, `acme`).')
+})
 
 export const PutSettingsObservabilityLogsBody = zod.object({
-  format: zod.enum(['json', 'text']).optional(),
-  level: zod.enum(['debug', 'info', 'warn', 'error']).optional(),
-  rotationDays: zod.number().optional(),
-});
+  "format": zod.enum(['json', 'text']).optional(),
+  "level": zod.enum(['debug', 'info', 'warn', 'error']).optional(),
+  "rotationDays": zod.number().optional()
+})
 
 export const PutSettingsObservabilityLogsResponse = zod.object({
-  format: zod.enum(['json', 'text']).optional(),
-  level: zod.enum(['debug', 'info', 'warn', 'error']).optional(),
-  rotationDays: zod.number().optional(),
-});
+  "format": zod.enum(['json', 'text']).optional(),
+  "level": zod.enum(['debug', 'info', 'warn', 'error']).optional(),
+  "rotationDays": zod.number().optional()
+})
 
 /**
  * @summary Get observability metrics config
  */
 export const getSettingsObservabilityMetricsPathTenantRegExp = new RegExp('^[a-z0-9-]+$');
 
+
 export const GetSettingsObservabilityMetricsParams = zod.object({
-  tenant: zod
-    .string()
-    .regex(getSettingsObservabilityMetricsPathTenantRegExp)
-    .describe('Tenant slug (e.g. `default`, `acme`).'),
-});
+  "tenant": zod.string().regex(getSettingsObservabilityMetricsPathTenantRegExp).describe('Tenant slug (e.g. `default`, `acme`).')
+})
 
 export const GetSettingsObservabilityMetricsResponse = zod.object({
-  retentionDays: zod.number().optional(),
-  scrapeAuth: zod.enum(['none', 'basic', 'bearer']).optional(),
-  scrapeEndpoint: zod.string().optional(),
-});
+  "retentionDays": zod.number().optional(),
+  "scrapeAuth": zod.enum(['none', 'basic', 'bearer']).optional(),
+  "scrapeEndpoint": zod.string().optional()
+})
 
 /**
  * @summary Replace observability metrics config
  */
 export const putSettingsObservabilityMetricsPathTenantRegExp = new RegExp('^[a-z0-9-]+$');
 
+
 export const PutSettingsObservabilityMetricsParams = zod.object({
-  tenant: zod
-    .string()
-    .regex(putSettingsObservabilityMetricsPathTenantRegExp)
-    .describe('Tenant slug (e.g. `default`, `acme`).'),
-});
+  "tenant": zod.string().regex(putSettingsObservabilityMetricsPathTenantRegExp).describe('Tenant slug (e.g. `default`, `acme`).')
+})
 
 export const PutSettingsObservabilityMetricsBody = zod.object({
-  retentionDays: zod.number().optional(),
-  scrapeAuth: zod.enum(['none', 'basic', 'bearer']).optional(),
-  scrapeEndpoint: zod.string().optional(),
-});
+  "retentionDays": zod.number().optional(),
+  "scrapeAuth": zod.enum(['none', 'basic', 'bearer']).optional(),
+  "scrapeEndpoint": zod.string().optional()
+})
 
 export const PutSettingsObservabilityMetricsResponse = zod.object({
-  retentionDays: zod.number().optional(),
-  scrapeAuth: zod.enum(['none', 'basic', 'bearer']).optional(),
-  scrapeEndpoint: zod.string().optional(),
-});
+  "retentionDays": zod.number().optional(),
+  "scrapeAuth": zod.enum(['none', 'basic', 'bearer']).optional(),
+  "scrapeEndpoint": zod.string().optional()
+})
 
 /**
  * @summary Get observability traces config
  */
 export const getSettingsObservabilityTracesPathTenantRegExp = new RegExp('^[a-z0-9-]+$');
 
+
 export const GetSettingsObservabilityTracesParams = zod.object({
-  tenant: zod
-    .string()
-    .regex(getSettingsObservabilityTracesPathTenantRegExp)
-    .describe('Tenant slug (e.g. `default`, `acme`).'),
-});
+  "tenant": zod.string().regex(getSettingsObservabilityTracesPathTenantRegExp).describe('Tenant slug (e.g. `default`, `acme`).')
+})
 
 export const getSettingsObservabilityTracesResponseSampleRateMin = 0;
 export const getSettingsObservabilityTracesResponseSampleRateMax = 1;
 
+
+
 export const GetSettingsObservabilityTracesResponse = zod.object({
-  otlpEndpoint: zod.string().optional(),
-  retentionDays: zod.number().optional(),
-  sampleRate: zod
-    .number()
-    .min(getSettingsObservabilityTracesResponseSampleRateMin)
-    .max(getSettingsObservabilityTracesResponseSampleRateMax)
-    .optional(),
-});
+  "otlpEndpoint": zod.string().optional(),
+  "retentionDays": zod.number().optional(),
+  "sampleRate": zod.number().min(getSettingsObservabilityTracesResponseSampleRateMin).max(getSettingsObservabilityTracesResponseSampleRateMax).optional()
+})
 
 /**
  * @summary Replace observability traces config
  */
 export const putSettingsObservabilityTracesPathTenantRegExp = new RegExp('^[a-z0-9-]+$');
 
+
 export const PutSettingsObservabilityTracesParams = zod.object({
-  tenant: zod
-    .string()
-    .regex(putSettingsObservabilityTracesPathTenantRegExp)
-    .describe('Tenant slug (e.g. `default`, `acme`).'),
-});
+  "tenant": zod.string().regex(putSettingsObservabilityTracesPathTenantRegExp).describe('Tenant slug (e.g. `default`, `acme`).')
+})
 
 export const putSettingsObservabilityTracesBodySampleRateMin = 0;
 export const putSettingsObservabilityTracesBodySampleRateMax = 1;
 
+
+
 export const PutSettingsObservabilityTracesBody = zod.object({
-  otlpEndpoint: zod.string().optional(),
-  retentionDays: zod.number().optional(),
-  sampleRate: zod
-    .number()
-    .min(putSettingsObservabilityTracesBodySampleRateMin)
-    .max(putSettingsObservabilityTracesBodySampleRateMax)
-    .optional(),
-});
+  "otlpEndpoint": zod.string().optional(),
+  "retentionDays": zod.number().optional(),
+  "sampleRate": zod.number().min(putSettingsObservabilityTracesBodySampleRateMin).max(putSettingsObservabilityTracesBodySampleRateMax).optional()
+})
 
 export const putSettingsObservabilityTracesResponseSampleRateMin = 0;
 export const putSettingsObservabilityTracesResponseSampleRateMax = 1;
 
+
+
 export const PutSettingsObservabilityTracesResponse = zod.object({
-  otlpEndpoint: zod.string().optional(),
-  retentionDays: zod.number().optional(),
-  sampleRate: zod
-    .number()
-    .min(putSettingsObservabilityTracesResponseSampleRateMin)
-    .max(putSettingsObservabilityTracesResponseSampleRateMax)
-    .optional(),
-});
+  "otlpEndpoint": zod.string().optional(),
+  "retentionDays": zod.number().optional(),
+  "sampleRate": zod.number().min(putSettingsObservabilityTracesResponseSampleRateMin).max(putSettingsObservabilityTracesResponseSampleRateMax).optional()
+})
 
 /**
  * @summary Get tenant PKI settings (CA chain + enrollment endpoint)
  */
 export const getSettingsPKIPathTenantRegExp = new RegExp('^[a-z0-9-]+$');
 
+
 export const GetSettingsPKIParams = zod.object({
-  tenant: zod
-    .string()
-    .regex(getSettingsPKIPathTenantRegExp)
-    .describe('Tenant slug (e.g. `default`, `acme`).'),
-});
+  "tenant": zod.string().regex(getSettingsPKIPathTenantRegExp).describe('Tenant slug (e.g. `default`, `acme`).')
+})
 
 export const GetSettingsPKIResponse = zod.object({
-  caChainPem: zod
-    .string()
-    .optional()
-    .describe('PEM-encoded CA chain. Read-only on GET; replaced on PUT.'),
-  enrollmentEndpoint: zod
-    .string()
-    .optional()
-    .describe('URL clients hit to request short-lived certs.'),
-  enrollmentTokenTtlSeconds: zod.number().optional(),
-  keyAlgorithm: zod.enum(['ed25519', 'ecdsa-p256', 'rsa-2048', 'rsa-4096']).optional(),
-  nodeValiditySeconds: zod.number().optional(),
-});
+  "caChainPem": zod.string().optional().describe('PEM-encoded CA chain. Read-only on GET; replaced on PUT.'),
+  "enrollmentEndpoint": zod.string().optional().describe('URL clients hit to request short-lived certs.'),
+  "enrollmentTokenTtlSeconds": zod.number().optional(),
+  "keyAlgorithm": zod.enum(['ed25519', 'ecdsa-p256', 'rsa-2048', 'rsa-4096']).optional(),
+  "nodeValiditySeconds": zod.number().optional()
+})
 
 /**
  * @summary Replace tenant PKI settings
  */
 export const putSettingsPKIPathTenantRegExp = new RegExp('^[a-z0-9-]+$');
 
+
 export const PutSettingsPKIParams = zod.object({
-  tenant: zod
-    .string()
-    .regex(putSettingsPKIPathTenantRegExp)
-    .describe('Tenant slug (e.g. `default`, `acme`).'),
-});
+  "tenant": zod.string().regex(putSettingsPKIPathTenantRegExp).describe('Tenant slug (e.g. `default`, `acme`).')
+})
 
 export const PutSettingsPKIBody = zod.object({
-  caChainPem: zod
-    .string()
-    .optional()
-    .describe('PEM-encoded CA chain. Read-only on GET; replaced on PUT.'),
-  enrollmentEndpoint: zod
-    .string()
-    .optional()
-    .describe('URL clients hit to request short-lived certs.'),
-  enrollmentTokenTtlSeconds: zod.number().optional(),
-  keyAlgorithm: zod.enum(['ed25519', 'ecdsa-p256', 'rsa-2048', 'rsa-4096']).optional(),
-  nodeValiditySeconds: zod.number().optional(),
-});
+  "caChainPem": zod.string().optional().describe('PEM-encoded CA chain. Read-only on GET; replaced on PUT.'),
+  "enrollmentEndpoint": zod.string().optional().describe('URL clients hit to request short-lived certs.'),
+  "enrollmentTokenTtlSeconds": zod.number().optional(),
+  "keyAlgorithm": zod.enum(['ed25519', 'ecdsa-p256', 'rsa-2048', 'rsa-4096']).optional(),
+  "nodeValiditySeconds": zod.number().optional()
+})
 
 export const PutSettingsPKIResponse = zod.object({
-  caChainPem: zod
-    .string()
-    .optional()
-    .describe('PEM-encoded CA chain. Read-only on GET; replaced on PUT.'),
-  enrollmentEndpoint: zod
-    .string()
-    .optional()
-    .describe('URL clients hit to request short-lived certs.'),
-  enrollmentTokenTtlSeconds: zod.number().optional(),
-  keyAlgorithm: zod.enum(['ed25519', 'ecdsa-p256', 'rsa-2048', 'rsa-4096']).optional(),
-  nodeValiditySeconds: zod.number().optional(),
-});
+  "caChainPem": zod.string().optional().describe('PEM-encoded CA chain. Read-only on GET; replaced on PUT.'),
+  "enrollmentEndpoint": zod.string().optional().describe('URL clients hit to request short-lived certs.'),
+  "enrollmentTokenTtlSeconds": zod.number().optional(),
+  "keyAlgorithm": zod.enum(['ed25519', 'ecdsa-p256', 'rsa-2048', 'rsa-4096']).optional(),
+  "nodeValiditySeconds": zod.number().optional()
+})
 
 /**
  * @summary List certificate authorities for the tenant
  */
 export const listCertAuthoritiesPathTenantRegExp = new RegExp('^[a-z0-9-]+$');
 
+
 export const ListCertAuthoritiesParams = zod.object({
-  tenant: zod
-    .string()
-    .regex(listCertAuthoritiesPathTenantRegExp)
-    .describe('Tenant slug (e.g. `default`, `acme`).'),
-});
+  "tenant": zod.string().regex(listCertAuthoritiesPathTenantRegExp).describe('Tenant slug (e.g. `default`, `acme`).')
+})
 
 export const ListCertAuthoritiesResponse = zod.object({
-  items: zod.array(
-    zod.object({
-      createdAt: zod.iso.datetime({ offset: true }),
-      fingerprintSha256: zod.string().optional(),
-      id: zod.string(),
-      kind: zod.string().describe('CA kind: `internal`, `external`, `acme`, etc.'),
-      name: zod.string(),
-      notAfter: zod.iso.datetime({ offset: true }).optional(),
-      notBefore: zod.iso.datetime({ offset: true }).optional(),
-      subject: zod.string().describe('Distinguished name.'),
-      tenantId: zod.string(),
-      updatedAt: zod.iso.datetime({ offset: true }),
-    }),
-  ),
-  total: zod.number(),
-});
+  "items": zod.array(zod.object({
+  "createdAt": zod.iso.datetime({"offset":true}),
+  "fingerprintSha256": zod.string().optional(),
+  "id": zod.string(),
+  "kind": zod.string().describe('CA kind: `internal`, `external`, `acme`, etc.'),
+  "name": zod.string(),
+  "notAfter": zod.iso.datetime({"offset":true}).optional(),
+  "notBefore": zod.iso.datetime({"offset":true}).optional(),
+  "subject": zod.string().describe('Distinguished name.'),
+  "tenantId": zod.string(),
+  "updatedAt": zod.iso.datetime({"offset":true})
+})),
+  "total": zod.number()
+})
 
 /**
  * @summary Create a certificate authority
  */
 export const createCertAuthorityPathTenantRegExp = new RegExp('^[a-z0-9-]+$');
 
+
 export const CreateCertAuthorityParams = zod.object({
-  tenant: zod
-    .string()
-    .regex(createCertAuthorityPathTenantRegExp)
-    .describe('Tenant slug (e.g. `default`, `acme`).'),
-});
+  "tenant": zod.string().regex(createCertAuthorityPathTenantRegExp).describe('Tenant slug (e.g. `default`, `acme`).')
+})
 
 export const CreateCertAuthorityBody = zod.object({
-  certificatePem: zod.string().optional(),
-  kind: zod.string(),
-  name: zod.string(),
-  privateKeyRef: zod.string().optional(),
-  subject: zod.string(),
-});
+  "certificatePem": zod.string().optional(),
+  "kind": zod.string(),
+  "name": zod.string(),
+  "privateKeyRef": zod.string().optional(),
+  "subject": zod.string()
+})
 
 export const deleteCertAuthorityPathTenantRegExp = new RegExp('^[a-z0-9-]+$');
 
+
 export const DeleteCertAuthorityParams = zod.object({
-  tenant: zod
-    .string()
-    .regex(deleteCertAuthorityPathTenantRegExp)
-    .describe('Tenant slug (e.g. `default`, `acme`).'),
-  id: zod.string(),
-});
+  "tenant": zod.string().regex(deleteCertAuthorityPathTenantRegExp).describe('Tenant slug (e.g. `default`, `acme`).'),
+  "id": zod.string()
+})
 
 export const getCertAuthorityPathTenantRegExp = new RegExp('^[a-z0-9-]+$');
 
+
 export const GetCertAuthorityParams = zod.object({
-  tenant: zod
-    .string()
-    .regex(getCertAuthorityPathTenantRegExp)
-    .describe('Tenant slug (e.g. `default`, `acme`).'),
-  id: zod.string(),
-});
+  "tenant": zod.string().regex(getCertAuthorityPathTenantRegExp).describe('Tenant slug (e.g. `default`, `acme`).'),
+  "id": zod.string()
+})
 
 export const GetCertAuthorityResponse = zod.object({
-  createdAt: zod.iso.datetime({ offset: true }),
-  fingerprintSha256: zod.string().optional(),
-  id: zod.string(),
-  kind: zod.string().describe('CA kind: `internal`, `external`, `acme`, etc.'),
-  name: zod.string(),
-  notAfter: zod.iso.datetime({ offset: true }).optional(),
-  notBefore: zod.iso.datetime({ offset: true }).optional(),
-  subject: zod.string().describe('Distinguished name.'),
-  tenantId: zod.string(),
-  updatedAt: zod.iso.datetime({ offset: true }),
-});
+  "createdAt": zod.iso.datetime({"offset":true}),
+  "fingerprintSha256": zod.string().optional(),
+  "id": zod.string(),
+  "kind": zod.string().describe('CA kind: `internal`, `external`, `acme`, etc.'),
+  "name": zod.string(),
+  "notAfter": zod.iso.datetime({"offset":true}).optional(),
+  "notBefore": zod.iso.datetime({"offset":true}).optional(),
+  "subject": zod.string().describe('Distinguished name.'),
+  "tenantId": zod.string(),
+  "updatedAt": zod.iso.datetime({"offset":true})
+})
 
 export const updateCertAuthorityPathTenantRegExp = new RegExp('^[a-z0-9-]+$');
 
+
 export const UpdateCertAuthorityParams = zod.object({
-  tenant: zod
-    .string()
-    .regex(updateCertAuthorityPathTenantRegExp)
-    .describe('Tenant slug (e.g. `default`, `acme`).'),
-  id: zod.string(),
-});
+  "tenant": zod.string().regex(updateCertAuthorityPathTenantRegExp).describe('Tenant slug (e.g. `default`, `acme`).'),
+  "id": zod.string()
+})
 
 export const UpdateCertAuthorityBody = zod.object({
-  kind: zod.string().optional(),
-  name: zod.string().optional(),
-  subject: zod.string().optional(),
-});
+  "kind": zod.string().optional(),
+  "name": zod.string().optional(),
+  "subject": zod.string().optional()
+})
 
 export const UpdateCertAuthorityResponse = zod.object({
-  createdAt: zod.iso.datetime({ offset: true }),
-  fingerprintSha256: zod.string().optional(),
-  id: zod.string(),
-  kind: zod.string().describe('CA kind: `internal`, `external`, `acme`, etc.'),
-  name: zod.string(),
-  notAfter: zod.iso.datetime({ offset: true }).optional(),
-  notBefore: zod.iso.datetime({ offset: true }).optional(),
-  subject: zod.string().describe('Distinguished name.'),
-  tenantId: zod.string(),
-  updatedAt: zod.iso.datetime({ offset: true }),
-});
+  "createdAt": zod.iso.datetime({"offset":true}),
+  "fingerprintSha256": zod.string().optional(),
+  "id": zod.string(),
+  "kind": zod.string().describe('CA kind: `internal`, `external`, `acme`, etc.'),
+  "name": zod.string(),
+  "notAfter": zod.iso.datetime({"offset":true}).optional(),
+  "notBefore": zod.iso.datetime({"offset":true}).optional(),
+  "subject": zod.string().describe('Distinguished name.'),
+  "tenantId": zod.string(),
+  "updatedAt": zod.iso.datetime({"offset":true})
+})
 
 /**
  * @summary List certificate enrollments for the tenant
  */
 export const listCertEnrollmentsPathTenantRegExp = new RegExp('^[a-z0-9-]+$');
 
+
 export const ListCertEnrollmentsParams = zod.object({
-  tenant: zod
-    .string()
-    .regex(listCertEnrollmentsPathTenantRegExp)
-    .describe('Tenant slug (e.g. `default`, `acme`).'),
-});
+  "tenant": zod.string().regex(listCertEnrollmentsPathTenantRegExp).describe('Tenant slug (e.g. `default`, `acme`).')
+})
 
 export const ListCertEnrollmentsResponse = zod.object({
-  items: zod.array(
-    zod.object({
-      caId: zod.string().optional(),
-      dnsSans: zod.array(zod.string()),
-      fingerprintSha256: zod.string().optional(),
-      id: zod.string(),
-      issuedAt: zod.iso.datetime({ offset: true }).optional(),
-      requestedAt: zod.iso.datetime({ offset: true }),
-      revocationReason: zod.string().optional(),
-      revokedAt: zod.iso.datetime({ offset: true }).optional(),
-      state: zod.string().describe('Enrollment state: `pending`, `issued`, `revoked`, `failed`.'),
-      subject: zod.string(),
-      tenantId: zod.string(),
-    }),
-  ),
-  total: zod.number(),
-});
+  "items": zod.array(zod.object({
+  "caId": zod.string().optional(),
+  "dnsSans": zod.array(zod.string()),
+  "fingerprintSha256": zod.string().optional(),
+  "id": zod.string(),
+  "issuedAt": zod.iso.datetime({"offset":true}).optional(),
+  "requestedAt": zod.iso.datetime({"offset":true}),
+  "revocationReason": zod.string().optional(),
+  "revokedAt": zod.iso.datetime({"offset":true}).optional(),
+  "state": zod.string().describe('Enrollment state: `pending`, `issued`, `revoked`, `failed`.'),
+  "subject": zod.string(),
+  "tenantId": zod.string()
+})),
+  "total": zod.number()
+})
 
 /**
  * @summary Create a certificate enrollment
  */
 export const createCertEnrollmentPathTenantRegExp = new RegExp('^[a-z0-9-]+$');
 
+
 export const CreateCertEnrollmentParams = zod.object({
-  tenant: zod
-    .string()
-    .regex(createCertEnrollmentPathTenantRegExp)
-    .describe('Tenant slug (e.g. `default`, `acme`).'),
-});
+  "tenant": zod.string().regex(createCertEnrollmentPathTenantRegExp).describe('Tenant slug (e.g. `default`, `acme`).')
+})
 
 export const CreateCertEnrollmentBody = zod.object({
-  caId: zod.string().optional(),
-  dnsSans: zod.array(zod.string()).optional(),
-  subject: zod.string(),
-});
+  "caId": zod.string().optional(),
+  "dnsSans": zod.array(zod.string()).optional(),
+  "subject": zod.string()
+})
 
 export const getCertEnrollmentPathTenantRegExp = new RegExp('^[a-z0-9-]+$');
 
+
 export const GetCertEnrollmentParams = zod.object({
-  tenant: zod
-    .string()
-    .regex(getCertEnrollmentPathTenantRegExp)
-    .describe('Tenant slug (e.g. `default`, `acme`).'),
-  id: zod.string(),
-});
+  "tenant": zod.string().regex(getCertEnrollmentPathTenantRegExp).describe('Tenant slug (e.g. `default`, `acme`).'),
+  "id": zod.string()
+})
 
 export const GetCertEnrollmentResponse = zod.object({
-  caId: zod.string().optional(),
-  dnsSans: zod.array(zod.string()),
-  fingerprintSha256: zod.string().optional(),
-  id: zod.string(),
-  issuedAt: zod.iso.datetime({ offset: true }).optional(),
-  requestedAt: zod.iso.datetime({ offset: true }),
-  revocationReason: zod.string().optional(),
-  revokedAt: zod.iso.datetime({ offset: true }).optional(),
-  state: zod.string().describe('Enrollment state: `pending`, `issued`, `revoked`, `failed`.'),
-  subject: zod.string(),
-  tenantId: zod.string(),
-});
+  "caId": zod.string().optional(),
+  "dnsSans": zod.array(zod.string()),
+  "fingerprintSha256": zod.string().optional(),
+  "id": zod.string(),
+  "issuedAt": zod.iso.datetime({"offset":true}).optional(),
+  "requestedAt": zod.iso.datetime({"offset":true}),
+  "revocationReason": zod.string().optional(),
+  "revokedAt": zod.iso.datetime({"offset":true}).optional(),
+  "state": zod.string().describe('Enrollment state: `pending`, `issued`, `revoked`, `failed`.'),
+  "subject": zod.string(),
+  "tenantId": zod.string()
+})
 
 /**
  * @summary Revoke a certificate enrollment
  */
 export const revokeCertEnrollmentPathTenantRegExp = new RegExp('^[a-z0-9-]+$');
 
+
 export const RevokeCertEnrollmentParams = zod.object({
-  tenant: zod
-    .string()
-    .regex(revokeCertEnrollmentPathTenantRegExp)
-    .describe('Tenant slug (e.g. `default`, `acme`).'),
-  id: zod.string(),
-});
+  "tenant": zod.string().regex(revokeCertEnrollmentPathTenantRegExp).describe('Tenant slug (e.g. `default`, `acme`).'),
+  "id": zod.string()
+})
 
 export const RevokeCertEnrollmentBody = zod.object({
-  reason: zod.string().optional(),
-});
+  "reason": zod.string().optional()
+})
 
 export const RevokeCertEnrollmentResponse = zod.object({
-  caId: zod.string().optional(),
-  dnsSans: zod.array(zod.string()),
-  fingerprintSha256: zod.string().optional(),
-  id: zod.string(),
-  issuedAt: zod.iso.datetime({ offset: true }).optional(),
-  requestedAt: zod.iso.datetime({ offset: true }),
-  revocationReason: zod.string().optional(),
-  revokedAt: zod.iso.datetime({ offset: true }).optional(),
-  state: zod.string().describe('Enrollment state: `pending`, `issued`, `revoked`, `failed`.'),
-  subject: zod.string(),
-  tenantId: zod.string(),
-});
+  "caId": zod.string().optional(),
+  "dnsSans": zod.array(zod.string()),
+  "fingerprintSha256": zod.string().optional(),
+  "id": zod.string(),
+  "issuedAt": zod.iso.datetime({"offset":true}).optional(),
+  "requestedAt": zod.iso.datetime({"offset":true}),
+  "revocationReason": zod.string().optional(),
+  "revokedAt": zod.iso.datetime({"offset":true}).optional(),
+  "state": zod.string().describe('Enrollment state: `pending`, `issued`, `revoked`, `failed`.'),
+  "subject": zod.string(),
+  "tenantId": zod.string()
+})
 
 /**
  * @summary List revoked certificates for the tenant
  */
 export const listPKIRevocationsPathTenantRegExp = new RegExp('^[a-z0-9-]+$');
 
+
 export const ListPKIRevocationsParams = zod.object({
-  tenant: zod
-    .string()
-    .regex(listPKIRevocationsPathTenantRegExp)
-    .describe('Tenant slug (e.g. `default`, `acme`).'),
-});
+  "tenant": zod.string().regex(listPKIRevocationsPathTenantRegExp).describe('Tenant slug (e.g. `default`, `acme`).')
+})
 
 export const ListPKIRevocationsResponse = zod.object({
-  items: zod
-    .array(
-      zod.object({
-        cert_id: zod.string().optional(),
-        reason: zod.string().optional(),
-        revoked_at: zod.iso.datetime({ offset: true }).optional(),
-        serial: zod.string().optional(),
-        subject: zod.string().optional(),
-      }),
-    )
-    .optional(),
-});
+  "items": zod.array(zod.object({
+  "cert_id": zod.string().optional(),
+  "reason": zod.string().optional(),
+  "revoked_at": zod.iso.datetime({"offset":true}).optional(),
+  "serial": zod.string().optional(),
+  "subject": zod.string().optional()
+})).optional()
+})
 
 /**
  * @summary Record a revocation (by serial)
  */
 export const createPKIRevocationPathTenantRegExp = new RegExp('^[a-z0-9-]+$');
 
+
 export const CreatePKIRevocationParams = zod.object({
-  tenant: zod
-    .string()
-    .regex(createPKIRevocationPathTenantRegExp)
-    .describe('Tenant slug (e.g. `default`, `acme`).'),
-});
+  "tenant": zod.string().regex(createPKIRevocationPathTenantRegExp).describe('Tenant slug (e.g. `default`, `acme`).')
+})
 
 export const CreatePKIRevocationBody = zod.object({
-  reason: zod.string(),
-  serial: zod.string(),
-  subject: zod.string().optional(),
-});
+  "reason": zod.string(),
+  "serial": zod.string(),
+  "subject": zod.string().optional()
+})
 
 /**
  * @summary Get tenant general settings
  */
 export const getSettingsTenantPathTenantRegExp = new RegExp('^[a-z0-9-]+$');
 
+
 export const GetSettingsTenantParams = zod.object({
-  tenant: zod
-    .string()
-    .regex(getSettingsTenantPathTenantRegExp)
-    .describe('Tenant slug (e.g. `default`, `acme`).'),
-});
+  "tenant": zod.string().regex(getSettingsTenantPathTenantRegExp).describe('Tenant slug (e.g. `default`, `acme`).')
+})
 
 export const GetSettingsTenantResponse = zod.object({
-  createdAt: zod.iso.datetime({ offset: true }).optional(),
-  defaultTheme: zod.enum(['light', 'dark', 'auto']).optional(),
-  description: zod.string().optional(),
-  id: zod.string().optional(),
-  logoUrl: zod.string().optional(),
-  name: zod.string().optional(),
-  parentDomain: zod.string().optional(),
-  slug: zod.string().optional().describe('Read-only after creation.'),
-  updatedAt: zod.iso.datetime({ offset: true }).optional(),
-  urlMode: zod
-    .enum(['path', 'subdomain'])
-    .optional()
-    .describe('Tenant addressing mode (path or subdomain).'),
-});
+  "createdAt": zod.iso.datetime({"offset":true}).optional(),
+  "defaultTheme": zod.enum(['light', 'dark', 'auto']).optional(),
+  "description": zod.string().optional(),
+  "id": zod.string().optional(),
+  "logoUrl": zod.string().optional(),
+  "name": zod.string().optional(),
+  "parentDomain": zod.string().optional(),
+  "slug": zod.string().optional().describe('Read-only after creation.'),
+  "updatedAt": zod.iso.datetime({"offset":true}).optional(),
+  "urlMode": zod.enum(['path', 'subdomain']).optional().describe('Tenant addressing mode (path or subdomain).')
+})
 
 /**
  * @summary Patch tenant general settings
  */
 export const patchSettingsTenantPathTenantRegExp = new RegExp('^[a-z0-9-]+$');
 
+
 export const PatchSettingsTenantParams = zod.object({
-  tenant: zod
-    .string()
-    .regex(patchSettingsTenantPathTenantRegExp)
-    .describe('Tenant slug (e.g. `default`, `acme`).'),
-});
+  "tenant": zod.string().regex(patchSettingsTenantPathTenantRegExp).describe('Tenant slug (e.g. `default`, `acme`).')
+})
 
 export const PatchSettingsTenantResponse = zod.object({
-  createdAt: zod.iso.datetime({ offset: true }).optional(),
-  defaultTheme: zod.enum(['light', 'dark', 'auto']).optional(),
-  description: zod.string().optional(),
-  id: zod.string().optional(),
-  logoUrl: zod.string().optional(),
-  name: zod.string().optional(),
-  parentDomain: zod.string().optional(),
-  slug: zod.string().optional().describe('Read-only after creation.'),
-  updatedAt: zod.iso.datetime({ offset: true }).optional(),
-  urlMode: zod
-    .enum(['path', 'subdomain'])
-    .optional()
-    .describe('Tenant addressing mode (path or subdomain).'),
-});
+  "createdAt": zod.iso.datetime({"offset":true}).optional(),
+  "defaultTheme": zod.enum(['light', 'dark', 'auto']).optional(),
+  "description": zod.string().optional(),
+  "id": zod.string().optional(),
+  "logoUrl": zod.string().optional(),
+  "name": zod.string().optional(),
+  "parentDomain": zod.string().optional(),
+  "slug": zod.string().optional().describe('Read-only after creation.'),
+  "updatedAt": zod.iso.datetime({"offset":true}).optional(),
+  "urlMode": zod.enum(['path', 'subdomain']).optional().describe('Tenant addressing mode (path or subdomain).')
+})
 
 /**
  * @summary Get tenant TLS settings (ACME issuer + uploaded cert refs)
  */
 export const getSettingsTLSPathTenantRegExp = new RegExp('^[a-z0-9-]+$');
 
+
 export const GetSettingsTLSParams = zod.object({
-  tenant: zod
-    .string()
-    .regex(getSettingsTLSPathTenantRegExp)
-    .describe('Tenant slug (e.g. `default`, `acme`).'),
-});
+  "tenant": zod.string().regex(getSettingsTLSPathTenantRegExp).describe('Tenant slug (e.g. `default`, `acme`).')
+})
 
 export const GetSettingsTLSResponse = zod.object({
-  acmeDirectoryUrl: zod.string().optional().describe('Required when acmeIssuer is `custom`.'),
-  acmeEmail: zod.email().optional(),
-  acmeIssuer: zod
-    .enum(['lets-encrypt-prod', 'lets-encrypt-staging', 'zerossl', 'custom'])
-    .optional(),
-  allowedCiphers: zod.array(zod.string()).optional(),
-  manualCertRefs: zod
-    .array(
-      zod.object({
-        autoRenew: zod.boolean().optional(),
-        id: zod.string().optional(),
-        issuer: zod.string().optional(),
-        notAfter: zod.iso.datetime({ offset: true }).optional(),
-        notBefore: zod.iso.datetime({ offset: true }).optional(),
-        subject: zod.string().optional(),
-      }),
-    )
-    .optional()
-    .describe('References to uploaded PEM cert\/key bundles in the cert store.'),
-});
+  "acmeDirectoryUrl": zod.string().optional().describe('Required when acmeIssuer is `custom`.'),
+  "acmeEmail": zod.email().optional(),
+  "acmeIssuer": zod.enum(['lets-encrypt-prod', 'lets-encrypt-staging', 'zerossl', 'custom']).optional(),
+  "allowedCiphers": zod.array(zod.string()).optional(),
+  "manualCertRefs": zod.array(zod.object({
+  "autoRenew": zod.boolean().optional(),
+  "id": zod.string().optional(),
+  "issuer": zod.string().optional(),
+  "notAfter": zod.iso.datetime({"offset":true}).optional(),
+  "notBefore": zod.iso.datetime({"offset":true}).optional(),
+  "subject": zod.string().optional()
+})).optional().describe('References to uploaded PEM cert\/key bundles in the cert store.')
+})
 
 /**
  * @summary Replace tenant TLS settings
  */
 export const putSettingsTLSPathTenantRegExp = new RegExp('^[a-z0-9-]+$');
 
+
 export const PutSettingsTLSParams = zod.object({
-  tenant: zod
-    .string()
-    .regex(putSettingsTLSPathTenantRegExp)
-    .describe('Tenant slug (e.g. `default`, `acme`).'),
-});
+  "tenant": zod.string().regex(putSettingsTLSPathTenantRegExp).describe('Tenant slug (e.g. `default`, `acme`).')
+})
 
 export const PutSettingsTLSBody = zod.object({
-  acmeDirectoryUrl: zod.string().optional().describe('Required when acmeIssuer is `custom`.'),
-  acmeEmail: zod.email().optional(),
-  acmeIssuer: zod
-    .enum(['lets-encrypt-prod', 'lets-encrypt-staging', 'zerossl', 'custom'])
-    .optional(),
-  allowedCiphers: zod.array(zod.string()).optional(),
-  manualCertRefs: zod
-    .array(
-      zod.object({
-        autoRenew: zod.boolean().optional(),
-        id: zod.string().optional(),
-        issuer: zod.string().optional(),
-        notAfter: zod.iso.datetime({ offset: true }).optional(),
-        notBefore: zod.iso.datetime({ offset: true }).optional(),
-        subject: zod.string().optional(),
-      }),
-    )
-    .optional()
-    .describe('References to uploaded PEM cert\/key bundles in the cert store.'),
-});
+  "acmeDirectoryUrl": zod.string().optional().describe('Required when acmeIssuer is `custom`.'),
+  "acmeEmail": zod.email().optional(),
+  "acmeIssuer": zod.enum(['lets-encrypt-prod', 'lets-encrypt-staging', 'zerossl', 'custom']).optional(),
+  "allowedCiphers": zod.array(zod.string()).optional(),
+  "manualCertRefs": zod.array(zod.object({
+  "autoRenew": zod.boolean().optional(),
+  "id": zod.string().optional(),
+  "issuer": zod.string().optional(),
+  "notAfter": zod.iso.datetime({"offset":true}).optional(),
+  "notBefore": zod.iso.datetime({"offset":true}).optional(),
+  "subject": zod.string().optional()
+})).optional().describe('References to uploaded PEM cert\/key bundles in the cert store.')
+})
 
 export const PutSettingsTLSResponse = zod.object({
-  acmeDirectoryUrl: zod.string().optional().describe('Required when acmeIssuer is `custom`.'),
-  acmeEmail: zod.email().optional(),
-  acmeIssuer: zod
-    .enum(['lets-encrypt-prod', 'lets-encrypt-staging', 'zerossl', 'custom'])
-    .optional(),
-  allowedCiphers: zod.array(zod.string()).optional(),
-  manualCertRefs: zod
-    .array(
-      zod.object({
-        autoRenew: zod.boolean().optional(),
-        id: zod.string().optional(),
-        issuer: zod.string().optional(),
-        notAfter: zod.iso.datetime({ offset: true }).optional(),
-        notBefore: zod.iso.datetime({ offset: true }).optional(),
-        subject: zod.string().optional(),
-      }),
-    )
-    .optional()
-    .describe('References to uploaded PEM cert\/key bundles in the cert store.'),
-});
+  "acmeDirectoryUrl": zod.string().optional().describe('Required when acmeIssuer is `custom`.'),
+  "acmeEmail": zod.email().optional(),
+  "acmeIssuer": zod.enum(['lets-encrypt-prod', 'lets-encrypt-staging', 'zerossl', 'custom']).optional(),
+  "allowedCiphers": zod.array(zod.string()).optional(),
+  "manualCertRefs": zod.array(zod.object({
+  "autoRenew": zod.boolean().optional(),
+  "id": zod.string().optional(),
+  "issuer": zod.string().optional(),
+  "notAfter": zod.iso.datetime({"offset":true}).optional(),
+  "notBefore": zod.iso.datetime({"offset":true}).optional(),
+  "subject": zod.string().optional()
+})).optional().describe('References to uploaded PEM cert\/key bundles in the cert store.')
+})
 
 /**
  * @summary List TLS certificates for the tenant
  */
 export const listTLSCertificatesPathTenantRegExp = new RegExp('^[a-z0-9-]+$');
 
+
 export const ListTLSCertificatesParams = zod.object({
-  tenant: zod
-    .string()
-    .regex(listTLSCertificatesPathTenantRegExp)
-    .describe('Tenant slug (e.g. `default`, `acme`).'),
-});
+  "tenant": zod.string().regex(listTLSCertificatesPathTenantRegExp).describe('Tenant slug (e.g. `default`, `acme`).')
+})
 
 export const ListTLSCertificatesResponse = zod.object({
-  items: zod.array(
-    zod.object({
-      autoRenew: zod.boolean(),
-      createdAt: zod.iso.datetime({ offset: true }),
-      domain: zod.string(),
-      expiresAt: zod.iso.datetime({ offset: true }).optional(),
-      fingerprintSha256: zod.string().optional(),
-      id: zod.string(),
-      issuer: zod.string(),
-      source: zod.string().describe('Certificate provenance: `manual`, `acme`, `auto`.'),
-      tenantId: zod.string(),
-    }),
-  ),
-  total: zod.number(),
-});
+  "items": zod.array(zod.object({
+  "autoRenew": zod.boolean(),
+  "createdAt": zod.iso.datetime({"offset":true}),
+  "domain": zod.string(),
+  "expiresAt": zod.iso.datetime({"offset":true}).optional(),
+  "fingerprintSha256": zod.string().optional(),
+  "id": zod.string(),
+  "issuer": zod.string(),
+  "source": zod.string().describe('Certificate provenance: `manual`, `acme`, `auto`.'),
+  "tenantId": zod.string()
+})),
+  "total": zod.number()
+})
 
 /**
  * @summary Upload a TLS certificate
  */
 export const createTLSCertificatePathTenantRegExp = new RegExp('^[a-z0-9-]+$');
 
+
 export const CreateTLSCertificateParams = zod.object({
-  tenant: zod
-    .string()
-    .regex(createTLSCertificatePathTenantRegExp)
-    .describe('Tenant slug (e.g. `default`, `acme`).'),
-});
+  "tenant": zod.string().regex(createTLSCertificatePathTenantRegExp).describe('Tenant slug (e.g. `default`, `acme`).')
+})
 
 export const CreateTLSCertificateBody = zod.object({
-  certificatePem: zod.string().optional(),
-  domain: zod.string(),
-  issuer: zod.string().optional(),
-  source: zod.string().optional(),
-});
+  "certificatePem": zod.string().optional(),
+  "domain": zod.string(),
+  "issuer": zod.string().optional(),
+  "source": zod.string().optional()
+})
 
 export const deleteTLSCertificatePathTenantRegExp = new RegExp('^[a-z0-9-]+$');
 
+
 export const DeleteTLSCertificateParams = zod.object({
-  tenant: zod
-    .string()
-    .regex(deleteTLSCertificatePathTenantRegExp)
-    .describe('Tenant slug (e.g. `default`, `acme`).'),
-  id: zod.string(),
-});
+  "tenant": zod.string().regex(deleteTLSCertificatePathTenantRegExp).describe('Tenant slug (e.g. `default`, `acme`).'),
+  "id": zod.string()
+})
 
 export const getTLSCertificatePathTenantRegExp = new RegExp('^[a-z0-9-]+$');
 
+
 export const GetTLSCertificateParams = zod.object({
-  tenant: zod
-    .string()
-    .regex(getTLSCertificatePathTenantRegExp)
-    .describe('Tenant slug (e.g. `default`, `acme`).'),
-  id: zod.string(),
-});
+  "tenant": zod.string().regex(getTLSCertificatePathTenantRegExp).describe('Tenant slug (e.g. `default`, `acme`).'),
+  "id": zod.string()
+})
 
 export const GetTLSCertificateResponse = zod.object({
-  autoRenew: zod.boolean(),
-  createdAt: zod.iso.datetime({ offset: true }),
-  domain: zod.string(),
-  expiresAt: zod.iso.datetime({ offset: true }).optional(),
-  fingerprintSha256: zod.string().optional(),
-  id: zod.string(),
-  issuer: zod.string(),
-  source: zod.string().describe('Certificate provenance: `manual`, `acme`, `auto`.'),
-  tenantId: zod.string(),
-});
+  "autoRenew": zod.boolean(),
+  "createdAt": zod.iso.datetime({"offset":true}),
+  "domain": zod.string(),
+  "expiresAt": zod.iso.datetime({"offset":true}).optional(),
+  "fingerprintSha256": zod.string().optional(),
+  "id": zod.string(),
+  "issuer": zod.string(),
+  "source": zod.string().describe('Certificate provenance: `manual`, `acme`, `auto`.'),
+  "tenantId": zod.string()
+})
 
 /**
  * @summary Toggle auto-renew flag for a TLS certificate
  */
 export const toggleTLSCertificateAutoRenewPathTenantRegExp = new RegExp('^[a-z0-9-]+$');
 
+
 export const ToggleTLSCertificateAutoRenewParams = zod.object({
-  tenant: zod
-    .string()
-    .regex(toggleTLSCertificateAutoRenewPathTenantRegExp)
-    .describe('Tenant slug (e.g. `default`, `acme`).'),
-  id: zod.string(),
-});
+  "tenant": zod.string().regex(toggleTLSCertificateAutoRenewPathTenantRegExp).describe('Tenant slug (e.g. `default`, `acme`).'),
+  "id": zod.string()
+})
 
 export const ToggleTLSCertificateAutoRenewBody = zod.object({
-  autoRenew: zod.boolean(),
-});
+  "autoRenew": zod.boolean()
+})
 
 export const ToggleTLSCertificateAutoRenewResponse = zod.object({
-  autoRenew: zod.boolean(),
-  createdAt: zod.iso.datetime({ offset: true }),
-  domain: zod.string(),
-  expiresAt: zod.iso.datetime({ offset: true }).optional(),
-  fingerprintSha256: zod.string().optional(),
-  id: zod.string(),
-  issuer: zod.string(),
-  source: zod.string().describe('Certificate provenance: `manual`, `acme`, `auto`.'),
-  tenantId: zod.string(),
-});
+  "autoRenew": zod.boolean(),
+  "createdAt": zod.iso.datetime({"offset":true}),
+  "domain": zod.string(),
+  "expiresAt": zod.iso.datetime({"offset":true}).optional(),
+  "fingerprintSha256": zod.string().optional(),
+  "id": zod.string(),
+  "issuer": zod.string(),
+  "source": zod.string().describe('Certificate provenance: `manual`, `acme`, `auto`.'),
+  "tenantId": zod.string()
+})
 
 /**
  * @summary Get tenant TLS config (ACME issuer + cipher policy)
  */
 export const getTLSConfigPathTenantRegExp = new RegExp('^[a-z0-9-]+$');
 
+
 export const GetTLSConfigParams = zod.object({
-  tenant: zod
-    .string()
-    .regex(getTLSConfigPathTenantRegExp)
-    .describe('Tenant slug (e.g. `default`, `acme`).'),
-});
+  "tenant": zod.string().regex(getTLSConfigPathTenantRegExp).describe('Tenant slug (e.g. `default`, `acme`).')
+})
 
 export const GetTLSConfigResponse = zod.object({
-  acmeDirectory: zod.string().optional(),
-  acmeEmail: zod.string(),
-  acmeProvider: zod.string(),
-  allowedCiphers: zod.array(zod.string()),
-  minProtocol: zod.string().describe('Minimum TLS protocol (e.g. `tls1.2`, `tls1.3`).'),
-  tenantId: zod.string(),
-  updatedAt: zod.iso.datetime({ offset: true }),
-});
+  "acmeDirectory": zod.string().optional(),
+  "acmeEmail": zod.string(),
+  "acmeProvider": zod.string(),
+  "allowedCiphers": zod.array(zod.string()),
+  "minProtocol": zod.string().describe('Minimum TLS protocol (e.g. `tls1.2`, `tls1.3`).'),
+  "tenantId": zod.string(),
+  "updatedAt": zod.iso.datetime({"offset":true})
+})
 
 /**
  * @summary Update tenant ACME issuer settings
  */
 export const putTLSConfigACMEPathTenantRegExp = new RegExp('^[a-z0-9-]+$');
 
+
 export const PutTLSConfigACMEParams = zod.object({
-  tenant: zod
-    .string()
-    .regex(putTLSConfigACMEPathTenantRegExp)
-    .describe('Tenant slug (e.g. `default`, `acme`).'),
-});
+  "tenant": zod.string().regex(putTLSConfigACMEPathTenantRegExp).describe('Tenant slug (e.g. `default`, `acme`).')
+})
 
 export const PutTLSConfigACMEBody = zod.object({
-  directory: zod.string().optional(),
-  email: zod.string().optional(),
-  provider: zod.string(),
-});
+  "directory": zod.string().optional(),
+  "email": zod.string().optional(),
+  "provider": zod.string()
+})
 
 export const PutTLSConfigACMEResponse = zod.object({
-  acmeDirectory: zod.string().optional(),
-  acmeEmail: zod.string(),
-  acmeProvider: zod.string(),
-  allowedCiphers: zod.array(zod.string()),
-  minProtocol: zod.string().describe('Minimum TLS protocol (e.g. `tls1.2`, `tls1.3`).'),
-  tenantId: zod.string(),
-  updatedAt: zod.iso.datetime({ offset: true }),
-});
+  "acmeDirectory": zod.string().optional(),
+  "acmeEmail": zod.string(),
+  "acmeProvider": zod.string(),
+  "allowedCiphers": zod.array(zod.string()),
+  "minProtocol": zod.string().describe('Minimum TLS protocol (e.g. `tls1.2`, `tls1.3`).'),
+  "tenantId": zod.string(),
+  "updatedAt": zod.iso.datetime({"offset":true})
+})
 
 /**
  * @summary Update tenant TLS cipher policy
  */
 export const putTLSConfigCiphersPathTenantRegExp = new RegExp('^[a-z0-9-]+$');
 
+
 export const PutTLSConfigCiphersParams = zod.object({
-  tenant: zod
-    .string()
-    .regex(putTLSConfigCiphersPathTenantRegExp)
-    .describe('Tenant slug (e.g. `default`, `acme`).'),
-});
+  "tenant": zod.string().regex(putTLSConfigCiphersPathTenantRegExp).describe('Tenant slug (e.g. `default`, `acme`).')
+})
 
 export const PutTLSConfigCiphersBody = zod.object({
-  allowedCiphers: zod.array(zod.string()).optional(),
-  minProtocol: zod.string().optional(),
-});
+  "allowedCiphers": zod.array(zod.string()).optional(),
+  "minProtocol": zod.string().optional()
+})
 
 export const PutTLSConfigCiphersResponse = zod.object({
-  acmeDirectory: zod.string().optional(),
-  acmeEmail: zod.string(),
-  acmeProvider: zod.string(),
-  allowedCiphers: zod.array(zod.string()),
-  minProtocol: zod.string().describe('Minimum TLS protocol (e.g. `tls1.2`, `tls1.3`).'),
-  tenantId: zod.string(),
-  updatedAt: zod.iso.datetime({ offset: true }),
-});
+  "acmeDirectory": zod.string().optional(),
+  "acmeEmail": zod.string(),
+  "acmeProvider": zod.string(),
+  "allowedCiphers": zod.array(zod.string()),
+  "minProtocol": zod.string().describe('Minimum TLS protocol (e.g. `tls1.2`, `tls1.3`).'),
+  "tenantId": zod.string(),
+  "updatedAt": zod.iso.datetime({"offset":true})
+})
 
 /**
  * @summary Upload a manual TLS certificate (PEM cert + key)
  */
 export const uploadManualCertPathTenantRegExp = new RegExp('^[a-z0-9-]+$');
 
+
 export const UploadManualCertParams = zod.object({
-  tenant: zod
-    .string()
-    .regex(uploadManualCertPathTenantRegExp)
-    .describe('Tenant slug (e.g. `default`, `acme`).'),
-});
+  "tenant": zod.string().regex(uploadManualCertPathTenantRegExp).describe('Tenant slug (e.g. `default`, `acme`).')
+})
 
 export const UploadManualCertBody = zod.object({
-  auto_renew: zod.boolean().optional(),
-  cert_pem: zod.string(),
-  key_pem: zod.string(),
-});
+  "auto_renew": zod.boolean().optional(),
+  "cert_pem": zod.string(),
+  "key_pem": zod.string()
+})
 
 /**
  * @summary Delete a manually-uploaded TLS certificate
  */
 export const deleteManualCertPathTenantRegExp = new RegExp('^[a-z0-9-]+$');
 
+
 export const DeleteManualCertParams = zod.object({
-  tenant: zod
-    .string()
-    .regex(deleteManualCertPathTenantRegExp)
-    .describe('Tenant slug (e.g. `default`, `acme`).'),
-  certId: zod.string(),
-});
+  "tenant": zod.string().regex(deleteManualCertPathTenantRegExp).describe('Tenant slug (e.g. `default`, `acme`).'),
+  "certId": zod.string()
+})
 
 /**
  * @summary Dispatch a synthetic test event to the named webhook
  */
 export const postWebhookTestPathTenantRegExp = new RegExp('^[a-z0-9-]+$');
 
+
 export const PostWebhookTestParams = zod.object({
-  tenant: zod
-    .string()
-    .regex(postWebhookTestPathTenantRegExp)
-    .describe('Tenant slug (e.g. `default`, `acme`).'),
-  id: zod.uuid().describe('Resource id (UUID).'),
-});
+  "tenant": zod.string().regex(postWebhookTestPathTenantRegExp).describe('Tenant slug (e.g. `default`, `acme`).'),
+  "id": zod.uuid().describe('Resource id (UUID).')
+})
 
 export const PostWebhookTestResponse = zod.object({
-  deliveredAt: zod.iso.datetime({ offset: true }).optional(),
-  durationMs: zod.number().optional(),
-  error: zod.string().optional(),
-  httpStatus: zod.number().optional(),
-  latencyMs: zod.number().optional(),
-  success: zod.boolean().optional(),
-});
+  "deliveredAt": zod.iso.datetime({"offset":true}).optional(),
+  "durationMs": zod.number().optional(),
+  "error": zod.string().optional(),
+  "httpStatus": zod.number().optional(),
+  "latencyMs": zod.number().optional(),
+  "success": zod.boolean().optional()
+})
+

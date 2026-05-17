@@ -23,197 +23,175 @@ Conventions:
  */
 import * as zod from 'zod';
 
+
 /**
  * @summary List AI tools
  */
 export const listAIToolsPathTenantRegExp = new RegExp('^[a-z0-9-]+$');
 
+
 export const ListAIToolsParams = zod.object({
-  tenant: zod
-    .string()
-    .regex(listAIToolsPathTenantRegExp)
-    .describe('Tenant slug (e.g. `default`, `acme`).'),
-});
+  "tenant": zod.string().regex(listAIToolsPathTenantRegExp).describe('Tenant slug (e.g. `default`, `acme`).')
+})
 
 export const ListAIToolsResponse = zod.object({
-  items: zod
-    .array(
-      zod.object({
-        createdAt: zod.iso.datetime({ offset: true }),
-        dangerous: zod.boolean().optional(),
-        description: zod.string().optional(),
-        enabled: zod.boolean(),
-        httpEndpoint: zod.string().nullish(),
-        id: zod.string(),
-        kind: zod.string(),
-        mcpServerId: zod.string().nullish(),
-        name: zod.string(),
-        schema: zod.record(zod.string(), zod.unknown()).optional(),
-        tenantId: zod.string(),
-        updatedAt: zod.iso.datetime({ offset: true }),
-      }),
-    )
-    .optional(),
-  total: zod.number().optional(),
-});
+  "items": zod.array(zod.object({
+  "createdAt": zod.iso.datetime({"offset":true}),
+  "dangerous": zod.boolean().optional(),
+  "description": zod.string().optional(),
+  "enabled": zod.boolean(),
+  "httpEndpoint": zod.string().nullish(),
+  "id": zod.string(),
+  "kind": zod.string(),
+  "mcpServerId": zod.string().nullish(),
+  "name": zod.string(),
+  "schema": zod.record(zod.string(), zod.unknown()).optional(),
+  "tenantId": zod.string(),
+  "updatedAt": zod.iso.datetime({"offset":true})
+})).optional(),
+  "total": zod.number().optional()
+})
 
 /**
  * @summary Create an AI tool
  */
 export const createAIToolPathTenantRegExp = new RegExp('^[a-z0-9-]+$');
 
+
 export const CreateAIToolParams = zod.object({
-  tenant: zod
-    .string()
-    .regex(createAIToolPathTenantRegExp)
-    .describe('Tenant slug (e.g. `default`, `acme`).'),
-});
+  "tenant": zod.string().regex(createAIToolPathTenantRegExp).describe('Tenant slug (e.g. `default`, `acme`).')
+})
 
 export const CreateAIToolBody = zod.object({
-  dangerous: zod.boolean().optional(),
-  description: zod.string().optional(),
-  httpEndpoint: zod.string().nullish(),
-  kind: zod.string(),
-  mcpServerId: zod.string().nullish(),
-  name: zod.string(),
-  schema: zod.record(zod.string(), zod.unknown()).optional(),
-});
+  "dangerous": zod.boolean().optional(),
+  "description": zod.string().optional(),
+  "httpEndpoint": zod.string().nullish(),
+  "kind": zod.string(),
+  "mcpServerId": zod.string().nullish(),
+  "name": zod.string(),
+  "schema": zod.record(zod.string(), zod.unknown()).optional()
+})
 
 export const deleteAIToolPathTenantRegExp = new RegExp('^[a-z0-9-]+$');
 
+
 export const DeleteAIToolParams = zod.object({
-  tenant: zod
-    .string()
-    .regex(deleteAIToolPathTenantRegExp)
-    .describe('Tenant slug (e.g. `default`, `acme`).'),
-  id: zod.uuid().describe('Resource id (UUID).'),
-});
+  "tenant": zod.string().regex(deleteAIToolPathTenantRegExp).describe('Tenant slug (e.g. `default`, `acme`).'),
+  "id": zod.uuid().describe('Resource id (UUID).')
+})
 
 export const getAIToolPathTenantRegExp = new RegExp('^[a-z0-9-]+$');
 
+
 export const GetAIToolParams = zod.object({
-  tenant: zod
-    .string()
-    .regex(getAIToolPathTenantRegExp)
-    .describe('Tenant slug (e.g. `default`, `acme`).'),
-  id: zod.uuid().describe('Resource id (UUID).'),
-});
+  "tenant": zod.string().regex(getAIToolPathTenantRegExp).describe('Tenant slug (e.g. `default`, `acme`).'),
+  "id": zod.uuid().describe('Resource id (UUID).')
+})
 
 export const GetAIToolResponse = zod.object({
-  createdAt: zod.iso.datetime({ offset: true }),
-  dangerous: zod.boolean().optional(),
-  description: zod.string().optional(),
-  enabled: zod.boolean(),
-  httpEndpoint: zod.string().nullish(),
-  id: zod.string(),
-  kind: zod.string(),
-  mcpServerId: zod.string().nullish(),
-  name: zod.string(),
-  schema: zod.record(zod.string(), zod.unknown()).optional(),
-  tenantId: zod.string(),
-  updatedAt: zod.iso.datetime({ offset: true }),
-});
+  "createdAt": zod.iso.datetime({"offset":true}),
+  "dangerous": zod.boolean().optional(),
+  "description": zod.string().optional(),
+  "enabled": zod.boolean(),
+  "httpEndpoint": zod.string().nullish(),
+  "id": zod.string(),
+  "kind": zod.string(),
+  "mcpServerId": zod.string().nullish(),
+  "name": zod.string(),
+  "schema": zod.record(zod.string(), zod.unknown()).optional(),
+  "tenantId": zod.string(),
+  "updatedAt": zod.iso.datetime({"offset":true})
+})
 
 export const patchAIToolPathTenantRegExp = new RegExp('^[a-z0-9-]+$');
 
+
 export const PatchAIToolParams = zod.object({
-  tenant: zod
-    .string()
-    .regex(patchAIToolPathTenantRegExp)
-    .describe('Tenant slug (e.g. `default`, `acme`).'),
-  id: zod.uuid().describe('Resource id (UUID).'),
-});
+  "tenant": zod.string().regex(patchAIToolPathTenantRegExp).describe('Tenant slug (e.g. `default`, `acme`).'),
+  "id": zod.uuid().describe('Resource id (UUID).')
+})
 
 export const PatchAIToolResponse = zod.object({
-  createdAt: zod.iso.datetime({ offset: true }),
-  dangerous: zod.boolean().optional(),
-  description: zod.string().optional(),
-  enabled: zod.boolean(),
-  httpEndpoint: zod.string().nullish(),
-  id: zod.string(),
-  kind: zod.string(),
-  mcpServerId: zod.string().nullish(),
-  name: zod.string(),
-  schema: zod.record(zod.string(), zod.unknown()).optional(),
-  tenantId: zod.string(),
-  updatedAt: zod.iso.datetime({ offset: true }),
-});
+  "createdAt": zod.iso.datetime({"offset":true}),
+  "dangerous": zod.boolean().optional(),
+  "description": zod.string().optional(),
+  "enabled": zod.boolean(),
+  "httpEndpoint": zod.string().nullish(),
+  "id": zod.string(),
+  "kind": zod.string(),
+  "mcpServerId": zod.string().nullish(),
+  "name": zod.string(),
+  "schema": zod.record(zod.string(), zod.unknown()).optional(),
+  "tenantId": zod.string(),
+  "updatedAt": zod.iso.datetime({"offset":true})
+})
 
 export const updateAIToolPathTenantRegExp = new RegExp('^[a-z0-9-]+$');
 
+
 export const UpdateAIToolParams = zod.object({
-  tenant: zod
-    .string()
-    .regex(updateAIToolPathTenantRegExp)
-    .describe('Tenant slug (e.g. `default`, `acme`).'),
-  id: zod.uuid().describe('Resource id (UUID).'),
-});
+  "tenant": zod.string().regex(updateAIToolPathTenantRegExp).describe('Tenant slug (e.g. `default`, `acme`).'),
+  "id": zod.uuid().describe('Resource id (UUID).')
+})
 
 export const UpdateAIToolBody = zod.object({
-  dangerous: zod.boolean().optional(),
-  description: zod.string().optional(),
-  enabled: zod.boolean().optional(),
-  httpEndpoint: zod.string().nullish(),
-  kind: zod.string().optional(),
-  mcpServerId: zod.string().nullish(),
-  name: zod.string().optional(),
-  schema: zod.record(zod.string(), zod.unknown()).optional(),
-});
+  "dangerous": zod.boolean().optional(),
+  "description": zod.string().optional(),
+  "enabled": zod.boolean().optional(),
+  "httpEndpoint": zod.string().nullish(),
+  "kind": zod.string().optional(),
+  "mcpServerId": zod.string().nullish(),
+  "name": zod.string().optional(),
+  "schema": zod.record(zod.string(), zod.unknown()).optional()
+})
 
 export const UpdateAIToolResponse = zod.object({
-  createdAt: zod.iso.datetime({ offset: true }),
-  dangerous: zod.boolean().optional(),
-  description: zod.string().optional(),
-  enabled: zod.boolean(),
-  httpEndpoint: zod.string().nullish(),
-  id: zod.string(),
-  kind: zod.string(),
-  mcpServerId: zod.string().nullish(),
-  name: zod.string(),
-  schema: zod.record(zod.string(), zod.unknown()).optional(),
-  tenantId: zod.string(),
-  updatedAt: zod.iso.datetime({ offset: true }),
-});
+  "createdAt": zod.iso.datetime({"offset":true}),
+  "dangerous": zod.boolean().optional(),
+  "description": zod.string().optional(),
+  "enabled": zod.boolean(),
+  "httpEndpoint": zod.string().nullish(),
+  "id": zod.string(),
+  "kind": zod.string(),
+  "mcpServerId": zod.string().nullish(),
+  "name": zod.string(),
+  "schema": zod.record(zod.string(), zod.unknown()).optional(),
+  "tenantId": zod.string(),
+  "updatedAt": zod.iso.datetime({"offset":true})
+})
 
 /**
  * @summary List agents bound to this tool
  */
 export const listAIToolAgentsPathTenantRegExp = new RegExp('^[a-z0-9-]+$');
 
+
 export const ListAIToolAgentsParams = zod.object({
-  tenant: zod
-    .string()
-    .regex(listAIToolAgentsPathTenantRegExp)
-    .describe('Tenant slug (e.g. `default`, `acme`).'),
-  id: zod.uuid().describe('Resource id (UUID).'),
-});
+  "tenant": zod.string().regex(listAIToolAgentsPathTenantRegExp).describe('Tenant slug (e.g. `default`, `acme`).'),
+  "id": zod.uuid().describe('Resource id (UUID).')
+})
 
 export const ListAIToolAgentsResponse = zod.object({
-  items: zod
-    .array(
-      zod.object({
-        agentId: zod.string().optional(),
-      }),
-    )
-    .optional(),
-  total: zod.number().optional(),
-});
+  "items": zod.array(zod.object({
+  "agentId": zod.string().optional()
+})).optional(),
+  "total": zod.number().optional()
+})
 
 /**
  * @summary Test invoke a tool (stage-2 stub)
  */
 export const testAIToolPathTenantRegExp = new RegExp('^[a-z0-9-]+$');
 
+
 export const TestAIToolParams = zod.object({
-  tenant: zod
-    .string()
-    .regex(testAIToolPathTenantRegExp)
-    .describe('Tenant slug (e.g. `default`, `acme`).'),
-  id: zod.uuid().describe('Resource id (UUID).'),
-});
+  "tenant": zod.string().regex(testAIToolPathTenantRegExp).describe('Tenant slug (e.g. `default`, `acme`).'),
+  "id": zod.uuid().describe('Resource id (UUID).')
+})
 
 export const TestAIToolResponse = zod.object({
-  note: zod.string().optional(),
-  ok: zod.boolean().optional(),
-  toolId: zod.string().optional(),
-});
+  "note": zod.string().optional(),
+  "ok": zod.boolean().optional(),
+  "toolId": zod.string().optional()
+})
+

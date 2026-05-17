@@ -23,95 +23,85 @@ Conventions:
  */
 import * as zod from 'zod';
 
+
 /**
  * @summary List AI traces
  */
 export const listAITracesPathTenantRegExp = new RegExp('^[a-z0-9-]+$');
 
+
 export const ListAITracesParams = zod.object({
-  tenant: zod
-    .string()
-    .regex(listAITracesPathTenantRegExp)
-    .describe('Tenant slug (e.g. `default`, `acme`).'),
-});
+  "tenant": zod.string().regex(listAITracesPathTenantRegExp).describe('Tenant slug (e.g. `default`, `acme`).')
+})
 
 export const ListAITracesQueryParams = zod.object({
-  status: zod.string().optional(),
-  limit: zod.number().optional(),
-  offset: zod.number().optional(),
-});
+  "status": zod.string().optional(),
+  "limit": zod.number().optional(),
+  "offset": zod.number().optional()
+})
 
 export const ListAITracesResponse = zod.object({
-  items: zod
-    .array(
-      zod.object({
-        agentId: zod.string().nullish(),
-        completion: zod.string().nullish().describe('Gated by ai-trace:read-sensitive'),
-        durationMs: zod.number(),
-        error: zod.string().nullish(),
-        id: zod.string(),
-        inputTokens: zod.number(),
-        model: zod.string(),
-        occurredAt: zod.iso.datetime({ offset: true }),
-        outputTokens: zod.number(),
-        prompt: zod.string().nullish().describe('Gated by ai-trace:read-sensitive'),
-        providerId: zod.string().nullish(),
-        status: zod.string(),
-        tenantId: zod.string(),
-        toolCalls: zod.array(zod.record(zod.string(), zod.unknown())).optional(),
-      }),
-    )
-    .optional(),
-  total: zod.number().optional(),
-});
+  "items": zod.array(zod.object({
+  "agentId": zod.string().nullish(),
+  "completion": zod.string().nullish().describe('Gated by ai-trace:read-sensitive'),
+  "durationMs": zod.number(),
+  "error": zod.string().nullish(),
+  "id": zod.string(),
+  "inputTokens": zod.number(),
+  "model": zod.string(),
+  "occurredAt": zod.iso.datetime({"offset":true}),
+  "outputTokens": zod.number(),
+  "prompt": zod.string().nullish().describe('Gated by ai-trace:read-sensitive'),
+  "providerId": zod.string().nullish(),
+  "status": zod.string(),
+  "tenantId": zod.string(),
+  "toolCalls": zod.array(zod.record(zod.string(), zod.unknown())).optional()
+})).optional(),
+  "total": zod.number().optional()
+})
 
 /**
  * @summary Export traces as CSV
  */
 export const exportAITracesCSVPathTenantRegExp = new RegExp('^[a-z0-9-]+$');
 
+
 export const ExportAITracesCSVParams = zod.object({
-  tenant: zod
-    .string()
-    .regex(exportAITracesCSVPathTenantRegExp)
-    .describe('Tenant slug (e.g. `default`, `acme`).'),
-});
+  "tenant": zod.string().regex(exportAITracesCSVPathTenantRegExp).describe('Tenant slug (e.g. `default`, `acme`).')
+})
 
 /**
  * @summary Live SSE stream of new AI traces
  */
 export const streamAITracesPathTenantRegExp = new RegExp('^[a-z0-9-]+$');
 
+
 export const StreamAITracesParams = zod.object({
-  tenant: zod
-    .string()
-    .regex(streamAITracesPathTenantRegExp)
-    .describe('Tenant slug (e.g. `default`, `acme`).'),
-});
+  "tenant": zod.string().regex(streamAITracesPathTenantRegExp).describe('Tenant slug (e.g. `default`, `acme`).')
+})
 
 export const getAITracePathTenantRegExp = new RegExp('^[a-z0-9-]+$');
 
+
 export const GetAITraceParams = zod.object({
-  tenant: zod
-    .string()
-    .regex(getAITracePathTenantRegExp)
-    .describe('Tenant slug (e.g. `default`, `acme`).'),
-  id: zod.uuid().describe('Resource id (UUID).'),
-});
+  "tenant": zod.string().regex(getAITracePathTenantRegExp).describe('Tenant slug (e.g. `default`, `acme`).'),
+  "id": zod.uuid().describe('Resource id (UUID).')
+})
 
 export const GetAITraceResponse = zod.object({
-  agentId: zod.string().nullish(),
-  completion: zod.string().nullish().describe('Gated by ai-trace:read-sensitive'),
-  durationMs: zod.number(),
-  error: zod.string().nullish(),
-  id: zod.string(),
-  inputTokens: zod.number(),
-  model: zod.string(),
-  occurredAt: zod.iso.datetime({ offset: true }),
-  outputTokens: zod.number(),
-  prompt: zod.string().nullish().describe('Gated by ai-trace:read-sensitive'),
-  providerId: zod.string().nullish(),
-  status: zod.string(),
-  tenantId: zod.string(),
-  toolCalls: zod.array(zod.record(zod.string(), zod.unknown())).optional(),
-});
+  "agentId": zod.string().nullish(),
+  "completion": zod.string().nullish().describe('Gated by ai-trace:read-sensitive'),
+  "durationMs": zod.number(),
+  "error": zod.string().nullish(),
+  "id": zod.string(),
+  "inputTokens": zod.number(),
+  "model": zod.string(),
+  "occurredAt": zod.iso.datetime({"offset":true}),
+  "outputTokens": zod.number(),
+  "prompt": zod.string().nullish().describe('Gated by ai-trace:read-sensitive'),
+  "providerId": zod.string().nullish(),
+  "status": zod.string(),
+  "tenantId": zod.string(),
+  "toolCalls": zod.array(zod.record(zod.string(), zod.unknown())).optional()
+})
+

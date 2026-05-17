@@ -23,50 +23,44 @@ Conventions:
  */
 import * as zod from 'zod';
 
+
 /**
  * @summary Run a PromQL query (instant or range)
  */
 export const queryPromQLGetPathTenantRegExp = new RegExp('^[a-z0-9-]+$');
 
+
 export const QueryPromQLGetParams = zod.object({
-  tenant: zod
-    .string()
-    .regex(queryPromQLGetPathTenantRegExp)
-    .describe('Tenant slug (e.g. `default`, `acme`).'),
-});
+  "tenant": zod.string().regex(queryPromQLGetPathTenantRegExp).describe('Tenant slug (e.g. `default`, `acme`).')
+})
 
 export const QueryPromQLGetQueryParams = zod.object({
-  query: zod.string(),
-  time: zod.string().optional(),
-  start: zod.string().optional(),
-  end: zod.string().optional(),
-  step: zod.string().optional(),
-});
+  "query": zod.string(),
+  "time": zod.string().optional(),
+  "start": zod.string().optional(),
+  "end": zod.string().optional(),
+  "step": zod.string().optional()
+})
 
-export const QueryPromQLGetResponse = zod
-  .record(zod.string(), zod.unknown())
-  .describe('Prometheus HTTP API response, forwarded verbatim.');
+export const QueryPromQLGetResponse = zod.record(zod.string(), zod.unknown()).describe('Prometheus HTTP API response, forwarded verbatim.')
 
 /**
  * @summary Run a PromQL query (instant or range)
  */
 export const queryPromQLPathTenantRegExp = new RegExp('^[a-z0-9-]+$');
 
+
 export const QueryPromQLParams = zod.object({
-  tenant: zod
-    .string()
-    .regex(queryPromQLPathTenantRegExp)
-    .describe('Tenant slug (e.g. `default`, `acme`).'),
-});
+  "tenant": zod.string().regex(queryPromQLPathTenantRegExp).describe('Tenant slug (e.g. `default`, `acme`).')
+})
 
 export const QueryPromQLBody = zod.object({
-  end: zod.string().optional().describe('Range query end.'),
-  query: zod.string().describe('PromQL expression. Tenant label injected server-side.'),
-  start: zod.string().optional().describe('Range query start.'),
-  step: zod.string().optional().describe('Range query step (e.g. `30s`, `1m`).'),
-  time: zod.string().optional().describe('RFC3339 or unix timestamp for instant query.'),
-});
+  "end": zod.string().optional().describe('Range query end.'),
+  "query": zod.string().describe('PromQL expression. Tenant label injected server-side.'),
+  "start": zod.string().optional().describe('Range query start.'),
+  "step": zod.string().optional().describe('Range query step (e.g. `30s`, `1m`).'),
+  "time": zod.string().optional().describe('RFC3339 or unix timestamp for instant query.')
+})
 
-export const QueryPromQLResponse = zod
-  .record(zod.string(), zod.unknown())
-  .describe('Prometheus HTTP API response, forwarded verbatim.');
+export const QueryPromQLResponse = zod.record(zod.string(), zod.unknown()).describe('Prometheus HTTP API response, forwarded verbatim.')
+

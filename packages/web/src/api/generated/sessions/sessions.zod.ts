@@ -23,57 +23,49 @@ Conventions:
  */
 import * as zod from 'zod';
 
+
 /**
  * @summary List active sessions for the current principal
  */
 export const listSessionsPathTenantRegExp = new RegExp('^[a-z0-9-]+$');
 
+
 export const ListSessionsParams = zod.object({
-  tenant: zod
-    .string()
-    .regex(listSessionsPathTenantRegExp)
-    .describe('Tenant slug (e.g. `default`, `acme`).'),
-});
+  "tenant": zod.string().regex(listSessionsPathTenantRegExp).describe('Tenant slug (e.g. `default`, `acme`).')
+})
 
 export const ListSessionsResponse = zod.object({
-  sessions: zod
-    .array(
-      zod.object({
-        createdAt: zod.iso.datetime({ offset: true }).optional(),
-        expiresAt: zod.iso.datetime({ offset: true }).optional(),
-        id: zod.string().optional(),
-        ipAddress: zod.string().optional(),
-        lastActivityAt: zod.iso.datetime({ offset: true }).optional(),
-        revoked: zod.boolean().optional(),
-        tenantId: zod.string().optional(),
-        userAgent: zod.string().optional(),
-        userId: zod.string().optional(),
-      }),
-    )
-    .optional(),
-});
+  "sessions": zod.array(zod.object({
+  "createdAt": zod.iso.datetime({"offset":true}).optional(),
+  "expiresAt": zod.iso.datetime({"offset":true}).optional(),
+  "id": zod.string().optional(),
+  "ipAddress": zod.string().optional(),
+  "lastActivityAt": zod.iso.datetime({"offset":true}).optional(),
+  "revoked": zod.boolean().optional(),
+  "tenantId": zod.string().optional(),
+  "userAgent": zod.string().optional(),
+  "userId": zod.string().optional()
+})).optional()
+})
 
 /**
  * @summary Revoke all other sessions for the current principal
  */
 export const revokeOtherSessionsPathTenantRegExp = new RegExp('^[a-z0-9-]+$');
 
+
 export const RevokeOtherSessionsParams = zod.object({
-  tenant: zod
-    .string()
-    .regex(revokeOtherSessionsPathTenantRegExp)
-    .describe('Tenant slug (e.g. `default`, `acme`).'),
-});
+  "tenant": zod.string().regex(revokeOtherSessionsPathTenantRegExp).describe('Tenant slug (e.g. `default`, `acme`).')
+})
 
 /**
  * @summary Revoke a session
  */
 export const revokeSessionPathTenantRegExp = new RegExp('^[a-z0-9-]+$');
 
+
 export const RevokeSessionParams = zod.object({
-  tenant: zod
-    .string()
-    .regex(revokeSessionPathTenantRegExp)
-    .describe('Tenant slug (e.g. `default`, `acme`).'),
-  id: zod.uuid().describe('Resource id (UUID).'),
-});
+  "tenant": zod.string().regex(revokeSessionPathTenantRegExp).describe('Tenant slug (e.g. `default`, `acme`).'),
+  "id": zod.uuid().describe('Resource id (UUID).')
+})
+

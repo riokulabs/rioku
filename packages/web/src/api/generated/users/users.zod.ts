@@ -23,213 +23,174 @@ Conventions:
  */
 import * as zod from 'zod';
 
+
 /**
  * @summary List users
  */
 export const listUsersPathTenantRegExp = new RegExp('^[a-z0-9-]+$');
 
+
 export const ListUsersParams = zod.object({
-  tenant: zod
-    .string()
-    .regex(listUsersPathTenantRegExp)
-    .describe('Tenant slug (e.g. `default`, `acme`).'),
-});
+  "tenant": zod.string().regex(listUsersPathTenantRegExp).describe('Tenant slug (e.g. `default`, `acme`).')
+})
 
 export const ListUsersResponse = zod.object({
-  nextPageToken: zod.string().optional(),
-  users: zod
-    .array(
-      zod.object({
-        createdAt: zod.iso.datetime({ offset: true }).optional(),
-        disabled: zod.boolean().optional(),
-        email: zod.string().optional(),
-        forcePasswordChange: zod.boolean().optional(),
-        id: zod.string().optional(),
-        name: zod.string().optional(),
-        tenantId: zod.string().optional(),
-        totpEnabled: zod.boolean().optional(),
-        totpEnrolled: zod.boolean().optional(),
-        updatedAt: zod.iso.datetime({ offset: true }).optional(),
-      }),
-    )
-    .optional(),
-});
+  "nextPageToken": zod.string().optional(),
+  "users": zod.array(zod.object({
+  "createdAt": zod.iso.datetime({"offset":true}).optional(),
+  "disabled": zod.boolean().optional(),
+  "email": zod.string().optional(),
+  "forcePasswordChange": zod.boolean().optional(),
+  "id": zod.string().optional(),
+  "name": zod.string().optional(),
+  "tenantId": zod.string().optional(),
+  "totpEnabled": zod.boolean().optional(),
+  "totpEnrolled": zod.boolean().optional(),
+  "updatedAt": zod.iso.datetime({"offset":true}).optional()
+})).optional()
+})
 
 /**
  * @summary Create a user
  */
 export const createUserPathTenantRegExp = new RegExp('^[a-z0-9-]+$');
 
+
 export const CreateUserParams = zod.object({
-  tenant: zod
-    .string()
-    .regex(createUserPathTenantRegExp)
-    .describe('Tenant slug (e.g. `default`, `acme`).'),
-});
+  "tenant": zod.string().regex(createUserPathTenantRegExp).describe('Tenant slug (e.g. `default`, `acme`).')
+})
 
 export const CreateUserBody = zod.object({
-  disabled: zod.boolean().optional(),
-  email: zod.email(),
-  forcePasswordChange: zod.boolean().optional(),
-  name: zod.string().optional(),
-  password: zod.string().optional(),
-  roleIds: zod.array(zod.string()).optional(),
-});
+  "disabled": zod.boolean().optional(),
+  "email": zod.email(),
+  "forcePasswordChange": zod.boolean().optional(),
+  "name": zod.string().optional(),
+  "password": zod.string().optional(),
+  "roleIds": zod.array(zod.string()).optional()
+})
 
 export const deleteUserPathTenantRegExp = new RegExp('^[a-z0-9-]+$');
 
+
 export const DeleteUserParams = zod.object({
-  tenant: zod
-    .string()
-    .regex(deleteUserPathTenantRegExp)
-    .describe('Tenant slug (e.g. `default`, `acme`).'),
-  id: zod.uuid().describe('Resource id (UUID).'),
-});
+  "tenant": zod.string().regex(deleteUserPathTenantRegExp).describe('Tenant slug (e.g. `default`, `acme`).'),
+  "id": zod.uuid().describe('Resource id (UUID).')
+})
 
 export const getUserPathTenantRegExp = new RegExp('^[a-z0-9-]+$');
 
+
 export const GetUserParams = zod.object({
-  tenant: zod
-    .string()
-    .regex(getUserPathTenantRegExp)
-    .describe('Tenant slug (e.g. `default`, `acme`).'),
-  id: zod.uuid().describe('Resource id (UUID).'),
-});
+  "tenant": zod.string().regex(getUserPathTenantRegExp).describe('Tenant slug (e.g. `default`, `acme`).'),
+  "id": zod.uuid().describe('Resource id (UUID).')
+})
 
 export const GetUserResponse = zod.object({
-  _links: zod
-    .record(
-      zod.string(),
-      zod
-        .object({
-          href: zod.string(),
-          templated: zod.boolean().optional(),
-        })
-        .describe(
-          'OpenAPI\/HAL hypermedia reference. Every resource emits a\n`_links` map keyed by relation name (`self`, `owner`, `tools`,\n`traces`, etc.) with a Link object.\n',
-        ),
-    )
-    .optional(),
-  createdAt: zod.iso.datetime({ offset: true }).optional(),
-  disabled: zod.boolean().optional(),
-  email: zod.string().optional(),
-  forcePasswordChange: zod.boolean().optional(),
-  id: zod.string().optional(),
-  name: zod.string().optional(),
-  tenantId: zod.string().optional(),
-  totpEnabled: zod.boolean().optional(),
-  totpEnrolled: zod.boolean().optional(),
-  updatedAt: zod.iso.datetime({ offset: true }).optional(),
-});
+  "_links": zod.record(zod.string(), zod.object({
+  "href": zod.string(),
+  "templated": zod.boolean().optional()
+}).describe('OpenAPI\/HAL hypermedia reference. Every resource emits a\n`_links` map keyed by relation name (`self`, `owner`, `tools`,\n`traces`, etc.) with a Link object.\n')).optional(),
+  "createdAt": zod.iso.datetime({"offset":true}).optional(),
+  "disabled": zod.boolean().optional(),
+  "email": zod.string().optional(),
+  "forcePasswordChange": zod.boolean().optional(),
+  "id": zod.string().optional(),
+  "name": zod.string().optional(),
+  "tenantId": zod.string().optional(),
+  "totpEnabled": zod.boolean().optional(),
+  "totpEnrolled": zod.boolean().optional(),
+  "updatedAt": zod.iso.datetime({"offset":true}).optional()
+})
 
 export const patchUserPathTenantRegExp = new RegExp('^[a-z0-9-]+$');
 
+
 export const PatchUserParams = zod.object({
-  tenant: zod
-    .string()
-    .regex(patchUserPathTenantRegExp)
-    .describe('Tenant slug (e.g. `default`, `acme`).'),
-  id: zod.uuid().describe('Resource id (UUID).'),
-});
+  "tenant": zod.string().regex(patchUserPathTenantRegExp).describe('Tenant slug (e.g. `default`, `acme`).'),
+  "id": zod.uuid().describe('Resource id (UUID).')
+})
 
 export const replaceUserPathTenantRegExp = new RegExp('^[a-z0-9-]+$');
 
+
 export const ReplaceUserParams = zod.object({
-  tenant: zod
-    .string()
-    .regex(replaceUserPathTenantRegExp)
-    .describe('Tenant slug (e.g. `default`, `acme`).'),
-  id: zod.uuid().describe('Resource id (UUID).'),
-});
+  "tenant": zod.string().regex(replaceUserPathTenantRegExp).describe('Tenant slug (e.g. `default`, `acme`).'),
+  "id": zod.uuid().describe('Resource id (UUID).')
+})
 
 /**
  * @summary Activate (re-enable) a user — alias `/enable`
  */
 export const activateUserPathTenantRegExp = new RegExp('^[a-z0-9-]+$');
 
+
 export const ActivateUserParams = zod.object({
-  tenant: zod
-    .string()
-    .regex(activateUserPathTenantRegExp)
-    .describe('Tenant slug (e.g. `default`, `acme`).'),
-  id: zod.uuid().describe('Resource id (UUID).'),
-});
+  "tenant": zod.string().regex(activateUserPathTenantRegExp).describe('Tenant slug (e.g. `default`, `acme`).'),
+  "id": zod.uuid().describe('Resource id (UUID).')
+})
 
 export const lockUserPathTenantRegExp = new RegExp('^[a-z0-9-]+$');
 
+
 export const LockUserParams = zod.object({
-  tenant: zod
-    .string()
-    .regex(lockUserPathTenantRegExp)
-    .describe('Tenant slug (e.g. `default`, `acme`).'),
-  id: zod.uuid().describe('Resource id (UUID).'),
-});
+  "tenant": zod.string().regex(lockUserPathTenantRegExp).describe('Tenant slug (e.g. `default`, `acme`).'),
+  "id": zod.uuid().describe('Resource id (UUID).')
+})
 
 export const resetUserPasswordPathTenantRegExp = new RegExp('^[a-z0-9-]+$');
 
+
 export const ResetUserPasswordParams = zod.object({
-  tenant: zod
-    .string()
-    .regex(resetUserPasswordPathTenantRegExp)
-    .describe('Tenant slug (e.g. `default`, `acme`).'),
-  id: zod.uuid().describe('Resource id (UUID).'),
-});
+  "tenant": zod.string().regex(resetUserPasswordPathTenantRegExp).describe('Tenant slug (e.g. `default`, `acme`).'),
+  "id": zod.uuid().describe('Resource id (UUID).')
+})
 
 export const ResetUserPasswordBody = zod.object({
-  forceChangeOnNextLogin: zod.boolean().optional(),
-  newPassword: zod.string().optional(),
-});
+  "forceChangeOnNextLogin": zod.boolean().optional(),
+  "newPassword": zod.string().optional()
+})
 
 /**
  * @summary List sessions for a user
  */
 export const listUserSessionsPathTenantRegExp = new RegExp('^[a-z0-9-]+$');
 
+
 export const ListUserSessionsParams = zod.object({
-  tenant: zod
-    .string()
-    .regex(listUserSessionsPathTenantRegExp)
-    .describe('Tenant slug (e.g. `default`, `acme`).'),
-  id: zod.uuid().describe('Resource id (UUID).'),
-});
+  "tenant": zod.string().regex(listUserSessionsPathTenantRegExp).describe('Tenant slug (e.g. `default`, `acme`).'),
+  "id": zod.uuid().describe('Resource id (UUID).')
+})
 
 export const ListUserSessionsResponse = zod.object({
-  sessions: zod
-    .array(
-      zod.object({
-        createdAt: zod.iso.datetime({ offset: true }).optional(),
-        expiresAt: zod.iso.datetime({ offset: true }).optional(),
-        id: zod.string().optional(),
-        ipAddress: zod.string().optional(),
-        lastActivityAt: zod.iso.datetime({ offset: true }).optional(),
-        revoked: zod.boolean().optional(),
-        tenantId: zod.string().optional(),
-        userAgent: zod.string().optional(),
-        userId: zod.string().optional(),
-      }),
-    )
-    .optional(),
-});
+  "sessions": zod.array(zod.object({
+  "createdAt": zod.iso.datetime({"offset":true}).optional(),
+  "expiresAt": zod.iso.datetime({"offset":true}).optional(),
+  "id": zod.string().optional(),
+  "ipAddress": zod.string().optional(),
+  "lastActivityAt": zod.iso.datetime({"offset":true}).optional(),
+  "revoked": zod.boolean().optional(),
+  "tenantId": zod.string().optional(),
+  "userAgent": zod.string().optional(),
+  "userId": zod.string().optional()
+})).optional()
+})
 
 /**
  * @summary Suspend (disable) a user — alias `/disable`
  */
 export const suspendUserPathTenantRegExp = new RegExp('^[a-z0-9-]+$');
 
+
 export const SuspendUserParams = zod.object({
-  tenant: zod
-    .string()
-    .regex(suspendUserPathTenantRegExp)
-    .describe('Tenant slug (e.g. `default`, `acme`).'),
-  id: zod.uuid().describe('Resource id (UUID).'),
-});
+  "tenant": zod.string().regex(suspendUserPathTenantRegExp).describe('Tenant slug (e.g. `default`, `acme`).'),
+  "id": zod.uuid().describe('Resource id (UUID).')
+})
 
 export const unlockUserPathTenantRegExp = new RegExp('^[a-z0-9-]+$');
 
+
 export const UnlockUserParams = zod.object({
-  tenant: zod
-    .string()
-    .regex(unlockUserPathTenantRegExp)
-    .describe('Tenant slug (e.g. `default`, `acme`).'),
-  id: zod.uuid().describe('Resource id (UUID).'),
-});
+  "tenant": zod.string().regex(unlockUserPathTenantRegExp).describe('Tenant slug (e.g. `default`, `acme`).'),
+  "id": zod.uuid().describe('Resource id (UUID).')
+})
+

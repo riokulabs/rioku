@@ -23,39 +23,29 @@ Conventions:
  */
 import * as zod from 'zod';
 
+
 /**
  * @summary List the permission catalog
  */
 export const listPermissionsPathTenantRegExp = new RegExp('^[a-z0-9-]+$');
 
+
 export const ListPermissionsParams = zod.object({
-  tenant: zod
-    .string()
-    .regex(listPermissionsPathTenantRegExp)
-    .describe('Tenant slug (e.g. `default`, `acme`).'),
-});
+  "tenant": zod.string().regex(listPermissionsPathTenantRegExp).describe('Tenant slug (e.g. `default`, `acme`).')
+})
 
 export const ListPermissionsQueryParams = zod.object({
-  source: zod
-    .enum(['builtin', 'plugin-manifest', 'plugin-dynamic'])
-    .optional()
-    .describe('Optional filter by permission source.'),
-});
+  "source": zod.enum(['builtin', 'plugin-manifest', 'plugin-dynamic']).optional().describe('Optional filter by permission source.')
+})
 
 export const ListPermissionsResponse = zod.object({
-  permissions: zod
-    .array(
-      zod.object({
-        action: zod.string().optional(),
-        description: zod.string().optional(),
-        id: zod.string().optional().describe('resource:action canonical id'),
-        resource: zod.string().optional(),
-        source: zod.enum(['built-in', 'plugin-manifest', 'plugin-dynamic']).optional(),
-        sourcePluginId: zod
-          .string()
-          .optional()
-          .describe('Set when source is plugin-manifest or plugin-dynamic.'),
-      }),
-    )
-    .optional(),
-});
+  "permissions": zod.array(zod.object({
+  "action": zod.string().optional(),
+  "description": zod.string().optional(),
+  "id": zod.string().optional().describe('resource:action canonical id'),
+  "resource": zod.string().optional(),
+  "source": zod.enum(['built-in', 'plugin-manifest', 'plugin-dynamic']).optional(),
+  "sourcePluginId": zod.string().optional().describe('Set when source is plugin-manifest or plugin-dynamic.')
+})).optional()
+})
+

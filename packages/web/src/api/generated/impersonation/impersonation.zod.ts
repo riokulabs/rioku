@@ -23,65 +23,58 @@ Conventions:
  */
 import * as zod from 'zod';
 
+
 /**
  * @summary List active impersonation sessions
  */
 export const ListImpersonationSessionsResponse = zod.object({
-  sessions: zod
-    .array(
-      zod.object({
-        actorUserId: zod.string().optional(),
-        endedAt: zod.iso.datetime({ offset: true }).optional(),
-        expiresAt: zod.iso.datetime({ offset: true }).optional(),
-        id: zod.string().optional(),
-        reason: zod.string().optional(),
-        startedAt: zod.iso.datetime({ offset: true }).optional(),
-        targetUserId: zod.string().optional(),
-        tenantId: zod.string().optional(),
-        ticketRef: zod.string().optional(),
-      }),
-    )
-    .optional(),
-});
+  "sessions": zod.array(zod.object({
+  "actorUserId": zod.string().optional(),
+  "endedAt": zod.iso.datetime({"offset":true}).optional(),
+  "expiresAt": zod.iso.datetime({"offset":true}).optional(),
+  "id": zod.string().optional(),
+  "reason": zod.string().optional(),
+  "startedAt": zod.iso.datetime({"offset":true}).optional(),
+  "targetUserId": zod.string().optional(),
+  "tenantId": zod.string().optional(),
+  "ticketRef": zod.string().optional()
+})).optional()
+})
 
 /**
  * @summary Start an impersonation session
  */
 export const StartImpersonationBody = zod.object({
-  expiresIn: zod.string().optional().describe('Go duration string. Default 1h.'),
-  reason: zod
-    .string()
-    .describe('Audit-grade reason for the impersonation; recorded in the audit log.'),
-  targetUserId: zod.string(),
-  tenantId: zod
-    .string()
-    .optional()
-    .describe('Tenant id of the target user — required to disambiguate.'),
-  ticketRef: zod.string().optional().describe('Optional support ticket \/ incident reference.'),
-});
+  "expiresIn": zod.string().optional().describe('Go duration string. Default 1h.'),
+  "reason": zod.string().describe('Audit-grade reason for the impersonation; recorded in the audit log.'),
+  "targetUserId": zod.string(),
+  "tenantId": zod.string().optional().describe('Tenant id of the target user — required to disambiguate.'),
+  "ticketRef": zod.string().optional().describe('Optional support ticket \/ incident reference.')
+})
 
 /**
  * @summary End an impersonation session
  */
 export const EndImpersonationParams = zod.object({
-  id: zod.uuid().describe('Resource id (UUID).'),
-});
+  "id": zod.uuid().describe('Resource id (UUID).')
+})
 
 /**
  * @summary Refresh the expiry timestamp on an active session
  */
 export const TouchImpersonationParams = zod.object({
-  id: zod.uuid().describe('Resource id (UUID).'),
-});
+  "id": zod.uuid().describe('Resource id (UUID).')
+})
 
 export const TouchImpersonationResponse = zod.object({
-  actorUserId: zod.string().optional(),
-  endedAt: zod.iso.datetime({ offset: true }).optional(),
-  expiresAt: zod.iso.datetime({ offset: true }).optional(),
-  id: zod.string().optional(),
-  reason: zod.string().optional(),
-  startedAt: zod.iso.datetime({ offset: true }).optional(),
-  targetUserId: zod.string().optional(),
-  tenantId: zod.string().optional(),
-  ticketRef: zod.string().optional(),
-});
+  "actorUserId": zod.string().optional(),
+  "endedAt": zod.iso.datetime({"offset":true}).optional(),
+  "expiresAt": zod.iso.datetime({"offset":true}).optional(),
+  "id": zod.string().optional(),
+  "reason": zod.string().optional(),
+  "startedAt": zod.iso.datetime({"offset":true}).optional(),
+  "targetUserId": zod.string().optional(),
+  "tenantId": zod.string().optional(),
+  "ticketRef": zod.string().optional()
+})
+

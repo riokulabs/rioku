@@ -23,9 +23,10 @@ Conventions:
  */
 import * as zod from 'zod';
 
+
 export const BuildServiceGetBuildStatusQueryParams = zod.object({
-  buildId: zod.string().optional(),
-});
+  "buildId": zod.string().optional()
+})
 
 export const buildServiceGetBuildStatusResponseCaddyBuildStateDefault = `BUILD_STATE_UNSPECIFIED`;
 export const buildServiceGetBuildStatusResponseCaddyBuildTargetDefault = `BUILD_TARGET_UNSPECIFIED`;
@@ -33,156 +34,87 @@ export const buildServiceGetBuildStatusResponseDaemonBuildStateDefault = `BUILD_
 export const buildServiceGetBuildStatusResponseDaemonBuildTargetDefault = `BUILD_TARGET_UNSPECIFIED`;
 
 export const BuildServiceGetBuildStatusResponse = zod.object({
-  caddyBuild: zod
-    .object({
-      artifactHash: zod.string().optional(),
-      buildService: zod.string().optional(),
-      completedAt: zod.iso.datetime({ offset: true }).optional(),
-      error: zod.string().optional(),
-      id: zod.string().optional(),
-      log: zod.string().optional(),
-      pluginIds: zod.array(zod.string()).optional(),
-      state: zod
-        .enum([
-          'BUILD_STATE_UNSPECIFIED',
-          'BUILD_STATE_IDLE',
-          'BUILD_STATE_TRIGGERED',
-          'BUILD_STATE_FETCHING_DEPS',
-          'BUILD_STATE_BUILDING',
-          'BUILD_STATE_TESTING',
-          'BUILD_STATE_SWAPPING',
-          'BUILD_STATE_COMPLETE',
-          'BUILD_STATE_FAILED',
-        ])
-        .default(buildServiceGetBuildStatusResponseCaddyBuildStateDefault),
-      target: zod
-        .enum(['BUILD_TARGET_UNSPECIFIED', 'BUILD_TARGET_CADDY', 'BUILD_TARGET_DAEMON'])
-        .default(buildServiceGetBuildStatusResponseCaddyBuildTargetDefault),
-      triggeredAt: zod.iso.datetime({ offset: true }).optional(),
-    })
-    .optional(),
-  daemonBuild: zod
-    .object({
-      artifactHash: zod.string().optional(),
-      buildService: zod.string().optional(),
-      completedAt: zod.iso.datetime({ offset: true }).optional(),
-      error: zod.string().optional(),
-      id: zod.string().optional(),
-      log: zod.string().optional(),
-      pluginIds: zod.array(zod.string()).optional(),
-      state: zod
-        .enum([
-          'BUILD_STATE_UNSPECIFIED',
-          'BUILD_STATE_IDLE',
-          'BUILD_STATE_TRIGGERED',
-          'BUILD_STATE_FETCHING_DEPS',
-          'BUILD_STATE_BUILDING',
-          'BUILD_STATE_TESTING',
-          'BUILD_STATE_SWAPPING',
-          'BUILD_STATE_COMPLETE',
-          'BUILD_STATE_FAILED',
-        ])
-        .default(buildServiceGetBuildStatusResponseDaemonBuildStateDefault),
-      target: zod
-        .enum(['BUILD_TARGET_UNSPECIFIED', 'BUILD_TARGET_CADDY', 'BUILD_TARGET_DAEMON'])
-        .default(buildServiceGetBuildStatusResponseDaemonBuildTargetDefault),
-      triggeredAt: zod.iso.datetime({ offset: true }).optional(),
-    })
-    .optional(),
-});
+  "caddyBuild": zod.object({
+  "artifactHash": zod.string().optional(),
+  "buildService": zod.string().optional(),
+  "completedAt": zod.iso.datetime({"offset":true}).optional(),
+  "error": zod.string().optional(),
+  "id": zod.string().optional(),
+  "log": zod.string().optional(),
+  "pluginIds": zod.array(zod.string()).optional(),
+  "state": zod.enum(['BUILD_STATE_UNSPECIFIED', 'BUILD_STATE_IDLE', 'BUILD_STATE_TRIGGERED', 'BUILD_STATE_FETCHING_DEPS', 'BUILD_STATE_BUILDING', 'BUILD_STATE_TESTING', 'BUILD_STATE_SWAPPING', 'BUILD_STATE_COMPLETE', 'BUILD_STATE_FAILED']).default(buildServiceGetBuildStatusResponseCaddyBuildStateDefault),
+  "target": zod.enum(['BUILD_TARGET_UNSPECIFIED', 'BUILD_TARGET_CADDY', 'BUILD_TARGET_DAEMON']).default(buildServiceGetBuildStatusResponseCaddyBuildTargetDefault),
+  "triggeredAt": zod.iso.datetime({"offset":true}).optional()
+}).optional(),
+  "daemonBuild": zod.object({
+  "artifactHash": zod.string().optional(),
+  "buildService": zod.string().optional(),
+  "completedAt": zod.iso.datetime({"offset":true}).optional(),
+  "error": zod.string().optional(),
+  "id": zod.string().optional(),
+  "log": zod.string().optional(),
+  "pluginIds": zod.array(zod.string()).optional(),
+  "state": zod.enum(['BUILD_STATE_UNSPECIFIED', 'BUILD_STATE_IDLE', 'BUILD_STATE_TRIGGERED', 'BUILD_STATE_FETCHING_DEPS', 'BUILD_STATE_BUILDING', 'BUILD_STATE_TESTING', 'BUILD_STATE_SWAPPING', 'BUILD_STATE_COMPLETE', 'BUILD_STATE_FAILED']).default(buildServiceGetBuildStatusResponseDaemonBuildStateDefault),
+  "target": zod.enum(['BUILD_TARGET_UNSPECIFIED', 'BUILD_TARGET_CADDY', 'BUILD_TARGET_DAEMON']).default(buildServiceGetBuildStatusResponseDaemonBuildTargetDefault),
+  "triggeredAt": zod.iso.datetime({"offset":true}).optional()
+}).optional()
+})
 
 export const buildServiceTriggerBuildBodyTargetDefault = `BUILD_TARGET_UNSPECIFIED`;
 
 export const BuildServiceTriggerBuildBody = zod.object({
-  force: zod.boolean().optional(),
-  pluginIds: zod.array(zod.string()).optional(),
-  target: zod
-    .enum(['BUILD_TARGET_UNSPECIFIED', 'BUILD_TARGET_CADDY', 'BUILD_TARGET_DAEMON'])
-    .default(buildServiceTriggerBuildBodyTargetDefault),
-});
+  "force": zod.boolean().optional(),
+  "pluginIds": zod.array(zod.string()).optional(),
+  "target": zod.enum(['BUILD_TARGET_UNSPECIFIED', 'BUILD_TARGET_CADDY', 'BUILD_TARGET_DAEMON']).default(buildServiceTriggerBuildBodyTargetDefault)
+})
 
 export const buildServiceTriggerBuildResponseResultRecordStateDefault = `BUILD_STATE_UNSPECIFIED`;
 export const buildServiceTriggerBuildResponseResultRecordTargetDefault = `BUILD_TARGET_UNSPECIFIED`;
 export const buildServiceTriggerBuildResponseResultStateDefault = `BUILD_STATE_UNSPECIFIED`;
 
 export const BuildServiceTriggerBuildResponse = zod.object({
-  error: zod
-    .object({
-      code: zod.number().optional(),
-      details: zod
-        .array(
-          zod.object({
-            '@type': zod.string().optional(),
-          }),
-        )
-        .optional(),
-      message: zod.string().optional(),
-    })
-    .optional(),
-  result: zod
-    .object({
-      error: zod.string().optional(),
-      logLine: zod.string().optional(),
-      message: zod.string().optional(),
-      occurredAt: zod.iso.datetime({ offset: true }).optional(),
-      record: zod
-        .object({
-          artifactHash: zod.string().optional(),
-          buildService: zod.string().optional(),
-          completedAt: zod.iso.datetime({ offset: true }).optional(),
-          error: zod.string().optional(),
-          id: zod.string().optional(),
-          log: zod.string().optional(),
-          pluginIds: zod.array(zod.string()).optional(),
-          state: zod
-            .enum([
-              'BUILD_STATE_UNSPECIFIED',
-              'BUILD_STATE_IDLE',
-              'BUILD_STATE_TRIGGERED',
-              'BUILD_STATE_FETCHING_DEPS',
-              'BUILD_STATE_BUILDING',
-              'BUILD_STATE_TESTING',
-              'BUILD_STATE_SWAPPING',
-              'BUILD_STATE_COMPLETE',
-              'BUILD_STATE_FAILED',
-            ])
-            .default(buildServiceTriggerBuildResponseResultRecordStateDefault),
-          target: zod
-            .enum(['BUILD_TARGET_UNSPECIFIED', 'BUILD_TARGET_CADDY', 'BUILD_TARGET_DAEMON'])
-            .default(buildServiceTriggerBuildResponseResultRecordTargetDefault),
-          triggeredAt: zod.iso.datetime({ offset: true }).optional(),
-        })
-        .optional(),
-      state: zod
-        .enum([
-          'BUILD_STATE_UNSPECIFIED',
-          'BUILD_STATE_IDLE',
-          'BUILD_STATE_TRIGGERED',
-          'BUILD_STATE_FETCHING_DEPS',
-          'BUILD_STATE_BUILDING',
-          'BUILD_STATE_TESTING',
-          'BUILD_STATE_SWAPPING',
-          'BUILD_STATE_COMPLETE',
-          'BUILD_STATE_FAILED',
-        ])
-        .default(buildServiceTriggerBuildResponseResultStateDefault),
-    })
-    .optional(),
-});
+  "error": zod.object({
+  "code": zod.number().optional(),
+  "details": zod.array(zod.object({
+  "@type": zod.string().optional()
+})).optional(),
+  "message": zod.string().optional()
+}).optional(),
+  "result": zod.object({
+  "error": zod.string().optional(),
+  "logLine": zod.string().optional(),
+  "message": zod.string().optional(),
+  "occurredAt": zod.iso.datetime({"offset":true}).optional(),
+  "record": zod.object({
+  "artifactHash": zod.string().optional(),
+  "buildService": zod.string().optional(),
+  "completedAt": zod.iso.datetime({"offset":true}).optional(),
+  "error": zod.string().optional(),
+  "id": zod.string().optional(),
+  "log": zod.string().optional(),
+  "pluginIds": zod.array(zod.string()).optional(),
+  "state": zod.enum(['BUILD_STATE_UNSPECIFIED', 'BUILD_STATE_IDLE', 'BUILD_STATE_TRIGGERED', 'BUILD_STATE_FETCHING_DEPS', 'BUILD_STATE_BUILDING', 'BUILD_STATE_TESTING', 'BUILD_STATE_SWAPPING', 'BUILD_STATE_COMPLETE', 'BUILD_STATE_FAILED']).default(buildServiceTriggerBuildResponseResultRecordStateDefault),
+  "target": zod.enum(['BUILD_TARGET_UNSPECIFIED', 'BUILD_TARGET_CADDY', 'BUILD_TARGET_DAEMON']).default(buildServiceTriggerBuildResponseResultRecordTargetDefault),
+  "triggeredAt": zod.iso.datetime({"offset":true}).optional()
+}).optional(),
+  "state": zod.enum(['BUILD_STATE_UNSPECIFIED', 'BUILD_STATE_IDLE', 'BUILD_STATE_TRIGGERED', 'BUILD_STATE_FETCHING_DEPS', 'BUILD_STATE_BUILDING', 'BUILD_STATE_TESTING', 'BUILD_STATE_SWAPPING', 'BUILD_STATE_COMPLETE', 'BUILD_STATE_FAILED']).default(buildServiceTriggerBuildResponseResultStateDefault)
+}).optional()
+})
 
 export const BuildServiceSwapBinaryParams = zod.object({
-  buildId: zod.string(),
-});
+  "buildId": zod.string()
+})
 
 export const BuildServiceSwapBinaryBody = zod.object({
-  dryRun: zod.boolean().optional(),
-});
+  "dryRun": zod.boolean().optional()
+})
 
 export const BuildServiceSwapBinaryResponse = zod.object({
-  buildId: zod.string().optional(),
-  error: zod.string().optional(),
-  newHash: zod.string().optional(),
-  priorHash: zod.string().optional(),
-  success: zod.boolean().optional(),
-  swappedAt: zod.iso.datetime({ offset: true }).optional(),
-});
+  "buildId": zod.string().optional(),
+  "error": zod.string().optional(),
+  "newHash": zod.string().optional(),
+  "priorHash": zod.string().optional(),
+  "success": zod.boolean().optional(),
+  "swappedAt": zod.iso.datetime({"offset":true}).optional()
+})
+

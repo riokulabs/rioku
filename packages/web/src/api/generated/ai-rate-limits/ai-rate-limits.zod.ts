@@ -23,208 +23,179 @@ Conventions:
  */
 import * as zod from 'zod';
 
+
 /**
  * @summary List AI rate limits
  */
 export const listAIRateLimitsPathTenantRegExp = new RegExp('^[a-z0-9-]+$');
 
+
 export const ListAIRateLimitsParams = zod.object({
-  tenant: zod
-    .string()
-    .regex(listAIRateLimitsPathTenantRegExp)
-    .describe('Tenant slug (e.g. `default`, `acme`).'),
-});
+  "tenant": zod.string().regex(listAIRateLimitsPathTenantRegExp).describe('Tenant slug (e.g. `default`, `acme`).')
+})
 
 export const ListAIRateLimitsResponse = zod.object({
-  items: zod
-    .array(
-      zod.object({
-        action: zod.string().optional(),
-        agentId: zod.string().nullish(),
-        createdAt: zod.iso.datetime({ offset: true }),
-        enabled: zod.boolean(),
-        exemplars: zod.array(zod.string()).optional(),
-        id: zod.string(),
-        name: zod.string(),
-        scope: zod.string(),
-        similarityThreshold: zod.number().optional(),
-        tenantId: zod.string(),
-        threshold: zod.number().optional(),
-        toolId: zod.string().nullish(),
-        updatedAt: zod.iso.datetime({ offset: true }),
-        windowSeconds: zod.number().optional(),
-      }),
-    )
-    .optional(),
-  total: zod.number().optional(),
-});
+  "items": zod.array(zod.object({
+  "action": zod.string().optional(),
+  "agentId": zod.string().nullish(),
+  "createdAt": zod.iso.datetime({"offset":true}),
+  "enabled": zod.boolean(),
+  "exemplars": zod.array(zod.string()).optional(),
+  "id": zod.string(),
+  "name": zod.string(),
+  "scope": zod.string(),
+  "similarityThreshold": zod.number().optional(),
+  "tenantId": zod.string(),
+  "threshold": zod.number().optional(),
+  "toolId": zod.string().nullish(),
+  "updatedAt": zod.iso.datetime({"offset":true}),
+  "windowSeconds": zod.number().optional()
+})).optional(),
+  "total": zod.number().optional()
+})
 
 /**
  * @summary Create an AI rate limit
  */
 export const createAIRateLimitPathTenantRegExp = new RegExp('^[a-z0-9-]+$');
 
+
 export const CreateAIRateLimitParams = zod.object({
-  tenant: zod
-    .string()
-    .regex(createAIRateLimitPathTenantRegExp)
-    .describe('Tenant slug (e.g. `default`, `acme`).'),
-});
+  "tenant": zod.string().regex(createAIRateLimitPathTenantRegExp).describe('Tenant slug (e.g. `default`, `acme`).')
+})
 
 export const CreateAIRateLimitBody = zod.object({
-  action: zod.string().optional(),
-  agentId: zod.string().nullish(),
-  exemplars: zod.array(zod.string()).optional(),
-  name: zod.string(),
-  scope: zod.string(),
-  similarityThreshold: zod.number().optional(),
-  threshold: zod.number().optional(),
-  toolId: zod.string().nullish(),
-  windowSeconds: zod.number().optional(),
-});
+  "action": zod.string().optional(),
+  "agentId": zod.string().nullish(),
+  "exemplars": zod.array(zod.string()).optional(),
+  "name": zod.string(),
+  "scope": zod.string(),
+  "similarityThreshold": zod.number().optional(),
+  "threshold": zod.number().optional(),
+  "toolId": zod.string().nullish(),
+  "windowSeconds": zod.number().optional()
+})
 
 export const deleteAIRateLimitPathTenantRegExp = new RegExp('^[a-z0-9-]+$');
 
+
 export const DeleteAIRateLimitParams = zod.object({
-  tenant: zod
-    .string()
-    .regex(deleteAIRateLimitPathTenantRegExp)
-    .describe('Tenant slug (e.g. `default`, `acme`).'),
-  id: zod.uuid().describe('Resource id (UUID).'),
-});
+  "tenant": zod.string().regex(deleteAIRateLimitPathTenantRegExp).describe('Tenant slug (e.g. `default`, `acme`).'),
+  "id": zod.uuid().describe('Resource id (UUID).')
+})
 
 export const getAIRateLimitPathTenantRegExp = new RegExp('^[a-z0-9-]+$');
 
+
 export const GetAIRateLimitParams = zod.object({
-  tenant: zod
-    .string()
-    .regex(getAIRateLimitPathTenantRegExp)
-    .describe('Tenant slug (e.g. `default`, `acme`).'),
-  id: zod.uuid().describe('Resource id (UUID).'),
-});
+  "tenant": zod.string().regex(getAIRateLimitPathTenantRegExp).describe('Tenant slug (e.g. `default`, `acme`).'),
+  "id": zod.uuid().describe('Resource id (UUID).')
+})
 
 export const GetAIRateLimitResponse = zod.object({
-  action: zod.string().optional(),
-  agentId: zod.string().nullish(),
-  createdAt: zod.iso.datetime({ offset: true }),
-  enabled: zod.boolean(),
-  exemplars: zod.array(zod.string()).optional(),
-  id: zod.string(),
-  name: zod.string(),
-  scope: zod.string(),
-  similarityThreshold: zod.number().optional(),
-  tenantId: zod.string(),
-  threshold: zod.number().optional(),
-  toolId: zod.string().nullish(),
-  updatedAt: zod.iso.datetime({ offset: true }),
-  windowSeconds: zod.number().optional(),
-});
+  "action": zod.string().optional(),
+  "agentId": zod.string().nullish(),
+  "createdAt": zod.iso.datetime({"offset":true}),
+  "enabled": zod.boolean(),
+  "exemplars": zod.array(zod.string()).optional(),
+  "id": zod.string(),
+  "name": zod.string(),
+  "scope": zod.string(),
+  "similarityThreshold": zod.number().optional(),
+  "tenantId": zod.string(),
+  "threshold": zod.number().optional(),
+  "toolId": zod.string().nullish(),
+  "updatedAt": zod.iso.datetime({"offset":true}),
+  "windowSeconds": zod.number().optional()
+})
 
 export const updateAIRateLimitPathTenantRegExp = new RegExp('^[a-z0-9-]+$');
 
+
 export const UpdateAIRateLimitParams = zod.object({
-  tenant: zod
-    .string()
-    .regex(updateAIRateLimitPathTenantRegExp)
-    .describe('Tenant slug (e.g. `default`, `acme`).'),
-  id: zod.uuid().describe('Resource id (UUID).'),
-});
+  "tenant": zod.string().regex(updateAIRateLimitPathTenantRegExp).describe('Tenant slug (e.g. `default`, `acme`).'),
+  "id": zod.uuid().describe('Resource id (UUID).')
+})
 
 export const UpdateAIRateLimitBody = zod.object({
-  action: zod.string().optional(),
-  agentId: zod.string().nullish(),
-  enabled: zod.boolean().optional(),
-  exemplars: zod.array(zod.string()).optional(),
-  name: zod.string().optional(),
-  scope: zod.string().optional(),
-  similarityThreshold: zod.number().optional(),
-  threshold: zod.number().optional(),
-  toolId: zod.string().nullish(),
-  windowSeconds: zod.number().optional(),
-});
+  "action": zod.string().optional(),
+  "agentId": zod.string().nullish(),
+  "enabled": zod.boolean().optional(),
+  "exemplars": zod.array(zod.string()).optional(),
+  "name": zod.string().optional(),
+  "scope": zod.string().optional(),
+  "similarityThreshold": zod.number().optional(),
+  "threshold": zod.number().optional(),
+  "toolId": zod.string().nullish(),
+  "windowSeconds": zod.number().optional()
+})
 
 export const UpdateAIRateLimitResponse = zod.object({
-  action: zod.string().optional(),
-  agentId: zod.string().nullish(),
-  createdAt: zod.iso.datetime({ offset: true }),
-  enabled: zod.boolean(),
-  exemplars: zod.array(zod.string()).optional(),
-  id: zod.string(),
-  name: zod.string(),
-  scope: zod.string(),
-  similarityThreshold: zod.number().optional(),
-  tenantId: zod.string(),
-  threshold: zod.number().optional(),
-  toolId: zod.string().nullish(),
-  updatedAt: zod.iso.datetime({ offset: true }),
-  windowSeconds: zod.number().optional(),
-});
+  "action": zod.string().optional(),
+  "agentId": zod.string().nullish(),
+  "createdAt": zod.iso.datetime({"offset":true}),
+  "enabled": zod.boolean(),
+  "exemplars": zod.array(zod.string()).optional(),
+  "id": zod.string(),
+  "name": zod.string(),
+  "scope": zod.string(),
+  "similarityThreshold": zod.number().optional(),
+  "tenantId": zod.string(),
+  "threshold": zod.number().optional(),
+  "toolId": zod.string().nullish(),
+  "updatedAt": zod.iso.datetime({"offset":true}),
+  "windowSeconds": zod.number().optional()
+})
 
 /**
  * @summary Throttle event time-series for a rate-limit
  */
 export const getAIRateLimitMetricsPathTenantRegExp = new RegExp('^[a-z0-9-]+$');
 
+
 export const GetAIRateLimitMetricsParams = zod.object({
-  tenant: zod
-    .string()
-    .regex(getAIRateLimitMetricsPathTenantRegExp)
-    .describe('Tenant slug (e.g. `default`, `acme`).'),
-  id: zod.uuid().describe('Resource id (UUID).'),
-});
+  "tenant": zod.string().regex(getAIRateLimitMetricsPathTenantRegExp).describe('Tenant slug (e.g. `default`, `acme`).'),
+  "id": zod.uuid().describe('Resource id (UUID).')
+})
 
 export const getAIRateLimitMetricsQuerySinceDefault = `24h`;
 
 export const GetAIRateLimitMetricsQueryParams = zod.object({
-  since: zod
-    .string()
-    .default(getAIRateLimitMetricsQuerySinceDefault)
-    .describe('Lookback window. One of `1h`, `24h`, `7d`. Defaults to `24h`.\n'),
-});
+  "since": zod.string().default(getAIRateLimitMetricsQuerySinceDefault).describe('Lookback window. One of `1h`, `24h`, `7d`. Defaults to `24h`.\n')
+})
 
 export const GetAIRateLimitMetricsResponse = zod.object({
-  points: zod.array(
-    zod.object({
-      throttle_events: zod.number(),
-      timestamp: zod.iso.datetime({ offset: true }),
-    }),
-  ),
-  rate_limit_id: zod.string(),
-  since: zod.string(),
-});
+  "points": zod.array(zod.object({
+  "throttle_events": zod.number(),
+  "timestamp": zod.iso.datetime({"offset":true})
+})),
+  "rate_limit_id": zod.string(),
+  "since": zod.string()
+})
 
 /**
  * @summary Simulate the rate-limit against a probe request volume
  */
 export const simulateAIRateLimitPathTenantRegExp = new RegExp('^[a-z0-9-]+$');
 
+
 export const SimulateAIRateLimitParams = zod.object({
-  tenant: zod
-    .string()
-    .regex(simulateAIRateLimitPathTenantRegExp)
-    .describe('Tenant slug (e.g. `default`, `acme`).'),
-  id: zod.uuid().describe('Resource id (UUID).'),
-});
+  "tenant": zod.string().regex(simulateAIRateLimitPathTenantRegExp).describe('Tenant slug (e.g. `default`, `acme`).'),
+  "id": zod.uuid().describe('Resource id (UUID).')
+})
 
 export const SimulateAIRateLimitBody = zod.object({
-  principal: zod
-    .string()
-    .optional()
-    .describe('Subject id for the probe (informational; echoed back).'),
-  request_count: zod.number().optional().describe('Probe volume; defaults to 1.'),
-  time_window_seconds: zod
-    .number()
-    .optional()
-    .describe("Probe window in seconds; defaults to the rule's window."),
-});
+  "principal": zod.string().optional().describe('Subject id for the probe (informational; echoed back).'),
+  "request_count": zod.number().optional().describe('Probe volume; defaults to 1.'),
+  "time_window_seconds": zod.number().optional().describe('Probe window in seconds; defaults to the rule\'s window.')
+})
 
 export const SimulateAIRateLimitResponse = zod.object({
-  current_consumption: zod.number().describe("Probe volume normalised to the rule's window."),
-  limit: zod.number().describe("The rule's configured threshold."),
-  principal: zod.string().optional(),
-  rate_limit_id: zod.string(),
-  retry_after_ms: zod
-    .number()
-    .describe('Hint for how long to wait before retrying. 0 when not throttled.'),
-  would_throttle: zod.boolean(),
-});
+  "current_consumption": zod.number().describe('Probe volume normalised to the rule\'s window.'),
+  "limit": zod.number().describe('The rule\'s configured threshold.'),
+  "principal": zod.string().optional(),
+  "rate_limit_id": zod.string(),
+  "retry_after_ms": zod.number().describe('Hint for how long to wait before retrying. 0 when not throttled.'),
+  "would_throttle": zod.boolean()
+})
+

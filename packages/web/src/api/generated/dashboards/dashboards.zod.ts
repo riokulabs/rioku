@@ -23,557 +23,419 @@ Conventions:
  */
 import * as zod from 'zod';
 
+
 /**
  * @summary List dashboards
  */
 export const listDashboardsPathTenantRegExp = new RegExp('^[a-z0-9-]+$');
 
+
 export const ListDashboardsParams = zod.object({
-  tenant: zod
-    .string()
-    .regex(listDashboardsPathTenantRegExp)
-    .describe('Tenant slug (e.g. `default`, `acme`).'),
-});
+  "tenant": zod.string().regex(listDashboardsPathTenantRegExp).describe('Tenant slug (e.g. `default`, `acme`).')
+})
 
 export const ListDashboardsResponse = zod.object({
-  items: zod.array(
-    zod.object({
-      createdAt: zod.iso.datetime({ offset: true }),
-      description: zod.string(),
-      homeForUsers: zod
-        .array(zod.string())
-        .describe('User ids that have set this dashboard as their personal home.'),
-      id: zod.string(),
-      isDefault: zod.boolean(),
-      mode: zod
-        .enum(['metabase', 'advanced', ''])
-        .describe(
-          'Builder mode — `metabase` (wizard) or `advanced` (raw query). Empty for legacy rows.',
-        ),
-      name: zod.string(),
-      ownerUserId: zod.string().nullish(),
-      scope: zod
-        .enum(['tenant', 'user', ''])
-        .describe('Visibility scope. `tenant` is shared; `user` is private.'),
-      sharedRoleIds: zod
-        .array(zod.string())
-        .describe('Role ids that the dashboard is shared with.'),
-      tenantId: zod.string(),
-      updatedAt: zod.iso.datetime({ offset: true }),
-      variables: zod.array(zod.record(zod.string(), zod.unknown())),
-    }),
-  ),
-  total: zod.number(),
-});
+  "items": zod.array(zod.object({
+  "createdAt": zod.iso.datetime({"offset":true}),
+  "description": zod.string(),
+  "homeForUsers": zod.array(zod.string()).describe('User ids that have set this dashboard as their personal home.'),
+  "id": zod.string(),
+  "isDefault": zod.boolean(),
+  "mode": zod.enum(['metabase', 'advanced', '']).describe('Builder mode — `metabase` (wizard) or `advanced` (raw query). Empty for legacy rows.'),
+  "name": zod.string(),
+  "ownerUserId": zod.string().nullish(),
+  "scope": zod.enum(['tenant', 'user', '']).describe('Visibility scope. `tenant` is shared; `user` is private.'),
+  "sharedRoleIds": zod.array(zod.string()).describe('Role ids that the dashboard is shared with.'),
+  "tenantId": zod.string(),
+  "updatedAt": zod.iso.datetime({"offset":true}),
+  "variables": zod.array(zod.record(zod.string(), zod.unknown()))
+})),
+  "total": zod.number()
+})
 
 /**
  * @summary Create a dashboard
  */
 export const createDashboardPathTenantRegExp = new RegExp('^[a-z0-9-]+$');
 
+
 export const CreateDashboardParams = zod.object({
-  tenant: zod
-    .string()
-    .regex(createDashboardPathTenantRegExp)
-    .describe('Tenant slug (e.g. `default`, `acme`).'),
-});
+  "tenant": zod.string().regex(createDashboardPathTenantRegExp).describe('Tenant slug (e.g. `default`, `acme`).')
+})
 
 export const CreateDashboardBody = zod.object({
-  description: zod.string().optional(),
-  mode: zod.string().optional(),
-  name: zod.string(),
-  scope: zod.string().optional(),
-  sharedRoleIds: zod.array(zod.string()).optional(),
-  variables: zod.array(zod.record(zod.string(), zod.unknown())).optional(),
-});
+  "description": zod.string().optional(),
+  "mode": zod.string().optional(),
+  "name": zod.string(),
+  "scope": zod.string().optional(),
+  "sharedRoleIds": zod.array(zod.string()).optional(),
+  "variables": zod.array(zod.record(zod.string(), zod.unknown())).optional()
+})
 
 /**
  * @summary Import a dashboard from a JSON export
  */
 export const importDashboardPathTenantRegExp = new RegExp('^[a-z0-9-]+$');
 
+
 export const ImportDashboardParams = zod.object({
-  tenant: zod
-    .string()
-    .regex(importDashboardPathTenantRegExp)
-    .describe('Tenant slug (e.g. `default`, `acme`).'),
-});
+  "tenant": zod.string().regex(importDashboardPathTenantRegExp).describe('Tenant slug (e.g. `default`, `acme`).')
+})
 
 export const ImportDashboardBody = zod.object({
-  dashboard: zod.object({
-    createdAt: zod.iso.datetime({ offset: true }),
-    description: zod.string(),
-    homeForUsers: zod
-      .array(zod.string())
-      .describe('User ids that have set this dashboard as their personal home.'),
-    id: zod.string(),
-    isDefault: zod.boolean(),
-    mode: zod
-      .enum(['metabase', 'advanced', ''])
-      .describe(
-        'Builder mode — `metabase` (wizard) or `advanced` (raw query). Empty for legacy rows.',
-      ),
-    name: zod.string(),
-    ownerUserId: zod.string().nullish(),
-    scope: zod
-      .enum(['tenant', 'user', ''])
-      .describe('Visibility scope. `tenant` is shared; `user` is private.'),
-    sharedRoleIds: zod.array(zod.string()).describe('Role ids that the dashboard is shared with.'),
-    tenantId: zod.string(),
-    updatedAt: zod.iso.datetime({ offset: true }),
-    variables: zod.array(zod.record(zod.string(), zod.unknown())),
-  }),
-  widgets: zod.array(
-    zod.object({
-      config: zod.record(zod.string(), zod.unknown()),
-      createdAt: zod.iso.datetime({ offset: true }),
-      dashboardId: zod.string(),
-      dataSource: zod
-        .string()
-        .describe('Logical source: `promql`, `audit`, `notifications`, `traces`, etc.'),
-      id: zod.string(),
-      kind: zod
-        .string()
-        .describe('Widget kind. Built-ins: `line-chart`, `bar`, `single-stat`, `table`.'),
-      layout: zod.object({
-        h: zod.number(),
-        w: zod.number(),
-        x: zod.number(),
-        y: zod.number(),
-      }),
-      lockedAdvanced: zod
-        .boolean()
-        .describe(
-          'True when the user flipped the widget to advanced mode and the wizard form is locked.',
-        ),
-      rawQuery: zod
-        .string()
-        .nullish()
-        .describe('Raw PromQL or other query when `lockedAdvanced` is true.'),
-      title: zod.string(),
-      updatedAt: zod.iso.datetime({ offset: true }),
-    }),
-  ),
-});
+  "dashboard": zod.object({
+  "createdAt": zod.iso.datetime({"offset":true}),
+  "description": zod.string(),
+  "homeForUsers": zod.array(zod.string()).describe('User ids that have set this dashboard as their personal home.'),
+  "id": zod.string(),
+  "isDefault": zod.boolean(),
+  "mode": zod.enum(['metabase', 'advanced', '']).describe('Builder mode — `metabase` (wizard) or `advanced` (raw query). Empty for legacy rows.'),
+  "name": zod.string(),
+  "ownerUserId": zod.string().nullish(),
+  "scope": zod.enum(['tenant', 'user', '']).describe('Visibility scope. `tenant` is shared; `user` is private.'),
+  "sharedRoleIds": zod.array(zod.string()).describe('Role ids that the dashboard is shared with.'),
+  "tenantId": zod.string(),
+  "updatedAt": zod.iso.datetime({"offset":true}),
+  "variables": zod.array(zod.record(zod.string(), zod.unknown()))
+}),
+  "widgets": zod.array(zod.object({
+  "config": zod.record(zod.string(), zod.unknown()),
+  "createdAt": zod.iso.datetime({"offset":true}),
+  "dashboardId": zod.string(),
+  "dataSource": zod.string().describe('Logical source: `promql`, `audit`, `notifications`, `traces`, etc.'),
+  "id": zod.string(),
+  "kind": zod.string().describe('Widget kind. Built-ins: `line-chart`, `bar`, `single-stat`, `table`.'),
+  "layout": zod.object({
+  "h": zod.number(),
+  "w": zod.number(),
+  "x": zod.number(),
+  "y": zod.number()
+}),
+  "lockedAdvanced": zod.boolean().describe('True when the user flipped the widget to advanced mode and the wizard form is locked.'),
+  "rawQuery": zod.string().nullish().describe('Raw PromQL or other query when `lockedAdvanced` is true.'),
+  "title": zod.string(),
+  "updatedAt": zod.iso.datetime({"offset":true})
+}))
+})
 
 /**
  * @summary Restore a dashboard from a captured version
  */
 export const restoreDashboardVersionPathTenantRegExp = new RegExp('^[a-z0-9-]+$');
 
+
 export const RestoreDashboardVersionParams = zod.object({
-  tenant: zod
-    .string()
-    .regex(restoreDashboardVersionPathTenantRegExp)
-    .describe('Tenant slug (e.g. `default`, `acme`).'),
-  vid: zod.string(),
-});
+  "tenant": zod.string().regex(restoreDashboardVersionPathTenantRegExp).describe('Tenant slug (e.g. `default`, `acme`).'),
+  "vid": zod.string()
+})
 
 export const RestoreDashboardVersionResponse = zod.object({
-  createdAt: zod.iso.datetime({ offset: true }),
-  description: zod.string(),
-  homeForUsers: zod
-    .array(zod.string())
-    .describe('User ids that have set this dashboard as their personal home.'),
-  id: zod.string(),
-  isDefault: zod.boolean(),
-  mode: zod
-    .enum(['metabase', 'advanced', ''])
-    .describe(
-      'Builder mode — `metabase` (wizard) or `advanced` (raw query). Empty for legacy rows.',
-    ),
-  name: zod.string(),
-  ownerUserId: zod.string().nullish(),
-  scope: zod
-    .enum(['tenant', 'user', ''])
-    .describe('Visibility scope. `tenant` is shared; `user` is private.'),
-  sharedRoleIds: zod.array(zod.string()).describe('Role ids that the dashboard is shared with.'),
-  tenantId: zod.string(),
-  updatedAt: zod.iso.datetime({ offset: true }),
-  variables: zod.array(zod.record(zod.string(), zod.unknown())),
-});
+  "createdAt": zod.iso.datetime({"offset":true}),
+  "description": zod.string(),
+  "homeForUsers": zod.array(zod.string()).describe('User ids that have set this dashboard as their personal home.'),
+  "id": zod.string(),
+  "isDefault": zod.boolean(),
+  "mode": zod.enum(['metabase', 'advanced', '']).describe('Builder mode — `metabase` (wizard) or `advanced` (raw query). Empty for legacy rows.'),
+  "name": zod.string(),
+  "ownerUserId": zod.string().nullish(),
+  "scope": zod.enum(['tenant', 'user', '']).describe('Visibility scope. `tenant` is shared; `user` is private.'),
+  "sharedRoleIds": zod.array(zod.string()).describe('Role ids that the dashboard is shared with.'),
+  "tenantId": zod.string(),
+  "updatedAt": zod.iso.datetime({"offset":true}),
+  "variables": zod.array(zod.record(zod.string(), zod.unknown()))
+})
 
 /**
  * @summary Delete a dashboard
  */
 export const deleteDashboardPathTenantRegExp = new RegExp('^[a-z0-9-]+$');
 
+
 export const DeleteDashboardParams = zod.object({
-  tenant: zod
-    .string()
-    .regex(deleteDashboardPathTenantRegExp)
-    .describe('Tenant slug (e.g. `default`, `acme`).'),
-  id: zod.uuid().describe('Resource id (UUID).'),
-});
+  "tenant": zod.string().regex(deleteDashboardPathTenantRegExp).describe('Tenant slug (e.g. `default`, `acme`).'),
+  "id": zod.uuid().describe('Resource id (UUID).')
+})
 
 /**
  * @summary Get a dashboard
  */
 export const getDashboardPathTenantRegExp = new RegExp('^[a-z0-9-]+$');
 
+
 export const GetDashboardParams = zod.object({
-  tenant: zod
-    .string()
-    .regex(getDashboardPathTenantRegExp)
-    .describe('Tenant slug (e.g. `default`, `acme`).'),
-  id: zod.uuid().describe('Resource id (UUID).'),
-});
+  "tenant": zod.string().regex(getDashboardPathTenantRegExp).describe('Tenant slug (e.g. `default`, `acme`).'),
+  "id": zod.uuid().describe('Resource id (UUID).')
+})
 
 export const GetDashboardResponse = zod.object({
-  createdAt: zod.iso.datetime({ offset: true }),
-  description: zod.string(),
-  homeForUsers: zod
-    .array(zod.string())
-    .describe('User ids that have set this dashboard as their personal home.'),
-  id: zod.string(),
-  isDefault: zod.boolean(),
-  mode: zod
-    .enum(['metabase', 'advanced', ''])
-    .describe(
-      'Builder mode — `metabase` (wizard) or `advanced` (raw query). Empty for legacy rows.',
-    ),
-  name: zod.string(),
-  ownerUserId: zod.string().nullish(),
-  scope: zod
-    .enum(['tenant', 'user', ''])
-    .describe('Visibility scope. `tenant` is shared; `user` is private.'),
-  sharedRoleIds: zod.array(zod.string()).describe('Role ids that the dashboard is shared with.'),
-  tenantId: zod.string(),
-  updatedAt: zod.iso.datetime({ offset: true }),
-  variables: zod.array(zod.record(zod.string(), zod.unknown())),
-});
+  "createdAt": zod.iso.datetime({"offset":true}),
+  "description": zod.string(),
+  "homeForUsers": zod.array(zod.string()).describe('User ids that have set this dashboard as their personal home.'),
+  "id": zod.string(),
+  "isDefault": zod.boolean(),
+  "mode": zod.enum(['metabase', 'advanced', '']).describe('Builder mode — `metabase` (wizard) or `advanced` (raw query). Empty for legacy rows.'),
+  "name": zod.string(),
+  "ownerUserId": zod.string().nullish(),
+  "scope": zod.enum(['tenant', 'user', '']).describe('Visibility scope. `tenant` is shared; `user` is private.'),
+  "sharedRoleIds": zod.array(zod.string()).describe('Role ids that the dashboard is shared with.'),
+  "tenantId": zod.string(),
+  "updatedAt": zod.iso.datetime({"offset":true}),
+  "variables": zod.array(zod.record(zod.string(), zod.unknown()))
+})
 
 /**
  * @summary Patch a dashboard
  */
 export const patchDashboardPathTenantRegExp = new RegExp('^[a-z0-9-]+$');
 
+
 export const PatchDashboardParams = zod.object({
-  tenant: zod
-    .string()
-    .regex(patchDashboardPathTenantRegExp)
-    .describe('Tenant slug (e.g. `default`, `acme`).'),
-  id: zod.uuid().describe('Resource id (UUID).'),
-});
+  "tenant": zod.string().regex(patchDashboardPathTenantRegExp).describe('Tenant slug (e.g. `default`, `acme`).'),
+  "id": zod.uuid().describe('Resource id (UUID).')
+})
 
 export const PatchDashboardResponse = zod.object({
-  createdAt: zod.iso.datetime({ offset: true }),
-  description: zod.string(),
-  homeForUsers: zod
-    .array(zod.string())
-    .describe('User ids that have set this dashboard as their personal home.'),
-  id: zod.string(),
-  isDefault: zod.boolean(),
-  mode: zod
-    .enum(['metabase', 'advanced', ''])
-    .describe(
-      'Builder mode — `metabase` (wizard) or `advanced` (raw query). Empty for legacy rows.',
-    ),
-  name: zod.string(),
-  ownerUserId: zod.string().nullish(),
-  scope: zod
-    .enum(['tenant', 'user', ''])
-    .describe('Visibility scope. `tenant` is shared; `user` is private.'),
-  sharedRoleIds: zod.array(zod.string()).describe('Role ids that the dashboard is shared with.'),
-  tenantId: zod.string(),
-  updatedAt: zod.iso.datetime({ offset: true }),
-  variables: zod.array(zod.record(zod.string(), zod.unknown())),
-});
+  "createdAt": zod.iso.datetime({"offset":true}),
+  "description": zod.string(),
+  "homeForUsers": zod.array(zod.string()).describe('User ids that have set this dashboard as their personal home.'),
+  "id": zod.string(),
+  "isDefault": zod.boolean(),
+  "mode": zod.enum(['metabase', 'advanced', '']).describe('Builder mode — `metabase` (wizard) or `advanced` (raw query). Empty for legacy rows.'),
+  "name": zod.string(),
+  "ownerUserId": zod.string().nullish(),
+  "scope": zod.enum(['tenant', 'user', '']).describe('Visibility scope. `tenant` is shared; `user` is private.'),
+  "sharedRoleIds": zod.array(zod.string()).describe('Role ids that the dashboard is shared with.'),
+  "tenantId": zod.string(),
+  "updatedAt": zod.iso.datetime({"offset":true}),
+  "variables": zod.array(zod.record(zod.string(), zod.unknown()))
+})
 
 /**
  * @summary Update a dashboard
  */
 export const updateDashboardPathTenantRegExp = new RegExp('^[a-z0-9-]+$');
 
+
 export const UpdateDashboardParams = zod.object({
-  tenant: zod
-    .string()
-    .regex(updateDashboardPathTenantRegExp)
-    .describe('Tenant slug (e.g. `default`, `acme`).'),
-  id: zod.uuid().describe('Resource id (UUID).'),
-});
+  "tenant": zod.string().regex(updateDashboardPathTenantRegExp).describe('Tenant slug (e.g. `default`, `acme`).'),
+  "id": zod.uuid().describe('Resource id (UUID).')
+})
 
 export const UpdateDashboardBody = zod.object({
-  description: zod.string().optional(),
-  mode: zod.string().optional(),
-  name: zod.string().optional(),
-  scope: zod.string().optional(),
-  sharedRoleIds: zod.array(zod.string()).optional(),
-  variables: zod.array(zod.record(zod.string(), zod.unknown())).optional(),
-});
+  "description": zod.string().optional(),
+  "mode": zod.string().optional(),
+  "name": zod.string().optional(),
+  "scope": zod.string().optional(),
+  "sharedRoleIds": zod.array(zod.string()).optional(),
+  "variables": zod.array(zod.record(zod.string(), zod.unknown())).optional()
+})
 
 export const UpdateDashboardResponse = zod.object({
-  createdAt: zod.iso.datetime({ offset: true }),
-  description: zod.string(),
-  homeForUsers: zod
-    .array(zod.string())
-    .describe('User ids that have set this dashboard as their personal home.'),
-  id: zod.string(),
-  isDefault: zod.boolean(),
-  mode: zod
-    .enum(['metabase', 'advanced', ''])
-    .describe(
-      'Builder mode — `metabase` (wizard) or `advanced` (raw query). Empty for legacy rows.',
-    ),
-  name: zod.string(),
-  ownerUserId: zod.string().nullish(),
-  scope: zod
-    .enum(['tenant', 'user', ''])
-    .describe('Visibility scope. `tenant` is shared; `user` is private.'),
-  sharedRoleIds: zod.array(zod.string()).describe('Role ids that the dashboard is shared with.'),
-  tenantId: zod.string(),
-  updatedAt: zod.iso.datetime({ offset: true }),
-  variables: zod.array(zod.record(zod.string(), zod.unknown())),
-});
+  "createdAt": zod.iso.datetime({"offset":true}),
+  "description": zod.string(),
+  "homeForUsers": zod.array(zod.string()).describe('User ids that have set this dashboard as their personal home.'),
+  "id": zod.string(),
+  "isDefault": zod.boolean(),
+  "mode": zod.enum(['metabase', 'advanced', '']).describe('Builder mode — `metabase` (wizard) or `advanced` (raw query). Empty for legacy rows.'),
+  "name": zod.string(),
+  "ownerUserId": zod.string().nullish(),
+  "scope": zod.enum(['tenant', 'user', '']).describe('Visibility scope. `tenant` is shared; `user` is private.'),
+  "sharedRoleIds": zod.array(zod.string()).describe('Role ids that the dashboard is shared with.'),
+  "tenantId": zod.string(),
+  "updatedAt": zod.iso.datetime({"offset":true}),
+  "variables": zod.array(zod.record(zod.string(), zod.unknown()))
+})
 
 /**
  * @summary Export a dashboard as JSON
  */
 export const exportDashboardPathTenantRegExp = new RegExp('^[a-z0-9-]+$');
 
+
 export const ExportDashboardParams = zod.object({
-  tenant: zod
-    .string()
-    .regex(exportDashboardPathTenantRegExp)
-    .describe('Tenant slug (e.g. `default`, `acme`).'),
-  id: zod.uuid().describe('Resource id (UUID).'),
-});
+  "tenant": zod.string().regex(exportDashboardPathTenantRegExp).describe('Tenant slug (e.g. `default`, `acme`).'),
+  "id": zod.uuid().describe('Resource id (UUID).')
+})
 
 export const ExportDashboardResponse = zod.object({
-  dashboard: zod.object({
-    createdAt: zod.iso.datetime({ offset: true }),
-    description: zod.string(),
-    homeForUsers: zod
-      .array(zod.string())
-      .describe('User ids that have set this dashboard as their personal home.'),
-    id: zod.string(),
-    isDefault: zod.boolean(),
-    mode: zod
-      .enum(['metabase', 'advanced', ''])
-      .describe(
-        'Builder mode — `metabase` (wizard) or `advanced` (raw query). Empty for legacy rows.',
-      ),
-    name: zod.string(),
-    ownerUserId: zod.string().nullish(),
-    scope: zod
-      .enum(['tenant', 'user', ''])
-      .describe('Visibility scope. `tenant` is shared; `user` is private.'),
-    sharedRoleIds: zod.array(zod.string()).describe('Role ids that the dashboard is shared with.'),
-    tenantId: zod.string(),
-    updatedAt: zod.iso.datetime({ offset: true }),
-    variables: zod.array(zod.record(zod.string(), zod.unknown())),
-  }),
-  widgets: zod.array(
-    zod.object({
-      config: zod.record(zod.string(), zod.unknown()),
-      createdAt: zod.iso.datetime({ offset: true }),
-      dashboardId: zod.string(),
-      dataSource: zod
-        .string()
-        .describe('Logical source: `promql`, `audit`, `notifications`, `traces`, etc.'),
-      id: zod.string(),
-      kind: zod
-        .string()
-        .describe('Widget kind. Built-ins: `line-chart`, `bar`, `single-stat`, `table`.'),
-      layout: zod.object({
-        h: zod.number(),
-        w: zod.number(),
-        x: zod.number(),
-        y: zod.number(),
-      }),
-      lockedAdvanced: zod
-        .boolean()
-        .describe(
-          'True when the user flipped the widget to advanced mode and the wizard form is locked.',
-        ),
-      rawQuery: zod
-        .string()
-        .nullish()
-        .describe('Raw PromQL or other query when `lockedAdvanced` is true.'),
-      title: zod.string(),
-      updatedAt: zod.iso.datetime({ offset: true }),
-    }),
-  ),
-});
+  "dashboard": zod.object({
+  "createdAt": zod.iso.datetime({"offset":true}),
+  "description": zod.string(),
+  "homeForUsers": zod.array(zod.string()).describe('User ids that have set this dashboard as their personal home.'),
+  "id": zod.string(),
+  "isDefault": zod.boolean(),
+  "mode": zod.enum(['metabase', 'advanced', '']).describe('Builder mode — `metabase` (wizard) or `advanced` (raw query). Empty for legacy rows.'),
+  "name": zod.string(),
+  "ownerUserId": zod.string().nullish(),
+  "scope": zod.enum(['tenant', 'user', '']).describe('Visibility scope. `tenant` is shared; `user` is private.'),
+  "sharedRoleIds": zod.array(zod.string()).describe('Role ids that the dashboard is shared with.'),
+  "tenantId": zod.string(),
+  "updatedAt": zod.iso.datetime({"offset":true}),
+  "variables": zod.array(zod.record(zod.string(), zod.unknown()))
+}),
+  "widgets": zod.array(zod.object({
+  "config": zod.record(zod.string(), zod.unknown()),
+  "createdAt": zod.iso.datetime({"offset":true}),
+  "dashboardId": zod.string(),
+  "dataSource": zod.string().describe('Logical source: `promql`, `audit`, `notifications`, `traces`, etc.'),
+  "id": zod.string(),
+  "kind": zod.string().describe('Widget kind. Built-ins: `line-chart`, `bar`, `single-stat`, `table`.'),
+  "layout": zod.object({
+  "h": zod.number(),
+  "w": zod.number(),
+  "x": zod.number(),
+  "y": zod.number()
+}),
+  "lockedAdvanced": zod.boolean().describe('True when the user flipped the widget to advanced mode and the wizard form is locked.'),
+  "rawQuery": zod.string().nullish().describe('Raw PromQL or other query when `lockedAdvanced` is true.'),
+  "title": zod.string(),
+  "updatedAt": zod.iso.datetime({"offset":true})
+}))
+})
 
 /**
  * @summary Mark dashboard as the tenant default
  */
 export const setDefaultDashboardPathTenantRegExp = new RegExp('^[a-z0-9-]+$');
 
+
 export const SetDefaultDashboardParams = zod.object({
-  tenant: zod
-    .string()
-    .regex(setDefaultDashboardPathTenantRegExp)
-    .describe('Tenant slug (e.g. `default`, `acme`).'),
-  id: zod.uuid().describe('Resource id (UUID).'),
-});
+  "tenant": zod.string().regex(setDefaultDashboardPathTenantRegExp).describe('Tenant slug (e.g. `default`, `acme`).'),
+  "id": zod.uuid().describe('Resource id (UUID).')
+})
 
 export const SetDefaultDashboardResponse = zod.object({
-  createdAt: zod.iso.datetime({ offset: true }),
-  description: zod.string(),
-  homeForUsers: zod
-    .array(zod.string())
-    .describe('User ids that have set this dashboard as their personal home.'),
-  id: zod.string(),
-  isDefault: zod.boolean(),
-  mode: zod
-    .enum(['metabase', 'advanced', ''])
-    .describe(
-      'Builder mode — `metabase` (wizard) or `advanced` (raw query). Empty for legacy rows.',
-    ),
-  name: zod.string(),
-  ownerUserId: zod.string().nullish(),
-  scope: zod
-    .enum(['tenant', 'user', ''])
-    .describe('Visibility scope. `tenant` is shared; `user` is private.'),
-  sharedRoleIds: zod.array(zod.string()).describe('Role ids that the dashboard is shared with.'),
-  tenantId: zod.string(),
-  updatedAt: zod.iso.datetime({ offset: true }),
-  variables: zod.array(zod.record(zod.string(), zod.unknown())),
-});
+  "createdAt": zod.iso.datetime({"offset":true}),
+  "description": zod.string(),
+  "homeForUsers": zod.array(zod.string()).describe('User ids that have set this dashboard as their personal home.'),
+  "id": zod.string(),
+  "isDefault": zod.boolean(),
+  "mode": zod.enum(['metabase', 'advanced', '']).describe('Builder mode — `metabase` (wizard) or `advanced` (raw query). Empty for legacy rows.'),
+  "name": zod.string(),
+  "ownerUserId": zod.string().nullish(),
+  "scope": zod.enum(['tenant', 'user', '']).describe('Visibility scope. `tenant` is shared; `user` is private.'),
+  "sharedRoleIds": zod.array(zod.string()).describe('Role ids that the dashboard is shared with.'),
+  "tenantId": zod.string(),
+  "updatedAt": zod.iso.datetime({"offset":true}),
+  "variables": zod.array(zod.record(zod.string(), zod.unknown()))
+})
 
 /**
  * @summary Set dashboard as the calling user's personal home
  */
 export const setDashboardHomePathTenantRegExp = new RegExp('^[a-z0-9-]+$');
 
+
 export const SetDashboardHomeParams = zod.object({
-  tenant: zod
-    .string()
-    .regex(setDashboardHomePathTenantRegExp)
-    .describe('Tenant slug (e.g. `default`, `acme`).'),
-  id: zod.uuid().describe('Resource id (UUID).'),
-});
+  "tenant": zod.string().regex(setDashboardHomePathTenantRegExp).describe('Tenant slug (e.g. `default`, `acme`).'),
+  "id": zod.uuid().describe('Resource id (UUID).')
+})
 
 export const SetDashboardHomeResponse = zod.object({
-  createdAt: zod.iso.datetime({ offset: true }),
-  description: zod.string(),
-  homeForUsers: zod
-    .array(zod.string())
-    .describe('User ids that have set this dashboard as their personal home.'),
-  id: zod.string(),
-  isDefault: zod.boolean(),
-  mode: zod
-    .enum(['metabase', 'advanced', ''])
-    .describe(
-      'Builder mode — `metabase` (wizard) or `advanced` (raw query). Empty for legacy rows.',
-    ),
-  name: zod.string(),
-  ownerUserId: zod.string().nullish(),
-  scope: zod
-    .enum(['tenant', 'user', ''])
-    .describe('Visibility scope. `tenant` is shared; `user` is private.'),
-  sharedRoleIds: zod.array(zod.string()).describe('Role ids that the dashboard is shared with.'),
-  tenantId: zod.string(),
-  updatedAt: zod.iso.datetime({ offset: true }),
-  variables: zod.array(zod.record(zod.string(), zod.unknown())),
-});
+  "createdAt": zod.iso.datetime({"offset":true}),
+  "description": zod.string(),
+  "homeForUsers": zod.array(zod.string()).describe('User ids that have set this dashboard as their personal home.'),
+  "id": zod.string(),
+  "isDefault": zod.boolean(),
+  "mode": zod.enum(['metabase', 'advanced', '']).describe('Builder mode — `metabase` (wizard) or `advanced` (raw query). Empty for legacy rows.'),
+  "name": zod.string(),
+  "ownerUserId": zod.string().nullish(),
+  "scope": zod.enum(['tenant', 'user', '']).describe('Visibility scope. `tenant` is shared; `user` is private.'),
+  "sharedRoleIds": zod.array(zod.string()).describe('Role ids that the dashboard is shared with.'),
+  "tenantId": zod.string(),
+  "updatedAt": zod.iso.datetime({"offset":true}),
+  "variables": zod.array(zod.record(zod.string(), zod.unknown()))
+})
 
 /**
  * @summary Share a dashboard with a role
  */
 export const shareDashboardPathTenantRegExp = new RegExp('^[a-z0-9-]+$');
 
+
 export const ShareDashboardParams = zod.object({
-  tenant: zod
-    .string()
-    .regex(shareDashboardPathTenantRegExp)
-    .describe('Tenant slug (e.g. `default`, `acme`).'),
-  id: zod.uuid().describe('Resource id (UUID).'),
-});
+  "tenant": zod.string().regex(shareDashboardPathTenantRegExp).describe('Tenant slug (e.g. `default`, `acme`).'),
+  "id": zod.uuid().describe('Resource id (UUID).')
+})
 
 export const ShareDashboardBody = zod.object({
-  expiresAt: zod.iso.datetime({ offset: true }).optional(),
-  roleId: zod.string(),
-});
+  "expiresAt": zod.iso.datetime({"offset":true}).optional(),
+  "roleId": zod.string()
+})
 
 /**
  * @summary List active dashboard shares
  */
 export const listDashboardSharesPathTenantRegExp = new RegExp('^[a-z0-9-]+$');
 
+
 export const ListDashboardSharesParams = zod.object({
-  tenant: zod
-    .string()
-    .regex(listDashboardSharesPathTenantRegExp)
-    .describe('Tenant slug (e.g. `default`, `acme`).'),
-  id: zod.uuid().describe('Resource id (UUID).'),
-});
+  "tenant": zod.string().regex(listDashboardSharesPathTenantRegExp).describe('Tenant slug (e.g. `default`, `acme`).'),
+  "id": zod.uuid().describe('Resource id (UUID).')
+})
 
 export const ListDashboardSharesResponse = zod.object({
-  items: zod.array(
-    zod.object({
-      _links: zod.record(zod.string(), zod.unknown()).optional(),
-      createdAt: zod.iso.datetime({ offset: true }),
-      createdBy: zod.string().optional(),
-      dashboardId: zod.string(),
-      expiresAt: zod.iso.datetime({ offset: true }).optional(),
-      id: zod.string(),
-      roleId: zod.string(),
-      tenantId: zod.string(),
-    }),
-  ),
-  total: zod.number(),
-});
+  "items": zod.array(zod.object({
+  "_links": zod.record(zod.string(), zod.unknown()).optional(),
+  "createdAt": zod.iso.datetime({"offset":true}),
+  "createdBy": zod.string().optional(),
+  "dashboardId": zod.string(),
+  "expiresAt": zod.iso.datetime({"offset":true}).optional(),
+  "id": zod.string(),
+  "roleId": zod.string(),
+  "tenantId": zod.string()
+})),
+  "total": zod.number()
+})
 
 /**
  * @summary Revoke a dashboard share
  */
 export const deleteDashboardSharePathTenantRegExp = new RegExp('^[a-z0-9-]+$');
 
+
 export const DeleteDashboardShareParams = zod.object({
-  tenant: zod
-    .string()
-    .regex(deleteDashboardSharePathTenantRegExp)
-    .describe('Tenant slug (e.g. `default`, `acme`).'),
-  id: zod.uuid().describe('Resource id (UUID).'),
-  shareId: zod.string(),
-});
+  "tenant": zod.string().regex(deleteDashboardSharePathTenantRegExp).describe('Tenant slug (e.g. `default`, `acme`).'),
+  "id": zod.uuid().describe('Resource id (UUID).'),
+  "shareId": zod.string()
+})
 
 /**
  * @summary Capture a versioned snapshot of the dashboard
  */
 export const snapshotDashboardPathTenantRegExp = new RegExp('^[a-z0-9-]+$');
 
+
 export const SnapshotDashboardParams = zod.object({
-  tenant: zod
-    .string()
-    .regex(snapshotDashboardPathTenantRegExp)
-    .describe('Tenant slug (e.g. `default`, `acme`).'),
-  id: zod.uuid().describe('Resource id (UUID).'),
-});
+  "tenant": zod.string().regex(snapshotDashboardPathTenantRegExp).describe('Tenant slug (e.g. `default`, `acme`).'),
+  "id": zod.uuid().describe('Resource id (UUID).')
+})
 
 export const SnapshotDashboardBody = zod.object({
-  note: zod.string().optional(),
-});
+  "note": zod.string().optional()
+})
 
 /**
  * @summary List dashboard versions
  */
 export const listDashboardVersionsPathTenantRegExp = new RegExp('^[a-z0-9-]+$');
 
+
 export const ListDashboardVersionsParams = zod.object({
-  tenant: zod
-    .string()
-    .regex(listDashboardVersionsPathTenantRegExp)
-    .describe('Tenant slug (e.g. `default`, `acme`).'),
-  id: zod.uuid().describe('Resource id (UUID).'),
-});
+  "tenant": zod.string().regex(listDashboardVersionsPathTenantRegExp).describe('Tenant slug (e.g. `default`, `acme`).'),
+  "id": zod.uuid().describe('Resource id (UUID).')
+})
 
 export const ListDashboardVersionsResponse = zod.object({
-  items: zod.array(
-    zod.object({
-      createdAt: zod.iso.datetime({ offset: true }),
-      createdBy: zod.string().nullish(),
-      dashboardId: zod.string(),
-      id: zod.string(),
-      note: zod.string(),
-      snapshot: zod
-        .record(zod.string(), zod.unknown())
-        .describe('Full export payload captured at snapshot time.'),
-      version: zod.number(),
-    }),
-  ),
-  total: zod.number(),
-});
+  "items": zod.array(zod.object({
+  "createdAt": zod.iso.datetime({"offset":true}),
+  "createdBy": zod.string().nullish(),
+  "dashboardId": zod.string(),
+  "id": zod.string(),
+  "note": zod.string(),
+  "snapshot": zod.record(zod.string(), zod.unknown()).describe('Full export payload captured at snapshot time.'),
+  "version": zod.number()
+})),
+  "total": zod.number()
+})
+
