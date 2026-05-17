@@ -37,6 +37,15 @@ func (Handler) CaddyModule() caddy.ModuleInfo {
 func (h Handler) ServeHTTP(w http.ResponseWriter, r *http.Request, next caddyhttp.Handler) error {
 	caddyhttp.SetVar(r.Context(), "rioku_route_id", h.RouteID)
 	caddyhttp.SetVar(r.Context(), "rioku_service_id", h.ServiceID)
+
+	// Set headers only when IDs are non-empty
+	if h.RouteID != "" {
+		r.Header.Set("X-Rioku-Route", h.RouteID)
+	}
+	if h.ServiceID != "" {
+		r.Header.Set("X-Rioku-Service", h.ServiceID)
+	}
+
 	return next.ServeHTTP(w, r)
 }
 
