@@ -286,9 +286,9 @@ func (s *Server) logErr(msg string, err error) {
 // webhook per blocked request during a sustained breach.
 const (
 	quotaDedupTTL      = 24 * time.Hour
-	quotaDedupInitCap  = 1_024              // pre-allocated map capacity
-	quotaDedupMaxSize  = 100_000            // hard cap on in-memory entries (#209)
-	quotaSweepInterval = quotaDedupTTL / 2  // background sweep cadence
+	quotaDedupInitCap  = 1_024             // pre-allocated map capacity
+	quotaDedupMaxSize  = 100_000           // hard cap on in-memory entries (#209)
+	quotaSweepInterval = quotaDedupTTL / 2 // background sweep cadence
 )
 
 // handleQuotaExceeded is the data-plane webhook ingress (#202). The
