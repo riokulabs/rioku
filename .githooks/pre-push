@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Git pre-push hook — `go vet` smoke only (< 3s typical).
+# Git pre-push hook — format drift check + go vet smoke (< 8s typical).
 # Contract: see contrib-docs/docs/development/hooks.md
 # Full test suite, web checks, lint, e2e all run in PR CI.
 # Install with: make hooks
@@ -7,10 +7,57 @@
 set -euo pipefail
 
 REPO_ROOT=$(git rev-parse --show-toplevel)
+FAIL=0
 
-echo "Running pre-push checks (go vet smoke)..."
-(cd "$REPO_ROOT/packages/daemon" && go vet ./...) || exit 1
-(cd "$REPO_ROOT/packages/build-service" && go vet ./...) || exit 1
+echo "Running pre-push checks..."
+
+# ── Go: gofmt drift check ────────────────────────────────────────────────────
+for pkg in daemon build-service; do
+  if [ -d "$REPO_ROOT/packages/$pkg" ]; then
+    UNFORMATTED=$(cd "$REPO_ROOT/packages/$pkg" && gofmt -l . 2>/dev/null || true)
+    if [ -n "$UNFORMATTED" ]; then
+      echo "gofmt: unformatted files in packages/$pkg:" >&2
+      echo "$UNFORMATTED" | sed 's/^/  packages\/'"$pkg"'\//' >&2
+      echo "  Fix with: gofmt -w <file>  or  (cd packages/$pkg && gofmt -w .)" >&2
+      FAIL=1
+    fi
+  fi
+done
+
+# ── Go: goimports drift check (skip if not installed) ────────────────────────
+if command -v goimports &>/dev/null; then
+  for pkg in daemon build-service; do
+    if [ -d "$REPO_ROOT/packages/$pkg" ]; then
+      UNIMPORTED=$(cd "$REPO_ROOT/packages/$pkg" && goimports -l . 2>/dev/null || true)
+      if [ -n "$UNIMPORTED" ]; then
+        echo "goimports: import drift in packages/$pkg:" >&2
+        echo "$UNIMPORTED" | sed 's/^/  packages\/'"$pkg"'\//' >&2
+        echo "  Fix with: goimports -w <file>  or  (cd packages/$pkg && goimports -w .)" >&2
+        FAIL=1
+      fi
+    fi
+  done
+fi
+
+# ── Go: go vet smoke ─────────────────────────────────────────────────────────
+(cd "$REPO_ROOT/packages/daemon" && go vet ./...) || FAIL=1
+(cd "$REPO_ROOT/packages/build-service" && go vet ./...) || FAIL=1
+
+# ── Web: prettier format check (skip if pnpm / node_modules absent) ──────────
+WEB_DIR="$REPO_ROOT/packages/web"
+if [ -d "$WEB_DIR/node_modules" ] && command -v pnpm &>/dev/null; then
+  echo "Running prettier check (packages/web)..."
+  if ! (cd "$WEB_DIR" && pnpm exec prettier --check . --log-level warn 2>&1); then
+    echo "  Fix with: (cd packages/web && pnpm exec prettier --write .)" >&2
+    FAIL=1
+  fi
+fi
+
+if [ "$FAIL" -ne 0 ]; then
+  echo "[pre-push] Format drift detected — push blocked. Fix the issues above." >&2
+  exit 1
+fi
+
 echo "All pre-push checks passed."
 
 # ── Stage-2 push discipline ──────────────────────────────────────────────────
