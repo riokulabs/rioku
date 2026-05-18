@@ -527,6 +527,22 @@ type corazaAuditLog struct {
 	} `json:"messages"`
 }
 
+// tenantFromURI extracts the tenant id from a tenant-scoped path of
+// the form /api/v1/t/{tenant}/... It returns an empty string for
+// non-tenant paths (health checks, admin routes, etc.).
+func tenantFromURI(uri string) string {
+	// Strip query string so the split operates only on the path.
+	if idx := strings.IndexByte(uri, '?'); idx >= 0 {
+		uri = uri[:idx]
+	}
+	// Expected layout: ["", "api", "v1", "t", "<tenant>", ...]
+	parts := strings.SplitN(uri, "/", 6)
+	if len(parts) >= 5 && parts[1] == "api" && parts[2] == "v1" && parts[3] == "t" {
+		return parts[4]
+	}
+	return ""
+}
+
 // handleWAFRecord ingests a Coraza JSON audit log payload and writes
 // one WAFDenial row per matched rule. Coraza's built-in `https`
 // writer formats audit logs as JSON and POSTs them here when the
@@ -571,7 +587,16 @@ func (s *Server) handleWAFRecord(w http.ResponseWriter, r *http.Request) {
 		action = "detect"
 	}
 
-	tx, err := s.store.Begin(r.Context(), store.TxOptions{})
+	// Loopback POSTs have no auth middleware, so the request context carries
+	// no tenant. Recover the tenant from the blocked request URI and inject it
+	// so denials are stored under the correct tenant rather than the bootstrap
+	// default (#207).
+	ctx := r.Context()
+	if tenantID := tenantFromURI(uri); tenantID != "" {
+		ctx = store.WithTenantID(ctx, tenantID)
+	}
+
+	tx, err := s.store.Begin(ctx, store.TxOptions{})
 	if err != nil {
 		s.logErr("waf-record begin", err)
 		http.Error(w, "internal error", http.StatusInternalServerError)
@@ -592,7 +617,6 @@ func (s *Server) handleWAFRecord(w http.ResponseWriter, r *http.Request) {
 		}
 		denial := &store.WAFDenial{
 			ID:         "wd_" + uuid.NewString(),
-			TenantID:   store.TenantIDFromContext(r.Context()),
 			RuleID:     ruleID,
 			Severity:   severity,
 			Action:     action,
@@ -600,7 +624,7 @@ func (s *Server) handleWAFRecord(w http.ResponseWriter, r *http.Request) {
 			ClientIP:   clientIP,
 			MatchedAt:  matchedAt,
 		}
-		if err := tx.AppendWAFDenial(r.Context(), denial); err != nil {
+		if err := tx.AppendWAFDenial(ctx, denial); err != nil {
 			s.logErr("waf-record append", err)
 			http.Error(w, "internal error", http.StatusInternalServerError)
 			return

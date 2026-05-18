@@ -362,6 +362,26 @@ func TestWAFRecord_WritesDenialPerMessage(t *testing.T) {
 	t.Cleanup(func() { _ = srv.Shutdown(context.Background()) })
 
 	// Two messages, one transaction — should produce two WAFDenial rows.
+	// Use a non-default tenant ("acme-corp") to prove URI extraction works:
+	// before the fix, all loopback denials landed under "tenant_default"
+	// regardless of the actual target tenant (#207).
+	const wantTenant = "acme-corp"
+	const tenantURI = "/api/v1/t/acme-corp/routes/my-route"
+
+	// Seed the tenant so the FK constraint is satisfied.
+	seedTx, err := d.Begin(context.Background(), store.TxOptions{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := seedTx.CreateTenant(context.Background(), &store.Tenant{
+		ID: wantTenant, Slug: wantTenant, Name: "Acme Corp", Plan: "community", URLMode: "path",
+	}); err != nil {
+		_ = seedTx.Rollback()
+		t.Fatal(err)
+	}
+	if err := seedTx.Commit(); err != nil {
+		t.Fatal(err)
+	}
 	body := `{
 		"transaction": {
 			"timestamp": "01/May/2026:10:00:00 +0000",
@@ -370,7 +390,7 @@ func TestWAFRecord_WritesDenialPerMessage(t *testing.T) {
 			"client_ip": "10.0.0.5",
 			"highest_severity": "WARNING",
 			"is_interrupted": true,
-			"request": {"method": "GET", "uri": "/api/test"}
+			"request": {"method": "GET", "uri": "` + tenantURI + `"}
 		},
 		"messages": [
 			{"actionset": "block", "message": "SQL injection attempt", "data": {"id": 942100, "msg": "SQLi", "severity": "CRITICAL"}},
@@ -389,12 +409,12 @@ func TestWAFRecord_WritesDenialPerMessage(t *testing.T) {
 		t.Fatalf("status = %d", resp.StatusCode)
 	}
 
-	tx, err := d.Begin(store.WithTenantID(context.Background(), "tenant_default"), store.TxOptions{ReadOnly: true})
+	tx, err := d.Begin(store.WithTenantID(context.Background(), wantTenant), store.TxOptions{ReadOnly: true})
 	if err != nil {
 		t.Fatal(err)
 	}
 	defer func() { _ = tx.Rollback() }()
-	denials, err := tx.QueryWAFDenials(store.WithTenantID(context.Background(), "tenant_default"), store.WAFDenialQuery{Limit: 10})
+	denials, err := tx.QueryWAFDenials(store.WithTenantID(context.Background(), wantTenant), store.WAFDenialQuery{Limit: 10})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -403,8 +423,11 @@ func TestWAFRecord_WritesDenialPerMessage(t *testing.T) {
 	}
 	wantRules := map[string]bool{"942100": false, "941100": false}
 	for _, d := range denials {
-		if d.RequestURI != "/api/test" {
-			t.Errorf("RequestURI = %q", d.RequestURI)
+		if d.RequestURI != tenantURI {
+			t.Errorf("RequestURI = %q, want %q", d.RequestURI, tenantURI)
+		}
+		if d.TenantID != wantTenant {
+			t.Errorf("TenantID = %q, want %q", d.TenantID, wantTenant)
 		}
 		if d.ClientIP != "10.0.0.5" {
 			t.Errorf("ClientIP = %q", d.ClientIP)
@@ -420,6 +443,48 @@ func TestWAFRecord_WritesDenialPerMessage(t *testing.T) {
 		if !seen {
 			t.Errorf("rule %s not present in denials", r)
 		}
+	}
+}
+
+func TestWAFRecord_AdminURIFallsBackToDefaultTenant(t *testing.T) {
+	d := openDB(t)
+	srv := keyvalidator.New(d, slog.Default())
+	if err := srv.Listen("127.0.0.1:0"); err != nil {
+		t.Fatal(err)
+	}
+	go func() { _ = srv.Serve() }()
+	t.Cleanup(func() { _ = srv.Shutdown(context.Background()) })
+
+	// Admin-scoped URI — no tenant segment, falls back to store.DefaultTenantID.
+	body := `{
+		"transaction": {
+			"unix_timestamp": 1746091200,
+			"id": "txid-admin",
+			"client_ip": "127.0.0.1",
+			"is_interrupted": true,
+			"request": {"method": "GET", "uri": "/api/v1/admin/tenants"}
+		},
+		"messages": [
+			{"actionset": "block", "message": "probe", "data": {"id": 1, "msg": "probe", "severity": "LOW"}}
+		]
+	}`
+
+	req, _ := http.NewRequest(http.MethodPost, "http://"+srv.Addr()+"/waf-record", strings.NewReader(body))
+	req.Header.Set("Content-Type", "application/json")
+	resp, _ := http.DefaultClient.Do(req)
+	_ = resp.Body.Close()
+	if resp.StatusCode != http.StatusOK {
+		t.Fatalf("status = %d", resp.StatusCode)
+	}
+
+	tx, _ := d.Begin(store.WithTenantID(context.Background(), store.DefaultTenantID), store.TxOptions{ReadOnly: true})
+	defer func() { _ = tx.Rollback() }()
+	denials, _ := tx.QueryWAFDenials(store.WithTenantID(context.Background(), store.DefaultTenantID), store.WAFDenialQuery{Limit: 10})
+	if len(denials) != 1 {
+		t.Fatalf("denials len = %d, want 1", len(denials))
+	}
+	if denials[0].TenantID != store.DefaultTenantID {
+		t.Errorf("TenantID = %q, want %q", denials[0].TenantID, store.DefaultTenantID)
 	}
 }
 
