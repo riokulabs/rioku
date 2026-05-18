@@ -174,6 +174,77 @@ func TestRoleInheritance_ClearParent(t *testing.T) {
 	}
 }
 
+// TestGetUserScopes_InheritsParentPermissions verifies that GetUserScopes
+// returns permissions from the full parent_role_id chain, not just the
+// directly-assigned role (#210).
+func TestGetUserScopes_InheritsParentPermissions(t *testing.T) {
+	d, closeStore := openTempStore(t)
+	defer closeStore()
+	ctx := tenantCtx(t)
+
+	// Commit roles so a second transaction can see them.
+	setupTx := beginTx(t, d, ctx)
+	grandparentID := "role_gp_" + uuid.NewString()
+	parentID := "role_par_" + uuid.NewString()
+	childID := "role_ch_" + uuid.NewString()
+
+	if _, err := setupTx.CreateRole(ctx, store.CreateRoleParams{
+		ID: grandparentID, Name: "gp-" + uuid.NewString(), Description: "gp",
+		Permissions: []string{"audit:read"},
+	}); err != nil {
+		t.Fatalf("CreateRole grandparent: %v", err)
+	}
+	if _, err := setupTx.CreateRole(ctx, store.CreateRoleParams{
+		ID: parentID, Name: "par-" + uuid.NewString(), Description: "par",
+		Permissions:  []string{"config:read"},
+		ParentRoleID: &grandparentID,
+	}); err != nil {
+		t.Fatalf("CreateRole parent: %v", err)
+	}
+	if _, err := setupTx.CreateRole(ctx, store.CreateRoleParams{
+		ID: childID, Name: "ch-" + uuid.NewString(), Description: "ch",
+		Permissions:  []string{"config:write"},
+		ParentRoleID: &parentID,
+	}); err != nil {
+		t.Fatalf("CreateRole child: %v", err)
+	}
+
+	user, err := setupTx.CreateUser(ctx, &store.User{
+		Username:     "scopetest-" + uuid.NewString(),
+		PasswordHash: "$argon2id$v=19$fakehash",
+		Status:       "active",
+	})
+	if err != nil {
+		t.Fatalf("CreateUser: %v", err)
+	}
+	if err := setupTx.AssignRole(ctx, user.ID, childID, ""); err != nil {
+		t.Fatalf("AssignRole: %v", err)
+	}
+	if err := setupTx.Commit(); err != nil {
+		t.Fatalf("Commit setup: %v", err)
+	}
+
+	// Read scopes in a fresh transaction.
+	readTx := beginTx(t, d, ctx)
+	defer readTx.Rollback() //nolint:errcheck
+
+	scopes, err := readTx.GetUserScopes(ctx, user.ID)
+	if err != nil {
+		t.Fatalf("GetUserScopes: %v", err)
+	}
+
+	want := map[string]bool{"audit:read": true, "config:read": true, "config:write": true}
+	got := make(map[string]bool, len(scopes))
+	for _, s := range scopes {
+		got[s] = true
+	}
+	for perm := range want {
+		if !got[perm] {
+			t.Errorf("missing inherited permission %q; got %v", perm, scopes)
+		}
+	}
+}
+
 // --- helpers ---
 
 func openTempStore(t *testing.T) (store.Driver, func()) {

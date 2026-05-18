@@ -284,10 +284,19 @@ func (t *tx) ListPermissions(ctx context.Context) ([]*store.Permission, error) {
 
 func (t *tx) GetUserScopes(ctx context.Context, userID string) ([]string, error) {
 	rows, err := t.sqlTx.QueryContext(ctx,
-		`SELECT DISTINCT rp.permission_id
-		 FROM user_roles ur
-		 JOIN role_permissions rp ON ur.role_id = rp.role_id
-		 WHERE ur.user_id = ?`, userID)
+		`WITH RECURSIVE role_chain(role_id) AS (
+		     SELECT ur.role_id
+		     FROM user_roles ur
+		     WHERE ur.user_id = ?
+		     UNION
+		     SELECT r.parent_role_id
+		     FROM roles r
+		     INNER JOIN role_chain rc ON r.id = rc.role_id
+		     WHERE r.parent_role_id IS NOT NULL
+		 )
+		 SELECT DISTINCT rp.permission_id
+		 FROM role_chain rc
+		 JOIN role_permissions rp ON rc.role_id = rp.role_id`, userID)
 	if err != nil {
 		return nil, fmt.Errorf("mysql: get user scopes: %w", err)
 	}

@@ -333,6 +333,28 @@ func (sm *SessionManager) maybeUpdateLastActive(ctx context.Context, sessionID s
 }
 
 // ---------------------------------------------------------------------------
+// Cache eviction
+// ---------------------------------------------------------------------------
+
+// EvictSessionsByUser evicts all in-memory cache entries for the given user,
+// forcing a fresh permissions load on the next request. Sessions remain valid
+// in the database; users are not logged out (#210).
+func (sm *SessionManager) EvictSessionsByUser(ctx context.Context, userID string) {
+	tx, err := sm.store.Begin(ctx, store.TxOptions{ReadOnly: true})
+	if err != nil {
+		return
+	}
+	sessions, err := tx.ListSessionsByUser(ctx, userID)
+	_ = tx.Rollback()
+	if err != nil {
+		return
+	}
+	for _, s := range sessions {
+		sm.cache.Delete(s.ID)
+	}
+}
+
+// ---------------------------------------------------------------------------
 // Revoke
 // ---------------------------------------------------------------------------
 
