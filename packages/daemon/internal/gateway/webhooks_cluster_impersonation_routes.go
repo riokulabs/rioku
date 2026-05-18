@@ -425,8 +425,26 @@ func handleStartImpersonation(st store.Driver) rerr.Handler {
 			return rerr.Wrap(err, "begin tx")
 		}
 		defer func() { _ = tx.Rollback() }()
+
+		// The client sends a tenant slug (the URL-safe identifier used in routes).
+		// impersonation_sessions.tenant_id has a FK to tenants(id) which stores
+		// internal UUIDs, not slugs. Resolve slug → id so the INSERT doesn't
+		// violate the FK constraint. Fall back to id-based lookup so API callers
+		// that already have the internal id still work.
+		var tenantID *string
+		if req.TenantID != nil && *req.TenantID != "" {
+			t, slugErr := tx.GetTenantBySlug(r.Context(), *req.TenantID)
+			if slugErr != nil {
+				t, slugErr = tx.GetTenant(r.Context(), *req.TenantID)
+				if slugErr != nil {
+					return rerr.NotFound("tenant", *req.TenantID)
+				}
+			}
+			tenantID = &t.ID
+		}
+
 		created, err := tx.CreateImpersonationSession(r.Context(), &store.ImpersonationSession{
-			SuperAdminID: sc.UserID, TenantID: req.TenantID, UserID: req.UserID,
+			SuperAdminID: sc.UserID, TenantID: tenantID, UserID: req.UserID,
 			Reason: req.Reason, ExpiresAt: time.Now().UTC().Add(ttl),
 		})
 		if err != nil {
