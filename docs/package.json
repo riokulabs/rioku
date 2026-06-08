@@ -24,10 +24,10 @@
     "docusaurus-plugin-llms-txt": "^0.1.0",
     "docusaurus-plugin-sass": "^0.2.6",
     "prism-react-renderer": "^2.3.0",
-    "react": "^19.2.6",
-    "react-dom": "^19.2.6",
-    "sass": "^1.80.0",
-    "webpack": "5.106.2"
+    "react": "^19.2.7",
+    "react-dom": "^19.2.7",
+    "sass": "^1.100.0",
+    "webpack": "5.107.2"
   },
   "devDependencies": {
     "@docusaurus/module-type-aliases": "^3.7.0",
@@ -50,6 +50,6 @@
     "node": ">=20.0"
   },
   "overrides": {
-    "webpack": "5.106.2"
+    "webpack": "5.107.2"
   }
 }
