@@ -36,7 +36,7 @@ jobs:
     if: github.actor == 'dependabot[bot]' && startsWith(github.ref_name, 'dependabot/npm_and_yarn/packages/web/')
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
         with:
           ref: ${{ github.ref_name }}
           # token must persist for the push at the end of the job
@@ -76,7 +76,7 @@ jobs:
     if: github.actor == 'dependabot[bot]' && startsWith(github.ref_name, 'dependabot/go_modules/')
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
         with:
           ref: ${{ github.ref_name }}
           persist-credentials: true
