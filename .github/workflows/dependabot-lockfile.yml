@@ -36,7 +36,7 @@ jobs:
     if: github.actor == 'dependabot[bot]' && startsWith(github.ref_name, 'dependabot/npm_and_yarn/packages/web/')
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
         with:
           ref: ${{ github.ref_name }}
           # token must persist for the push at the end of the job
@@ -46,7 +46,7 @@ jobs:
         with:
           version: 10
 
-      - uses: actions/setup-node@v6
+      - uses: actions/setup-node@v7
         with:
           node-version: 22
           cache: pnpm
@@ -76,7 +76,7 @@ jobs:
     if: github.actor == 'dependabot[bot]' && startsWith(github.ref_name, 'dependabot/go_modules/')
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
         with:
           ref: ${{ github.ref_name }}
           persist-credentials: true
@@ -112,7 +112,7 @@ jobs:
           echo "module=$MOD" >> "$GITHUB_OUTPUT"
           echo "Resolved module: $MOD"
 
-      - uses: actions/setup-go@v6
+      - uses: actions/setup-go@v7
         if: steps.target.outputs.module != ''
         with:
           go-version-file: go.work
