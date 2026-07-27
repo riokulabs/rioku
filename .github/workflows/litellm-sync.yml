@@ -20,7 +20,7 @@ jobs:
   sync:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
 
       - name: Fetch latest model_prices_and_context_window.json
         id: fetch
@@ -61,7 +61,7 @@ jobs:
 
       - name: Set up Go
         if: steps.fetch.outputs.no_change == 'false'
-        uses: actions/setup-go@v6
+        uses: actions/setup-go@v7
         with:
           go-version: "1.24"
 
