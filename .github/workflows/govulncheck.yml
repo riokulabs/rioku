@@ -32,8 +32,8 @@ jobs:
           - packages/build-service
           - packages/plugins
     steps:
-      - uses: actions/checkout@v6
-      - uses: actions/setup-go@v6
+      - uses: actions/checkout@v7
+      - uses: actions/setup-go@v7
         with:
           go-version-file: go.work
           cache-dependency-path: ${{ matrix.module }}/go.sum
